@@ -39,16 +39,19 @@ OTP security requirements:
 
 All prices are in Indian rupees (INR), consumer-facing and tax-inclusive at checkout where applicable. The displayed list price and current launch offer must be shown clearly; payment amount and currency are confirmed by the server, not trusted from the client.
 
-| Plan | Standard price | Launch discounted price | Access duration |
+| Plan | Standard price | Current introductory price | Access duration |
 |---|---:|---:|---:|
-| Monthly | ₹99 | **₹69** | 30 days |
-| Yearly | ₹1,188 | **₹799** | 360 days (12 × 30 days) |
+| Monthly | ₹99 | **₹69** (30.30% discount) | 30 days |
+| Yearly | ₹1,188 | **₹799** (32.74% discount) | 360 days (12 × 30 days) |
 
-- Monthly launch saving: ₹30 (about 30.3%) compared with ₹99.
-- Yearly launch saving: ₹389 (about 32.7%) compared with ₹1,188.
+- The introductory discount applies only to the learner's first-ever successful subscription purchase. All subsequent renewals/re-purchases are charged at the then-current standard plan price unless a new, explicitly approved promotion rule is introduced.
+- The Superadmin must be able to configure the discount percentage independently for Monthly and Yearly plans from the admin portal, enable/disable each offer, and set an optional offer start/end time. The displayed offer price is calculated from the standard price and active percentage on the server; round to the nearest whole rupee and show the final amount before checkout.
+- The initial configured percentages are 30.30% for Monthly (₹99 → ₹69) and 32.74% for Yearly (₹1,188 → ₹799). These are editable launch defaults, not hard-coded constants.
+- The Superadmin can change future offer percentages, but changes must not alter a checkout already created, a verified purchase, or its stored invoice/transaction history. Store a snapshot of standard price, discount percentage, discount amount, final amount, currency, plan term and offer/version against each transaction.
+- Do not let a learner repeatedly qualify for the first-purchase offer by cancelling, allowing expiry, or creating another checkout. Eligibility must be enforced server-side against the learner's purchase history. Define account-merger and abuse handling before launch.
 - The yearly standard price is ₹99 × 12 = ₹1,188.
 - The stated 30-day month convention means the initial yearly entitlement is 360 days, not a calendar-year anniversary. Display the exact expiry date/time before purchase and in the learner account.
-- The discounted prices are the current launch offer. Whether these are lifetime renewal prices, a first-purchase promotion or a time-limited campaign requires a separate commercial decision before payment implementation. Never silently change the price at renewal.
+- The discounted prices are introductory first-purchase offers, not renewal prices. Renewals and later re-purchases use the standard price unless an explicitly configured future promotion is approved. The admin-controlled offer must be time-bounded/enableable and server-authoritative.
 
 ## 4. Entitlements and access rules
 
@@ -104,7 +107,7 @@ A cancellation action must not prematurely remove already-paid access. A refund,
 2. Free sign-up screen with Email OTP and Phone OTP choices.
 3. OTP entry, resend timer, change destination and verification success/error states.
 4. Free analysis test introduction, test, provisional result and clear upgrade CTA.
-5. Pricing page with only Monthly and Yearly options, list price, launch price, duration and savings.
+5. Pricing page with only Monthly and Yearly options, standard price, first-purchase offer price, duration and savings; clearly disclose the standard renewal price.
 5. Payment pending, success, failure, retry and already-processing states.
 6. Paid learner home with Gabroo, classes, progress and assessments.
 7. Expired-subscription screen that preserves the account and free diagnostic but gates paid features.
@@ -114,7 +117,7 @@ A cancellation action must not prematurely remove already-paid access. A refund,
 
 1. Replace learner password registration/login with OTP challenge and verification for email and phone; add verified contact linking.
 2. Keep free diagnostic access independent of paid subscription. Add authenticated ownership/persistence for free diagnostic reports.
-3. Add subscription plan/price version records for exactly monthly and yearly terms and an entitlement service that gates paid routes server-side.
+3. Add subscription plan/price version records for exactly monthly and yearly terms, server-side first-purchase promotion eligibility and configurable per-plan discount percentages managed by Superadmin, plus an entitlement service that gates paid routes server-side.
 4. Select and integrate a payment provider only after evaluating India support, UPI/cards/netbanking/wallet options, webhook reliability, refunds, settlement, fees and subscription/one-time payment capabilities.
 5. Implement verified checkout, signed webhooks, idempotency, refunds/cancellation and subscription expiry jobs.
 6. Add mobile sign-up, OTP, free diagnostic, paywall, checkout and entitlement-aware app navigation.
@@ -123,7 +126,7 @@ A cancellation action must not prematurely remove already-paid access. A refund,
 ## 9. Decisions still required before payment release
 
 - Payment provider selection.
-- Whether launch discounts apply to first purchase only, every renewal, or a defined offer period.
+- Final admin permission/audit policy for changing promotional discounts and offer windows.
 - Whether auto-renewal is enabled; current default assumption is manual renewal.
 - Final GST/tax display, invoice, refund, cancellation and consumer terms after qualified review.
 - Whether one free diagnostic is allowed per verified account, and anti-abuse policy for repeated free tests.
