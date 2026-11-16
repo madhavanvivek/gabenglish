@@ -145,10 +145,9 @@ The next assessment-engine milestone must add reviewed prompt-to-skill mapping, 
 
 ## 14. First adaptive-selector implementation boundary
 
-The API now has a conservative first follow-up rule: when a learner gives a very brief response, Gabroo asks once for a little more detail before moving on. It does not increase the difficulty band on the basis of that brief response. This is a clarification opportunity, not a judgement that the learner has low ability.
+The current selector uses an explicit six-prompt coverage sequence (intro, routine, past event, reason, opinion and scenario). It does not skip core prompts or infer proficiency from response length, connector counts or surface markers. A response shorter than eight words can trigger a gentle clarification prompt; up to two clarification opportunities are allowed per session. Clarification turns are excluded from the six core assessment evidence samples and do not consume a core prompt.
 
-The current difficulty-band selector still uses simple response-length and surface-marker heuristics to choose among a small fixed prompt set. It is a routing prototype only; it is not a validated proficiency model. Prompt records intentionally do not claim skill mappings yet. Educator-reviewed prompt objectives and analytic rubrics are required before the system can produce skill findings or stage recommendations.
-
+This is a conservative foundation routing flow, not yet the fully adaptive assessment described in the product direction. It does not assign skills, levels, confidence or stage recommendations. True skill-aware branching and skipping require educator-reviewed prompt-to-skill mappings, analytic rubrics and calibration evidence. The five hidden difficulty bands remain represented by the core prompt sequence; no external framework equivalence is claimed.
 
 ## 15. Provisional report implementation
 
