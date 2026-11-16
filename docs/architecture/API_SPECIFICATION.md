@@ -147,3 +147,15 @@ The send route serializes turns with a row lock, supplies recent conversation hi
 
 
 The Gabroo conversation API also supports `PATCH /api/v1/gabroo/conversations/:id` for learner-controlled conversation mode, support-language and title preferences. Updates require ownership, an active entitlement and an open conversation. The mobile client exposes the seven conversation modes (free-flow, gentle correction, detailed correction, topic practice, role-play, vocabulary building and confidence practice). These are persisted preference controls; actual teaching behaviour depends on a provider/orchestrator that has not yet been selected or integrated.
+
+
+## 13. Implemented Gabroo conversation and private-memory routes
+
+The foundation branch includes these authenticated routes:
+- `POST /api/v1/gabroo/conversations`, `GET /api/v1/gabroo/conversations`, `GET /api/v1/gabroo/conversations/{id}`, `PATCH /api/v1/gabroo/conversations/{id}`, `DELETE /api/v1/gabroo/conversations/{id}`.
+- `POST /api/v1/gabroo/conversations/{id}/messages` sends one learner turn and persists the user/assistant pair atomically after a successful provider response. It requires an active server-side paid entitlement.
+- `GET /api/v1/gabroo/memory`, `POST /api/v1/gabroo/memory`, `PATCH /api/v1/gabroo/memory/{id}`, `DELETE /api/v1/gabroo/memory/{id}` manage learner-owned memory. These privacy controls require a verified account but are not gated by paid subscription expiry.
+
+The message route reads a short snapshot under a database lock, releases the transaction before calling the model provider, then re-locks and compares the conversation turn count before saving. Concurrent stale responses receive HTTP 409 and are not persisted. The provider request has a 15-second timeout and receives an abort signal. The message pair is inserted in a single transaction; failed provider responses do not leave a learner-only message behind.
+
+Private memory categories are `goal`, `interest`, `saved_phrase` and `learning_note`. Entries are learner-saved only, account-scoped and capped at 500 characters each. The API returns at most 100 items for management; up to 20 recent items are supplied as bounded context to the provider. No transcript auto-extraction is active.
