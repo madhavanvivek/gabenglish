@@ -13,10 +13,17 @@ Example error:
 
 Never expose stack traces, provider secrets or internal prompts.
 
-## 2. Authentication/profile
-POST /auth/register; POST /auth/login; POST /auth/refresh; POST /auth/logout; POST /auth/password/forgot; POST /auth/password/reset; GET/PATCH /users/me; GET/PATCH /users/me/preferences.
+## 2. Authentication/profile — approved passwordless OTP model
+The B2C learner experience uses verified email or phone OTP, not passwords. Proposed contracts:
+- POST /auth/otp/email/request — request an email OTP (any valid email provider).
+- POST /auth/otp/phone/request — request a phone OTP (E.164 number).
+- POST /auth/otp/verify — atomically verify a one-time code and issue a session.
+- POST /auth/contacts/email/link/request and POST /auth/contacts/phone/link/request — challenge a new contact while authenticated.
+- POST /auth/contacts/link/verify — verify and attach the contact to the current learner account.
+- POST /auth/refresh and POST /auth/logout — rotate/revoke sessions.
+- GET/PATCH /users/me and GET/PATCH /users/me/preferences — account/profile/preferences.
 
-Document verification, enumeration protection, token rotation, lockout and recovery.
+OTP values must be hashed/keyed, expire quickly (proposed five minutes), be one-time, attempt-limited, resend-cooled-down and rate-limited per destination and IP. Mask destinations and avoid account enumeration. Do not issue sessions before a contact is verified. Email and SMS delivery adapters remain provider-neutral pending selection. The current password endpoints/screen are a prototype and will be replaced before public beta.
 
 ## 3. Assessment
 POST /assessments; GET /assessments/{id}; POST /assessments/{id}/answers; POST /assessments/{id}/complete; GET /assessments/{id}/result. Tie submissions to published versions and make retries safe.
@@ -33,8 +40,14 @@ POST /speaking/sessions; GET /speaking/sessions/{id}; POST /speaking/sessions/{i
 ## 7. Media/speech
 POST /media/upload-intents; POST /media/{id}/complete; POST /speech/transcriptions; POST /speech/syntheses; DELETE /media/{id}. Use short-lived signed access; validate type, size, duration, ownership and consent.
 
-## 8. Subscriptions
-GET /subscriptions/plans; GET /subscriptions/current; POST /subscriptions/checkout; POST /subscriptions/cancel; POST /subscriptions/webhooks/{provider}. Verify signatures and deduplicate events. Client success is not payment proof.
+## 8. B2C subscriptions and entitlement
+Only two plans are offered initially:
+- Monthly: ₹99 standard / ₹69 launch price; 30 days.
+- Yearly: ₹1,188 standard / ₹799 launch price; 360 days (12 × 30 days).
+
+GET /subscriptions/plans returns server-owned active prices and durations; GET /subscriptions/current returns the verified paid-through entitlement; POST /subscriptions/checkout creates an idempotent checkout; POST /subscriptions/cancel handles the approved cancellation policy; POST /subscriptions/webhooks/{provider} receives signed, deduplicated payment events.
+
+The free account and free analysis test/result do not require paid entitlement. A verified learner can retain the free analysis report. Gabroo ongoing learning companion, classes, paid practice, ongoing learner assessment/profile and progress require an active server-side entitlement. Basic account settings are not gated. Access expires when now >= paid-through end timestamp. Monthly duration is 30 days; yearly duration is 360 days. Keep the existing free result distinct from paid assessment/profile history. Payment client callbacks are never proof of payment.
 
 ## 9. Administration
 GET /admin/users; GET /admin/users/{id}; GET/POST /admin/content; PATCH /admin/content/{id}; POST /admin/content/{id}/publish; GET /admin/ai/providers; PATCH /admin/ai/configurations/{id}; GET /admin/analytics; GET /admin/audit-logs. Enforce roles server-side and audit sensitive actions.
