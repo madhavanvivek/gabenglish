@@ -179,7 +179,7 @@ describe("Gabroo conversational placement",()=>{
   ]);
   expect(concurrent.filter(item=>item.statusCode===200)).toHaveLength(1);
   expect(concurrent.filter(item=>item.statusCode===409)).toHaveLength(1);
-  const retry=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload});
+  const retry=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",headers,payload});
   expect(retry.statusCode).toBe(200);
   expect(retry.json().prompt_id).toBe("routine");
   expect(stored?.state.revision).toBe(2);
