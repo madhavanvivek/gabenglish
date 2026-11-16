@@ -148,3 +148,10 @@ The next assessment-engine milestone must add reviewed prompt-to-skill mapping, 
 The API now has a conservative first follow-up rule: when a learner gives a very brief response, Gabroo asks once for a little more detail before moving on. It does not increase the difficulty band on the basis of that brief response. This is a clarification opportunity, not a judgement that the learner has low ability.
 
 The current difficulty-band selector still uses simple response-length and surface-marker heuristics to choose among a small fixed prompt set. It is a routing prototype only; it is not a validated proficiency model. Prompt records intentionally do not claim skill mappings yet. Educator-reviewed prompt objectives and analytic rubrics are required before the system can produce skill findings or stage recommendations.
+
+
+## 15. Provisional report implementation
+
+The conversation completion response now includes a structured, explicitly provisional report alongside the raw response evidence and a separate Gabroo explanation. The report identifies the assessment mode (typed text or transcript), response/sample counts, repeated observable surface patterns, evidence limitations and practical next steps. It deliberately returns `recommendation_status: not_yet_available`; it does not assign a learning stage, skill rating or numerical score.
+
+The report is a first API response shape, not yet a persisted learner record or a validated assessment result. It must not be displayed as a completed proficiency diagnosis. The next step is to design educator-reviewed skill rubrics and collect calibration examples before introducing defensible findings or a recommended stage.
