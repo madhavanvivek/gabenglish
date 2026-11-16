@@ -38,7 +38,26 @@ integration("PostgreSQL placement session integration",()=>{
   if(!pool||!migrationApplied)return;
   await runMigrations(pool);
   const result=await pool.query<{version:string}>("SELECT version FROM schema_migrations ORDER BY version");
-  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql"]);
+  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql"]);
+ });
+ it("creates a fail-closed verified subscription entitlement ledger with only monthly and yearly terms",async()=>{
+  if(!pool||!migrationApplied)return;
+  const constraints=await pool.query<{constraint_name:string;check_clause:string}>(`
+   SELECT c.conname AS constraint_name,pg_get_constraintdef(c.oid) AS check_clause
+   FROM pg_constraint c
+   JOIN pg_class t ON t.oid=c.conrelid
+   WHERE t.relname IN ('subscription_plans','regional_prices','subscription_entitlements')
+  `);
+  expect(constraints.rows.some(row=>row.constraint_name==="subscription_plans_initial_terms_chk"&&row.check_clause.includes("monthly")&&row.check_clause.includes("yearly"))).toBe(true);
+  expect(constraints.rows.some(row=>row.constraint_name==="regional_prices_initial_terms_chk"&&row.check_clause.includes("month")&&row.check_clause.includes("year"))).toBe(true);
+  const view=await pool.query<{count:string}>("SELECT count(*)::text AS count FROM active_subscription_entitlements");
+  expect(Number(view.rows[0]?.count??0)).toBe(0);
+  const columns=await pool.query<{column_name:string;is_nullable:string}>(`
+   SELECT column_name,is_nullable FROM information_schema.columns
+   WHERE table_name='subscription_entitlements'
+  `);
+  expect(columns.rows.find(row=>row.column_name==="verified_payment_at")?.is_nullable).toBe("NO");
+  expect(columns.rows.find(row=>row.column_name==="provider_event_id")?.is_nullable).toBe("NO");
  });
  it("rejects edits to an already-applied migration checksum",async()=>{
   if(!pool||!migrationApplied)return;
