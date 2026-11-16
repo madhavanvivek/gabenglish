@@ -85,11 +85,17 @@ integration("PostgreSQL placement session integration",()=>{
    const oldRefresh=login.json().refresh_token as string;
    const rotated=await app.inject({method:"POST",url:"/api/v1/auth/refresh",payload:{refresh_token:oldRefresh}});
    expect(rotated.statusCode).toBe(200);
+   const staleAccess=await app.inject({method:"GET",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+login.json().access_token}});
+   expect(staleAccess.statusCode).toBe(401);
+   const currentAccess=await app.inject({method:"GET",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+rotated.json().access_token}});
+   expect(currentAccess.statusCode).toBe(200);
    const replay=await app.inject({method:"POST",url:"/api/v1/auth/refresh",payload:{refresh_token:oldRefresh}});
    expect(replay.statusCode).toBe(401);
    await app.inject({method:"POST",url:"/api/v1/auth/logout",payload:{refresh_token:rotated.json().refresh_token}});
    const afterLogout=await app.inject({method:"POST",url:"/api/v1/auth/refresh",payload:{refresh_token:rotated.json().refresh_token}});
    expect(afterLogout.statusCode).toBe(401);
+   const revokedAccess=await app.inject({method:"GET",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+rotated.json().access_token}});
+   expect(revokedAccess.statusCode).toBe(401);
    const deletion=await app.inject({method:"POST",url:"/api/v1/auth/me/deletion-request",headers:{authorization:"Bearer "+rotated.json().access_token}});
    expect(deletion.statusCode).toBe(202);
    expect(deletion.json().status).toBe("deletion_requested");
