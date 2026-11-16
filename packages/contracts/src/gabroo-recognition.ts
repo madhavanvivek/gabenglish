@@ -23,6 +23,19 @@ export const gabrooTranscriptSchema=z.object({
 }).strict();
 export type GabrooTranscript=z.infer<typeof gabrooTranscriptSchema>;
 
+/**
+ * A learner-reviewed transcript is the only transcript shape intended to
+ * cross into a future conversation turn. Confirmation is explicit; raw
+ * provider output must never be submitted automatically.
+ */
+export const gabrooReviewedTranscriptSchema=z.object({
+ text:z.string().trim().min(1).max(12000),
+ languageDetected:z.enum(["ml","en","mixed","unknown"]),
+ edited:z.boolean(),
+ confirmed:z.literal(true)
+}).strict();
+export type GabrooReviewedTranscript=z.infer<typeof gabrooReviewedTranscriptSchema>;
+
 export interface GabrooSpeechRecognitionProvider {
  transcribe(input:{
   audio:Uint8Array;
