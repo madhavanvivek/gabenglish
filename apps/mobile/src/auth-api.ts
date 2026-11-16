@@ -98,6 +98,14 @@ async function authorized(path:string,method:"GET"|"POST"|"PATCH",body?:unknown)
  return parseResponse(response);
 }
 export async function getLearnerMe(){return await authorized("/api/v1/auth/me","GET") as LearnerMe;}
+export type SavedFreeDiagnosticReport={
+ report_id:string;
+ report:{status:string;recommendation_status:string;assessment_mode:string;response_count:number;extended_samples:number;brief_samples:number;observed_patterns:string[];limitations:string[];next_steps:string[]};
+ gabroo_explanation:string;assessment_mode:string;created_at:string;access:"free";
+};
+export async function getLatestFreeDiagnosticReport(){
+ return await authorized("/api/v1/placement/reports/latest","GET") as SavedFreeDiagnosticReport;
+}
 export async function updateLearnerProfile(input:{display_name?:string;locale?:string;timezone?:string}){
  return await authorized("/api/v1/auth/me","PATCH",input);
 }
