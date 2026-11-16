@@ -47,6 +47,7 @@ export type GabrooVoiceSessionEvent=
  |{type:"permission_denied"}
  |{type:"begin_capture"}
  |{type:"capture_stopped"}
+ |{type:"capture_discarded"}
  |{type:"transcript_ready"}
  |{type:"response_ready"}
  |{type:"playback_finished"}
@@ -73,6 +74,7 @@ export function transitionGabrooVoiceSession(
   begin_capture:"listening",
   permission_denied:"error",
   capture_stopped:"transcribing",
+  capture_discarded:"ready",
   transcript_ready:"generating",
   response_ready:"speaking",
   playback_finished:"idle",
@@ -93,6 +95,7 @@ export function transitionGabrooVoiceSession(
   begin_capture:["ready"],
   permission_denied:["requesting_permission"],
   capture_stopped:["listening"],
+  capture_discarded:["transcribing"],
   transcript_ready:["transcribing"],
   response_ready:["generating"],
   playback_finished:["speaking"],
