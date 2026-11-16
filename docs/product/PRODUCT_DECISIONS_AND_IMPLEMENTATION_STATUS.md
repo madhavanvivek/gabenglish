@@ -197,7 +197,7 @@ The placement-selector correction passed workflow run 43859020856. The mobile ex
 - The mobile assessment is text-only. No microphone capture, STT, TTS or pronunciation evaluation is implemented. Transcript input support in the API is not a production voice feature.
 - The existing learner password registration/login and password-based mobile screen are an implementation prototype only. They do not meet the approved B2C OTP model and must be replaced before public beta. Email OTP, phone OTP, verified-contact linking, subscription checkout and paid entitlements are not implemented yet.
 - Placement reports are still anonymous and are not linked to learner accounts; persistent assessment history remains pending.
-- B2C subscriptions, payment verification, subscription entitlements, OTP identity, production curriculum/content delivery and admin application remain incomplete.
+- B2C subscriptions, payment verification, subscription entitlements, production curriculum/content delivery and admin application remain incomplete. OTP work has started at schema/contract level only: migration `0004_passwordless_otp.sql` adds expiring challenge and verified-contact tables, and shared Zod contracts validate email/phone OTP request and six-digit verify payloads. There are no OTP delivery or verification routes yet, no email/SMS provider, and the password-auth prototype remains active internally; mandatory verified registration before placement is therefore not enforced in the API yet.
 - No final Gabroo 3D model, rig or production animation assets are approved.
 - No production AI/speech provider has been selected or configured.
 
@@ -206,7 +206,7 @@ These limitations must remain visible in README, release notes and handover repo
 ## 13. Next implementation sequence
 
 1. Keep the PostgreSQL 16 integration suite green as migrations and session handling evolve; add a controlled deployment migration step, backup/restore verification and release rollback procedure before enabling PostgreSQL-backed placement in production.
-2. Replace prototype password auth with email/phone OTP challenges, verification, verified-contact linking, OTP abuse controls and secure sessions. Preserve the free analysis funnel and persist its report for verified free accounts.
+2. Complete passwordless OTP request/verify routes and delivery adapters, atomically consume challenges, issue secure sessions only after verification, support verified contact linking and OTP abuse controls; then remove/deprecate public password auth. Enforce authentication before placement and persist the free report against the learner account.
 3. Implement exactly monthly/yearly subscriptions, payment-provider verification, 30/360-day entitlements and server-side gates for Gabroo classes, paid assessments and progress. Do not select a provider or enable recurring billing without approval.
 4. Review the draft prompt-to-skill map with educators, then approve prompt objectives and mappings; do not enable skill findings until the analytic rubric and calibration gates are approved.
 5. Implement evidence coverage/uncertainty and a defensible report with a starting-stage recommendation only after educator validation.
