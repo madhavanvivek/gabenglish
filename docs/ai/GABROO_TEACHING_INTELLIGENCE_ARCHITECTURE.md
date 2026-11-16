@@ -199,3 +199,13 @@ When the learner interrupts with a doubt, resolve it before continuing the previ
 Suggested orchestrator intents/actions include `clarify_word_or_phrase`, `explain_grammar_in_context`, `explain_meaning_or_register`, `simplify_previous_response`, `model_pronunciation_from_audio` (only when valid audio evidence exists), and `resume_conversation`. These are teaching intents, not separate paid products.
 
 Measure whether learners understood or reused the stretch expression; do not optimise for how often advanced language is inserted. Learners can request a simpler explanation or more challenge at any time.
+
+## 15. Deterministic teaching-policy foundation (16 November 2026)
+
+The API now builds a deterministic teaching-policy object for each conversation turn and passes it to the injected model adapter alongside the conversation history. The policy distinguishes free-flow, gentle correction, detailed correction, topic practice, role-play, vocabulary building and confidence practice. It specifies the primary learning goal, correction intensity and response guidance for each mode.
+
+The policy includes the five approved learner-stage guidance profiles. Until a learner's validated stage is available in the conversation request, the orchestrator explicitly marks the stage as unknown and instructs the model not to infer proficiency. This prevents an invented placement from silently changing the difficulty of the conversation.
+
+The address policy requires the learner's explicitly selected name or respectful neutral language. It prohibits default overfamiliar forms such as “eda/edi” and prohibits inferring consent to slang from age, gender or writing style.
+
+This is a deterministic policy foundation, not a live AI integration. The API currently supplies no learner stage or selected display name to the policy builder; those must be loaded from verified learner-owned profile/preferences before stage-aware personalised responses are claimed. Provider adapters must treat policy text as instruction data from the trusted server, keep it separate from learner content, and honour the request abort signal.
