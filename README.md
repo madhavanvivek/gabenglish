@@ -51,7 +51,7 @@ Implemented on `foundation/app-skeleton`:
 - Database-backed placement writes use optimistic revision checks to prevent concurrent responses from overwriting one another; safe retries return the already-recorded result.
 - Product, placement and Gabroo communication documentation.
 
-Latest CI verification: GitHub Actions workflow run 43859171656 passed API typecheck, API tests, shared-contract typecheck and mobile typecheck. Subsequent concurrency-safety changes are being validated in the current branch CI run.
+Latest CI verification: GitHub Actions workflow run 43859171656 passed API typecheck, API tests, shared-contract typecheck and mobile typecheck. The subsequent optimistic-concurrency implementation and its regression tests passed workflow run 43859779934 (API typecheck, 21 API tests, shared-contract typecheck and mobile typecheck).
 
 **Important limitations:** the assessment is not yet a live AI tutor; the prompt sequence is not a validated proficiency rubric; PostgreSQL session persistence is conditional on database configuration and migration 0002 being applied; no durable authenticated learner report history exists; the report is provisional and intentionally makes no skill or stage recommendation; no voice capture or personalised voice explanation is connected. Microphone capture, STT, TTS, pronunciation assessment, authentication, persistent learner accounts, complete curriculum delivery, admin, subscriptions/payments and production deployment remain pending. Gabroo's physical character design is not final or approved for production.
 
