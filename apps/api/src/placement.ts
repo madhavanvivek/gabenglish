@@ -18,13 +18,24 @@ const prompts:Prompt[]=[
 {id:"opinion",band:4,text:"Some people believe that learning online is more effective than learning in a classroom. What is your view? Give examples."},
 {id:"scenario",band:5,text:"Imagine you are leading a team through an unexpected project delay. Explain how you would communicate the situation, handle disagreement and regain the client's confidence."}
 ];
-type Session={id:string;name?:string;style:string;language:string;turn:number;band:number;currentPromptId:string;responses:Array<{prompt_id:string;text:string;response_mode:"text"|"voice"}>;evidence:ResponseEvidence[];created_at:number;lastTurn?:{prompt_id:string;response:string;response_mode:"text"|"voice";result:Record<string,unknown>}};
+type Session={id:string;name?:string;style:string;language:string;turn:number;band:number;clarificationCount:number;currentPromptId:string;responses:Array<{prompt_id:string;text:string;response_mode:"text"|"voice"}>;evidence:ResponseEvidence[];created_at:number;lastTurn?:{prompt_id:string;response:string;response_mode:"text"|"voice";result:Record<string,unknown>}};
 const sessions=new Map<string,Session>();
 const SESSION_TTL_MS=30*60*1000;
 const MAX_ACTIVE_SESSIONS=1000;
 export function isPlacementSessionExpired(createdAt:number,now=Date.now()){return now-createdAt>SESSION_TTL_MS;}
 function pruneSessions(now=Date.now()){for(const [id,session] of sessions){if(isPlacementSessionExpired(session.created_at,now))sessions.delete(id);}while(sessions.size>=MAX_ACTIVE_SESSIONS){const oldest=sessions.keys().next().value as string|undefined;if(!oldest)break;sessions.delete(oldest);}}
-function responseSignal(text:string){const words=text.trim().split(/\s+/).filter(Boolean);const clauses=(text.match(/[.!?;,]/g)||[]).length;const connectors=/\b(because|although|however|therefore|while|whereas|for example|if|when|since)\b/i.test(text);const past=/\b(yesterday|last|ago|was|were|did|went|had|visited|worked)\b/i.test(text);return {wordCount:words.length,clauses,connectors,past};}
+function countWords(text:string){return text.match(/[\\p{L}\\p{N}][\\p{L}\\p{M}\\p{N}'’-]*/gu)?.length??0;}
+const CORE_PROMPT_IDS=["intro","routine","past","reason","opinion","scenario"] as const;
+/** Conservative routing only: never infer proficiency from sample length or surface markers. */
+function selectNextPrompt(session:Session,currentPromptId:string,response:string):Prompt|undefined{
+ const coreResponseCount=session.responses.filter(item=>item.prompt_id!=="clarify").length;
+ if(currentPromptId!=="clarify"&&countWords(response)<8&&session.clarificationCount<2&&coreResponseCount<CORE_PROMPT_IDS.length){
+  session.clarificationCount+=1;
+  return prompts.find(prompt=>prompt.id==="clarify");
+ }
+ const nextId=CORE_PROMPT_IDS[coreResponseCount];
+ return nextId?prompts.find(prompt=>prompt.id===nextId):undefined;
+}
 function buildPlacementReport(session:Session){
  const patterns=[...new Set(session.evidence.flatMap(item=>item.observations))];
  const limitations=[...new Set(session.evidence.flatMap(item=>item.limitations))];
@@ -55,7 +66,7 @@ function buildGabrooExplanation(report:ReturnType<typeof buildPlacementReport>){
   :"This transcript-based conversation still cannot verify pronunciation; that needs a separate audio assessment.";
  return `Thanks for chatting with me! ${sample} I’m not going to guess your English level from this short conversation. ${mode} We can build a clearer picture with a few guided activities, and you can start with Malayalam support whenever you like.`;
 }
-function chooseBand(session:Session){if(session.responses.length<2)return 1;const recent=session.responses.slice(-2).map(r=>responseSignal(r.text));const latest=recent.at(-1);if(!latest||latest.wordCount<8)return session.band;const avg=recent.reduce((n,x)=>n+x.wordCount,0)/recent.length;const advanced=recent.some(x=>x.connectors&&x.wordCount>=22);if(advanced&&avg>=25)return Math.min(5,session.band+1);if(avg>=16)return Math.min(4,Math.max(3,session.band+1));if(avg>=8)return Math.min(3,Math.max(2,session.band+1));return Math.max(1,Math.min(session.band,2));}
+
 export async function registerPlacementRoutes(app:FastifyInstance,pool?:Pool){
  const getSession=async(id:string)=>{if(pool){const found=await pool.query<{state:Session}>("SELECT state FROM placement_sessions WHERE id=$1 AND expires_at>now()",[id]);return found.rows[0]?.state;}return sessions.get(id);};
  const saveSession=async(session:Session)=>{if(pool){await pool.query("INSERT INTO placement_sessions(id,state,created_at,expires_at,updated_at) VALUES($1,$2::jsonb,to_timestamp($3/1000.0),to_timestamp($3/1000.0)+interval '30 minutes',now()) ON CONFLICT(id) DO UPDATE SET state=EXCLUDED.state,updated_at=now()",[session.id,JSON.stringify(session),session.created_at]);}else{sessions.set(session.id,session);}};
@@ -66,7 +77,7 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool?:Pool){
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Please check your assessment preferences.",request_id:request.id}});
   pruneSessions();
   if(pool)await pool.query("DELETE FROM placement_sessions WHERE expires_at<=now()");
-  const id=randomUUID();const session:Session={id,name:parsed.data.display_name,style:parsed.data.communication_style,language:parsed.data.preferred_language,turn:0,band:1,currentPromptId:"intro",responses:[],evidence:[],created_at:Date.now()};if(pool)await saveSession(session);else sessions.set(id,session);
+  const id=randomUUID();const session:Session={id,name:parsed.data.display_name,style:parsed.data.communication_style,language:parsed.data.preferred_language,turn:0,band:1,clarificationCount:0,currentPromptId:"intro",responses:[],evidence:[],created_at:Date.now()};if(pool)await saveSession(session);else sessions.set(id,session);
   const first=prompts[0]!;
   const greeting=session.language==="ml"?"ഹായ്! ഞാൻ Gabroo. നമുക്ക് ഒരു friendly conversation തുടങ്ങാം. ഇത് exam അല്ല; നിനക്ക് പറ്റുന്ന പോലെ സംസാരിച്ചാൽ മതി. തെറ്റുകൾ വന്നാലും പ്രശ്നമില്ല.":"Hi! I'm Gabroo. Let's have a relaxed conversation. This isn't an exam, so just express yourself naturally. Mistakes are completely okay.";
   return {session_id:id,prompt_id:first.id,gabroo_message:greeting+" "+first.text,difficulty_band:1,turn_number:1,is_complete:false};
@@ -83,17 +94,13 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool?:Pool){
   }
   const expected=prompts.find(p=>p.id===session.currentPromptId);if(!expected||expected.id!==incoming.prompt_id)return reply.code(409).send({error:{code:"TURN_OUT_OF_ORDER",message:"This response does not match the current assessment question.",request_id:request.id}});
   session.responses.push({prompt_id:expected.id,text:incoming.response,response_mode:incoming.response_mode});
-  session.evidence.push(extractResponseEvidence(expected.id,parsed.data.turn.response,parsed.data.turn.response_mode==="voice"?"voice_transcript":"text"));
+  if(expected.id!=="clarify")session.evidence.push(extractResponseEvidence(expected.id,parsed.data.turn.response,parsed.data.turn.response_mode==="voice"?"voice_transcript":"text"));
   session.turn+=1;
-  const nextBand=chooseBand(session);session.band=nextBand;
-  const hasClarification=session.responses.some(x=>x.prompt_id==="clarify");
-  const latestSignal=responseSignal(parsed.data.turn.response);
-  const shouldClarify=latestSignal.wordCount<8&&!hasClarification&&session.responses.length<5;
-  const next=shouldClarify?prompts.find(p=>p.id==="clarify"):prompts.find(p=>p.band===nextBand&&p.id!==expected.id&&p.id!=="clarify"&&!session.responses.some(x=>x.prompt_id===p.id))??prompts.find(p=>p.id!=="clarify"&&!session.responses.some(x=>x.prompt_id===p.id));
-  const complete=!next||session.responses.length>=6;
+  const next=selectNextPrompt(session,expected.id,incoming.response);
+  const complete=!next;
   let result:Record<string,unknown>;
   if(complete){const report=buildPlacementReport(session);const gabroo_explanation=buildGabrooExplanation(report);const evidence=session.evidence.map(item=>({prompt_id:item.promptId,source:item.source,observed_skills:item.observedSkills,observations:item.observations,sample_size:item.sampleSize,limitations:item.limitations,metrics:{word_count:item.metrics.wordCount,sentence_count:item.metrics.sentenceCount,connector_count:item.metrics.connectorCount,has_past_reference:item.metrics.hasPastReference,has_reasoning_marker:item.metrics.hasReasoningMarker}}));result={session_id:session.id,prompt_id:"complete",gabroo_message:"Thank you for sharing that with me. I have prepared a preliminary report from this conversation. It does not assign a learning stage yet.",difficulty_band:session.band,turn_number:session.turn+1,is_complete:true,evidence,report,gabroo_explanation};}
-  else {const selected=next!;session.currentPromptId=selected.id;result={session_id:session.id,prompt_id:selected.id,gabroo_message:selected.text,difficulty_band:selected.band,turn_number:session.turn+1,is_complete:false};}
+  else {const selected=next!;session.currentPromptId=selected.id;session.band=selected.band;result={session_id:session.id,prompt_id:selected.id,gabroo_message:selected.text,difficulty_band:selected.band,turn_number:session.turn+1,is_complete:false};}
   session.lastTurn={prompt_id:incoming.prompt_id,response:incoming.response,response_mode:incoming.response_mode,result};
   await saveSession(session);
   return result;
