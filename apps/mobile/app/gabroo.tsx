@@ -1,5 +1,6 @@
 import {useCallback,useEffect,useState} from "react";
 import * as Speech from "expo-speech";
+import {splitGabrooSpeechText} from "@gabenglish/contracts";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
@@ -66,12 +67,27 @@ export default function GabrooScreen(){
   if(speakingMessageId===message.id){await stopSpeech();return;}
   await Speech.stop();setSpeakingMessageId(null);setSpeechNotice("");
   try{
+   const segments=splitGabrooSpeechText(message.content);
+   if(segments.length===0)return;
    const voices=await Speech.getAvailableVoicesAsync();
-   const hasMalayalam=/[\u0D00-\u0D7F]/.test(message.content);
-   const preferred=voices.find(voice=>voice.language.toLowerCase().startsWith(hasMalayalam?"ml-in":"en-in"));
-   if(hasMalayalam&&!preferred){setSpeechNotice("A Malayalam device voice is not installed. Install a Malayalam text-to-speech voice in your device settings to listen to this reply.");return;}
+   const malayalamVoice=voices.find(voice=>voice.language.toLowerCase().startsWith("ml-in"));
+   const englishVoice=voices.find(voice=>voice.language.toLowerCase().startsWith("en-in"));
+   if(segments.some(segment=>segment.language==="ml")&&!malayalamVoice){
+    setSpeechNotice("A Malayalam device voice is not installed. Install a Malayalam text-to-speech voice in your device settings to listen to this reply.");
+    return;
+   }
    setSpeakingMessageId(message.id);
-   Speech.speak(message.content,{rate:speechRate,language:preferred?.language??"en-IN",...(preferred?{voice:preferred.identifier}:{}),onDone:()=>setSpeakingMessageId(null),onStopped:()=>setSpeakingMessageId(null),onError:()=>{setSpeakingMessageId(null);setSpeechNotice("Your device could not play this reply. Check its text-to-speech voice settings.");}});
+   segments.forEach((segment,index)=>{
+    const voice=segment.language==="ml"?malayalamVoice:englishVoice;
+    Speech.speak(segment.text,{
+     rate:speechRate,
+     language:voice?.language??(segment.language==="ml"?"ml-IN":"en-IN"),
+     ...(voice?{voice:voice.identifier}:{}),
+     onDone:index===segments.length-1?()=>setSpeakingMessageId(null):undefined,
+     onStopped:()=>setSpeakingMessageId(null),
+     onError:()=>{setSpeakingMessageId(null);setSpeechNotice("Your device could not play this reply. Check its text-to-speech voice settings.");}
+    });
+   });
   }catch{setSpeakingMessageId(null);setSpeechNotice("Device speech is unavailable right now.");}
  };
  const changeSpeechRate=async(delta:number)=>{
