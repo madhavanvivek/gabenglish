@@ -53,6 +53,14 @@ All prices are in Indian rupees (INR), consumer-facing and tax-inclusive at chec
 - The stated 30-day month convention means the initial yearly entitlement is 360 days, not a calendar-year anniversary. Display the exact expiry date/time before purchase and in the learner account.
 - The discounted prices are introductory first-purchase offers, not renewal prices. Renewals and later re-purchases use the standard price unless an explicitly configured future promotion is approved. The admin-controlled offer must be time-bounded/enableable and server-authoritative.
 
+## 4.1 One Gabenglish subscription — no separate Gabroo add-on
+
+There is one paid Gabenglish subscription with two term choices: Monthly or Yearly. The learner pays once for the selected period and receives the complete paid Gabenglish learning experience for that period. This includes **“Talk to Gabroo anytime”** open conversation, progressive level-adaptive tutoring, in-conversation doubt clearing, daily activities, classes, practice, learner progress and the other included paid learning features.
+
+Gabroo is the central companion experience inside Gabenglish, not a separately priced product, add-on, credit pack, premium tier or second subscription. Do not introduce a separate Gabroo subscription, separate payment, per-feature unlock or extra charge for ordinary access to these included capabilities.
+
+The existing free-versus-paid boundary remains: free account holders retain their free diagnostic report and basic account access; the single monthly/yearly Gabenglish subscription unlocks the paid learning experience. Any operational fair-use policy must be transparent and must not be used to disguise a second subscription or arbitrary pay-per-chat charge.
+
 ## 4. Entitlements and access rules
 
 Free account:
