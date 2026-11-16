@@ -1,7 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 import {authTokenResponseSchema,type AuthTokenResponse} from "@gabenglish/contracts";
 
-const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\\/$/,"");
+const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
 const ACCESS_KEY="gabenglish.auth.access";
 const REFRESH_KEY="gabenglish.auth.refresh";
 
