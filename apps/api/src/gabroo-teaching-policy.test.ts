@@ -19,6 +19,14 @@ describe("Gabroo teaching policy",()=>{
   }
   expect(buildGabrooTeachingPolicy({mode:"topic_practice",supportLanguage:"ml"}).stageGuidance).toContain("not yet available");
  });
+ it("passes only bounded learner-owned profile preferences into policy context",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"gentle_correction",supportLanguage:"ml",preferredName:"  Anu K  ",learningGoal:"Speak confidently at work",profileCorrectionPreference:"detailed"});
+  expect(policy.learnerContext).toEqual({preferredName:"Anu K",learningGoal:"Speak confidently at work",profileCorrectionPreference:"detailed"});
+ });
+ it("omits blank profile values rather than inventing learner details",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",preferredName:" ",learningGoal:null});
+  expect(policy.learnerContext).toEqual({});
+ });
  it("defines distinct correction and learning goals for each mode",()=>{
   const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
   const policies=modes.map(mode=>buildGabrooTeachingPolicy({mode,supportLanguage:"en"}));
