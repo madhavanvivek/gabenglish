@@ -6,6 +6,7 @@
 - `0003_auth_login_throttling.sql` adds a short-retention authentication attempt table. It stores keyed digests of email and request IP rather than raw values; the API prunes entries older than 30 days during sign-in attempts.
 - `0004_passwordless_otp.sql` adds passwordless OTP challenge storage (channel, purpose, normalized destination, keyed code digest, IP digest, expiry, attempt count, consumption and delivery state) and a verified-contact registry with uniqueness constraints. The API now implements request/verify logic, but delivery is unavailable until an adapter/provider is configured.
 - `0005_placement_owner.sql` adds a learner foreign key to placement sessions. New placement sessions are bound to verified accounts; anonymous placement is disabled and response requests must belong to the authenticated owner.
+- `0006_free_diagnostic_reports.sql` stores completed free analysis reports against learner accounts, with a uniqueness constraint per placement session and a user/created-time index. Reports remain accessible without a paid subscription.
 
 ## Requirements
 - PostgreSQL 15 or later.
