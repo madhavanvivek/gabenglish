@@ -18,8 +18,25 @@ describe("Gabroo conversational placement",()=>{
   const first=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:session,turn:{prompt_id:"intro",response:"My name is Anu and I live in Kozhikode. I work as a designer."}}});
   expect(first.statusCode).toBe(200);
   expect(first.json().prompt_id).toBe("routine");
+  expect(first.json().is_complete).toBe(false);
   const invalid=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:session,turn:{prompt_id:"intro",response:"Trying the same turn again."}}});
   expect(invalid.statusCode).toBe(409);
+  await app.close();
+ });
+ it("returns observable evidence at completion without a proficiency score",async()=>{
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);
+  const start=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",payload:{preferred_language:"en"}});
+  const session=start.json().session_id;
+  let promptId=start.json().prompt_id;
+  let response;
+  for(let i=0;i<6;i++){
+    response=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:session,turn:{prompt_id:promptId,response:"I usually work during the week. Last weekend I visited my family because we had a celebration."}}});
+    if(response.json().is_complete) break;
+    promptId=response.json().prompt_id;
+  }
+  expect(response?.json().is_complete).toBe(true);
+  expect(response?.json().evidence).toHaveLength(6);
+  expect(response?.json()).not.toHaveProperty("score");
   await app.close();
  });
  it("rejects unknown sessions",async()=>{
