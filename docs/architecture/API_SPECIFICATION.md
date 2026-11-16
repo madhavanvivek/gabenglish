@@ -121,3 +121,19 @@ CI is required to validate migration application, constraints, view behaviour an
 ### Implemented entitlement status read route
 
 `GET /api/v1/subscriptions/current` now requires an authenticated, verified learner session and reads only from `active_subscription_entitlements`. It returns `access: "free"` when no currently valid, verified entitlement exists, or a server-derived paid entitlement snapshot when one does. The route does not accept a client-supplied plan/status and has no grant, checkout or payment mutation capability. Paid feature routes must call the server-side entitlement lookup before serving protected content; that route-level gating is still pending.
+
+
+### Verified payment activation service
+
+The API foundation now includes an internal `activateVerifiedSubscriptionPayment(pool, paymentTransactionId)` service. It is not an HTTP endpoint and must only be called after a trusted payment-provider adapter has verified the provider signature and independently confirmed the payment server-to-server.
+
+The service:
+- locks the payment and subscription rows in a database transaction;
+- rejects anything not marked successful, verified and associated with a provider event ID;
+- checks the captured amount/currency against the server-owned regional price and checks the plan/billing interval pairing;
+- creates one immutable 30-day or 360-day entitlement and activates the subscription atomically;
+- safely returns the existing entitlement on an idempotent retry.
+
+Integration coverage verifies that a successful-but-unverified payment is rejected, a verified price-matched monthly payment creates exactly 30 days of access, replay does not create a second entitlement, and the authenticated subscription status then reports paid access.
+
+**Not yet implemented:** payment-provider signature verification, provider-specific webhook ingress, checkout, quote/discount campaign handling, refunds/chargebacks, renewals, cancellation and reconciliation. No provider is selected. Do not call the activation service from a learner-controlled route or mark a transaction verified based on a browser callback.
