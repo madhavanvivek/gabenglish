@@ -2,9 +2,10 @@
 
 ## Current migrations
 - `0001_initial_foundation.sql` establishes the first PostgreSQL schema for identity, preferences, consent, curriculum foundations, lesson progress, assessment attempts, speaking sessions/turns/feedback, vocabulary saves, AI provider usage, subscriptions, regional prices, payments and admin audit foundations.
-- `0002_placement_sessions.sql` adds short-lived anonymous Gabroo placement sessions. Session state and answers are retained only while the assessment is active, with a 30-minute expiry; expired rows are purged when a new session starts.
+- `0002_placement_sessions.sql` adds short-lived Gabroo placement sessions, initially as a prototype. Session state and answers are retained only while the assessment is active, with a 30-minute expiry; expired rows are purged when a new session starts.
 - `0003_auth_login_throttling.sql` adds a short-retention authentication attempt table. It stores keyed digests of email and request IP rather than raw values; the API prunes entries older than 30 days during sign-in attempts.
-- `0004_passwordless_otp.sql` adds passwordless OTP challenge storage (channel, purpose, normalized destination, keyed code digest, IP digest, expiry, attempt count, consumption and delivery state) and a verified-contact registry with uniqueness constraints. This migration does not itself implement OTP delivery, verification endpoints or session issuance.
+- `0004_passwordless_otp.sql` adds passwordless OTP challenge storage (channel, purpose, normalized destination, keyed code digest, IP digest, expiry, attempt count, consumption and delivery state) and a verified-contact registry with uniqueness constraints. The API now implements request/verify logic, but delivery is unavailable until an adapter/provider is configured.
+- `0005_placement_owner.sql` adds a learner foreign key to placement sessions. New placement sessions are bound to verified accounts; anonymous placement is disabled and response requests must belong to the authenticated owner.
 
 ## Requirements
 - PostgreSQL 15 or later.
