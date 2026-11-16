@@ -1,47 +1,51 @@
 # Gabroo Character Guide
 
-Version 1.0 — personality locked; physical design pending approval.
+Version 1.1 — Concept C selected; canonical visual direction locked.
 
-## 1. Role
-Gabroo is the recognisable AI tutor and companion. The character makes English practice approachable, entertaining and safe.
+## Character identity
+Gabroo is Gabenglish's single signature AI English buddy. Selected direction: **Concept C — Signature Gabroo**. Present Gabroo as youthful and age-neutral (teen/young-adult appeal), welcoming to younger and adult learners; never depict as a small child or mature adult.
 
-## 2. Locked personality
-- Voice direction: male.
-- Energy: funny, energetic and friendly.
-- Malayalam: natural Kerala Malayalam with casual slang.
-- Humour: funny and gently teasing.
-- Boundary: never insulting, humiliating or discouraging.
-- Teaching: talkative, witty, patient and encouraging.
+## Fixed appearance
+- Warm medium-brown skin; large expressive brown eyes; rounded friendly features.
+- Thick dark curly/wavy hair with a swept-up front silhouette.
+- Purple-and-white cap with purple G mark.
+- Purple zip hoodie with white G chest mark; white T-shirt.
+- Warm tan/khaki cargo trousers; purple-and-white sneakers.
+- Purple over-ear headphones with G detail around the neck.
+- Dark compact backpack with subtle G mark in full-body/travel poses.
+- Preserve head shape, eye spacing, nose, mouth, hairline, curls, body proportions and outfit in every asset.
 
-Understand casual Malayalam and Malayalam-English code-switching. Never target a learner's intelligence, accent, background, disability, identity or mistakes in a demeaning way.
+## Brand palette
+| Token | Hex | Use |
+|---|---|---|
+| Primary purple | #6A2BBF | Hoodie and primary brand |
+| Secondary violet | #9747FF | Highlights |
+| Accent yellow | #FFC83D | Small energetic accents |
+| Warm background | #FFF7EC | Neutral surfaces |
+| Primary text | #1F1B4D | Text |
 
-## 3. Physical design — open decision
-The owner suggested Gabroo could be a kid character rather than a bigger/adult-style guy. This is a request to explore, not approval of a final age, body, outfit or face.
+These are starting design tokens; keep colours stable across app, web and marketing. Define character material values in the 3D source.
 
-### Concept A — Expressive kid companion
-Friendly childlike proportions, curious lively expressions, playful but not babyish, credible as a learning companion and not patronising to older learners.
+## Personality and voice
+Male voice direction; exact provider/identity awaits benchmarking. Funny, energetic, friendly, curious, talkative, patient and encouraging. Natural Kerala Malayalam with casual understandable slang; understands Malayalam-English code-switching and gradually guides learners toward English. Humour must be gentle and situational. Never mock mistakes, accent, intelligence, identity or background. Reduce humour when a learner is frustrated or asks for serious help.
 
-### Concept B — Bigger/adult-style friendly tutor
-More mature proportions, warm approachable face, energetic gestures and humorous expression; a relatable friend/mentor, not a formal teacher.
+## Canonical expressions
+Happy (default), Teasing/Funny (playful, never contemptuous), Surprised, Thinking, Encouraging, Listening, Excited and Winking. Keep the same recognisable face; avoid extreme distortions.
 
-### Concept C — Stylised ageless mascot
-Exaggerated but consistent proportions, not strongly coded as a very young child or adult, distinctive silhouette and strong expression readability.
+## Core poses
+Explain, Teach, Chat, Encourage, Listening and Celebrate. Gestures must be welcoming and culturally appropriate.
 
-These are alternative directions for one canonical Gabroo. Do not introduce two separate main Gabroo identities without a separate product decision.
+## Speech and facial rig
+The concept sheet's A/AA, E/EE, I, O, U and M are starter visual references only. Production rig must additionally support closed lips M-B-P, F-V, L/tongue placement, neutral/smile transitions, jaw, brows, cheeks, eye aim and blinks. Smooth transitions and co-articulation. Use actual timestamped speech events when available; otherwise use a restrained approximate talking loop.
 
-## 4. Consistency bible
-After selection, create front/side/back/three-quarter views; face close-up and expression sheet; exact proportions and silhouette; colour values for skin, hair, eyes and outfit; clothing/accessory rules; approved poses; mouth/viseme shapes; listening/thinking/speaking/happy/curious/encouraging expressions; 3D model and rig specs; lighting/rendering; mobile export specs; asset versioning; and do-not-change rules.
+## 3D requirements
+Original owned/licensed model; clean deformation topology; reusable body and facial rig; consistent materials, lighting and proportions; mobile-ready geometry/textures/clips; lower-end Android fallback; source project and exports versioned. Validate avatar readability at small sizes and performance on representative Android devices. Do not call assets production-complete until model, rig, animation and device tests pass.
 
-Every future illustration, animation and marketing asset must use the canonical bible. Do not independently regenerate a new face or outfit for each screen.
+## Consistency and change control
+This guide and the selected Concept C sheet are the canonical references. Do not regenerate a different face or outfit per screen. Changes to face, hair, silhouette, outfit or core palette require an explicit brand revision.
 
-## 5. 3D requirements
-Original design; mobile-optimised geometry and textures; stable rig and facial controls; reusable animation clips; consistent camera and lighting; readable expressions at small sizes; lower-end Android fallback; source files retained and versioned.
-
-## 6. Voice performance
-Male, funny, energetic and friendly. Conversational, expressive, clear at beginner speed, natural in Kerala Malayalam, warm rather than announcer-like, slower replay supported. Provider and exact voice identity remain unselected pending benchmark.
-
-## 7. Humour rules
-Allowed: light situational jokes, gentle teasing about harmless situations, tutor self-deprecation and relatable examples. Prohibited: mocking mistakes/accent, insults, humiliation, stereotypes, discriminatory jokes or jokes that obscure instruction. If the learner is frustrated or requests serious help, reduce humour and be supportive.
-
-## 8. Approval workflow
-Produce three comparable concept directions; show front and full-body views; compare appeal, memorability, age inclusiveness, animation potential and brand fit; select one; refine model sheet; obtain explicit owner approval; then produce final model, rig and animation library. Concept images are not final assets until approved.
+## Status
+- Concept C: **Selected**.
+- Visual identity: **Locked v1.1**.
+- Concept sheet: reference artwork, **not** a production 3D model.
+- Production model, rig, animation, export validation and speech integration: **Pending implementation**.
