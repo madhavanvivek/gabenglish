@@ -313,3 +313,10 @@ The migration integration test now asserts the new migration is recorded, the tw
 - Added reusable server-side `getActiveSubscriptionEntitlement(pool, userId)` lookup for future paid-route gates.
 - Added PostgreSQL integration coverage for unauthenticated rejection and default free access.
 - No payment mutation, checkout, webhook, provider configuration or entitlement grant endpoint has been created. Paid feature routes still need to enforce the lookup before any paid content or AI usage is exposed.
+
+
+### Verified-payment activation foundation
+
+Added an internal transactional activation service. It refuses to grant access unless a payment transaction is marked `succeeded`, has a server-verified timestamp and unique provider event reference, and matches the server-owned regional price, currency, plan and interval. It creates the entitlement and activates the subscription atomically; duplicate retries return the existing entitlement.
+
+This is deliberately not exposed as a public route. Provider-specific signature verification and server-to-server confirmation must be implemented before any production caller can mark a payment verified. Checkout, launch-discount campaign rules, refunds, renewals and cancellation remain outstanding. CI is running for the current implementation; do not treat the feature as validated until the latest run completes.
