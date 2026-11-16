@@ -67,6 +67,7 @@ export interface GabrooSpeechRecognitionProvider {
 }
 
 export type GabrooRecognitionErrorCode=
+ |"CONSENT_REQUIRED"
  |"INVALID_AUDIO"
  |"AUDIO_TOO_LARGE"
  |"PROVIDER_UNAVAILABLE"
