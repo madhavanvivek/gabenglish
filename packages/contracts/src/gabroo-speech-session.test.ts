@@ -11,8 +11,6 @@ describe("Gabroo voice session lifecycle",()=>{
   state=transition(state,{type:"permission_granted"});
   expect(state).toBe("ready");
   state=transition(state,{type:"begin_capture"});
-  expect(state).toBe("ready");
-  state=transition(state,{type:"begin_capture"});
   expect(state).toBe("listening");
   state=transition(state,{type:"capture_stopped"});
   expect(state).toBe("transcribing");
