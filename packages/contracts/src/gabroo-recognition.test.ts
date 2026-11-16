@@ -57,4 +57,17 @@ describe("Gabroo provider-neutral speech recognition boundary",()=>{
   const provider:GabrooSpeechRecognitionProvider={transcribe:()=>new Promise(()=>{})};
   await expect(transcribeGabrooAudio({audio,metadata,provider,timeoutMs:5})).rejects.toBeInstanceOf(GabrooRecognitionError);
  });
+
+ it("rejects a byte count that does not match the declared audio size",async()=>{
+  const transcribe=vi.fn(async()=>transcript);
+  await expect(transcribeGabrooAudio({audio:new Uint8Array([1,2,3,4]),metadata,provider:{transcribe}})).rejects.toMatchObject({code:"INVALID_AUDIO"});
+  expect(transcribe).not.toHaveBeenCalled();
+ });
+ it("cancels promptly even when a provider ignores its abort signal",async()=>{
+  const controller=new AbortController();
+  const provider:GabrooSpeechRecognitionProvider={transcribe:()=>new Promise(()=>{})};
+  const pending=transcribeGabrooAudio({audio,metadata,provider,signal:controller.signal});
+  controller.abort();
+  await expect(pending).rejects.toMatchObject({code:"PROVIDER_FAILED",message:"Speech recognition was cancelled."});
+ });
 });
