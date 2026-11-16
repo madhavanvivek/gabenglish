@@ -138,3 +138,11 @@ export async function deleteGabrooConversation(id:string){
 export async function updateGabrooConversation(id:string,input:{title?:string|null;mode?:GabrooConversationMode;support_language?:"ml"|"en"}){
  return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id),"PATCH",input) as {conversation:GabrooConversation};
 }
+
+
+export type GabrooMemoryCategory="goal"|"interest"|"saved_phrase"|"learning_note";
+export type GabrooMemoryItem={id:string;category:GabrooMemoryCategory;memory_key:string;content:string;source:"learner_saved"|"learner_confirmed";created_at:string;updated_at:string};
+export async function listGabrooMemory(){return await authorized("/api/v1/gabroo/memory","GET") as {memory:GabrooMemoryItem[];privacy:{owner_only:boolean;editable:boolean;deletable:boolean;retained_after_subscription_expiry:boolean}};}
+export async function createGabrooMemory(input:{category:GabrooMemoryCategory;memory_key:string;content:string}){return await authorized("/api/v1/gabroo/memory","POST",input) as {memory:GabrooMemoryItem};}
+export async function updateGabrooMemory(id:string,input:{category?:GabrooMemoryCategory;memory_key?:string;content?:string}){return await authorized("/api/v1/gabroo/memory/"+encodeURIComponent(id),"PATCH",input) as {memory:GabrooMemoryItem};}
+export async function deleteGabrooMemory(id:string){await authorized("/api/v1/gabroo/memory/"+encodeURIComponent(id),"DELETE");}
