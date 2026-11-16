@@ -55,6 +55,6 @@ if(process.argv[1]&&fileURLToPath(import.meta.url)===resolve(process.argv[1])){
  const pool=new Pool({connectionString:databaseUrl,max:1,connectionTimeoutMillis:5000});
  try{
   await runMigrations(pool);
-  process.stdout.write("Gabenglish database migrations are up to date.\\n");
+  process.stdout.write("Gabenglish database migrations are up to date.\n");
  }finally{await pool.end();}
 }
