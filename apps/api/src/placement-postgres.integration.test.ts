@@ -7,7 +7,7 @@ import {randomUUID} from "node:crypto";
 import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
 import {runMigrations} from "./migrate.js";
-import {activateVerifiedSubscriptionPayment,SubscriptionActivationError} from "./subscription-entitlements.js";
+import {activateVerifiedSubscriptionPayment} from "./subscription-entitlements.js";
 
 const databaseUrl=process.env.DATABASE_URL;
 const integration=databaseUrl?describe:describe.skip;
@@ -107,8 +107,9 @@ integration("PostgreSQL placement session integration",()=>{
    const subscriptionRow=await pool.query<{status:string}>("SELECT status FROM subscriptions WHERE id=$1",[subscriptionId]);
    expect(subscriptionRow.rows[0]?.status).toBe("active");
   }finally{
+   if(subscriptionId)await pool.query("DELETE FROM subscription_entitlements WHERE subscription_id=$1",[subscriptionId]);
    if(paymentId)await pool.query("DELETE FROM payment_transactions WHERE id=$1",[paymentId]);
-   if(subscriptionId){await pool.query("DELETE FROM subscription_entitlements WHERE subscription_id=$1",[subscriptionId]);await pool.query("DELETE FROM subscriptions WHERE id=$1",[subscriptionId]);}
+   if(subscriptionId)await pool.query("DELETE FROM subscriptions WHERE id=$1",[subscriptionId]);
    if(priceId)await pool.query("DELETE FROM regional_prices WHERE id=$1",[priceId]);
    if(planId)await pool.query("DELETE FROM subscription_plans WHERE id=$1",[planId]);
    if(userId)await pool.query("DELETE FROM users WHERE id=$1",[userId]);
