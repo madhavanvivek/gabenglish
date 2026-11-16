@@ -1,8 +1,8 @@
 import {afterAll,beforeAll,describe,expect,it} from "vitest";
-import {readFile} from "node:fs/promises";
 import {Pool} from "pg";
 import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
+import {runMigrations} from "./migrate.js";
 
 const databaseUrl=process.env.DATABASE_URL;
 const integration=databaseUrl?describe:describe.skip;
@@ -12,10 +12,7 @@ let migrationApplied=false;
 integration("PostgreSQL placement session integration",()=>{
  beforeAll(async()=>{
   if(!pool)return;
-  const foundationMigration=await readFile(new URL("../../../infrastructure/database/migrations/0001_initial_foundation.sql",import.meta.url),"utf8");
-  const placementMigration=await readFile(new URL("../../../infrastructure/database/migrations/0002_placement_sessions.sql",import.meta.url),"utf8");
-  await pool.query(foundationMigration);
-  await pool.query(placementMigration);
+  await runMigrations(pool);
   migrationApplied=true;
  });
  afterAll(async()=>{
@@ -23,6 +20,12 @@ integration("PostgreSQL placement session integration",()=>{
    await pool.query("DELETE FROM placement_sessions");
    await pool.end();
   }
+ });
+ it("records migrations and safely re-runs without changing applied schema",async()=>{
+  if(!pool||!migrationApplied)return;
+  await runMigrations(pool);
+  const result=await pool.query<{version:string}>("SELECT version FROM schema_migrations ORDER BY version");
+  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql"]);
  });
  it("persists an active conversation across API process restarts",async()=>{
   if(!pool||!migrationApplied)return;
