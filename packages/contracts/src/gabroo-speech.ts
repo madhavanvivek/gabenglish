@@ -103,3 +103,35 @@ export function transitionGabrooVoiceSession(
  }
  return next[event.type]!;
 }
+
+
+export type GabrooSpeechLanguage="ml"|"en";
+export interface GabrooSpeechSegment {text:string;language:GabrooSpeechLanguage}
+
+/**
+ * Split mixed Malayalam/English text into ordered speech runs without losing
+ * punctuation or whitespace. Neutral characters follow the preceding run.
+ */
+export function splitGabrooSpeechText(input:string):GabrooSpeechSegment[]{
+ const segments:GabrooSpeechSegment[]=[];
+ let leading="";
+ for(const character of Array.from(input)){
+  const language:GabrooSpeechLanguage|null=
+   /[\\u0D00-\\u0D7F]/u.test(character)?"ml":
+   /[A-Za-z0-9]/u.test(character)?"en":null;
+  if(language===null){
+   if(segments.length)segments[segments.length-1].text+=character;
+   else leading+=character;
+   continue;
+  }
+  if(segments.length&&segments[segments.length-1].language===language){
+   segments[segments.length-1].text+=leading+character;
+   leading="";
+  }else{
+   segments.push({text:leading+character,language});
+   leading="";
+  }
+ }
+ if(leading&&segments.length)segments[segments.length-1].text+=leading;
+ return segments.filter(segment=>segment.text.trim().length>0);
+}
