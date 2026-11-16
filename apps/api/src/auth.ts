@@ -156,6 +156,7 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
    }else{
     await client.query(challenge.channel==="email"?"UPDATE users SET email_verified_at=COALESCE(email_verified_at,now()),status='active',updated_at=now() WHERE id=$1":"UPDATE users SET phone_verified_at=COALESCE(phone_verified_at,now()),status='active',updated_at=now() WHERE id=$1",[user.id]);
    }
+   await client.query("INSERT INTO auth_otp_verified_contacts(user_id,channel,destination_normalized) VALUES($1,$2,$3) ON CONFLICT(channel,destination_normalized) DO NOTHING",[user.id,challenge.channel,challenge.destination_normalized]);
    await client.query("UPDATE auth_otp_challenges SET consumed_at=now() WHERE id=$1",[challenge.id]);
    const tokens=await issueTokens(client,user.id);
    await client.query("COMMIT");
