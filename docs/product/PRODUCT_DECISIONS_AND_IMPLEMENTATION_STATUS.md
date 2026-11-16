@@ -235,3 +235,23 @@ These limitations must remain visible in README, release notes and handover repo
 - Security/privacy: `docs/security/SECURITY_PRIVACY.md`
 - Test strategy: `docs/quality/TEST_STRATEGY.md`
 - Phase 0 plan: `docs/roadmap/PHASE_0_PLAN.md`
+
+
+## 15. Gabroo teaching intelligence foundation — 2026-11-16
+
+The teaching-intelligence architecture and content-authoring contract are now documented. The implementation direction is a provider-neutral AI teaching system: Gabenglish owns curriculum, teaching policy, retrieval, learner-learning records and quality evaluation; a replaceable model adapter supplies language generation. No AI, speech or vector-search provider has been selected or activated.
+
+New documentation:
+- `docs/ai/GABROO_TEACHING_INTELLIGENCE_ARCHITECTURE.md` — request lifecycle, teaching orchestrator, retrieval policy, learner-memory separation, content governance, provider strategy and staged implementation.
+- `docs/learning/CONTENT_AUTHORING_AND_SCHEMA.md` — content types, required metadata, lesson structure, accepted-answer policy, Malayalam editorial review and publication workflow.
+- `content/schema/content-item.schema.json` — machine-readable content-item schema. Published items require approved editorial status.
+- `content/seed/grammar-and-conversation-foundations.json` — three initial draft lesson records: simple present/daily routines, simple past/completed actions and self-introductions.
+
+Important status:
+- Seed records are drafts and are not approved for production retrieval.
+- Educator review of English, Kerala Malayalam and learning design is pending.
+- The content schema and sample records are a first authoring baseline, not a complete curriculum.
+- AI model integration, retrieval implementation, learner learning-event storage, revision scheduling, admin authoring/publishing UI and provider benchmarking remain future implementation work.
+- Do not promote conversation transcripts into shared teaching content automatically. Private learner memory and aggregate analytics remain separate from the shared library.
+- The previous CI run for the app foundation passed. CI for these new documentation/content commits is running; final green status must be confirmed against the latest branch SHA.
+
