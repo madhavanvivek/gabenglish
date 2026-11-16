@@ -68,7 +68,17 @@ export async function authenticateLearner(request:FastifyRequest,pool:Pool,confi
 export type OtpDeliveryAdapter={send(input:{channel:"email"|"phone";destination:string;code:string;expiresInSeconds:number}):Promise<boolean>};
 export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:AppConfig,otpDelivery?:OtpDeliveryAdapter){
  const secret=config.AUTH_TOKEN_SECRET;
- const authenticate=(request:FastifyRequest)=>authenticateLearner(request,pool,config);
+ const authenticate=async(request:FastifyRequest):Promise<Account|undefined>=>{
+  const header=request.headers.authorization;
+  if(!header?.startsWith("Bearer "))return;
+  const claims=verifyAccess(header.slice(7),secret);
+  if(!claims)return;
+  const result=await pool.query<Account>(
+   "SELECT u.id,u.email,u.status,u.email_verified_at,p.display_name,p.locale,p.timezone FROM users u JOIN refresh_sessions s ON s.user_id=u.id AND s.id=$2 AND s.revoked_at IS NULL AND s.expires_at>now() LEFT JOIN user_profiles p ON p.user_id=u.id WHERE u.id=$1 AND u.status='active' AND u.deleted_at IS NULL",
+   [claims.sub,claims.sid]
+  );
+  return result.rows[0];
+ };
  const issueTokens=async(client:PoolClient,userId:string)=>{
   const refresh_token=createRefreshToken();
   const created=await client.query<{id:string}>(
