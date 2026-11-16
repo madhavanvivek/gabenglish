@@ -3,6 +3,7 @@
 ## Current migrations
 - `0001_initial_foundation.sql` establishes the first PostgreSQL schema for identity, preferences, consent, curriculum foundations, lesson progress, assessment attempts, speaking sessions/turns/feedback, vocabulary saves, AI provider usage, subscriptions, regional prices, payments and admin audit foundations.
 - `0002_placement_sessions.sql` adds short-lived anonymous Gabroo placement sessions. Session state and answers are retained only while the assessment is active, with a 30-minute expiry; expired rows are purged when a new session starts.
+- `0003_auth_login_throttling.sql` adds a short-retention authentication attempt table. It stores keyed digests of email and request IP rather than raw values; the API prunes entries older than 30 days during sign-in attempts.
 
 ## Requirements
 - PostgreSQL 15 or later.
