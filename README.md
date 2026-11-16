@@ -52,7 +52,7 @@ Implemented on `foundation/app-skeleton`:
 - Database-backed placement writes use optimistic revision checks to prevent concurrent responses from overwriting one another; safe retries return the already-recorded result.
 - GitHub Actions provisions PostgreSQL 16 and exercises the initial schema migrations plus placement-session persistence, restart, concurrency and expiry integration tests.
 - A checksum-verified migration runner applies ordered SQL files under a PostgreSQL advisory lock and records applied checksums in `schema_migrations`; it rejects edits to already-applied migrations.
-- Learner account API foundation: registration/sign-in, scrypt password hashes, short-lived signed access tokens, hashed rotating refresh tokens, logout, authenticated profile/preferences, consent records and account deletion requests.
+- Learner account foundation: registration/sign-in API, scrypt password hashes, short-lived signed access tokens, hashed rotating refresh tokens, logout, authenticated profile/preferences, consent records and account deletion requests; mobile sign-in/registration screen uses Expo SecureStore for tokens.
 - PostgreSQL-backed login attempt throttling stores keyed email/IP digests rather than raw values.
 - Product, placement and Gabroo communication documentation.
 
