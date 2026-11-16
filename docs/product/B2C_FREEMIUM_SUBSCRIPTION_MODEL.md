@@ -131,3 +131,20 @@ A cancellation action must not prematurely remove already-paid access. A refund,
 - Final GST/tax display, invoice, refund, cancellation and consumer terms after qualified review.
 - Whether one free diagnostic is allowed per verified account, and anti-abuse policy for repeated free tests.
 - Whether an active subscription can be upgraded or switched between monthly and yearly mid-cycle.
+
+
+## 10. Paid subscription experience — all-day Gabroo access
+
+The paid subscription is an ongoing English-learning companion, not just a lesson catalogue. An active paid learner should be able to start an open conversation with Gabroo throughout the day, on a broad range of learner-chosen topics, without first selecting a lesson. A personalised daily activity plan provides optional structure around this open conversation.
+
+See `docs/product/DAILY_ENGAGEMENT_AND_OPEN_CONVERSATION.md` for the full product specification.
+
+Core paid experience:
+- Open text conversations on learner-chosen topics.
+- Continue previous conversations with private learner-owned context.
+- Free-flow, gentle-correction and detailed-correction modes.
+- Topic practice, role-play, vocabulary building and confidence practice.
+- Optional daily activities distributed across the day, with learner-controlled reminders.
+- Future voice conversations, only after consent, speech services and device QA are implemented.
+
+The subscription promise is broad access subject to disclosed fair-use, safety and service-availability rules. Do not advertise mathematically unlimited messages or guaranteed 24/7 uptime until operationally supported. Avoid arbitrary small daily message caps that undermine the core promise. Every paid conversation endpoint must enforce entitlement server-side. The free diagnostic report remains accessible after expiry.
