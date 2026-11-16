@@ -10,3 +10,5 @@ export type TutorTextTurn=z.infer<typeof tutorTextTurnSchema>;
 
 export * from "./placement.js";
 export * from "./auth.js";
+
+export * from "./gabroo-speech.js";
