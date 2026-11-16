@@ -290,3 +290,17 @@ This control is included in the single Gabenglish subscription. It is a required
 
 ### Implemented learner preference foundation
 - Gabroo speech playback preference is persisted per learner account as `gabroo_speech_rate` (0.75×–1.50×, default 1.00×) and can be updated through the authenticated learner-preferences API. The mobile account screen exposes slower/faster controls and reset-to-normal, with server persistence. This stores the preference only; actual voice playback, STT/TTS and applying the rate to audio remain future work and are not advertised as live.
+
+
+## 20. Verified subscription entitlement schema foundation — 2026-11-16
+
+Migration `0008_verified_subscription_entitlements.sql` is now present on the foundation branch. It narrows the initial commercial schema to the approved two plans (monthly/yearly), INR regional prices, 30/360-day terms, verified payment metadata and a purchase-level immutable entitlement ledger. The database exposes an active-entitlement read view using the strict boundary `period_start <= now() AND now() < period_end`.
+
+This is a schema foundation only:
+- No payment provider has been selected or configured.
+- No checkout or webhook endpoint exists.
+- No entitlement is seeded or granted by the migration.
+- Paid Gabroo/conversation routes are not yet implemented or gated.
+- Free diagnostic reports and basic account access remain independent of paid entitlement.
+
+The migration integration test now asserts the new migration is recorded, the two-plan/interval constraints exist, the active-entitlement view is empty on the CI database, and the verified payment timestamp/provider event reference are mandatory. CI status for the new commit must be checked before calling this change validated.
