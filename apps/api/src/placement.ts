@@ -1,5 +1,6 @@
 import type {FastifyInstance} from "fastify";
 import {randomUUID} from "node:crypto";
+import type {Pool} from "pg";
 import {z} from "zod";
 import {placementSessionStartSchema,placementConversationRequestSchema} from "@gabenglish/contracts";
 import {extractResponseEvidence, type ResponseEvidence} from "./placement-evidence.js";
@@ -55,12 +56,16 @@ function buildGabrooExplanation(report:ReturnType<typeof buildPlacementReport>){
  return `Thanks for chatting with me! ${sample} I’m not going to guess your English level from this short conversation. ${mode} We can build a clearer picture with a few guided activities, and you can start with Malayalam support whenever you like.`;
 }
 function chooseBand(session:Session){if(session.responses.length<2)return 1;const recent=session.responses.slice(-2).map(r=>responseSignal(r.text));const latest=recent.at(-1);if(!latest||latest.wordCount<8)return session.band;const avg=recent.reduce((n,x)=>n+x.wordCount,0)/recent.length;const advanced=recent.some(x=>x.connectors&&x.wordCount>=22);if(advanced&&avg>=25)return Math.min(5,session.band+1);if(avg>=16)return Math.min(4,Math.max(3,session.band+1));if(avg>=8)return Math.min(3,Math.max(2,session.band+1));return Math.max(1,Math.min(session.band,2));}
-export async function registerPlacementRoutes(app:FastifyInstance){
+export async function registerPlacementRoutes(app:FastifyInstance,pool?:Pool){
+ const getSession=async(id:string)=>{if(pool){const found=await pool.query<{state:Session}>("SELECT state FROM placement_sessions WHERE id=$1 AND expires_at>now()",[id]);return found.rows[0]?.state;}return sessions.get(id);};
+ const saveSession=async(session:Session)=>{if(pool){await pool.query("INSERT INTO placement_sessions(id,state,created_at,expires_at,updated_at) VALUES($1,$2::jsonb,to_timestamp($3/1000.0),to_timestamp($3/1000.0)+interval '30 minutes',now()) ON CONFLICT(id) DO UPDATE SET state=EXCLUDED.state,updated_at=now()",[session.id,JSON.stringify(session),session.created_at]);}else{sessions.set(session.id,session);}};
+ const deleteSession=async(id:string)=>{if(pool)await pool.query("DELETE FROM placement_sessions WHERE id=$1",[id]);else sessions.delete(id);};
+
  app.post("/api/v1/placement/conversation/start",async(request,reply)=>{
   const parsed=placementSessionStartSchema.safeParse(request.body??{});
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Please check your assessment preferences.",request_id:request.id}});
   pruneSessions();
-  const id=randomUUID();const session:Session={id,name:parsed.data.display_name,style:parsed.data.communication_style,language:parsed.data.preferred_language,turn:0,band:1,currentPromptId:"intro",responses:[],evidence:[],created_at:Date.now()};sessions.set(id,session);
+  const id=randomUUID();const session:Session={id,name:parsed.data.display_name,style:parsed.data.communication_style,language:parsed.data.preferred_language,turn:0,band:1,currentPromptId:"intro",responses:[],evidence:[],created_at:Date.now()};if(pool)await saveSession(session);else sessions.set(id,session);
   const first=prompts[0]!;
   const greeting=session.language==="ml"?"ഹായ്! ഞാൻ Gabroo. നമുക്ക് ഒരു friendly conversation തുടങ്ങാം. ഇത് exam അല്ല; നിനക്ക് പറ്റുന്ന പോലെ സംസാരിച്ചാൽ മതി. തെറ്റുകൾ വന്നാലും പ്രശ്നമില്ല.":"Hi! I'm Gabroo. Let's have a relaxed conversation. This isn't an exam, so just express yourself naturally. Mistakes are completely okay.";
   return {session_id:id,prompt_id:first.id,gabroo_message:greeting+" "+first.text,difficulty_band:1,turn_number:1,is_complete:false};
@@ -68,8 +73,8 @@ export async function registerPlacementRoutes(app:FastifyInstance){
  app.post("/api/v1/placement/conversation/respond",async(request,reply)=>{
   const parsed=placementConversationRequestSchema.safeParse(request.body);
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Please provide a valid conversation response.",request_id:request.id}});
-  const session=sessions.get(parsed.data.session_id);if(!session)return reply.code(404).send({error:{code:"SESSION_NOT_FOUND",message:"This assessment session is no longer available. Please start again.",request_id:request.id}});
-  if(isPlacementSessionExpired(session.created_at)){sessions.delete(session.id);return reply.code(410).send({error:{code:"SESSION_EXPIRED",message:"This assessment session has expired. Please start again.",request_id:request.id}});}
+  const session=await getSession(parsed.data.session_id);if(!session)return reply.code(404).send({error:{code:"SESSION_NOT_FOUND",message:"This assessment session is no longer available. Please start again.",request_id:request.id}});
+  if(isPlacementSessionExpired(session.created_at)){await deleteSession(session.id);return reply.code(410).send({error:{code:"SESSION_EXPIRED",message:"This assessment session has expired. Please start again.",request_id:request.id}});}
   const incoming=parsed.data.turn;
   if(session.lastTurn?.prompt_id===incoming.prompt_id){
    if(session.lastTurn.response===incoming.response&&session.lastTurn.response_mode===incoming.response_mode)return reply.send(session.lastTurn.result);
@@ -89,6 +94,7 @@ export async function registerPlacementRoutes(app:FastifyInstance){
   if(complete){const report=buildPlacementReport(session);const gabroo_explanation=buildGabrooExplanation(report);const evidence=session.evidence.map(item=>({prompt_id:item.promptId,source:item.source,observed_skills:item.observedSkills,observations:item.observations,sample_size:item.sampleSize,limitations:item.limitations,metrics:{word_count:item.metrics.wordCount,sentence_count:item.metrics.sentenceCount,connector_count:item.metrics.connectorCount,has_past_reference:item.metrics.hasPastReference,has_reasoning_marker:item.metrics.hasReasoningMarker}}));result={session_id:session.id,prompt_id:"complete",gabroo_message:"Thank you for sharing that with me. I have prepared a preliminary report from this conversation. It does not assign a learning stage yet.",difficulty_band:session.band,turn_number:session.turn+1,is_complete:true,evidence,report,gabroo_explanation};}
   else {const selected=next!;session.currentPromptId=selected.id;result={session_id:session.id,prompt_id:selected.id,gabroo_message:selected.text,difficulty_band:selected.band,turn_number:session.turn+1,is_complete:false};}
   session.lastTurn={prompt_id:incoming.prompt_id,response:incoming.response,response_mode:incoming.response_mode,result};
+  await saveSession(session);
   return result;
  });
  app.get("/api/v1/placement/questions",async()=>({assessment_version:"pilot-1",questions:quiz.map(({correct,...q})=>q)}));
