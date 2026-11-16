@@ -9,7 +9,7 @@ export class AuthApiError extends Error{
  constructor(message:string,readonly status?:number){super(message);this.name="AuthApiError";}
 }
 export type LearnerAccount={
- id:string;email:string;email_verified:boolean;display_name:string|null;locale:string;timezone:string;
+ id:string;email:string|null;email_verified:boolean;phone_verified:boolean;display_name:string|null;locale:string;timezone:string;
 };
 export type LearnerPreferences={
  support_language:"ml"|"en";learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed";daily_target_minutes:number;reminders_enabled:boolean;
@@ -65,6 +65,18 @@ async function clearTokens(){
  await Promise.all([SecureStore.deleteItemAsync(ACCESS_KEY),SecureStore.deleteItemAsync(REFRESH_KEY)]);
 }
 
+export type OtpChallenge={challenge_id:string;channel:"email"|"phone";masked_destination:string;expires_in_seconds:number;resend_after_seconds:number};
+export async function requestLearnerOtp(input:{channel:"email"|"phone";destination:string}){
+ return await post("/api/v1/auth/otp/request",input) as OtpChallenge;
+}
+export async function verifyLearnerOtp(input:{challenge_id:string;code:string}){
+ const payload=await post("/api/v1/auth/otp/verify",input);
+ const tokens=await saveTokens(payload);
+ return {tokens,payload};
+}
+export async function requestContactOtp(input:{channel:"email"|"phone";destination:string}){
+ return await authorized("POST" as never,"/api/v1/auth/contacts/otp/request","POST" as never,input) as OtpChallenge;
+}
 export async function registerLearner(input:{email:string;password:string;display_name?:string}){
  const payload=await post("/api/v1/auth/register",input);
  const tokens=await saveTokens(payload);
