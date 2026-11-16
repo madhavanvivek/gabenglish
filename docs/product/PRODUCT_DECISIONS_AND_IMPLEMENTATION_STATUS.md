@@ -169,12 +169,12 @@ Current repository structure includes `apps/mobile`, `apps/api`, `packages/contr
 - Observable response evidence extraction with explicit text/transcript limitations; no skill findings, proficiency score or stage recommendation is generated.
 - Short-lived placement session persistence support when PostgreSQL is configured and migration 0002_placement_sessions.sql is applied; 30-minute expiry is documented. In-memory fallback remains for tests/development.
 - Six core prompt records spanning the five hidden challenge bands, with a conservative coverage-first sequence and up to two optional clarification turns. Clarification turns are excluded from core assessment evidence.
-- PostgreSQL-backed placement sessions use optimistic revision checks to reject stale concurrent writes instead of silently overwriting a newer turn. Replaying the same successfully saved turn returns its cached response.
+- PostgreSQL-backed placement sessions use optimistic revision checks to reject stale concurrent writes instead of silently overwriting a newer turn. Replaying the same successfully saved turn returns its cached response. The API distinguishes expired PostgreSQL rows from unknown session IDs so the client can show the correct restart flow.
 - Mobile placement flow now provides an explicit restart action when a server session expires or is no longer available.
 - Gabroo's Concept C identity direction and respectful communication/address policy are documented.
 
 ### Latest validation checkpoint
-The placement-selector correction passed workflow run 43859020856. The mobile expired-session recovery and API placement work then passed workflow run 43859171656 (API typecheck, API tests, shared-contract typecheck and mobile typecheck). The optimistic-concurrency implementation and regression test passed workflow run 43859779934: API typecheck, all 21 API tests, shared-contract typecheck and mobile typecheck. The latest documentation-only commits are also running through CI; no production deployment has been performed.
+The placement-selector correction passed workflow run 43859020856. The mobile expired-session recovery and API placement work then passed workflow run 43859171656 (API typecheck, API tests, shared-contract typecheck and mobile typecheck). The optimistic-concurrency implementation and regression test passed workflow run 43859779934: API typecheck, all 21 API tests, shared-contract typecheck and mobile typecheck. CI now provisions PostgreSQL 16 for the API test job and runs integration tests for session persistence across API restarts, concurrent responses and expiry handling. Verify the resulting workflow before treating this database gate as passed. No production deployment has been performed.
 
 ### Explicit limitations — not production-ready
 - The current placement selector is conservative coverage routing with clarification support, not a fully skill-aware adaptive assessment or live LLM-driven tutor.
@@ -190,7 +190,7 @@ These limitations must remain visible in README, release notes and handover repo
 
 ## 12. Next implementation sequence
 
-1. Add a real PostgreSQL integration test for simultaneous requests, expiry and restart behaviour; the current concurrency regression test uses a controlled pool double and does not replace a live-database test.
+1. Run and verify the PostgreSQL 16 integration suite in GitHub Actions; resolve any real-database issues before enabling PostgreSQL-backed placement in a deployment.
 2. Introduce authenticated learner identity and account lifecycle before persisting completed assessment reports; define retention, consent and deletion controls.
 3. Add educator-reviewed prompt objectives and prompt-to-skill mappings; do not enable skill findings until the analytic rubric and calibration gates are approved.
 4. Implement evidence coverage/uncertainty and a defensible report with a starting-stage recommendation only after educator validation.
