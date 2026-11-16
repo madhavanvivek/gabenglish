@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gabenglish.local/schemas/content-item.schema.json",
+  "title": "Gabenglish Teaching Content Item",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "version",
+    "type",
+    "title",
+    "summary",
+    "locale",
+    "language_pair",
+    "stage",
+    "difficulty",
+    "skills",
+    "topic_tags",
+    "learning_objectives",
+    "prerequisites",
+    "age_suitability",
+    "body",
+    "editorial",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+([.-][a-z0-9]+)*$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "type": {
+      "enum": [
+        "curriculum_unit",
+        "lesson",
+        "concept",
+        "example",
+        "exercise",
+        "scenario",
+        "vocabulary_item",
+        "listening_script",
+        "pronunciation_item",
+        "teaching_rule"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 3
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 10
+    },
+    "locale": {
+      "type": "string",
+      "minLength": 2
+    },
+    "language_pair": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "stage": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "difficulty": {
+      "enum": [
+        "beginner",
+        "elementary",
+        "intermediate",
+        "upper_intermediate",
+        "advanced",
+        "expert"
+      ]
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "topic_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "learning_objectives": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 8
+      },
+      "minItems": 1
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "age_suitability": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "children",
+          "teenagers",
+          "adults",
+          "older_adults",
+          "general"
+        ]
+      },
+      "minItems": 1
+    },
+    "body": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "accepted_alternatives": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "common_errors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "editorial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "author",
+        "reviewer_roles",
+        "review_status",
+        "source_notes"
+      ],
+      "properties": {
+        "author": {
+          "type": "string",
+          "minLength": 2
+        },
+        "reviewer_roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "review_status": {
+          "enum": [
+            "pending",
+            "in_review",
+            "approved"
+          ]
+        },
+        "reviewed_at": {
+          "type": "string",
+          "format": "date"
+        },
+        "source_notes": {
+          "type": "string"
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "in_review",
+        "approved",
+        "published",
+        "retired"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "published"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "editorial": {
+            "properties": {
+              "review_status": {
+                "const": "approved"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
