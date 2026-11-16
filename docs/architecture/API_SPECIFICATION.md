@@ -44,7 +44,7 @@ Only two plans are offered initially:
 - Monthly: ₹99 standard / ₹79 launch price; 30 days.
 - Yearly: ₹1,188 standard / ₹799 launch price; 360 days (12 × 30 days).
 
-GET /subscriptions/plans returns server-owned active prices and durations; GET /subscriptions/current returns the verified paid-through entitlement; POST /subscriptions/checkout creates an idempotent checkout; POST /subscriptions/cancel handles the approved cancellation policy; POST /subscriptions/webhooks/{provider} receives signed, deduplicated payment events.
+GET /subscriptions/plans returns server-owned active prices and durations; GET /subscriptions/current returns the verified paid-through entitlement (authenticated read route implemented; currently reports free access when no verified entitlement exists); POST /subscriptions/checkout creates an idempotent checkout; POST /subscriptions/cancel handles the approved cancellation policy; POST /subscriptions/webhooks/{provider} receives signed, deduplicated payment events.
 
 The free account and free analysis test/result do not require paid entitlement. A verified learner can retain the free analysis report. `GET /api/v1/placement/reports/latest` returns the latest account-owned report after sign-in, including after paid subscription expiry. Gabroo ongoing learning companion, classes, paid practice, ongoing learner assessment/profile and progress require an active server-side entitlement. Basic account settings are not gated. Access expires when now >= paid-through end timestamp. Monthly duration is 30 days; yearly duration is 360 days. Keep the existing free result distinct from paid assessment/profile history. Payment client callbacks are never proof of payment.
 
@@ -116,3 +116,8 @@ Migration `0008_verified_subscription_entitlements.sql` adds the first fail-clos
 The migration intentionally creates no plan rows, price rows, payment records or active entitlements. The payment provider remains undecided. A future webhook/verification handler must validate provider signatures and server-to-server payment state, process events transactionally and idempotently, and be the only application path that writes entitlement rows. Paid feature routes are not yet implemented or gated by this view; no live paid feature should be exposed until those gates are in place. Free diagnostic reports and basic account access remain independent.
 
 CI is required to validate migration application, constraints, view behaviour and safe re-run before this schema foundation is considered complete.
+
+
+### Implemented entitlement status read route
+
+`GET /api/v1/subscriptions/current` now requires an authenticated, verified learner session and reads only from `active_subscription_entitlements`. It returns `access: "free"` when no currently valid, verified entitlement exists, or a server-derived paid entitlement snapshot when one does. The route does not accept a client-supplied plan/status and has no grant, checkout or payment mutation capability. Paid feature routes must call the server-side entitlement lookup before serving protected content; that route-level gating is still pending.
