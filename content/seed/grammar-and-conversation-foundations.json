@@ -99,7 +99,12 @@
         "review_status": "pending",
         "source_notes": "Original instructional draft; verify examples and Malayalam wording before publication."
       },
-      "status": "draft"
+      "status": "draft",
+      "locale": "ml-IN",
+      "language_pair": [
+        "ml",
+        "en"
+      ]
     },
     {
       "id": "grammar.simple-past.completed-actions",
@@ -196,7 +201,12 @@
         "review_status": "pending",
         "source_notes": "Original instructional draft; verify examples and Malayalam wording before publication."
       },
-      "status": "draft"
+      "status": "draft",
+      "locale": "ml-IN",
+      "language_pair": [
+        "ml",
+        "en"
+      ]
     },
     {
       "id": "conversation.self-introduction.basic",
@@ -286,7 +296,12 @@
         "review_status": "pending",
         "source_notes": "Original instructional draft; review politeness and Malayalam phrasing before publication."
       },
-      "status": "draft"
+      "status": "draft",
+      "locale": "ml-IN",
+      "language_pair": [
+        "ml",
+        "en"
+      ]
     }
   ]
 }
