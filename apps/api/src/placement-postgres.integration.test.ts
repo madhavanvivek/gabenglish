@@ -38,7 +38,7 @@ integration("PostgreSQL placement session integration",()=>{
   if(!pool||!migrationApplied)return;
   await runMigrations(pool);
   const result=await pool.query<{version:string}>("SELECT version FROM schema_migrations ORDER BY version");
-  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql"]);
+  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql"]);
  });
  it("rejects edits to an already-applied migration checksum",async()=>{
   if(!pool||!migrationApplied)return;
@@ -142,6 +142,39 @@ integration("PostgreSQL placement session integration",()=>{
    expect(me.json().user.email).toBe(email);
    const replay=await app.inject({method:"POST",url:"/api/v1/auth/otp/verify",payload:{challenge_id:requested.json().challenge_id,code:deliveredCode}});
    expect(replay.statusCode).toBe(400);
+  }finally{
+   await pool.query("DELETE FROM users WHERE email_normalized=$1",[email]);
+   await app.close();
+  }
+ });
+ it("persists the free analysis report and lets the verified learner retrieve it",async()=>{
+  if(!pool||!migrationApplied)return;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const email="report-"+randomUUID()+"@example.test";
+  const token=await createVerifiedTestSession(app,email,pool);
+  const headers={authorization:"Bearer "+token};
+  try{
+   const started=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",headers,payload:{preferred_language:"en"}});
+   expect(started.statusCode).toBe(200);
+   const sessionId=started.json().session_id as string;
+   let promptId="intro";
+   let completion:Record<string,unknown>={};
+   const answers=["I usually work with my team and communicate clearly about daily responsibilities.","Every morning I review priorities and coordinate tasks with my colleagues.","Last weekend I visited family and spent time reading a new book.","I want to improve my English because it helps me communicate at work.","I believe online learning is useful when lessons include practice and feedback.","I would explain the delay honestly, agree on actions and update the client regularly."];
+   const promptIds=["intro","routine","past","reason","opinion","scenario"];
+   for(let index=0;index<promptIds.length;index++){
+    expect(promptId).toBe(promptIds[index]);
+    const response=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",headers,payload:{session_id:sessionId,turn:{prompt_id:promptId,response:answers[index]}}});
+    expect(response.statusCode).toBe(200);
+    completion=response.json();
+    promptId=String(completion.prompt_id);
+   }
+   expect(completion.is_complete).toBe(true);
+   const report=await app.inject({method:"GET",url:"/api/v1/placement/reports/latest",headers});
+   expect(report.statusCode).toBe(200);
+   expect(report.json().access).toBe("free");
+   expect(report.json().report.status).toBe("provisional");
+   const stored=await pool.query("SELECT id FROM free_diagnostic_reports WHERE user_id=(SELECT id FROM users WHERE email_normalized=$1)",[email]);
+   expect(stored.rows).toHaveLength(1);
   }finally{
    await pool.query("DELETE FROM users WHERE email_normalized=$1",[email]);
    await app.close();
