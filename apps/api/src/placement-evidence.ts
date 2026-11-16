@@ -19,9 +19,9 @@ export type ResponseEvidence = {
   };
 };
 
-const CONNECTORS = /\\b(because|although|however|therefore|while|whereas|for example|if|when|since|but|so)\\b/gi;
-const PAST_MARKERS = /\\b(yesterday|last\\s+(?:week|month|year|weekend)|ago|was|were|did|went|had|visited|worked|studied|made|saw)\\b/i;
-const REASON_MARKERS = /\\b(because|since|the reason|so that|therefore)\\b/i;
+const CONNECTORS = /\b(because|although|however|therefore|while|whereas|for example|if|when|since|but|so)\b/gi;
+const PAST_MARKERS = /\b(yesterday|last\s+(?:week|month|year|weekend)|ago|was|were|did|went|had|visited|worked|studied|made|saw)\b/i;
+const REASON_MARKERS = /\b(because|since|the reason|so that|therefore)\b/i;
 
 function countMatches(value: string, expression: RegExp): number {
   return [...value.matchAll(expression)].length;
@@ -37,7 +37,7 @@ export function extractResponseEvidence(
   source: EvidenceSource = "text",
 ): ResponseEvidence {
   const clean = response.trim();
-  const words = clean.match(/[\\p{L}\\p{N}'’-]+/gu) ?? [];
+  const words = clean.match(/[\p{L}\p{N}][\p{L}\p{M}\p{N}'’-]*/gu) ?? [];
   const sentenceParts = clean.split(/[.!?]+/).map((part) => part.trim()).filter(Boolean);
   const connectorCount = countMatches(clean, CONNECTORS);
   const hasPastReference = PAST_MARKERS.test(clean);
