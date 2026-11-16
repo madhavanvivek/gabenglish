@@ -45,6 +45,18 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   const messages=await pool.query("SELECT id,sequence_number,role,content,created_at FROM gabroo_conversation_messages WHERE conversation_id=$1 ORDER BY sequence_number",[idSchemaResult.data]);
   return {conversation:found.rows[0],messages:messages.rows};
  });
+
+ app.patch("/api/v1/gabroo/conversations/:id",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);if(!learner)return error(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
+  const parsedId=idSchema.safeParse((request.params as {id?:string}).id);
+  const parsedBody=z.object({title:z.string().trim().min(1).max(120).nullable().optional(),mode:z.enum(modes).optional(),support_language:z.enum(["ml","en"]).optional()}).strict().safeParse(request.body);
+  if(!parsedId.success||!parsedBody.success||Object.keys(parsedBody.data??{}).length===0)return error(reply,request.id,400,"VALIDATION_ERROR","Please provide valid conversation settings.");
+  const owned=await pool.query("SELECT id FROM gabroo_conversations WHERE id=$1 AND user_id=$2",[parsedId.data,learner.id]);if(!owned.rows[0])return error(reply,request.id,404,"CONVERSATION_NOT_FOUND","This conversation is not available.");
+  const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);if(!entitlement)return error(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to update conversations.");
+  const updated=await pool.query("UPDATE gabroo_conversations SET title=COALESCE($3,title),mode=COALESCE($4,mode),support_language=COALESCE($5,support_language),updated_at=now() WHERE id=$1 AND user_id=$2 AND status='open' RETURNING "+conversationSelect,[parsedId.data,learner.id,parsedBody.data.title??null,parsedBody.data.mode??null,parsedBody.data.support_language??null]);
+  if(!updated.rows[0])return error(reply,request.id,409,"CONVERSATION_CLOSED","This conversation is closed and cannot be changed.");
+  return {conversation:updated.rows[0]};
+ });
  app.delete("/api/v1/gabroo/conversations/:id",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);if(!learner)return error(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
   const parsed=idSchema.safeParse((request.params as {id?:string}).id);if(!parsed.success)return error(reply,request.id,400,"VALIDATION_ERROR","Invalid conversation id.");
