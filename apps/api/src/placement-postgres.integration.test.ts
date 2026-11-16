@@ -147,6 +147,31 @@ integration("PostgreSQL placement session integration",()=>{
    await app.close();
   }
  });
+ it("links a second verified contact to the same learner without merging accounts",async()=>{
+  if(!pool||!migrationApplied)return;
+  let deliveredCode="";
+  const email="link-"+randomUUID()+"@example.test";
+  const phone="+919"+randomUUID().replace(/-/g,"").slice(0,9);
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool,{send:async({code})=>{deliveredCode=code;return true;}});
+  try{
+   const first=await app.inject({method:"POST",url:"/api/v1/auth/otp/request",payload:{channel:"email",destination:email}});
+   const signIn=await app.inject({method:"POST",url:"/api/v1/auth/otp/verify",payload:{challenge_id:first.json().challenge_id,code:deliveredCode}});
+   expect(signIn.statusCode).toBe(200);
+   const userId=signIn.json().user.id as string;
+   const headers={authorization:"Bearer "+signIn.json().access_token};
+   const requested=await app.inject({method:"POST",url:"/api/v1/auth/contacts/otp/request",headers,payload:{channel:"phone",destination:phone}});
+   expect(requested.statusCode).toBe(202);
+   const linked=await app.inject({method:"POST",url:"/api/v1/auth/contacts/otp/verify",headers,payload:{challenge_id:requested.json().challenge_id,code:deliveredCode}});
+   expect(linked.statusCode).toBe(200);
+   const account=await pool.query<{id:string;email_normalized:string;phone_e164:string}>("SELECT id,email_normalized,phone_e164 FROM users WHERE id=$1",[userId]);
+   expect(account.rows[0]).toMatchObject({id:userId,email_normalized:email,phone_e164:phone});
+   const contacts=await pool.query("SELECT channel FROM auth_otp_verified_contacts WHERE user_id=$1",[userId]);
+   expect(contacts.rows).toHaveLength(2);
+  }finally{
+   await pool.query("DELETE FROM users WHERE email_normalized=$1",[email]);
+   await app.close();
+  }
+ });
  it("persists the free analysis report and lets the verified learner retrieve it",async()=>{
   if(!pool||!migrationApplied)return;
   const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
