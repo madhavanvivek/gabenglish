@@ -1,10 +1,10 @@
-import {useCallback,useRef,useState} from "react";
+import {useCallback,useEffect,useRef,useState} from "react";
 import * as Speech from "expo-speech";
 import {Audio} from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
-import {playGabrooSpeechSegments,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooVoiceSessionState} from "@gabenglish/contracts";
+import {GABROO_LOCAL_CAPTURE_MAX_MS,playGabrooSpeechSegments,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooVoiceSessionState} from "@gabenglish/contracts";
 import {Link,useFocusEffect} from "expo-router";
-import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
+import {ActivityIndicator,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences} from "../src/auth-api";
 
@@ -32,6 +32,7 @@ export default function GabrooScreen(){
  const [recordingActive,setRecordingActive]=useState(false);
  const [recordingBusy,setRecordingBusy]=useState(false);
  const recordingRef=useRef<Audio.Recording|null>(null);
+ const recordingOperationRef=useRef(false);
  const speechRunRef=useRef(0);
  const load=useCallback(async()=>{
   setLoading(true);setError("");
@@ -51,10 +52,11 @@ export default function GabrooScreen(){
    const recording=recordingRef.current;
    recordingRef.current=null;
    if(recording){
-    void recording.stopAndUnloadAsync().then(()=>{
-     const uri=recording.getURI();
-     if(uri)return FileSystem.deleteAsync(uri,{idempotent:true});
-    }).catch(()=>undefined).finally(()=>Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined));
+    recording.setOnRecordingStatusUpdate(null);
+    const uri=recording.getURI();
+    void recording.stopAndUnloadAsync().catch(()=>undefined).then(async()=>{
+     if(uri)await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+    }).finally(()=>Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined));
    }
   };
  },[load]));
@@ -157,7 +159,8 @@ export default function GabrooScreen(){
   }finally{setVoicePermissionBusy(false);}
  };
  const startLocalCapture=async()=>{
-  if(!voiceCaptureConsent||voiceSessionState!=="ready"||recordingBusy||recordingRef.current)return;
+  if(!voiceCaptureConsent||voiceSessionState!=="ready"||recordingOperationRef.current||recordingRef.current)return;
+  recordingOperationRef.current=true;
   setRecordingBusy(true);setSpeechNotice("");
   try{
    await Audio.setAudioModeAsync({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
@@ -165,7 +168,7 @@ export default function GabrooScreen(){
    recordingRef.current=created.recording;
    created.recording.setProgressUpdateInterval(250);
    created.recording.setOnRecordingStatusUpdate(status=>{
-    if(status.isRecording&&status.durationMillis>=15000){
+    if(status.isRecording&&status.durationMillis>=GABROO_LOCAL_CAPTURE_MAX_MS){
      created.recording.setOnRecordingStatusUpdate(null);
      void stopAndDiscardLocalCapture();
     }
@@ -180,15 +183,19 @@ export default function GabrooScreen(){
    setVoiceSessionState("error");
    setSpeechNotice(reason instanceof Error?reason.message:"Could not start the microphone test.");
    await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
-  }finally{setRecordingBusy(false);}
+  }finally{recordingOperationRef.current=false;setRecordingBusy(false);}
  };
  const stopAndDiscardLocalCapture=async()=>{
   const recording=recordingRef.current;
-  if(!recording||recordingBusy)return;
+  if(!recording||recordingOperationRef.current)return;
+  recordingOperationRef.current=true;
   setRecordingBusy(true);setSpeechNotice("");
+  const uri=recording.getURI();
+  recording.setOnRecordingStatusUpdate(null);
+  let stopped=false;
   try{
    await recording.stopAndUnloadAsync();
-   const uri=recording.getURI();
+   stopped=true;
    recordingRef.current=null;
    setVoiceSessionState(current=>transitionGabrooVoiceSession(current,{type:"capture_stopped"}));
    if(uri)await FileSystem.deleteAsync(uri,{idempotent:true});
@@ -201,10 +208,20 @@ export default function GabrooScreen(){
    setVoiceSessionState("error");
    setSpeechNotice(reason instanceof Error?reason.message:"Could not safely finish and discard the recording. Please check device storage.");
   }finally{
+   if(uri&&!stopped)await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
    await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
+   recordingOperationRef.current=false;
    setRecordingBusy(false);
   }
  };
+ useEffect(()=>{
+  const subscription=AppState.addEventListener("change",state=>{
+   if(state!=="active"&&recordingRef.current&&!recordingOperationRef.current){
+    void stopAndDiscardLocalCapture();
+   }
+  });
+  return ()=>subscription.remove();
+ },[]);
  const resetVoiceConsent=()=>{
   setVoiceConsent(false);
   setVoiceCaptureConsent(false);
