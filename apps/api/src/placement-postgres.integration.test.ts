@@ -59,6 +59,22 @@ integration("PostgreSQL placement session integration",()=>{
   expect(columns.rows.find(row=>row.column_name==="verified_payment_at")?.is_nullable).toBe("NO");
   expect(columns.rows.find(row=>row.column_name==="provider_event_id")?.is_nullable).toBe("NO");
  });
+ it("returns free subscription access by default and requires a verified learner session",async()=>{
+  if(!pool||!migrationApplied)return;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const email="subscription-free-"+randomUUID()+"@example.test";
+  try{
+   const anonymous=await app.inject({method:"GET",url:"/api/v1/subscriptions/current"});
+   expect(anonymous.statusCode).toBe(401);
+   const token=await createVerifiedTestSession(app,email,pool);
+   const current=await app.inject({method:"GET",url:"/api/v1/subscriptions/current",headers:{authorization:"Bearer "+token}});
+   expect(current.statusCode).toBe(200);
+   expect(current.json()).toEqual({access:"free",active:false,entitlement:null});
+  }finally{
+   await pool.query("DELETE FROM users WHERE email_normalized=$1",[email]);
+   await app.close();
+  }
+ });
  it("rejects edits to an already-applied migration checksum",async()=>{
   if(!pool||!migrationApplied)return;
   const directory=await mkdtemp(join(tmpdir(),"gabenglish-migrations-"));
