@@ -4,11 +4,12 @@ import type {Pool,PoolClient} from "pg";
 import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
+import {buildGabrooTeachingPolicy,type GabrooTeachingPolicy} from "./gabroo-teaching-policy.js";
 
 export type GabrooConversationMode="free_flow"|"gentle_correction"|"detailed_correction"|"topic_practice"|"role_play"|"vocabulary_building"|"confidence_practice";
 export type GabrooMessage={role:"user"|"assistant";content:string};
 export type GabrooConversationProvider={
-  reply(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";history:GabrooMessage[];signal:AbortSignal}):Promise<{content:string}>;
+  reply(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";history:GabrooMessage[];signal:AbortSignal;teachingPolicy:GabrooTeachingPolicy}):Promise<{content:string}>;
 };
 const PROVIDER_TIMEOUT_MS=15_000;
 const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
@@ -90,7 +91,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
      timeout=setTimeout(()=>{controller.abort();reject(new Error("Gabroo provider timed out"));},PROVIDER_TIMEOUT_MS);
     });
     response=await Promise.race([
-     provider.reply({mode:conversation.mode,supportLanguage:conversation.support_language,history:[...history,{role:"user",content:parsedBody.data.message}],signal:controller.signal}),
+     provider.reply({mode:conversation.mode,supportLanguage:conversation.support_language,history:[...history,{role:"user",content:parsedBody.data.message}],signal:controller.signal,teachingPolicy:buildGabrooTeachingPolicy({mode:conversation.mode,supportLanguage:conversation.support_language})}),
      timedOut
     ]);
    }finally{
