@@ -202,3 +202,17 @@ Do not optimise solely for time spent, message volume or compulsive engagement. 
 8. Benchmark and select AI providers; integrate only after privacy/cost/quality review.
 9. Add voice conversation after speech provider and consent decisions.
 10. Run safety, privacy, concurrency, load and lower-end Android QA before launch.
+
+
+## 13. Implementation progress (16 November 2026)
+
+The first persistent conversation foundation is now present on the draft development branch:
+
+- Database migration `0009_gabroo_conversations.sql` stores learner-owned conversation sessions and ordered text messages, with bounded message content and cascading deletion.
+- Authenticated API routes support conversation create/list/read/delete and message send. Paid access is enforced server-side. Ownership is checked before entitlement status on individual conversation routes so another learner receives a not-found response rather than learning whether a conversation exists.
+- Turns are serialized per conversation. Learner and assistant messages are persisted together only after a valid provider response; provider failure does not leave a half-saved learner message.
+- A provider-neutral adapter interface is injectable. No model/provider has been selected or configured; without an adapter, create/send fail clearly with 503 and no reply is fabricated.
+- The mobile app now has a Gabroo conversation screen, subscription status gate, conversation list/open/delete flows, message composer, and a verified-account home link. It shows an explicit unavailable state when the service has no configured provider.
+- Automated tests cover anonymous rejection, free-account entitlement denial, no conversation row on denied create, paid conversation turn persistence, ordered messages, and cross-account read/delete isolation.
+
+**Still pending before the open-chat experience can be called complete:** choose and benchmark an AI provider; implement provider-specific safety, teaching modes and context/memory; complete mobile device/UI QA; add rate/timeout and operational fair-use handling; define retention/export controls; and run production-grade privacy, abuse, load and cost reviews. Voice, daily planner and reminders remain separate later milestones. The mobile UI is a connected client foundation, not a claim that live Gabroo AI chat is operational.
