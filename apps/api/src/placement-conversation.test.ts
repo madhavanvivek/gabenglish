@@ -147,7 +147,7 @@ describe("Gabroo conversational placement",()=>{
      stored={id:params?.[0],state:JSON.parse(String(params?.[1])),expires_at:Date.now()+30*60*1000};
      return {rows:[]};
     }
-    if(sql.startsWith("SELECT state FROM placement_sessions")){
+    if(sql.startsWith("SELECT state,expires_at<=now() AS expired FROM placement_sessions")){
      selects+=1;
      if(selects===2)releaseSelects();
      await selectBarrier;
