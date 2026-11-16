@@ -137,7 +137,7 @@ Avoid overfamiliar address terms such as “eda/edi” by default. Prefer the le
 
 ## 13. Evidence extraction implementation boundary
 
-The foundation API now has a first evidence-extraction module. It records observable response features such as response length, sentence count, discourse connectors and possible past/reason markers. It stores the prompt identifier, whether the source was typed text or a voice transcript, cautious evidence confidence and explicit limitations.
+The foundation API now has a first evidence-extraction module. It records observable response features such as response length, sentence count, discourse connectors and possible past/reason markers. It stores the prompt identifier, whether the source was typed text or a voice transcript, observable surface features, a brief/extended sample-size label and explicit limitations. Sample size is not confidence in learner ability. No skill is assigned until educator-reviewed prompt-to-skill mappings exist.
 
 This is **not** an English proficiency evaluator. These surface features must not be interpreted as proof of grammar accuracy, vocabulary range, comprehension, fluency, pronunciation or a learning stage. A long answer can be inaccurate; a short answer can be correct. The module intentionally does not assign a score or stage.
 
