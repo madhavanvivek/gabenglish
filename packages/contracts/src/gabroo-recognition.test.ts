@@ -1,0 +1,60 @@
+import {describe,expect,it,vi} from "vitest";
+import {
+ GabrooRecognitionError,
+ GABROO_AUDIO_MAX_BYTES,
+ transcribeGabrooAudio,
+ type GabrooSpeechRecognitionProvider
+} from "./gabroo-recognition.js";
+
+const audio=new Uint8Array([1,2,3]);
+const metadata={mimeType:"audio/mp4" as const,sizeBytes:3,language:"ml-en" as const};
+const transcript={text:"നമസ്കാരം, how are you?",languageDetected:"mixed" as const,confidence:0.94};
+
+describe("Gabroo provider-neutral speech recognition boundary",()=>{
+ it("sends validated audio to the injected provider and returns its transcript",async()=>{
+  const transcribe=vi.fn(async()=>transcript);
+  const result=await transcribeGabrooAudio({audio,metadata,provider:{transcribe}});
+  expect(result).toEqual(transcript);
+  expect(transcribe).toHaveBeenCalledWith(expect.objectContaining({
+   audio,mimeType:"audio/mp4",language:"ml-en",signal:expect.any(AbortSignal)
+  }));
+ });
+ it("fails closed when no provider is configured",async()=>{
+  await expect(transcribeGabrooAudio({audio,metadata})).rejects.toMatchObject({code:"PROVIDER_UNAVAILABLE"});
+ });
+ it("rejects empty or oversized recordings before provider invocation",async()=>{
+  const transcribe=vi.fn(async()=>transcript);
+  const provider={transcribe};
+  await expect(transcribeGabrooAudio({audio:new Uint8Array(),metadata:{...metadata,sizeBytes:0},provider})).rejects.toMatchObject({code:"INVALID_AUDIO"});
+  await expect(transcribeGabrooAudio({audio:new Uint8Array(2),metadata:{...metadata,sizeBytes:GABROO_AUDIO_MAX_BYTES+1},provider})).rejects.toMatchObject({code:"AUDIO_TOO_LARGE"});
+  expect(transcribe).not.toHaveBeenCalled();
+ });
+ it("rejects unsupported MIME metadata",async()=>{
+  await expect(transcribeGabrooAudio({audio,metadata:{...metadata,mimeType:"audio/unknown" as never},provider:{transcribe:async()=>transcript}})).rejects.toMatchObject({code:"INVALID_AUDIO"});
+ });
+ it("rejects an already-cancelled request without calling the provider",async()=>{
+  const controller=new AbortController();controller.abort();
+  const transcribe=vi.fn(async()=>transcript);
+  await expect(transcribeGabrooAudio({audio,metadata,provider:{transcribe},signal:controller.signal})).rejects.toMatchObject({code:"PROVIDER_FAILED"});
+  expect(transcribe).not.toHaveBeenCalled();
+ });
+ it("normalises provider failures without exposing provider error details",async()=>{
+  const provider:GabrooSpeechRecognitionProvider={transcribe:async()=>{throw new Error("secret provider response");}};
+  await expect(transcribeGabrooAudio({audio,metadata,provider})).rejects.toMatchObject({
+   code:"PROVIDER_FAILED",
+   message:"Speech recognition could not process this recording."
+  });
+ });
+ it("rejects unusable provider transcripts",async()=>{
+  const provider={transcribe:async()=>({text:"   ",languageDetected:"unknown"})} as unknown as GabrooSpeechRecognitionProvider;
+  await expect(transcribeGabrooAudio({audio,metadata,provider})).rejects.toMatchObject({code:"EMPTY_TRANSCRIPT"});
+ });
+ it("rejects confidence values outside the defined range",async()=>{
+  const provider={transcribe:async()=>({text:"hello",languageDetected:"en",confidence:1.4})} as unknown as GabrooSpeechRecognitionProvider;
+  await expect(transcribeGabrooAudio({audio,metadata,provider})).rejects.toMatchObject({code:"EMPTY_TRANSCRIPT"});
+ });
+ it("times out even when the provider does not honour its abort signal",async()=>{
+  const provider:GabrooSpeechRecognitionProvider={transcribe:()=>new Promise(()=>{})};
+  await expect(transcribeGabrooAudio({audio,metadata,provider,timeoutMs:5})).rejects.toBeInstanceOf(GabrooRecognitionError);
+ });
+});
