@@ -1,1 +1,32 @@
-{"expo":{"name":"Gabenglish","slug":"gabenglish","scheme":"gabenglish","version":"0.1.0","orientation":"portrait","userInterfaceStyle":"light","newArchEnabled":true,"plugins":["expo-router"],"android":{"package":"com.gabenglish.app"},"ios":{"bundleIdentifier":"com.gabenglish.app"}}}
+{
+  "expo": {
+    "name": "Gabenglish",
+    "slug": "gabenglish",
+    "scheme": "gabenglish",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Gabenglish to access your microphone only when you choose to prepare a voice conversation with Gabroo."
+        }
+      ]
+    ],
+    "android": {
+      "package": "com.gabenglish.app",
+      "permissions": [
+        "RECORD_AUDIO"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.gabenglish.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Allow Gabenglish to access your microphone only when you choose to prepare a voice conversation with Gabroo."
+      }
+    }
+  }
+}
