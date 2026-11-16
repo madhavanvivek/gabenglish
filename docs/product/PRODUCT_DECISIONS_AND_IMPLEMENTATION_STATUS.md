@@ -448,3 +448,12 @@ Next implementation sequence:
 
 - Follow-up hardening: the recognition boundary now verifies that the actual byte length matches the declared metadata size and rejects mismatches before invoking a provider.
 - Cancellation now settles promptly even if a future provider adapter ignores its abort signal; this prevents a cancelled learner action from remaining pending indefinitely.
+
+### Local microphone capture validation (2026-11-16)
+
+- Added a separate, explicit recording consent after OS microphone permission has been granted. Permission consent alone does not authorise recording.
+- A learner can start a clearly labelled local microphone test only from the permission-ready state and only after accepting the separate recording consent.
+- The mobile client records to a temporary device-local URI, stops on explicit learner action, and deletes the temporary file immediately after capture. The app resets the audio mode after stopping.
+- The shared voice lifecycle now includes a guarded `capture_discarded` transition from transcribing back to ready, so a local test cannot be mistaken for a completed transcript.
+- Leaving the Gabroo screen attempts to stop and unload any active recording and delete its temporary file.
+- This is a local capture and deletion validation only. Audio is not uploaded, retained in the account, transcribed, or sent to a provider. Live voice conversation remains incomplete.
