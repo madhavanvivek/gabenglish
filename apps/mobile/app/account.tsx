@@ -2,7 +2,7 @@ import {useEffect,useState} from "react";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {Link} from "expo-router";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {AuthApiError,getLearnerMe,getLatestFreeDiagnosticReport,logoutLearner,requestLearnerOtp,verifyLearnerOtp,type LearnerMe,type OtpChallenge,type SavedFreeDiagnosticReport} from "../src/auth-api";
+import {AuthApiError,getLearnerMe,getLatestFreeDiagnosticReport,logoutLearner,requestLearnerOtp,verifyLearnerOtp,type LearnerMe,type OtpChallenge,type SavedFreeDiagnosticReport,updateLearnerPreferences} from "../src/auth-api";
 
 export default function AccountScreen(){
  const [channel,setChannel]=useState<"email"|"phone">("email");
@@ -14,6 +14,7 @@ export default function AccountScreen(){
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
+ const [preferenceBusy,setPreferenceBusy]=useState(false);
  useEffect(()=>{
   let active=true;
   getLearnerMe().then(async value=>{if(active)setAccount(value);try{const report=await getLatestFreeDiagnosticReport();if(active)setSavedReport(report);}catch{/* No free report has been completed yet. */}}).catch(reason=>{
@@ -41,6 +42,16 @@ export default function AccountScreen(){
   }catch(reason){setError(reason instanceof Error?reason.message:"Could not verify the code.");}
   finally{setBusy(false);}
  };
+ const changeSpeechRate=async(delta:number)=>{
+  if(!account||preferenceBusy)return;
+  const current=account.preferences?.gabroo_speech_rate??1;
+  const next=Math.min(1.5,Math.max(0.75,Math.round((current+delta)*100)/100));
+  if(next===current)return;
+  setPreferenceBusy(true);setError("");setNotice("");
+  try{await updateLearnerPreferences({gabroo_speech_rate:next});setAccount(await getLearnerMe());setNotice("Gabroo speaking-speed preference saved.");}
+  catch(reason){setError(reason instanceof Error?reason.message:"Could not save your speaking-speed preference.");}
+  finally{setPreferenceBusy(false);}
+ };
  const signOut=async()=>{
   setBusy(true);setError("");setNotice("");
   try{await logoutLearner();setAccount(null);setChallenge(null);setNotice("You have been signed out.");}
@@ -58,6 +69,17 @@ export default function AccountScreen(){
    <Text style={s.info}>Support language: {account.preferences?.support_language==="ml"?"Malayalam":"English"}</Text>
    <Text style={s.info}>Daily target: {account.preferences?.daily_target_minutes??10} minutes</Text>
    <Text style={s.info}>Correction style: {account.preferences?.correction_mode??"balanced"}</Text>
+   <View style={s.speedCard}>
+    <Text style={s.speedTitle}>Gabroo speaking speed</Text>
+    <Text style={s.speedHint}>Choose how quickly Gabroo should speak. This preference will apply when voice conversations are available.</Text>
+    <View style={s.speedControls}>
+     <Pressable accessibilityRole="button" accessibilityLabel="Slow Gabroo down" disabled={preferenceBusy||(account.preferences?.gabroo_speech_rate??1)<=0.75} onPress={()=>changeSpeechRate(-0.05)} style={[s.speedButton,preferenceBusy&&s.disabled]}><Text style={s.speedButtonText}>−</Text></Pressable>
+     <View style={s.speedValue}><Text style={s.speedNumber}>{(account.preferences?.gabroo_speech_rate??1).toFixed(2).replace(/0$/,"")}×</Text><Text style={s.speedNormal}>Normal is 1.0×</Text></View>
+     <Pressable accessibilityRole="button" accessibilityLabel="Speed Gabroo up" disabled={preferenceBusy||(account.preferences?.gabroo_speech_rate??1)>=1.5} onPress={()=>changeSpeechRate(0.05)} style={[s.speedButton,preferenceBusy&&s.disabled]}><Text style={s.speedButtonText}>+</Text></Pressable>
+    </View>
+    <View style={s.speedRange}><Text style={s.speedRangeText}>0.75× Slower</Text><Pressable disabled={preferenceBusy||(account.preferences?.gabroo_speech_rate??1)===1} onPress={()=>changeSpeechRate(1-(account.preferences?.gabroo_speech_rate??1))}><Text style={s.speedReset}>Reset to 1.0×</Text></Pressable><Text style={s.speedRangeText}>1.50× Faster</Text></View>
+    {preferenceBusy?<Text style={s.speedSaving}>Saving preference…</Text>:null}
+   </View>
    {savedReport?<View style={s.savedReport}><Text style={s.reportTitle}>Your saved free analysis</Text><Text style={s.info}>Status: {savedReport.report.status} · {savedReport.report.response_count} responses</Text><Text style={s.info}>Assessment: {savedReport.assessment_mode.replace("_"," ")}</Text><Text style={s.reportText}>{savedReport.gabroo_explanation}</Text><Text style={s.freeBadgeText}>AVAILABLE WITHOUT A PAID PLAN</Text></View>:null}
    <Pressable disabled={busy} style={[s.button,s.secondary]} onPress={signOut}>{busy?<ActivityIndicator color="#54239A"/>:<Text style={s.secondaryText}>Sign out</Text>}</Pressable>
   </View>:<View style={s.card}>
@@ -85,5 +107,5 @@ const s=StyleSheet.create({
  label:{fontSize:13,fontWeight:"800",color:"#403A50",marginTop:17,marginBottom:7},input:{backgroundColor:"#FFFEFC",borderWidth:1,borderColor:"#E3DCEA",borderRadius:13,padding:13,fontSize:15,color:"#1F1B4D"},
  button:{backgroundColor:"#6A2BBF",borderRadius:14,padding:15,alignItems:"center",marginTop:20},buttonText:{color:"#fff",fontSize:14,fontWeight:"900"},disabled:{opacity:.45},secondary:{backgroundColor:"#EEE4FF"},secondaryText:{color:"#54239A",fontWeight:"900"},
  eyebrow:{fontSize:9,fontWeight:"900",letterSpacing:1.4,color:"#8A6AB6"},name:{fontSize:22,fontWeight:"900",color:"#1F1B4D",marginTop:8},contact:{fontSize:12,color:"#70677B",marginTop:7},freeBadge:{alignSelf:"flex-start",backgroundColor:"#E5F5E9",borderRadius:20,paddingVertical:7,paddingHorizontal:10,marginTop:14},freeBadgeText:{fontSize:10,fontWeight:"900",color:"#365B3A"},
- savedReport:{backgroundColor:"#F7F2FF",borderRadius:14,padding:13,marginTop:18},reportTitle:{fontSize:14,fontWeight:"900",color:"#54239A",marginBottom:5},reportText:{fontSize:12,lineHeight:18,color:"#51476A",marginVertical:10},section:{fontSize:14,fontWeight:"900",color:"#403A50",marginTop:22,marginBottom:8},info:{fontSize:13,color:"#625A6D",marginTop:6},disclaimer:{fontSize:11,lineHeight:17,color:"#8A8293",marginTop:14},notice:{backgroundColor:"#E8F5EA",padding:13,borderRadius:12,marginTop:14},noticeText:{fontSize:12,lineHeight:18,color:"#365B3A"},error:{backgroundColor:"#FCE8E6",padding:13,borderRadius:12,marginTop:14},errorText:{fontSize:12,lineHeight:18,color:"#8D302A"},back:{alignSelf:"center",padding:14,marginTop:12},backText:{color:"#54239A",fontSize:13,fontWeight:"800"},change:{alignSelf:"center",padding:12,marginTop:5},changeText:{fontSize:12,fontWeight:"800",color:"#54239A"},footer:{textAlign:"center",color:"#938A9D",fontSize:11,marginTop:12}
+ speedCard:{backgroundColor:"#F7F2FF",borderRadius:14,padding:14,marginTop:16},speedTitle:{fontSize:14,fontWeight:"900",color:"#54239A"},speedHint:{fontSize:11,lineHeight:17,color:"#70677B",marginTop:5},speedControls:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:12},speedButton:{width:42,height:42,borderRadius:13,backgroundColor:"#6A2BBF",alignItems:"center",justifyContent:"center"},speedButtonText:{fontSize:25,fontWeight:"700",color:"#fff",lineHeight:29},speedValue:{alignItems:"center"},speedNumber:{fontSize:22,fontWeight:"900",color:"#1F1B4D"},speedNormal:{fontSize:10,color:"#81788C",marginTop:2},speedRange:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:12},speedRangeText:{fontSize:9,color:"#81788C"},speedReset:{fontSize:10,fontWeight:"900",color:"#54239A"},speedSaving:{fontSize:10,color:"#70677B",marginTop:8},savedReport:{backgroundColor:"#F7F2FF",borderRadius:14,padding:13,marginTop:18},reportTitle:{fontSize:14,fontWeight:"900",color:"#54239A",marginBottom:5},reportText:{fontSize:12,lineHeight:18,color:"#51476A",marginVertical:10},section:{fontSize:14,fontWeight:"900",color:"#403A50",marginTop:22,marginBottom:8},info:{fontSize:13,color:"#625A6D",marginTop:6},disclaimer:{fontSize:11,lineHeight:17,color:"#8A8293",marginTop:14},notice:{backgroundColor:"#E8F5EA",padding:13,borderRadius:12,marginTop:14},noticeText:{fontSize:12,lineHeight:18,color:"#365B3A"},error:{backgroundColor:"#FCE8E6",padding:13,borderRadius:12,marginTop:14},errorText:{fontSize:12,lineHeight:18,color:"#8D302A"},back:{alignSelf:"center",padding:14,marginTop:12},backText:{color:"#54239A",fontSize:13,fontWeight:"800"},change:{alignSelf:"center",padding:12,marginTop:5},changeText:{fontSize:12,fontWeight:"800",color:"#54239A"},footer:{textAlign:"center",color:"#938A9D",fontSize:11,marginTop:12}
 });
