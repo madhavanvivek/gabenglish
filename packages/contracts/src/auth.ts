@@ -3,10 +3,10 @@ import {z} from "zod";
 export const otpChannelSchema=z.enum(["email","phone"]);
 export const otpRequestSchema=z.discriminatedUnion("channel",[
  z.object({channel:z.literal("email"),destination:z.string().trim().email().max(254)}),
- z.object({channel:z.literal("phone"),destination:z.string().trim().regex(/^\\+[1-9]\\d{7,14}$/)})
+ z.object({channel:z.literal("phone"),destination:z.string().trim().regex(/^\+[1-9]\d{7,14}$/)})
 ]);
 export type OtpRequest=z.infer<typeof otpRequestSchema>;
-export const otpVerifySchema=z.object({challenge_id:z.string().uuid(),code:z.string().regex(/^\\d{6}$/)});
+export const otpVerifySchema=z.object({challenge_id:z.string().uuid(),code:z.string().regex(/^\d{6}$/)});
 export type OtpVerify=z.infer<typeof otpVerifySchema>;
 export const otpChallengeResponseSchema=z.object({challenge_id:z.string().uuid(),channel:otpChannelSchema,masked_destination:z.string(),expires_in_seconds:z.number().int().positive(),resend_after_seconds:z.number().int().nonnegative()});
 
