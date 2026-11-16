@@ -3,7 +3,7 @@ import {extractResponseEvidence} from "./placement-evidence.js";
 
 describe("placement response evidence extraction",()=>{
   it("records observable signals without claiming a proficiency score",()=>{
-    const result=extractResponseEvidence("why","I visited my friend last weekend. We went shopping because we needed some things. It was a lovely day.");
+    const result=extractResponseEvidence("why","I visited my friend last weekend. We went shopping because we needed some things. It was a lovely day together.");
     expect(result.metrics.wordCount).toBeGreaterThan(10);
     expect(result.metrics.hasPastReference).toBe(true);
     expect(result.metrics.hasReasoningMarker).toBe(true);
