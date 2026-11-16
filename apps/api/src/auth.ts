@@ -164,6 +164,7 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
   finally{client.release();}
  });
  app.post("/api/v1/auth/register",async(request,reply)=>{
+  if(config.NODE_ENV!=="test")return reply.code(410).send({error:{code:"PASSWORD_AUTH_RETIRED",message:"Password sign-up is no longer available. Use email or phone verification instead.",request_id:request.id}});
   const parsed=registerSchema.safeParse(request.body);
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Enter a valid email, a password of at least 10 characters, and an optional display name.",request_id:request.id}});
   const email=parsed.data.email.toLowerCase();
@@ -189,6 +190,7 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
  });
 
  app.post("/api/v1/auth/login",async(request,reply)=>{
+  if(config.NODE_ENV!=="test")return reply.code(410).send({error:{code:"PASSWORD_AUTH_RETIRED",message:"Password sign-in is no longer available. Use email or phone verification instead.",request_id:request.id}});
   const parsed=loginSchema.safeParse(request.body);
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Enter a valid email and password.",request_id:request.id}});
   await pool.query("DELETE FROM auth_login_attempts WHERE attempted_at<now()-interval '30 days'");
