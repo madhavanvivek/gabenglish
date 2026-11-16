@@ -137,3 +137,10 @@ The service:
 Integration coverage verifies that a successful-but-unverified payment is rejected, a verified price-matched monthly payment creates exactly 30 days of access, replay does not create a second entitlement, and the authenticated subscription status then reports paid access.
 
 **Not yet implemented:** payment-provider signature verification, provider-specific webhook ingress, checkout, quote/discount campaign handling, refunds/chargebacks, renewals, cancellation and reconciliation. No provider is selected. Do not call the activation service from a learner-controlled route or mark a transaction verified based on a browser callback.
+
+
+### Persistent Gabroo conversation API foundation
+
+Migration `0009_gabroo_conversations.sql` adds learner-owned conversation sessions and ordered user/assistant text messages. The API exposes create/list/read/delete and send-message routes under `/api/v1/gabroo/conversations`. All read/create/send routes require a verified learner session and an active server-side subscription entitlement; the delete route remains available to an authenticated owner so learners can remove their history after expiry. Ownership is enforced in every conversation query and foreign keys cascade deletion with the learner account.
+
+The send route serializes turns with a row lock, supplies recent conversation history to an injected provider-neutral `GabrooConversationProvider`, and persists the user and assistant messages together only after a valid provider response. Provider failure leaves no partial user message. If no provider is configured, create/send return a clear 503 and no AI response is fabricated. No model provider is selected, no live AI conversation is available, and production fair-use, retention and safety controls still require review.
