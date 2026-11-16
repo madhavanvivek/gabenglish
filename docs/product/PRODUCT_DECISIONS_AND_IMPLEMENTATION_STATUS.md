@@ -433,7 +433,7 @@ Next implementation sequence:
 - The learner must actively select the consent statement and then press the permission action. The request is made through the Expo AV permission API.
 - Android and iOS microphone permission descriptions explain that access is requested only when the learner chooses to prepare a voice conversation.
 - Corrected the shared voice lifecycle: permission approval now enters a distinct `ready` state. It does **not** mean the microphone is recording or that the session is listening. A separate `begin_capture` event is required to enter `listening`.
-- The current screen only checks OS permission. It does not start recording, store audio, upload audio or invoke speech recognition. Live speech recognition and capture controls remain unimplemented.
+- The permission preflight originally checked OS permission only. A later local-only microphone validation flow now supports a separate recording consent, explicit start/stop and immediate temporary-file deletion. This does not provide speech recognition or live Gabroo voice conversation.
 - Consent is an explicit in-screen action for this permission preflight; learners can clear the in-screen consent state. Revoking OS permission itself remains available in device settings.
 
 
@@ -455,6 +455,8 @@ Next implementation sequence:
 - A learner can start a clearly labelled local microphone test only from the permission-ready state and only after accepting the separate recording consent.
 - The mobile client records to a temporary device-local URI, stops on explicit learner action, and deletes the temporary file immediately after capture. The app resets the audio mode after stopping.
 - The shared voice lifecycle now includes a guarded `capture_discarded` transition from transcribing back to ready, so a local test cannot be mistaken for a completed transcript.
-- Leaving the Gabroo screen attempts to stop and unload any active recording and delete its temporary file.
+- Leaving the Gabroo screen and sending the app to the background attempts to stop and unload any active recording and delete its temporary file. A recording-operation lock prevents duplicate stop calls; a background transition during recording startup is handled after startup completes.
+- The shared contracts package defines the 15-second local-capture limit, and the mobile screen consumes that constant rather than duplicating the duration value.
+- File deletion is retried in cleanup if the first deletion attempt fails. The UI reports an error rather than claiming successful cleanup when the initial deletion fails.
 - This is a local capture and deletion validation only. Audio is not uploaded, retained in the account, transcribed, or sent to a provider. Live voice conversation remains incomplete.
 - The local microphone test is capped at 15 seconds and automatically stops and deletes its temporary recording at the limit.
