@@ -68,7 +68,7 @@ function buildGabrooExplanation(report:ReturnType<typeof buildPlacementReport>){
 }
 
 export async function registerPlacementRoutes(app:FastifyInstance,pool?:Pool){
- const getSession=async(id:string)=>{if(pool){const found=await pool.query<{state:Session}>("SELECT state FROM placement_sessions WHERE id=$1 AND expires_at>now()",[id]);return found.rows[0]?.state;}return sessions.get(id);};
+ const getSession=async(id:string)=>{if(pool){const found=await pool.query<{state:Session}>("SELECT state FROM placement_sessions WHERE id=$1",[id]);return found.rows[0]?.state;}return sessions.get(id);};
  const saveSession=async(session:Session):Promise<boolean>=>{
   if(pool){
    if(session.revision===0){
