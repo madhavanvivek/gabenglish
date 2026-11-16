@@ -1,14 +1,14 @@
-import type {PlacementSkill} from "@gabenglish/contracts";
-
 export type EvidenceSource = "text" | "voice_transcript";
-export type EvidenceConfidence = "low" | "medium";
+export type EvidenceSampleSize = "brief" | "extended";
 
 export type ResponseEvidence = {
   promptId: string;
   source: EvidenceSource;
-  observedSkills: PlacementSkill[];
+  /** Empty until educator-reviewed prompt-to-skill mappings are implemented. */
+  observedSkills: [];
   observations: string[];
-  confidence: EvidenceConfidence;
+  /** Describes sample length only; it is not confidence in learner ability. */
+  sampleSize: EvidenceSampleSize;
   limitations: string[];
   metrics: {
     wordCount: number;
@@ -19,9 +19,9 @@ export type ResponseEvidence = {
   };
 };
 
-const CONNECTORS = /\b(because|although|however|therefore|while|whereas|for example|if|when|since|but|so)\b/gi;
-const PAST_MARKERS = /\b(yesterday|last\s+(?:week|month|year|weekend)|ago|was|were|did|went|had|visited|worked|studied|made|saw)\b/i;
-const REASON_MARKERS = /\b(because|since|the reason|so that|therefore)\b/i;
+const CONNECTORS = /\\b(because|although|however|therefore|while|whereas|for example|if|when|since|but|so)\\b/gi;
+const PAST_MARKERS = /\\b(yesterday|last\\s+(?:week|month|year|weekend)|ago|was|were|did|went|had|visited|worked|studied|made|saw)\\b/i;
+const REASON_MARKERS = /\\b(because|since|the reason|so that|therefore)\\b/i;
 
 function countMatches(value: string, expression: RegExp): number {
   return [...value.matchAll(expression)].length;
@@ -29,7 +29,7 @@ function countMatches(value: string, expression: RegExp): number {
 
 /**
  * Extracts observable response features only. It deliberately does not grade
- * grammar, vocabulary quality, comprehension, pronunciation or proficiency.
+ * grammar, vocabulary, comprehension, pronunciation or proficiency.
  */
 export function extractResponseEvidence(
   promptId: string,
@@ -37,7 +37,7 @@ export function extractResponseEvidence(
   source: EvidenceSource = "text",
 ): ResponseEvidence {
   const clean = response.trim();
-  const words = clean.match(/[\p{L}\p{N}'’-]+/gu) ?? [];
+  const words = clean.match(/[\\p{L}\\p{N}'’-]+/gu) ?? [];
   const sentenceParts = clean.split(/[.!?]+/).map((part) => part.trim()).filter(Boolean);
   const connectorCount = countMatches(clean, CONNECTORS);
   const hasPastReference = PAST_MARKERS.test(clean);
@@ -60,9 +60,9 @@ export function extractResponseEvidence(
   return {
     promptId,
     source,
-    observedSkills: ["sentence_construction", "communication"],
+    observedSkills: [],
     observations,
-    confidence: words.length >= 20 ? "medium" : "low",
+    sampleSize: words.length >= 20 ? "extended" : "brief",
     limitations,
     metrics: {
       wordCount: words.length,
