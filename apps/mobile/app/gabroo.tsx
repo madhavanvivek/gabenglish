@@ -163,6 +163,13 @@ export default function GabrooScreen(){
    await Audio.setAudioModeAsync({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
    const created=await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
    recordingRef.current=created.recording;
+   created.recording.setProgressUpdateInterval(250);
+   created.recording.setOnRecordingStatusUpdate(status=>{
+    if(status.isRecording&&status.durationMillis>=15000){
+     created.recording.setOnRecordingStatusUpdate(null);
+     void stopAndDiscardLocalCapture();
+    }
+   });
    setVoiceSessionState(current=>transitionGabrooVoiceSession(current,{type:"begin_capture"}));
    setRecordingActive(true);
   }catch(reason){
