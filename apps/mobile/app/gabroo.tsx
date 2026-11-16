@@ -33,6 +33,7 @@ export default function GabrooScreen(){
  const [recordingBusy,setRecordingBusy]=useState(false);
  const recordingRef=useRef<Audio.Recording|null>(null);
  const recordingOperationRef=useRef(false);
+ const appIsActiveRef=useRef(true);
  const speechRunRef=useRef(0);
  const load=useCallback(async()=>{
   setLoading(true);setError("");
@@ -183,7 +184,11 @@ export default function GabrooScreen(){
    setVoiceSessionState("error");
    setSpeechNotice(reason instanceof Error?reason.message:"Could not start the microphone test.");
    await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
-  }finally{recordingOperationRef.current=false;setRecordingBusy(false);}
+  }finally{
+   recordingOperationRef.current=false;
+   setRecordingBusy(false);
+   if(!appIsActiveRef.current&&recordingRef.current)void stopAndDiscardLocalCapture();
+  }
  };
  const stopAndDiscardLocalCapture=async()=>{
   const recording=recordingRef.current;
@@ -193,12 +198,13 @@ export default function GabrooScreen(){
   const uri=recording.getURI();
   recording.setOnRecordingStatusUpdate(null);
   let stopped=false;
+  let deleted=false;
   try{
    await recording.stopAndUnloadAsync();
    stopped=true;
    recordingRef.current=null;
    setVoiceSessionState(current=>transitionGabrooVoiceSession(current,{type:"capture_stopped"}));
-   if(uri)await FileSystem.deleteAsync(uri,{idempotent:true});
+   if(uri){await FileSystem.deleteAsync(uri,{idempotent:true});deleted=true;}
    setVoiceSessionState(current=>transitionGabrooVoiceSession(current,{type:"capture_discarded"}));
    setRecordingActive(false);
    setSpeechNotice("Microphone test completed. The temporary recording was deleted from this device. No audio was uploaded or transcribed.");
@@ -208,7 +214,7 @@ export default function GabrooScreen(){
    setVoiceSessionState("error");
    setSpeechNotice(reason instanceof Error?reason.message:"Could not safely finish and discard the recording. Please check device storage.");
   }finally{
-   if(uri&&!stopped)await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+   if(uri&&!deleted)await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
    await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
    recordingOperationRef.current=false;
    setRecordingBusy(false);
@@ -216,6 +222,7 @@ export default function GabrooScreen(){
  };
  useEffect(()=>{
   const subscription=AppState.addEventListener("change",state=>{
+   appIsActiveRef.current=state==="active";
    if(state!=="active"&&recordingRef.current&&!recordingOperationRef.current){
     void stopAndDiscardLocalCapture();
    }
