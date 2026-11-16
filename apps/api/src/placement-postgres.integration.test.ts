@@ -181,7 +181,7 @@ integration("PostgreSQL placement session integration",()=>{
   const payload={session_id:started.json().session_id,turn:{prompt_id:"intro",response:"My name is Anu and I live in Kozhikode."}};
   const results=await Promise.all([
    app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",headers,payload}),
-   app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload})
+   app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",headers,payload})
   ]);
   expect(results.every(result=>result.statusCode===200||result.statusCode===409)).toBe(true);
   expect(results.some(result=>result.statusCode===200)).toBe(true);
