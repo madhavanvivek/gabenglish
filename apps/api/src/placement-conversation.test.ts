@@ -30,7 +30,7 @@ describe("Gabroo conversational placement",()=>{
   let promptId=start.json().prompt_id;
   let response;
   for(let i=0;i<6;i++){
-    response=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:session,turn:{prompt_id:promptId,response:"I usually work during the week. Last weekend I visited my family because we had a celebration."}}});
+    response=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:session,turn:{prompt_id:promptId,response:"I usually work during the week as a designer and enjoy learning new things. Last weekend I visited my family because we had a wonderful celebration together and talked about our plans for next month."}}});
     if(response.json().is_complete) break;
     promptId=response.json().prompt_id;
   }
