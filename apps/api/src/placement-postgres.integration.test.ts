@@ -1,5 +1,8 @@
 import {afterAll,beforeAll,describe,expect,it} from "vitest";
 import {Pool} from "pg";
+import {mkdtemp,rm,writeFile} from "node:fs/promises";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
 import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
 import {runMigrations} from "./migrate.js";
@@ -26,6 +29,16 @@ integration("PostgreSQL placement session integration",()=>{
   await runMigrations(pool);
   const result=await pool.query<{version:string}>("SELECT version FROM schema_migrations ORDER BY version");
   expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql"]);
+ });
+ it("rejects edits to an already-applied migration checksum",async()=>{
+  if(!pool||!migrationApplied)return;
+  const directory=await mkdtemp(join(tmpdir(),"gabenglish-migrations-"));
+  try{
+   await writeFile(join(directory,"0001_initial_foundation.sql"),"SELECT 1;");
+   await expect(runMigrations(pool,directory)).rejects.toThrow("Applied migration checksum mismatch: 0001_initial_foundation.sql");
+  }finally{
+   await rm(directory,{recursive:true,force:true});
+  }
  });
  it("persists an active conversation across API process restarts",async()=>{
   if(!pool||!migrationApplied)return;
