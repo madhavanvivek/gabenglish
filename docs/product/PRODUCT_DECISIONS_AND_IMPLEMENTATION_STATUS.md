@@ -170,6 +170,7 @@ Current repository structure includes `apps/mobile`, `apps/api`, `packages/contr
 - Short-lived placement session persistence support when PostgreSQL is configured and migration 0002_placement_sessions.sql is applied; 30-minute expiry is documented. In-memory fallback remains for tests/development.
 - Six core prompt records spanning the five hidden challenge bands, with a conservative coverage-first sequence and up to two optional clarification turns. Clarification turns are excluded from core assessment evidence.
 - PostgreSQL-backed placement sessions use optimistic revision checks to reject stale concurrent writes instead of silently overwriting a newer turn. Replaying the same successfully saved turn returns its cached response. The API distinguishes expired PostgreSQL rows from unknown session IDs so the client can show the correct restart flow.
+- A checksum-verified PostgreSQL migration runner applies ordered migrations under an advisory lock, records checksums in `schema_migrations`, skips unchanged applied files and rejects edits to already-applied migrations. The API package exposes `pnpm --filter @gabenglish/api db:migrate`.
 - Mobile placement flow now provides an explicit restart action when a server session expires or is no longer available.
 - Gabroo's Concept C identity direction and respectful communication/address policy are documented.
 
@@ -190,7 +191,7 @@ These limitations must remain visible in README, release notes and handover repo
 
 ## 12. Next implementation sequence
 
-1. Keep the PostgreSQL 16 integration suite green as migrations and session handling evolve; add migration-ledger and production migration-runner support before enabling PostgreSQL-backed placement in a deployment.
+1. Keep the PostgreSQL 16 integration suite green as migrations and session handling evolve; add a controlled deployment migration step, backup/restore verification and release rollback procedure before enabling PostgreSQL-backed placement in production.
 2. Introduce authenticated learner identity and account lifecycle before persisting completed assessment reports; define retention, consent and deletion controls.
 3. Review the draft prompt-to-skill map with educators, then approve prompt objectives and mappings; do not enable skill findings until the analytic rubric and calibration gates are approved.
 4. Implement evidence coverage/uncertainty and a defensible report with a starting-stage recommendation only after educator validation.
