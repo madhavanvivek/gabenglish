@@ -3,6 +3,7 @@ import {Pool} from "pg";
 import {mkdtemp,rm,writeFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
+import {randomUUID} from "node:crypto";
 import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
 import {runMigrations} from "./migrate.js";
@@ -38,6 +39,47 @@ integration("PostgreSQL placement session integration",()=>{
    await expect(runMigrations(pool,directory)).rejects.toThrow("Applied migration checksum mismatch: 0001_initial_foundation.sql");
   }finally{
    await rm(directory,{recursive:true,force:true});
+  }
+ });
+ it("registers a learner, authenticates, rotates and revokes refresh sessions",async()=>{
+  if(!pool||!migrationApplied)return;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const email="learner-"+randomUUID()+"@example.test";
+  const password="SafeLearnerPassword!2026";
+  try{
+   const registered=await app.inject({method:"POST",url:"/api/v1/auth/register",payload:{email,password,display_name:"Anu"}});
+   expect(registered.statusCode).toBe(201);
+   const account=registered.json();
+   expect(account.user.email).toBe(email);
+   expect(account.email_verified).toBe(false);
+   expect(account.access_token).toBeTruthy();
+   expect(account.refresh_token).toBeTruthy();
+   const stored=await pool.query<{password_hash:string;email_verified_at:Date|null}>("SELECT password_hash,email_verified_at FROM users WHERE email_normalized=$1",[email]);
+   expect(stored.rows[0]?.password_hash).not.toBe(password);
+   expect(stored.rows[0]?.password_hash).toMatch(/^scrypt\\$/);
+   expect(stored.rows[0]?.email_verified_at).toBeNull();
+
+   const badLogin=await app.inject({method:"POST",url:"/api/v1/auth/login",payload:{email,password:"WrongPassword!2026"}});
+   expect(badLogin.statusCode).toBe(401);
+   const login=await app.inject({method:"POST",url:"/api/v1/auth/login",payload:{email,password}});
+   expect(login.statusCode).toBe(200);
+   const me=await app.inject({method:"GET",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+login.json().access_token}});
+   expect(me.statusCode).toBe(200);
+   expect(me.json().user.display_name).toBe("Anu");
+
+   const oldRefresh=login.json().refresh_token as string;
+   const rotated=await app.inject({method:"POST",url:"/api/v1/auth/refresh",payload:{refresh_token:oldRefresh}});
+   expect(rotated.statusCode).toBe(200);
+   const replay=await app.inject({method:"POST",url:"/api/v1/auth/refresh",payload:{refresh_token:oldRefresh}});
+   expect(replay.statusCode).toBe(401);
+   await app.inject({method:"POST",url:"/api/v1/auth/logout",payload:{refresh_token:rotated.json().refresh_token}});
+   const afterLogout=await app.inject({method:"POST",url:"/api/v1/auth/refresh",payload:{refresh_token:rotated.json().refresh_token}});
+   expect(afterLogout.statusCode).toBe(401);
+   const unauthenticated=await app.inject({method:"GET",url:"/api/v1/auth/me"});
+   expect(unauthenticated.statusCode).toBe(401);
+  }finally{
+   await pool.query("DELETE FROM users WHERE email_normalized=$1",[email]);
+   await app.close();
   }
  });
  it("persists an active conversation across API process restarts",async()=>{
