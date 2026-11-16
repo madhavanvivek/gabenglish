@@ -80,7 +80,7 @@ integration("PostgreSQL placement session integration",()=>{
   if(!pool||!migrationApplied)return;
   const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
   const email="subscription-activation-"+randomUUID()+"@example.test";
-  let userId:string|undefined,planId:string|undefined,priceId:string|undefined,subscriptionId:string|undefined,paymentId:string|undefined;
+  let userId:string|undefined,planId:string|undefined,priceId:string|undefined,subscriptionId:string|undefined,paymentId:string|undefined,renewalPaymentId:string|undefined;
   try{
    const token=await createVerifiedTestSession(app,email,pool);
    const me=await app.inject({method:"GET",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+token}});
@@ -101,6 +101,11 @@ integration("PostgreSQL placement session integration",()=>{
    const replay=await activateVerifiedSubscriptionPayment(pool,paymentId);
    expect(replay.idempotent).toBe(true);
    expect(replay.entitlement_id).toBe(activated.entitlement_id);
+   const renewal=await pool.query<{id:string}>("INSERT INTO payment_transactions(subscription_id,provider_code,provider_payment_ref,provider_event_id,amount_minor,currency,status,verified_at) VALUES($1,'test-provider',$2,$3,9900,'INR','succeeded',now()) RETURNING id",[subscriptionId,"pay-"+randomUUID(),"evt-"+randomUUID()]);
+   renewalPaymentId=renewal.rows[0]!.id;
+   const renewed=await activateVerifiedSubscriptionPayment(pool,renewalPaymentId);
+   expect(new Date(renewed.period_start).getTime()).toBe(new Date(activated.period_end).getTime());
+   expect(new Date(renewed.period_end).getTime()-new Date(renewed.period_start).getTime()).toBe(30*24*60*60*1000);
    const status=await app.inject({method:"GET",url:"/api/v1/subscriptions/current",headers:{authorization:"Bearer "+token}});
    expect(status.statusCode).toBe(200);
    expect(status.json().access).toBe("paid");
@@ -109,6 +114,7 @@ integration("PostgreSQL placement session integration",()=>{
   }finally{
    if(subscriptionId)await pool.query("DELETE FROM subscription_entitlements WHERE subscription_id=$1",[subscriptionId]);
    if(paymentId)await pool.query("DELETE FROM payment_transactions WHERE id=$1",[paymentId]);
+   if(renewalPaymentId)await pool.query("DELETE FROM payment_transactions WHERE id=$1",[renewalPaymentId]);
    if(subscriptionId)await pool.query("DELETE FROM subscriptions WHERE id=$1",[subscriptionId]);
    if(priceId)await pool.query("DELETE FROM regional_prices WHERE id=$1",[priceId]);
    if(planId)await pool.query("DELETE FROM subscription_plans WHERE id=$1",[planId]);
