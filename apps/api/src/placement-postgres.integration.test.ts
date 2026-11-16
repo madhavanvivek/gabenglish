@@ -146,6 +146,64 @@ integration("PostgreSQL placement session integration",()=>{
    await app.close();
   }
  });
+
+ it("persists paid Gabroo turns atomically and enforces conversation ownership",async()=>{
+  if(!pool||!migrationApplied)return;
+  const email="gabroo-paid-"+randomUUID()+"@example.test";
+  const otherEmail="gabroo-other-"+randomUUID()+"@example.test";
+  let userId:string|undefined,otherUserId:string|undefined,planId:string|undefined,priceId:string|undefined,subscriptionId:string|undefined,paymentId:string|undefined;
+  let providerCalls=0;
+  const provider={reply:async(input:{history:Array<{role:"user"|"assistant";content:string}>})=>{
+   providerCalls++;
+   expect(input.history.at(-1)?.role).toBe("user");
+   return {content:"That sounds interesting. What happened next?"};
+  }};
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool,undefined,provider);
+  try{
+   const token=await createVerifiedTestSession(app,email,pool);
+   const otherToken=await createVerifiedTestSession(app,otherEmail,pool);
+   userId=(await pool.query<{id:string}>("SELECT id FROM users WHERE email_normalized=$1",[email])).rows[0]!.id;
+   otherUserId=(await pool.query<{id:string}>("SELECT id FROM users WHERE email_normalized=$1",[otherEmail])).rows[0]!.id;
+   const plan=await pool.query<{id:string}>("INSERT INTO subscription_plans(code,name,entitlements) VALUES('monthly','Monthly Gabroo test',jsonb_build_object('gabroo_companion',true)) RETURNING id");
+   planId=plan.rows[0]!.id;
+   const price=await pool.query<{id:string}>("INSERT INTO regional_prices(plan_id,country_code,currency,billing_interval,amount_minor) VALUES($1,'IN','INR','month',9900) RETURNING id",[planId]);
+   priceId=price.rows[0]!.id;
+   const subscription=await pool.query<{id:string}>("INSERT INTO subscriptions(user_id,plan_id,regional_price_id,status) VALUES($1,$2,$3,'pending') RETURNING id",[userId,planId,priceId]);
+   subscriptionId=subscription.rows[0]!.id;
+   const payment=await pool.query<{id:string}>("INSERT INTO payment_transactions(subscription_id,provider_code,provider_payment_ref,provider_event_id,amount_minor,currency,status,verified_at) VALUES($1,'test-provider',$2,$3,9900,'INR','succeeded',now()) RETURNING id",[subscriptionId,"gabroo-pay-"+randomUUID(),"gabroo-evt-"+randomUUID()]);
+   paymentId=payment.rows[0]!.id;
+   await activateVerifiedSubscriptionPayment(pool,paymentId);
+   const headers={authorization:"Bearer "+token};
+   const created=await app.inject({method:"POST",url:"/api/v1/gabroo/conversations",headers,payload:{mode:"gentle_correction",support_language:"ml"}});
+   expect(created.statusCode).toBe(201);
+   const conversationId=created.json().conversation.id as string;
+   const sent=await app.inject({method:"POST",url:"/api/v1/gabroo/conversations/"+conversationId+"/messages",headers,payload:{message:"I went to the beach yesterday."}});
+   expect(sent.statusCode).toBe(200);
+   expect(sent.json().messages).toHaveLength(2);
+   expect(sent.json().messages.map((message:{role:string})=>message.role)).toEqual(["user","assistant"]);
+   expect(providerCalls).toBe(1);
+   const read=await app.inject({method:"GET",url:"/api/v1/gabroo/conversations/"+conversationId,headers});
+   expect(read.statusCode).toBe(200);
+   expect(read.json().messages).toHaveLength(2);
+   const otherRead=await app.inject({method:"GET",url:"/api/v1/gabroo/conversations/"+conversationId,headers:{authorization:"Bearer "+otherToken}});
+   expect(otherRead.statusCode).toBe(404);
+   const otherDelete=await app.inject({method:"DELETE",url:"/api/v1/gabroo/conversations/"+conversationId,headers:{authorization:"Bearer "+otherToken}});
+   expect(otherDelete.statusCode).toBe(404);
+   const deleted=await app.inject({method:"DELETE",url:"/api/v1/gabroo/conversations/"+conversationId,headers});
+   expect(deleted.statusCode).toBe(204);
+   const afterDelete=await pool.query("SELECT id FROM gabroo_conversations WHERE id=$1",[conversationId]);
+   expect(afterDelete.rows).toHaveLength(0);
+  }finally{
+   if(subscriptionId)await pool.query("DELETE FROM subscription_entitlements WHERE subscription_id=$1",[subscriptionId]);
+   if(paymentId)await pool.query("DELETE FROM payment_transactions WHERE id=$1",[paymentId]);
+   if(subscriptionId)await pool.query("DELETE FROM subscriptions WHERE id=$1",[subscriptionId]);
+   if(priceId)await pool.query("DELETE FROM regional_prices WHERE id=$1",[priceId]);
+   if(planId)await pool.query("DELETE FROM subscription_plans WHERE id=$1",[planId]);
+   if(userId)await pool.query("DELETE FROM users WHERE id=$1",[userId]);
+   if(otherUserId)await pool.query("DELETE FROM users WHERE id=$1",[otherUserId]);
+   await app.close();
+  }
+ });
  it("rejects edits to an already-applied migration checksum",async()=>{
   if(!pool||!migrationApplied)return;
   const directory=await mkdtemp(join(tmpdir(),"gabenglish-migrations-"));
