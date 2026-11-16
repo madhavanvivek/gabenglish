@@ -142,3 +142,9 @@ The foundation API now has a first evidence-extraction module. It records observ
 This is **not** an English proficiency evaluator. These surface features must not be interpreted as proof of grammar accuracy, vocabulary range, comprehension, fluency, pronunciation or a learning stage. A long answer can be inaccurate; a short answer can be correct. The module intentionally does not assign a score or stage.
 
 The next assessment-engine milestone must add reviewed prompt-to-skill mapping, educator-authored analytic rubrics, multiple evidence samples per skill, uncertainty/coverage handling, human-reviewed calibration data and a report assembled only from defensible findings. A voice transcript remains transcript evidence; pronunciation requires audio analysis that has been independently validated.
+
+## 14. First adaptive-selector implementation boundary
+
+The API now has a conservative first follow-up rule: when a learner gives a very brief response, Gabroo asks once for a little more detail before moving on. It does not increase the difficulty band on the basis of that brief response. This is a clarification opportunity, not a judgement that the learner has low ability.
+
+The current difficulty-band selector still uses simple response-length and surface-marker heuristics to choose among a small fixed prompt set. It is a routing prototype only; it is not a validated proficiency model. Prompt records intentionally do not claim skill mappings yet. Educator-reviewed prompt objectives and analytic rubrics are required before the system can produce skill findings or stage recommendations.
