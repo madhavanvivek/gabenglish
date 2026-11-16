@@ -435,3 +435,13 @@ Next implementation sequence:
 - Corrected the shared voice lifecycle: permission approval now enters a distinct `ready` state. It does **not** mean the microphone is recording or that the session is listening. A separate `begin_capture` event is required to enter `listening`.
 - The current screen only checks OS permission. It does not start recording, store audio, upload audio or invoke speech recognition. Live speech recognition and capture controls remain unimplemented.
 - Consent is an explicit in-screen action for this permission preflight; learners can clear the in-screen consent state. Revoking OS permission itself remains available in device settings.
+
+
+### Provider-neutral Malayalam-English speech recognition boundary
+
+- Added a shared recognition contract for Malayalam (ml-IN), English (en-IN) and mixed Malayalam-English (ml-en) requests.
+- Audio metadata is validated against an allowlist of supported media types and a 10 MB maximum before an adapter receives the bytes.
+- Recognition results are schema-validated, including transcript length, detected language and optional confidence bounds.
+- The recognition boundary supports cancellation and a 15-second default timeout, and returns stable application error codes rather than leaking provider error messages.
+- No audio or transcript is persisted by this shared helper. The caller remains responsible for explicit learner consent, secure transport, retention and deletion policy.
+- No speech-recognition provider is configured or selected. There is no production microphone upload, transcription endpoint or live voice session yet. A provider adapter and security-reviewed upload route are still required.
