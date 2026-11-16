@@ -74,6 +74,14 @@ Learners may say “simpler please”, “challenge me”, “explain in Malayal
 
 The aim is comprehensible stretch: learners should regularly meet English a little beyond their comfort zone while always having a safe route to understanding.
 
+### 3.2 Learner-controlled Gabroo speaking speed
+
+When Gabroo speaks aloud, the learner controls the playback speed. Put a visible, easy-to-use speed control in the voice conversation/player and expose the saved preference in voice settings. Start at 1.0× and provide a useful adjustable range (initial proposal: 0.75×–1.5×).
+
+Learners must be able to slow Gabroo down for easier understanding or speed him up when comfortable. Changing speed must not alter the response text, interrupt the conversation, or change the learner's own recording speed. Preserve pitch and natural voice quality where supported. Apply the setting to spoken replies and replayed audio, and remember it for future sessions where account preference sync is available. Include a one-tap reset to 1.0×.
+
+If a selected speech engine does not support the chosen rate, use client playback-rate control where quality remains acceptable; otherwise provide a clear fallback. This is a standard accessibility/comprehension control included in the single Gabenglish subscription. It does not make voice available before the consented speech path and device QA are complete.
+
 ## 4. Daily activity planner
 
 Daily activities provide structure and variety, not a mandatory timetable. The plan should adapt to the learner's available time, goals, stage, recent practice and preferences.
@@ -105,7 +113,7 @@ A conversation should remain usable if memory is unavailable. Never expose anoth
 ## 6. Subscription and access
 
 Open conversation and the planned daily activities are paid Gabroo subscription features. The current approved plans remain:
-- Monthly: ₹99 standard / ₹69 launch offer, 30 days.
+- Monthly: ₹99 standard / ₹79 launch offer, 30 days.
 - Yearly: ₹1,188 standard / ₹799 launch offer, 360 days.
 
 The free diagnostic report remains accessible after paid access expires. Basic account settings and the free report are not paid conversation entitlements.
