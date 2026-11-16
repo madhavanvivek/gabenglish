@@ -52,3 +52,28 @@ Repository/CI foundation; mobile shell/design system; backend skeleton/health ch
 
 ## 6. Delivery discipline
 Track work in issues; use PRs; require lint/typecheck/tests; keep main deployable; record decisions; update docs when implementation diverges; review resource costs before creating paid production infrastructure; distinguish verified facts from estimates and pending decisions.
+
+
+## 7. Foundation implementation checkpoint (2026-11-16)
+
+### Completed at scaffold/prototype level
+- pnpm monorepo, Fastify API skeleton, shared Zod contracts and Expo mobile shell.
+- GitHub Actions workflow for API/contracts and mobile typecheck.
+- Gabroo conversational placement requirements and respectful communication policy.
+- Placement conversation start/respond prototype routes with session/turn validation.
+- Local text-only mobile conversation prototype.
+
+Latest confirmed CI run `43848505407` passed the API and mobile jobs. This confirms the configured checks only; it does not certify production readiness.
+
+### Still required before Phase 0 can be declared complete
+- Full OpenAPI and reviewed assessment contracts; ERD, database migrations and retention model.
+- Skill evidence model, calibrated placement rubric, report specification and separate Gabroo explanation flow.
+- API-connected mobile journey and persisted assessment lifecycle.
+- UX wireframes, design tokens and reviewed component system.
+- First educator-reviewed Malayalam-supported lesson pack and curriculum taxonomy.
+- AI/STT/TTS benchmark and provider decision.
+- Final Gabroo character approval, canonical model sheet and production asset/rig plan.
+- Authentication, security threat model, deployment/backup/restore plan and release gates.
+- Prioritised Phase 1 backlog with estimates, dependencies and acceptance criteria.
+
+Do not mark Phase 0 complete merely because the scaffold or prototype CI passes.
