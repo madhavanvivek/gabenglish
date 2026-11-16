@@ -121,7 +121,15 @@ Keep identity, learner profile, assessment, curriculum, lessons, exercises, voca
 
 Open decisions requiring ADRs: authentication/session provider, ORM/migration approach, queue, object storage provider, LLM, STT, TTS, 3D runtime/asset pipeline and payment provider. Never represent proposed choices as deployed infrastructure. No paid production infrastructure is provisioned/approved by this document.
 
-## 8. Core product flows and future MVP scope
+## 8. B2C freemium and subscription model
+
+The current commercial model is B2C freemium. Learners create a free account using email OTP or phone OTP, take a free analysis/placement test and see the free result before being invited to subscribe to Gabroo. Email OTP accepts Gmail and other email providers; this is not Google OAuth. Learners may verify both email and phone and link them to one account.
+
+Only two initial paid terms are approved: Monthly ₹99 standard / ₹69 launch offer for exactly 30 days; Yearly ₹1,188 standard / ₹799 launch offer for exactly 360 days (12 × 30-day months). No six-month or tiered packages. Paid subscription unlocks Gabroo learning companion, classes, paid practice, ongoing learner assessment/profile and progress. Free analysis report and basic account details remain available without subscription. Paid access is controlled server-side and ends at the paid-through timestamp. Manual renewal is the default until auto-renewal is explicitly approved. Payment provider and launch-discount renewal policy remain undecided.
+
+Detailed requirements: `docs/product/B2C_FREEMIUM_SUBSCRIPTION_MODEL.md`.
+
+## 9. Core product flows and future MVP scope
 
 Android initial public-release direction:
 - registration, sign-in and learner profile;
@@ -138,7 +146,7 @@ Android initial public-release direction:
 
 Authentication, payments, admin console, production content delivery and live AI/speech are not complete merely because their requirements are documented.
 
-## 9. Privacy, safety and compliance
+## 10. Privacy, safety and compliance
 
 - Request microphone permission only at point of need and explain purpose before capture.
 - Make recording state visible; obtain explicit consent before retaining audio.
@@ -150,7 +158,7 @@ Authentication, payments, admin console, production content delivery and live AI
 - Payment status and entitlements must be verified server-side; never trust client success callbacks.
 - Review applicable Indian privacy, consumer, payment, app-store and child-safety requirements with qualified counsel before public release. This specification is not legal advice.
 
-## 10. Repository and delivery rules
+## 11. Repository and delivery rules
 
 Canonical repository: `madhavanvivek/gabenglish`.
 Current working branch: `foundation/app-skeleton`.
@@ -158,7 +166,7 @@ Keep changes on this branch and the existing PR draft until reviewed. Do not mer
 
 Current repository structure includes `apps/mobile`, `apps/api`, `packages/contracts` and `docs/`. Planned future boundaries include admin, worker, design-system/shared packages and infrastructure definitions; these are not completed applications unless present in the repository.
 
-## 11. Verified implementation status (2026-11-16)
+## 12. Verified implementation status (2026-11-16)
 
 ### Implemented in the foundation branch
 - pnpm monorepo, Fastify API skeleton, shared Zod contracts and Expo/React Native mobile application shell.
@@ -187,27 +195,28 @@ The placement-selector correction passed workflow run 43859020856. The mobile ex
 - Reports and answers are retained only within the short-lived assessment session; a durable learner assessment history/report store is not yet implemented.
 - PostgreSQL persistence is conditional on deployment configuration and migration application; no live Gabenglish database or production deployment has been verified.
 - The mobile assessment is text-only. No microphone capture, STT, TTS or pronunciation evaluation is implemented. Transcript input support in the API is not a production voice feature.
-- Learner authentication and basic account/profile/preferences/consent endpoints plus a basic mobile sign-in/registration screen now exist as a foundation, but the lifecycle is incomplete: email verification, password reset, MFA, session/device management, distributed abuse monitoring, deletion worker/final erasure and audit/support workflows remain pending. Registration currently activates accounts before email verification; this is not production-ready.
+- The existing learner password registration/login and password-based mobile screen are an implementation prototype only. They do not meet the approved B2C OTP model and must be replaced before public beta. Email OTP, phone OTP, verified-contact linking, subscription checkout and paid entitlements are not implemented yet.
 - Placement reports are still anonymous and are not linked to learner accounts; persistent assessment history remains pending.
-- Production curriculum/content delivery, subscriptions/payments and admin application remain incomplete.
+- B2C subscriptions, payment verification, subscription entitlements, OTP identity, production curriculum/content delivery and admin application remain incomplete.
 - No final Gabroo 3D model, rig or production animation assets are approved.
 - No production AI/speech provider has been selected or configured.
 
 These limitations must remain visible in README, release notes and handover reports until verified changes replace them.
 
-## 12. Next implementation sequence
+## 13. Next implementation sequence
 
 1. Keep the PostgreSQL 16 integration suite green as migrations and session handling evolve; add a controlled deployment migration step, backup/restore verification and release rollback procedure before enabling PostgreSQL-backed placement in production.
-2. Complete account lifecycle hardening: email verification, password reset, session/device controls, distributed rate limiting, audit events, deletion processing and security review. Then link completed assessment reports to authenticated learner IDs with explicit retention/consent controls.
-3. Review the draft prompt-to-skill map with educators, then approve prompt objectives and mappings; do not enable skill findings until the analytic rubric and calibration gates are approved.
-4. Implement evidence coverage/uncertainty and a defensible report with a starting-stage recommendation only after educator validation.
-5. Produce the first complete Malayalam-supported lesson pack and editorial review workflow for all five stages.
-6. Benchmark AI/STT/TTS providers before selecting one; then implement consent-based voice flows.
-7. Complete profile, admin/content workflows, security review, analytics and subscription decisions.
-8. Build full OpenAPI, ERD/migrations, threat model, deployment/backup plan and an estimated Phase 1 backlog.
+2. Replace prototype password auth with email/phone OTP challenges, verification, verified-contact linking, OTP abuse controls and secure sessions. Preserve the free analysis funnel and persist its report for verified free accounts.
+3. Implement exactly monthly/yearly subscriptions, payment-provider verification, 30/360-day entitlements and server-side gates for Gabroo classes, paid assessments and progress. Do not select a provider or enable recurring billing without approval.
+4. Review the draft prompt-to-skill map with educators, then approve prompt objectives and mappings; do not enable skill findings until the analytic rubric and calibration gates are approved.
+5. Implement evidence coverage/uncertainty and a defensible report with a starting-stage recommendation only after educator validation.
+6. Produce the first complete Malayalam-supported lesson pack and editorial review workflow for all five stages.
+7. Benchmark AI/STT/TTS providers before selecting one; then implement consent-based voice flows.
+8. Complete profile, admin/content workflows, security review and analytics.
+9. Build full OpenAPI, ERD/migrations, threat model, deployment/backup plan and an estimated Phase 1 backlog.
 
 
-## 13. Detailed documentation index
+## 14. Detailed documentation index
 
 - Product requirements: `docs/product/PRODUCT_SPECIFICATION.md`
 - UX and screen inventory: `docs/ux/UX_SPECIFICATION.md`
