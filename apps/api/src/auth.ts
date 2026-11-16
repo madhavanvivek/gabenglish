@@ -1,11 +1,12 @@
 import {createHash,createHmac,randomBytes,scrypt as scryptCallback,timingSafeEqual} from "node:crypto";
-import {promisify} from "node:util";
 import type {FastifyInstance,FastifyRequest} from "fastify";
 import type {Pool,PoolClient} from "pg";
 import {z} from "zod";
 import type {AppConfig} from "./config.js";
 
-const scrypt=promisify(scryptCallback);
+function deriveKey(password:string,salt:Buffer,length:number,options:{N:number;r:number;p:number;maxmem:number}){
+ return new Promise<Buffer>((resolve,reject)=>scryptCallback(password,salt,length,options,(error,key)=>error?reject(error):resolve(key as Buffer)));
+}
 const registerSchema=z.object({
  email:z.string().trim().email().max(254),
  password:z.string().min(10).max(128),
@@ -38,7 +39,7 @@ type AccessClaims={sub:string;exp:number;iss:"gabenglish-api";aud:"gabenglish-ap
 function digest(token:string){return createHash("sha256").update(token).digest("hex");}
 async function hashPassword(password:string){
  const salt=randomBytes(16);
- const derived=await scrypt(password,salt,64,{N:16384,r:8,p:1,maxmem:64*1024*1024}) as Buffer;
+ const derived=await deriveKey(password,salt,64,{N:16384,r:8,p:1,maxmem:64*1024*1024});
  return "scrypt$16384$8$1$"+salt.toString("base64url")+"$"+derived.toString("base64url");
 }
 async function verifyPassword(password:string,encoded:string){
@@ -49,7 +50,7 @@ async function verifyPassword(password:string,encoded:string){
  if(!Number.isSafeInteger(N)||N<16384||N>32768||R!==8||P!==1)return false;
  try{
   const expected=Buffer.from(hashText!,"base64url");
-  const actual=await scrypt(password,Buffer.from(saltText!,"base64url"),expected.length,{N,r:R,p:P,maxmem:64*1024*1024}) as Buffer;
+  const actual=await deriveKey(password,Buffer.from(saltText!,"base64url"),expected.length,{N,r:R,p:P,maxmem:64*1024*1024});
   return expected.length===actual.length&&timingSafeEqual(expected,actual);
  }catch{return false;}
 }
