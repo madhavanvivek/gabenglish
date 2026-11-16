@@ -66,6 +66,15 @@ integration("PostgreSQL placement session integration",()=>{
    const me=await app.inject({method:"GET",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+login.json().access_token}});
    expect(me.statusCode).toBe(200);
    expect(me.json().user.display_name).toBe("Anu");
+   const profile=await app.inject({method:"PATCH",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+login.json().access_token},payload:{display_name:"Anu K",locale:"ml-IN"}});
+   expect(profile.statusCode).toBe(200);
+   expect(profile.json().user.display_name).toBe("Anu K");
+   const preferences=await app.inject({method:"PATCH",url:"/api/v1/auth/me/preferences",headers:{authorization:"Bearer "+login.json().access_token},payload:{support_language:"ml",daily_target_minutes:15,correction_mode:"gentle"}});
+   expect(preferences.statusCode).toBe(200);
+   expect(preferences.json().preferences.daily_target_minutes).toBe(15);
+   const consent=await app.inject({method:"POST",url:"/api/v1/auth/me/consents",headers:{authorization:"Bearer "+login.json().access_token},payload:{purpose:"voice_processing",policy_version:"2026-11-v1",granted:true}});
+   expect(consent.statusCode).toBe(201);
+   expect(consent.json().consent.granted).toBe(true);
    for(let attempt=0;attempt<9;attempt++){
     const rejected=await app.inject({method:"POST",url:"/api/v1/auth/login",payload:{email,password:"WrongPassword!2026"}});
     expect(rejected.statusCode).toBe(401);
@@ -81,6 +90,11 @@ integration("PostgreSQL placement session integration",()=>{
    await app.inject({method:"POST",url:"/api/v1/auth/logout",payload:{refresh_token:rotated.json().refresh_token}});
    const afterLogout=await app.inject({method:"POST",url:"/api/v1/auth/refresh",payload:{refresh_token:rotated.json().refresh_token}});
    expect(afterLogout.statusCode).toBe(401);
+   const deletion=await app.inject({method:"POST",url:"/api/v1/auth/me/deletion-request",headers:{authorization:"Bearer "+rotated.json().access_token}});
+   expect(deletion.statusCode).toBe(202);
+   expect(deletion.json().status).toBe("deletion_requested");
+   const afterDeletion=await app.inject({method:"GET",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+rotated.json().access_token}});
+   expect(afterDeletion.statusCode).toBe(401);
    const unauthenticated=await app.inject({method:"GET",url:"/api/v1/auth/me"});
    expect(unauthenticated.statusCode).toBe(401);
   }finally{
