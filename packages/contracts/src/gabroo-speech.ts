@@ -36,7 +36,7 @@ export async function applyGabrooSpeechRate(
 
 /** Provider-independent lifecycle for a single consent-based voice session. */
 export const gabrooVoiceSessionStateSchema=z.enum([
- "idle","requesting_permission","listening","transcribing",
+ "idle","requesting_permission","ready","listening","transcribing",
  "generating","speaking","interrupted","error"
 ]);
 export type GabrooVoiceSessionState=z.infer<typeof gabrooVoiceSessionStateSchema>;
@@ -45,6 +45,7 @@ export type GabrooVoiceSessionEvent=
  |{type:"start";consentGranted:boolean}
  |{type:"permission_granted"}
  |{type:"permission_denied"}
+ |{type:"begin_capture"}
  |{type:"capture_stopped"}
  |{type:"transcript_ready"}
  |{type:"response_ready"}
@@ -55,7 +56,7 @@ export type GabrooVoiceSessionEvent=
  |{type:"reset"};
 
 const activeVoiceStates:GabrooVoiceSessionState[]=[
- "requesting_permission","listening","transcribing","generating","speaking"
+ "requesting_permission","ready","listening","transcribing","generating","speaking"
 ];
 
 /**
@@ -68,7 +69,8 @@ export function transitionGabrooVoiceSession(
 ):GabrooVoiceSessionState{
  const next:Partial<Record<GabrooVoiceSessionEvent["type"],GabrooVoiceSessionState>>={
   start: "requesting_permission",
-  permission_granted:"listening",
+  permission_granted:"ready",
+  begin_capture:"listening",
   permission_denied:"error",
   capture_stopped:"transcribing",
   transcript_ready:"generating",
@@ -88,6 +90,7 @@ export function transitionGabrooVoiceSession(
  const allowed:Record<GabrooVoiceSessionEvent["type"],GabrooVoiceSessionState[]> ={
   start:["idle"],
   permission_granted:["requesting_permission"],
+  begin_capture:["ready"],
   permission_denied:["requesting_permission"],
   capture_stopped:["listening"],
   transcript_ready:["transcribing"],
@@ -96,7 +99,7 @@ export function transitionGabrooVoiceSession(
   interrupt:activeVoiceStates,
   resume:["interrupted"],
   fail:activeVoiceStates,
-  reset:["interrupted","error"]
+  reset:["interrupted","error","ready"]
  };
  if(!allowed[event.type].includes(current)){
   throw new Error(`Invalid Gabroo voice transition: ${current} -> ${event.type}.`);
