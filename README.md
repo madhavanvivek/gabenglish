@@ -34,7 +34,8 @@ pnpm dev:api
 ```
 
 Liveness: `GET http://localhost:4000/api/v1/health`  
-Readiness: `GET http://localhost:4000/api/v1/ready` (requires a reachable database).
+Readiness: `GET http://localhost:4000/api/v1/ready` (requires a reachable database).  
+Database migrations: `DATABASE_URL=... pnpm --filter @gabenglish/api db:migrate` (review the target database and backup plan before running against any shared environment).
 
 Start mobile: `pnpm --filter @gabenglish/mobile start`.
 
@@ -50,6 +51,7 @@ Implemented on `foundation/app-skeleton`:
 - Expo mobile conversation connected to the placement API, including dynamic server prompts, report rendering, request timeouts, explicit network/configuration errors and learner-controlled recovery when a session expires.
 - Database-backed placement writes use optimistic revision checks to prevent concurrent responses from overwriting one another; safe retries return the already-recorded result.
 - GitHub Actions provisions PostgreSQL 16 and exercises the initial schema migrations plus placement-session persistence, restart, concurrency and expiry integration tests.
+- A checksum-verified migration runner applies ordered SQL files under a PostgreSQL advisory lock and records applied checksums in `schema_migrations`; it rejects edits to already-applied migrations.
 - Product, placement and Gabroo communication documentation.
 
 Latest CI verification: GitHub Actions workflow run 43861505662 passed with PostgreSQL 16 provisioned for the API job. The integration suite applies migrations 0001 and 0002, then verifies session persistence across API restarts, concurrent response handling and expiry. API typecheck, all API tests, shared-contract typecheck and mobile typecheck passed. The PostgreSQL concurrency implementation is now covered by a real database test, in addition to the isolated pool-double regression test.
