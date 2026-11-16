@@ -28,6 +28,8 @@ export const placementReportSchema=z.object({
   next_steps:z.array(z.string())
 });
 export const placementConversationResponseSchema=z.object({session_id:z.string().uuid(),prompt_id:z.string(),gabroo_message:z.string(),difficulty_band:z.number().int().min(1).max(5),turn_number:z.number().int().positive(),is_complete:z.boolean(),report:placementReportSchema.optional(),gabroo_explanation:z.string().optional(),evidence:z.array(placementEvidenceSchema).optional()});
+export type PlacementReport=z.infer<typeof placementReportSchema>;
+export type PlacementConversationResponse=z.infer<typeof placementConversationResponseSchema>;
 export type PlacementSessionStart=z.infer<typeof placementSessionStartSchema>;
 export type PlacementConversationRequest=z.infer<typeof placementConversationRequestSchema>;
 export type PlacementEvidence=z.infer<typeof placementEvidenceSchema>;
