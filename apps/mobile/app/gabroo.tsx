@@ -1,4 +1,4 @@
-import {useCallback,useEffect,useState} from "react";
+import {useCallback,useRef,useState} from "react";
 import * as Speech from "expo-speech";
 import {splitGabrooSpeechText} from "@gabenglish/contracts";
 import {Link,useFocusEffect} from "expo-router";
@@ -22,6 +22,7 @@ export default function GabrooScreen(){
  const [speakingMessageId,setSpeakingMessageId]=useState<string|null>(null);
  const [speechNotice,setSpeechNotice]=useState("");
  const [speechSaving,setSpeechSaving]=useState(false);
+ const speechRunRef=useRef(0);
  const load=useCallback(async()=>{
   setLoading(true);setError("");
   try{
@@ -32,7 +33,10 @@ export default function GabrooScreen(){
   }catch(reason){setError(reason instanceof Error?reason.message:"Could not load Gabroo.");}
   finally{setLoading(false);}
  },[]);
- useFocusEffect(useCallback(()=>{void load();},[load]));
+ useFocusEffect(useCallback(()=>{
+  void load();
+  return ()=>{speechRunRef.current+=1;void Speech.stop();};
+ },[load]));
  const openConversation=async(item:GabrooConversation)=>{
   setBusy(true);setError("");
   try{const result=await getGabrooConversation(item.id);setActive(result.conversation);setMode(result.conversation.mode);setMessages(result.messages);}
@@ -62,14 +66,28 @@ export default function GabrooScreen(){
   catch(reason){setError(reason instanceof AuthApiError&&reason.status===503?"Gabroo could not reply just now. Your message was not saved. Please try again.":reason instanceof Error?reason.message:"Could not send your message.");}
   finally{setBusy(false);}
  };
- const stopSpeech=async()=>{await Speech.stop();setSpeakingMessageId(null);};
+ const stopSpeech=async()=>{
+  speechRunRef.current+=1;
+  await Speech.stop();
+  setSpeakingMessageId(null);
+ };
+ const speakSegment=(text:string,options:{rate:number;language:string;voice?:string})=>new Promise<void>((resolve,reject)=>{
+  Speech.speak(text,{
+   ...options,
+   onDone:resolve,
+   onStopped:resolve,
+   onError:error=>reject(new Error(error.message??"Speech playback failed."))
+  });
+ });
  const speakMessage=async(message:GabrooConversationMessage)=>{
   if(speakingMessageId===message.id){await stopSpeech();return;}
+  const run=++speechRunRef.current;
   await Speech.stop();setSpeakingMessageId(null);setSpeechNotice("");
   try{
    const segments=splitGabrooSpeechText(message.content);
    if(segments.length===0)return;
    const voices=await Speech.getAvailableVoicesAsync();
+   if(run!==speechRunRef.current)return;
    const malayalamVoice=voices.find(voice=>voice.language.toLowerCase().startsWith("ml-in"));
    const englishVoice=voices.find(voice=>voice.language.toLowerCase().startsWith("en-in"));
    if(segments.some(segment=>segment.language==="ml")&&!malayalamVoice){
@@ -77,18 +95,22 @@ export default function GabrooScreen(){
     return;
    }
    setSpeakingMessageId(message.id);
-   segments.forEach((segment,index)=>{
+   for(const segment of segments){
+    if(run!==speechRunRef.current)return;
     const voice=segment.language==="ml"?malayalamVoice:englishVoice;
-    Speech.speak(segment.text,{
+    await speakSegment(segment.text,{
      rate:speechRate,
      language:voice?.language??(segment.language==="ml"?"ml-IN":"en-IN"),
-     ...(voice?{voice:voice.identifier}:{}),
-     onDone:index===segments.length-1?()=>setSpeakingMessageId(null):undefined,
-     onStopped:()=>setSpeakingMessageId(null),
-     onError:()=>{setSpeakingMessageId(null);setSpeechNotice("Your device could not play this reply. Check its text-to-speech voice settings.");}
+     ...(voice?{voice:voice.identifier}:{})
     });
-   });
-  }catch{setSpeakingMessageId(null);setSpeechNotice("Device speech is unavailable right now.");}
+   }
+   if(run===speechRunRef.current)setSpeakingMessageId(null);
+  }catch{
+   if(run===speechRunRef.current){
+    setSpeakingMessageId(null);
+    setSpeechNotice("Your device could not play this reply. Check its text-to-speech voice settings.");
+   }
+  }
  };
  const changeSpeechRate=async(delta:number)=>{
   const next=Math.min(1.5,Math.max(0.75,Math.round((speechRate+delta)*100)/100));
@@ -98,7 +120,6 @@ export default function GabrooScreen(){
   catch(reason){setSpeechRate(speechRate);setSpeechNotice(reason instanceof Error?reason.message:"Could not save your speaking speed.");}
   finally{setSpeechSaving(false);}
  };
- useEffect(()=>()=>{void Speech.stop();},[]);
  const remove=async()=>{
   if(!active||busy)return;
   setBusy(true);setError("");
