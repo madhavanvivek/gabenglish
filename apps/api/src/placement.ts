@@ -17,8 +17,12 @@ const prompts:Prompt[]=[
 {id:"opinion",band:4,text:"Some people believe that learning online is more effective than learning in a classroom. What is your view? Give examples."},
 {id:"scenario",band:5,text:"Imagine you are leading a team through an unexpected project delay. Explain how you would communicate the situation, handle disagreement and regain the client's confidence."}
 ];
-type Session={id:string;name?:string;style:string;language:string;turn:number;band:number;currentPromptId:string;responses:Array<{prompt_id:string;text:string;response_mode:"text"|"voice"}>;evidence:ResponseEvidence[];created_at:number};
+type Session={id:string;name?:string;style:string;language:string;turn:number;band:number;currentPromptId:string;responses:Array<{prompt_id:string;text:string;response_mode:"text"|"voice"}>;evidence:ResponseEvidence[];created_at:number;lastTurn?:{prompt_id:string;response:string;response_mode:"text"|"voice";result:Record<string,unknown>}};
 const sessions=new Map<string,Session>();
+const SESSION_TTL_MS=30*60*1000;
+const MAX_ACTIVE_SESSIONS=1000;
+export function isPlacementSessionExpired(createdAt:number,now=Date.now()){return now-createdAt>SESSION_TTL_MS;}
+function pruneSessions(now=Date.now()){for(const [id,session] of sessions){if(isPlacementSessionExpired(session.created_at,now))sessions.delete(id);}while(sessions.size>=MAX_ACTIVE_SESSIONS){const oldest=sessions.keys().next().value as string|undefined;if(!oldest)break;sessions.delete(oldest);}}
 function responseSignal(text:string){const words=text.trim().split(/\s+/).filter(Boolean);const clauses=(text.match(/[.!?;,]/g)||[]).length;const connectors=/\b(because|although|however|therefore|while|whereas|for example|if|when|since)\b/i.test(text);const past=/\b(yesterday|last|ago|was|were|did|went|had|visited|worked)\b/i.test(text);return {wordCount:words.length,clauses,connectors,past};}
 function buildPlacementReport(session:Session){
  const patterns=[...new Set(session.evidence.flatMap(item=>item.observations))];
@@ -55,6 +59,7 @@ export async function registerPlacementRoutes(app:FastifyInstance){
  app.post("/api/v1/placement/conversation/start",async(request,reply)=>{
   const parsed=placementSessionStartSchema.safeParse(request.body??{});
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Please check your assessment preferences.",request_id:request.id}});
+  pruneSessions();
   const id=randomUUID();const session:Session={id,name:parsed.data.display_name,style:parsed.data.communication_style,language:parsed.data.preferred_language,turn:0,band:1,currentPromptId:"intro",responses:[],evidence:[],created_at:Date.now()};sessions.set(id,session);
   const first=prompts[0]!;
   const greeting=session.language==="ml"?"ഹായ്! ഞാൻ Gabroo. നമുക്ക് ഒരു friendly conversation തുടങ്ങാം. ഇത് exam അല്ല; നിനക്ക് പറ്റുന്ന പോലെ സംസാരിച്ചാൽ മതി. തെറ്റുകൾ വന്നാലും പ്രശ്നമില്ല.":"Hi! I'm Gabroo. Let's have a relaxed conversation. This isn't an exam, so just express yourself naturally. Mistakes are completely okay.";
@@ -64,8 +69,14 @@ export async function registerPlacementRoutes(app:FastifyInstance){
   const parsed=placementConversationRequestSchema.safeParse(request.body);
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Please provide a valid conversation response.",request_id:request.id}});
   const session=sessions.get(parsed.data.session_id);if(!session)return reply.code(404).send({error:{code:"SESSION_NOT_FOUND",message:"This assessment session is no longer available. Please start again.",request_id:request.id}});
-  const expected=prompts.find(p=>p.id===session.currentPromptId);if(!expected||expected.id!==parsed.data.turn.prompt_id)return reply.code(409).send({error:{code:"TURN_OUT_OF_ORDER",message:"This response does not match the current assessment question.",request_id:request.id}});
-  session.responses.push({prompt_id:expected.id,text:parsed.data.turn.response,response_mode:parsed.data.turn.response_mode});
+  if(isPlacementSessionExpired(session.created_at)){sessions.delete(session.id);return reply.code(410).send({error:{code:"SESSION_EXPIRED",message:"This assessment session has expired. Please start again.",request_id:request.id}});}
+  const incoming=parsed.data.turn;
+  if(session.lastTurn?.prompt_id===incoming.prompt_id){
+   if(session.lastTurn.response===incoming.response&&session.lastTurn.response_mode===incoming.response_mode)return reply.send(session.lastTurn.result);
+   return reply.code(409).send({error:{code:"TURN_ALREADY_SUBMITTED",message:"This question has already been answered. Continue with the latest question.",request_id:request.id}});
+  }
+  const expected=prompts.find(p=>p.id===session.currentPromptId);if(!expected||expected.id!==incoming.prompt_id)return reply.code(409).send({error:{code:"TURN_OUT_OF_ORDER",message:"This response does not match the current assessment question.",request_id:request.id}});
+  session.responses.push({prompt_id:expected.id,text:incoming.response,response_mode:incoming.response_mode});
   session.evidence.push(extractResponseEvidence(expected.id,parsed.data.turn.response,parsed.data.turn.response_mode==="voice"?"voice_transcript":"text"));
   session.turn+=1;
   const nextBand=chooseBand(session);session.band=nextBand;
@@ -74,9 +85,11 @@ export async function registerPlacementRoutes(app:FastifyInstance){
   const shouldClarify=latestSignal.wordCount<8&&!hasClarification&&session.responses.length<5;
   const next=shouldClarify?prompts.find(p=>p.id==="clarify"):prompts.find(p=>p.band===nextBand&&p.id!==expected.id&&p.id!=="clarify"&&!session.responses.some(x=>x.prompt_id===p.id))??prompts.find(p=>p.id!=="clarify"&&!session.responses.some(x=>x.prompt_id===p.id));
   const complete=!next||session.responses.length>=6;
-  if(complete){const report=buildPlacementReport(session);const gabroo_explanation=buildGabrooExplanation(report);return {session_id:session.id,prompt_id:"complete",gabroo_message:"Thank you for sharing that with me. I have prepared a preliminary report from this conversation. It does not assign a learning stage yet.",difficulty_band:session.band,turn_number:session.turn+1,is_complete:true,evidence:session.evidence,report,gabroo_explanation};}
-  const selected=next!;session.currentPromptId=selected.id;
-  return {session_id:session.id,prompt_id:selected.id,gabroo_message:selected.text,difficulty_band:selected.band,turn_number:session.turn+1,is_complete:false};
+  let result:Record<string,unknown>;
+  if(complete){const report=buildPlacementReport(session);const gabroo_explanation=buildGabrooExplanation(report);result={session_id:session.id,prompt_id:"complete",gabroo_message:"Thank you for sharing that with me. I have prepared a preliminary report from this conversation. It does not assign a learning stage yet.",difficulty_band:session.band,turn_number:session.turn+1,is_complete:true,evidence:session.evidence,report,gabroo_explanation};}
+  else {const selected=next!;session.currentPromptId=selected.id;result={session_id:session.id,prompt_id:selected.id,gabroo_message:selected.text,difficulty_band:selected.band,turn_number:session.turn+1,is_complete:false};}
+  session.lastTurn={prompt_id:incoming.prompt_id,response:incoming.response,response_mode:incoming.response_mode,result};
+  return result;
  });
  app.get("/api/v1/placement/questions",async()=>({assessment_version:"pilot-1",questions:quiz.map(({correct,...q})=>q)}));
  app.post("/api/v1/placement/score",async(request,reply)=>{
