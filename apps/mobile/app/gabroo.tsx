@@ -1,6 +1,7 @@
 import {useCallback,useRef,useState} from "react";
 import * as Speech from "expo-speech";
 import {Audio} from "expo-av";
+import * as FileSystem from "expo-file-system/legacy";
 import {playGabrooSpeechSegments,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooVoiceSessionState} from "@gabenglish/contracts";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
@@ -27,6 +28,10 @@ export default function GabrooScreen(){
  const [voicePermissionStatus,setVoicePermissionStatus]=useState<"not_requested"|"granted"|"denied">("not_requested");
  const [voicePermissionBusy,setVoicePermissionBusy]=useState(false);
  const [voiceSessionState,setVoiceSessionState]=useState<GabrooVoiceSessionState>("idle");
+ const [voiceCaptureConsent,setVoiceCaptureConsent]=useState(false);
+ const [recordingActive,setRecordingActive]=useState(false);
+ const [recordingBusy,setRecordingBusy]=useState(false);
+ const recordingRef=useRef<Audio.Recording|null>(null);
  const speechRunRef=useRef(0);
  const load=useCallback(async()=>{
   setLoading(true);setError("");
@@ -40,7 +45,18 @@ export default function GabrooScreen(){
  },[]);
  useFocusEffect(useCallback(()=>{
   void load();
-  return ()=>{speechRunRef.current+=1;void Speech.stop();};
+  return ()=>{
+   speechRunRef.current+=1;
+   void Speech.stop();
+   const recording=recordingRef.current;
+   recordingRef.current=null;
+   if(recording){
+    void recording.stopAndUnloadAsync().then(()=>{
+     const uri=recording.getURI();
+     if(uri)return FileSystem.deleteAsync(uri,{idempotent:true});
+    }).catch(()=>undefined).finally(()=>Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined));
+   }
+  };
  },[load]));
  const openConversation=async(item:GabrooConversation)=>{
   setBusy(true);setError("");
@@ -140,8 +156,51 @@ export default function GabrooScreen(){
    setSpeechNotice(reason instanceof Error?reason.message:"Could not request microphone permission.");
   }finally{setVoicePermissionBusy(false);}
  };
+ const startLocalCapture=async()=>{
+  if(!voiceCaptureConsent||voiceSessionState!=="ready"||recordingBusy||recordingRef.current)return;
+  setRecordingBusy(true);setSpeechNotice("");
+  try{
+   await Audio.setAudioModeAsync({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
+   const created=await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+   recordingRef.current=created.recording;
+   setVoiceSessionState(current=>transitionGabrooVoiceSession(current,{type:"begin_capture"}));
+   setRecordingActive(true);
+  }catch(reason){
+   const recording=recordingRef.current;recordingRef.current=null;
+   if(recording){
+    try{await recording.stopAndUnloadAsync();const uri=recording.getURI();if(uri)await FileSystem.deleteAsync(uri,{idempotent:true});}catch{}
+   }
+   setVoiceSessionState("error");
+   setSpeechNotice(reason instanceof Error?reason.message:"Could not start the microphone test.");
+   await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
+  }finally{setRecordingBusy(false);}
+ };
+ const stopAndDiscardLocalCapture=async()=>{
+  const recording=recordingRef.current;
+  if(!recording||recordingBusy)return;
+  setRecordingBusy(true);setSpeechNotice("");
+  try{
+   await recording.stopAndUnloadAsync();
+   const uri=recording.getURI();
+   recordingRef.current=null;
+   setVoiceSessionState(current=>transitionGabrooVoiceSession(current,{type:"capture_stopped"}));
+   if(uri)await FileSystem.deleteAsync(uri,{idempotent:true});
+   setVoiceSessionState(current=>transitionGabrooVoiceSession(current,{type:"capture_discarded"}));
+   setRecordingActive(false);
+   setSpeechNotice("Microphone test completed. The temporary recording was deleted from this device. No audio was uploaded or transcribed.");
+  }catch(reason){
+   recordingRef.current=null;
+   setRecordingActive(false);
+   setVoiceSessionState("error");
+   setSpeechNotice(reason instanceof Error?reason.message:"Could not safely finish and discard the recording. Please check device storage.");
+  }finally{
+   await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
+   setRecordingBusy(false);
+  }
+ };
  const resetVoiceConsent=()=>{
   setVoiceConsent(false);
+  setVoiceCaptureConsent(false);
   setVoicePermissionStatus("not_requested");
   setVoiceSessionState(current=>current==="ready"||current==="error"||current==="interrupted"
    ?transitionGabrooVoiceSession(current,{type:"reset"})
@@ -181,11 +240,23 @@ export default function GabrooScreen(){
       <Text style={s.consentText}>I agree to let Gabenglish request microphone permission for a future voice conversation with Gabroo.</Text>
      </Pressable>
      {voicePermissionStatus==="granted"?<Text style={s.permissionGranted}>Microphone permission granted. No recording has started.</Text>:voicePermissionStatus==="denied"?<Text style={s.permissionDenied}>Microphone permission was not granted. You can review it in your device settings.</Text>:null}
+     {voicePermissionStatus==="granted"?<View style={s.captureConsentPanel}>
+      <Text style={s.captureConsentTitle}>Optional local microphone test</Text>
+      <Text style={s.captureConsentCopy}>This is a separate recording consent. A short temporary recording stays on this device only and is deleted when you stop. It is not uploaded, saved to your account or sent for transcription.</Text>
+      <Pressable accessibilityRole="checkbox" accessibilityState={{checked:voiceCaptureConsent}} disabled={recordingActive||recordingBusy} onPress={()=>setVoiceCaptureConsent(value=>!value)} style={s.consentRow}>
+       <View style={[s.consentBox,voiceCaptureConsent&&s.consentBoxChecked]}>{voiceCaptureConsent?<Text style={s.consentCheck}>✓</Text>:null}</View>
+       <Text style={s.consentText}>I agree to make a temporary local microphone test recording and have it deleted when I stop.</Text>
+      </Pressable>
+      {recordingActive?<Text style={s.permissionGranted}>Microphone is recording. Select Stop & delete recording when finished.</Text>:null}
+      <Pressable disabled={recordingBusy||(!recordingActive&&(!voiceCaptureConsent||voiceSessionState!=="ready"))} onPress={()=>void(recordingActive?stopAndDiscardLocalCapture():startLocalCapture())} style={[s.captureButton,recordingBusy&&s.disabled,recordingActive&&s.captureStopButton]}>
+       {recordingBusy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>{recordingActive?"Stop & delete recording":"Start local microphone test"}</Text>}
+      </Pressable>
+     </View>:null}
      <View style={s.permissionActions}>
       <Pressable disabled={!voiceConsent||voicePermissionBusy||voicePermissionStatus==="granted"} onPress={()=>void requestVoicePermission()} style={[s.permissionButton,(!voiceConsent||voicePermissionBusy||voicePermissionStatus==="granted")&&s.disabled]}>
        {voicePermissionBusy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>{voicePermissionStatus==="denied"?"Try permission again":"Continue to microphone permission"}</Text>}
       </Pressable>
-      {voicePermissionStatus!=="not_requested"?<Pressable onPress={resetVoiceConsent} style={s.permissionReset}><Text style={s.permissionResetText}>Clear in-app consent</Text></Pressable>:null}
+      {voicePermissionStatus!=="not_requested"?<Pressable disabled={recordingActive||recordingBusy} onPress={resetVoiceConsent} style={s.permissionReset}><Text style={s.permissionResetText}>Clear in-app consent</Text></Pressable>:null}
      </View>
     </View>
     <Text style={s.modeLabel}>Conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>void changeMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View>{messages.length===0?<View style={s.emptyPanel}><Text style={s.title}>Hi! I'm Gabroo.</Text><Text style={s.copy}>Let's have a natural conversation. What's on your mind today?</Text></View>:messages.map(message=><View key={message.id} style={[s.bubble,message.role==="user"?s.userBubble:s.gabrooBubble]}><Text style={s.speaker}>{message.role==="user"?"YOU":"GABROO"}</Text><Text style={s.message}>{message.content}</Text>{message.role==="assistant"?<Pressable accessibilityRole="button" onPress={()=>void speakMessage(message)} style={s.listenButton}><Text style={s.listenButtonText}>{speakingMessageId===message.id?"Stop speaking":"Listen · device voice"}</Text></Pressable>:null}</View>)}
@@ -198,5 +269,5 @@ export default function GabrooScreen(){
  </ScrollView></SafeAreaView>;
 }
 const s=StyleSheet.create({
- safe:{flex:1,backgroundColor:"#FFF7EC"},page:{flexGrow:1,padding:20,paddingBottom:36},top:{alignItems:"center",marginBottom:26},back:{color:"#6A2BBF",fontWeight:"800",fontSize:14,alignSelf:"flex-start"},brand:{fontSize:30,fontWeight:"900",color:"#1F1B4D",marginTop:12},subtitle:{color:"#777084",fontSize:13,marginTop:4},panel:{backgroundColor:"#EEE4FF",borderRadius:22,padding:22},title:{fontSize:21,fontWeight:"900",color:"#54239A"},copy:{fontSize:14,lineHeight:22,color:"#51476A",marginTop:10},action:{color:"#54239A",fontWeight:"900",marginTop:20},button:{backgroundColor:"#6A2BBF",borderRadius:14,padding:16,alignItems:"center",marginTop:18},buttonText:{color:"#fff",fontWeight:"900",fontSize:15},disabled:{opacity:.5},section:{fontSize:17,fontWeight:"900",color:"#30254A",marginTop:28,marginBottom:12},modeLabel:{fontSize:12,fontWeight:"900",color:"#51476A",marginTop:18,marginBottom:8},modeGrid:{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:4},modeChip:{paddingVertical:9,paddingHorizontal:11,borderRadius:18,borderWidth:1,borderColor:"#D9CBEA",backgroundColor:"#fff"},modeSelected:{backgroundColor:"#6A2BBF",borderColor:"#6A2BBF"},modeText:{fontSize:11,fontWeight:"700",color:"#51476A"},modeTextSelected:{color:"#fff"},empty:{color:"#777084",fontSize:13,paddingVertical:16},listItem:{backgroundColor:"#fff",borderColor:"#E8DFEF",borderWidth:1,borderRadius:14,padding:15,marginBottom:9},listTitle:{color:"#30254A",fontWeight:"800"},listMeta:{color:"#82798E",fontSize:12,marginTop:5},conversationHeader:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:18},voiceControls:{backgroundColor:"#F7F2FF",borderRadius:14,padding:12,marginBottom:14},voicePermissionPanel:{backgroundColor:"#F1F8F5",borderWidth:1,borderColor:"#D7E9DE",borderRadius:16,padding:14,marginBottom:16},voicePermissionCopy:{fontSize:12,lineHeight:18,color:"#52665A",marginTop:7},consentRow:{flexDirection:"row",alignItems:"flex-start",gap:10,marginTop:12},consentBox:{width:22,height:22,borderWidth:1.5,borderColor:"#81988A",borderRadius:6,alignItems:"center",justifyContent:"center",backgroundColor:"#fff"},consentBoxChecked:{backgroundColor:"#28734A",borderColor:"#28734A"},consentCheck:{color:"#fff",fontWeight:"900"},consentText:{flex:1,fontSize:12,lineHeight:18,color:"#334B3B"},permissionActions:{marginTop:12},permissionButton:{backgroundColor:"#28734A",borderRadius:11,padding:12,alignItems:"center"},permissionGranted:{color:"#246B43",fontSize:12,fontWeight:"800",marginTop:10},permissionDenied:{color:"#9A4B1B",fontSize:12,fontWeight:"800",marginTop:10},permissionReset:{alignSelf:"flex-start",paddingVertical:10},permissionResetText:{color:"#5D6D63",fontWeight:"800",fontSize:12},voiceTitle:{fontSize:12,fontWeight:"900",color:"#54239A"},voiceSpeedRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:8},voiceSpeedButton:{width:34,height:34,borderRadius:10,backgroundColor:"#6A2BBF",alignItems:"center",justifyContent:"center"},voiceSpeedButtonText:{fontSize:22,color:"#fff",fontWeight:"800"},voiceSpeedHint:{fontSize:10,color:"#70677B",flex:1,textAlign:"center"},listenButton:{alignSelf:"flex-start",marginTop:10,backgroundColor:"#F0E8FA",paddingVertical:7,paddingHorizontal:10,borderRadius:10},listenButtonText:{fontSize:11,fontWeight:"800",color:"#54239A"},speechNotice:{fontSize:11,color:"#8A3B12",marginTop:10,lineHeight:17},delete:{color:"#B42318",fontWeight:"800"},bubble:{padding:15,borderRadius:17,marginBottom:12,maxWidth:"92%"},userBubble:{backgroundColor:"#E7DDF8",alignSelf:"flex-end"},gabrooBubble:{backgroundColor:"#fff",alignSelf:"flex-start",borderWidth:1,borderColor:"#EEE7F4"},speaker:{fontSize:9,fontWeight:"900",letterSpacing:1,color:"#7C55A6",marginBottom:6},message:{fontSize:15,lineHeight:22,color:"#30254A"},input:{backgroundColor:"#fff",borderWidth:1,borderColor:"#E3DCEA",borderRadius:14,padding:14,fontSize:15,color:"#1F1B4D",minHeight:88,textAlignVertical:"top",marginTop:16},hint:{fontSize:11,lineHeight:17,color:"#777084",marginTop:12},emptyPanel:{backgroundColor:"#EEE4FF",padding:22,borderRadius:18},error:{backgroundColor:"#FCE8E6",padding:13,borderRadius:12,marginTop:18},errorText:{color:"#9F2D24",fontSize:13,lineHeight:19}
+ safe:{flex:1,backgroundColor:"#FFF7EC"},page:{flexGrow:1,padding:20,paddingBottom:36},top:{alignItems:"center",marginBottom:26},back:{color:"#6A2BBF",fontWeight:"800",fontSize:14,alignSelf:"flex-start"},brand:{fontSize:30,fontWeight:"900",color:"#1F1B4D",marginTop:12},subtitle:{color:"#777084",fontSize:13,marginTop:4},panel:{backgroundColor:"#EEE4FF",borderRadius:22,padding:22},title:{fontSize:21,fontWeight:"900",color:"#54239A"},copy:{fontSize:14,lineHeight:22,color:"#51476A",marginTop:10},action:{color:"#54239A",fontWeight:"900",marginTop:20},button:{backgroundColor:"#6A2BBF",borderRadius:14,padding:16,alignItems:"center",marginTop:18},buttonText:{color:"#fff",fontWeight:"900",fontSize:15},disabled:{opacity:.5},section:{fontSize:17,fontWeight:"900",color:"#30254A",marginTop:28,marginBottom:12},modeLabel:{fontSize:12,fontWeight:"900",color:"#51476A",marginTop:18,marginBottom:8},modeGrid:{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:4},modeChip:{paddingVertical:9,paddingHorizontal:11,borderRadius:18,borderWidth:1,borderColor:"#D9CBEA",backgroundColor:"#fff"},modeSelected:{backgroundColor:"#6A2BBF",borderColor:"#6A2BBF"},modeText:{fontSize:11,fontWeight:"700",color:"#51476A"},modeTextSelected:{color:"#fff"},empty:{color:"#777084",fontSize:13,paddingVertical:16},listItem:{backgroundColor:"#fff",borderColor:"#E8DFEF",borderWidth:1,borderRadius:14,padding:15,marginBottom:9},listTitle:{color:"#30254A",fontWeight:"800"},listMeta:{color:"#82798E",fontSize:12,marginTop:5},conversationHeader:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:18},voiceControls:{backgroundColor:"#F7F2FF",borderRadius:14,padding:12,marginBottom:14},voicePermissionPanel:{backgroundColor:"#F1F8F5",borderWidth:1,borderColor:"#D7E9DE",borderRadius:16,padding:14,marginBottom:16},voicePermissionCopy:{fontSize:12,lineHeight:18,color:"#52665A",marginTop:7},consentRow:{flexDirection:"row",alignItems:"flex-start",gap:10,marginTop:12},consentBox:{width:22,height:22,borderWidth:1.5,borderColor:"#81988A",borderRadius:6,alignItems:"center",justifyContent:"center",backgroundColor:"#fff"},consentBoxChecked:{backgroundColor:"#28734A",borderColor:"#28734A"},consentCheck:{color:"#fff",fontWeight:"900"},consentText:{flex:1,fontSize:12,lineHeight:18,color:"#334B3B"},permissionActions:{marginTop:12},permissionButton:{backgroundColor:"#28734A",borderRadius:11,padding:12,alignItems:"center"},permissionGranted:{color:"#246B43",fontSize:12,fontWeight:"800",marginTop:10},permissionDenied:{color:"#9A4B1B",fontSize:12,fontWeight:"800",marginTop:10},permissionReset:{alignSelf:"flex-start",paddingVertical:10},permissionResetText:{color:"#5D6D63",fontWeight:"800",fontSize:12},captureConsentPanel:{backgroundColor:"#FFF",borderRadius:12,padding:12,marginTop:14,borderWidth:1,borderColor:"#D7E9DE"},captureConsentTitle:{fontSize:12,fontWeight:"900",color:"#246B43"},captureConsentCopy:{fontSize:11,lineHeight:17,color:"#52665A",marginTop:6},captureButton:{backgroundColor:"#28734A",borderRadius:11,padding:12,alignItems:"center",marginTop:12},captureStopButton:{backgroundColor:"#B42318"},voiceTitle:{fontSize:12,fontWeight:"900",color:"#54239A"},voiceSpeedRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:8},voiceSpeedButton:{width:34,height:34,borderRadius:10,backgroundColor:"#6A2BBF",alignItems:"center",justifyContent:"center"},voiceSpeedButtonText:{fontSize:22,color:"#fff",fontWeight:"800"},voiceSpeedHint:{fontSize:10,color:"#70677B",flex:1,textAlign:"center"},listenButton:{alignSelf:"flex-start",marginTop:10,backgroundColor:"#F0E8FA",paddingVertical:7,paddingHorizontal:10,borderRadius:10},listenButtonText:{fontSize:11,fontWeight:"800",color:"#54239A"},speechNotice:{fontSize:11,color:"#8A3B12",marginTop:10,lineHeight:17},delete:{color:"#B42318",fontWeight:"800"},bubble:{padding:15,borderRadius:17,marginBottom:12,maxWidth:"92%"},userBubble:{backgroundColor:"#E7DDF8",alignSelf:"flex-end"},gabrooBubble:{backgroundColor:"#fff",alignSelf:"flex-start",borderWidth:1,borderColor:"#EEE7F4"},speaker:{fontSize:9,fontWeight:"900",letterSpacing:1,color:"#7C55A6",marginBottom:6},message:{fontSize:15,lineHeight:22,color:"#30254A"},input:{backgroundColor:"#fff",borderWidth:1,borderColor:"#E3DCEA",borderRadius:14,padding:14,fontSize:15,color:"#1F1B4D",minHeight:88,textAlignVertical:"top",marginTop:16},hint:{fontSize:11,lineHeight:17,color:"#777084",marginTop:12},emptyPanel:{backgroundColor:"#EEE4FF",padding:22,borderRadius:18},error:{backgroundColor:"#FCE8E6",padding:13,borderRadius:12,marginTop:18},errorText:{color:"#9F2D24",fontSize:13,lineHeight:19}
 });
