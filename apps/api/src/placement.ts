@@ -20,6 +20,36 @@ const prompts:Prompt[]=[
 type Session={id:string;name?:string;style:string;language:string;turn:number;band:number;currentPromptId:string;responses:Array<{prompt_id:string;text:string;response_mode:"text"|"voice"}>;evidence:ResponseEvidence[];created_at:number};
 const sessions=new Map<string,Session>();
 function responseSignal(text:string){const words=text.trim().split(/\s+/).filter(Boolean);const clauses=(text.match(/[.!?;,]/g)||[]).length;const connectors=/\b(because|although|however|therefore|while|whereas|for example|if|when|since)\b/i.test(text);const past=/\b(yesterday|last|ago|was|were|did|went|had|visited|worked)\b/i.test(text);return {wordCount:words.length,clauses,connectors,past};}
+function buildPlacementReport(session:Session){
+ const patterns=[...new Set(session.evidence.flatMap(item=>item.observations))];
+ const limitations=[...new Set(session.evidence.flatMap(item=>item.limitations))];
+ const sources=new Set(session.evidence.map(item=>item.source));
+ const assessment_mode=sources.size>1?"mixed":sources.has("voice_transcript")?"voice_transcript":"text";
+ return {
+  status:"provisional" as const,
+  recommendation_status:"not_yet_available" as const,
+  assessment_mode,
+  response_count:session.evidence.length,
+  extended_samples:session.evidence.filter(item=>item.sampleSize==="extended").length,
+  brief_samples:session.evidence.filter(item=>item.sampleSize==="brief").length,
+  observed_patterns:patterns,
+  limitations,
+  next_steps:[
+   "Complete a reviewed set of vocabulary, grammar, comprehension and communication activities before receiving a learning-stage recommendation.",
+   "Use a consent-based voice assessment if you want speaking and pronunciation feedback.",
+   "You can begin with Malayalam-supported lessons at any time; this conversation does not lock your learning path."
+  ]
+ };
+}
+function buildGabrooExplanation(report:ReturnType<typeof buildPlacementReport>){
+ const sample=report.extended_samples>0
+  ?"You shared a few longer answers, which gives us some useful examples to work with."
+  :"Your answers were mostly brief, so I would like to learn a little more before suggesting a level.";
+ const mode=report.assessment_mode==="text"
+  ?"Because we used text, I cannot assess your pronunciation or confirm spoken fluency."
+  :"This transcript-based conversation still cannot verify pronunciation; that needs a separate audio assessment.";
+ return `Thanks for chatting with me! ${sample} I’m not going to guess your English level from this short conversation. ${mode} We can build a clearer picture with a few guided activities, and you can start with Malayalam support whenever you like.`;
+}
 function chooseBand(session:Session){if(session.responses.length<2)return 1;const recent=session.responses.slice(-2).map(r=>responseSignal(r.text));const latest=recent.at(-1);if(!latest||latest.wordCount<8)return session.band;const avg=recent.reduce((n,x)=>n+x.wordCount,0)/recent.length;const advanced=recent.some(x=>x.connectors&&x.wordCount>=22);if(advanced&&avg>=25)return Math.min(5,session.band+1);if(avg>=16)return Math.min(4,Math.max(3,session.band+1));if(avg>=8)return Math.min(3,Math.max(2,session.band+1));return Math.max(1,Math.min(session.band,2));}
 export async function registerPlacementRoutes(app:FastifyInstance){
  app.post("/api/v1/placement/conversation/start",async(request,reply)=>{
@@ -44,7 +74,7 @@ export async function registerPlacementRoutes(app:FastifyInstance){
   const shouldClarify=latestSignal.wordCount<8&&!hasClarification&&session.responses.length<5;
   const next=shouldClarify?prompts.find(p=>p.id==="clarify"):prompts.find(p=>p.band===nextBand&&p.id!==expected.id&&p.id!=="clarify"&&!session.responses.some(x=>x.prompt_id===p.id))??prompts.find(p=>p.id!=="clarify"&&!session.responses.some(x=>x.prompt_id===p.id));
   const complete=!next||session.responses.length>=6;
-  if(complete){return {session_id:session.id,prompt_id:"complete",gabroo_message:"Thank you for sharing that with me. I have enough of an initial picture to prepare your learning recommendation. This is a preliminary conversation assessment; a fuller speaking assessment needs voice input.",difficulty_band:session.band,turn_number:session.turn+1,is_complete:true,evidence:session.evidence};}
+  if(complete){const report=buildPlacementReport(session);const gabroo_explanation=buildGabrooExplanation(report);return {session_id:session.id,prompt_id:"complete",gabroo_message:"Thank you for sharing that with me. I have prepared a preliminary report from this conversation. It does not assign a learning stage yet.",difficulty_band:session.band,turn_number:session.turn+1,is_complete:true,evidence:session.evidence,report,gabroo_explanation};}
   const selected=next!;session.currentPromptId=selected.id;
   return {session_id:session.id,prompt_id:selected.id,gabroo_message:selected.text,difficulty_band:selected.band,turn_number:session.turn+1,is_complete:false};
  });
