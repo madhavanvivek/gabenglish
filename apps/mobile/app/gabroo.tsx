@@ -146,6 +146,12 @@ export default function GabrooScreen(){
   setVoiceSessionState(current=>current==="ready"||current==="error"||current==="interrupted"
    ?transitionGabrooVoiceSession(current,{type:"reset"})
    :"idle");
+  setSpeechNotice("In-app consent cleared. If microphone access was already granted by your device, revoke it in Gabenglish's device permission settings.");
+ };
+ const toggleVoiceConsent=()=>{
+  if(voiceConsent){resetVoiceConsent();return;}
+  setVoiceConsent(true);
+  setSpeechNotice("");
  };
  const changeSpeechRate=async(delta:number)=>{
   const next=Math.min(1.5,Math.max(0.75,Math.round((speechRate+delta)*100)/100));
@@ -170,7 +176,7 @@ export default function GabrooScreen(){
     <View style={s.voiceControls}><Text style={s.voiceTitle}>Playback speed · {speechRate.toFixed(2).replace(/0$/,"")}×</Text><View style={s.voiceSpeedRow}><Pressable accessibilityRole="button" accessibilityLabel="Slow Gabroo speech" disabled={speechRate<=0.75||busy||speechSaving} onPress={()=>void changeSpeechRate(-0.05)} style={s.voiceSpeedButton}><Text style={s.voiceSpeedButtonText}>−</Text></Pressable><Text style={s.voiceSpeedHint}>Applies to the next listen or replay</Text><Pressable accessibilityRole="button" accessibilityLabel="Speed up Gabroo speech" disabled={speechRate>=1.5||busy||speechSaving} onPress={()=>void changeSpeechRate(0.05)} style={s.voiceSpeedButton}><Text style={s.voiceSpeedButtonText}>+</Text></Pressable></View></View><View style={s.voicePermissionPanel}>
      <Text style={s.voiceTitle}>Prepare voice conversations</Text>
      <Text style={s.voicePermissionCopy}>Gabenglish will ask your device for microphone permission only after you agree below. This preview checks permission only: it does not record, store or upload audio. Live speech recognition is not connected yet.</Text>
-     <Pressable accessibilityRole="checkbox" accessibilityState={{checked:voiceConsent}} onPress={()=>setVoiceConsent(value=>!value)} style={s.consentRow}>
+     <Pressable accessibilityRole="checkbox" accessibilityState={{checked:voiceConsent}} onPress={toggleVoiceConsent} style={s.consentRow}>
       <View style={[s.consentBox,voiceConsent&&s.consentBoxChecked]}>{voiceConsent?<Text style={s.consentCheck}>✓</Text>:null}</View>
       <Text style={s.consentText}>I agree to let Gabenglish request microphone permission for a future voice conversation with Gabroo.</Text>
      </Pressable>
@@ -179,7 +185,7 @@ export default function GabrooScreen(){
       <Pressable disabled={!voiceConsent||voicePermissionBusy||voicePermissionStatus==="granted"} onPress={()=>void requestVoicePermission()} style={[s.permissionButton,(!voiceConsent||voicePermissionBusy||voicePermissionStatus==="granted")&&s.disabled]}>
        {voicePermissionBusy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>{voicePermissionStatus==="denied"?"Try permission again":"Continue to microphone permission"}</Text>}
       </Pressable>
-      {voicePermissionStatus!=="not_requested"?<Pressable onPress={resetVoiceConsent} style={s.permissionReset}><Text style={s.permissionResetText}>Clear consent</Text></Pressable>:null}
+      {voicePermissionStatus!=="not_requested"?<Pressable onPress={resetVoiceConsent} style={s.permissionReset}><Text style={s.permissionResetText}>Clear in-app consent</Text></Pressable>:null}
      </View>
     </View>
     <Text style={s.modeLabel}>Conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>void changeMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View>{messages.length===0?<View style={s.emptyPanel}><Text style={s.title}>Hi! I'm Gabroo.</Text><Text style={s.copy}>Let's have a natural conversation. What's on your mind today?</Text></View>:messages.map(message=><View key={message.id} style={[s.bubble,message.role==="user"?s.userBubble:s.gabrooBubble]}><Text style={s.speaker}>{message.role==="user"?"YOU":"GABROO"}</Text><Text style={s.message}>{message.content}</Text>{message.role==="assistant"?<Pressable accessibilityRole="button" onPress={()=>void speakMessage(message)} style={s.listenButton}><Text style={s.listenButtonText}>{speakingMessageId===message.id?"Stop speaking":"Listen · device voice"}</Text></Pressable>:null}</View>)}
