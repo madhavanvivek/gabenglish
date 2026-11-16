@@ -151,7 +151,7 @@ integration("PostgreSQL placement session integration",()=>{
   if(!pool||!migrationApplied)return;
   let deliveredCode="";
   const email="link-"+randomUUID()+"@example.test";
-  const phone="+919"+randomUUID().replace(/-/g,"").slice(0,9);
+  const phone="+919"+String(Date.now()).slice(-9);
   const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool,{send:async({code})=>{deliveredCode=code;return true;}});
   try{
    const first=await app.inject({method:"POST",url:"/api/v1/auth/otp/request",payload:{channel:"email",destination:email}});
