@@ -1,14 +1,25 @@
 import {z} from "zod";
 
 export const placementSkillSchema=z.enum(["vocabulary","grammar","sentence_construction","comprehension","fluency","communication","pronunciation"]);
+export type PlacementSkill=z.infer<typeof placementSkillSchema>;
 export const placementStageSchema=z.enum(["malayalam_mode","mixed_mode","english_practice","english_immersion","expert_communication"]);
 export const placementTurnSchema=z.object({prompt_id:z.string().min(1),response:z.string().trim().min(1).max(5000),response_mode:z.enum(["text","voice"]).default("text")});
 export const placementSessionStartSchema=z.object({preferred_language:z.enum(["ml","en","mixed"]).default("ml"),display_name:z.string().trim().min(1).max(80).optional(),communication_style:z.enum(["friendly_respectful","casual","playful","calm_professional"]).default("friendly_respectful")});
 export const placementConversationRequestSchema=z.object({session_id:z.string().uuid(),turn:placementTurnSchema});
+export const placementEvidenceSchema=z.object({
+  prompt_id:z.string().min(1),
+  source:z.enum(["text","voice_transcript"]),
+  observed_skills:z.array(placementSkillSchema),
+  observations:z.array(z.string()),
+  confidence:z.enum(["low","medium"]),
+  limitations:z.array(z.string()),
+  metrics:z.object({word_count:z.number().int().nonnegative(),sentence_count:z.number().int().nonnegative(),connector_count:z.number().int().nonnegative(),has_past_reference:z.boolean(),has_reasoning_marker:z.boolean()})
+});
 export const placementSkillFindingSchema=z.object({skill:placementSkillSchema,finding:z.string(),confidence:z.enum(["low","medium","high"]),evidence:z.array(z.string())});
 export const placementConversationResponseSchema=z.object({session_id:z.string().uuid(),prompt_id:z.string(),gabroo_message:z.string(),difficulty_band:z.number().int().min(1).max(5),turn_number:z.number().int().positive(),is_complete:z.boolean()});
 export type PlacementSessionStart=z.infer<typeof placementSessionStartSchema>;
 export type PlacementConversationRequest=z.infer<typeof placementConversationRequestSchema>;
+export type PlacementEvidence=z.infer<typeof placementEvidenceSchema>;
 export const placementAnswerSchema=z.object({question_id:z.string().min(1),option_id:z.string().min(1)});
 export const placementSubmissionSchema=z.object({answers:z.array(placementAnswerSchema).min(1).max(20)});
 export type PlacementSubmission=z.infer<typeof placementSubmissionSchema>;
