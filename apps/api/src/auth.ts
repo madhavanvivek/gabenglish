@@ -9,7 +9,7 @@ function deriveKey(password:string,salt:Buffer,length:number,options:{N:number;r
 }
 const ACCESS_TTL_SECONDS=15*60;
 const REFRESH_TTL_DAYS=30;
-type Account={id:string;email:string|null;display_name:string|null;locale:string;timezone:string;status:string;email_verified_at:Date|null};
+type Account={id:string;email:string|null;display_name:string|null;locale:string;timezone:string;status:string;email_verified_at:Date|null;phone_verified_at:Date|null};
 type AccessClaims={sub:string;sid:string;exp:number;iss:"gabenglish-api";aud:"gabenglish-app"};
 
 function digest(token:string){return createHash("sha256").update(token).digest("hex");}
@@ -50,7 +50,7 @@ function verifyAccess(token:string,secret:string,now=Math.floor(Date.now()/1000)
  }catch{return;}
 }
 function createRefreshToken(){return randomBytes(48).toString("base64url");}
-function safeUser(row:Account){return {id:row.id,email:row.email,email_verified:Boolean(row.email_verified_at),display_name:row.display_name,locale:row.locale,timezone:row.timezone};}
+function safeUser(row:Account){return {id:row.id,email:row.email,email_verified:Boolean(row.email_verified_at),phone_verified:Boolean(row.phone_verified_at),display_name:row.display_name,locale:row.locale,timezone:row.timezone};}
 function unauthorized(reply:any,requestId:string){return reply.code(401).send({error:{code:"UNAUTHORIZED",message:"Please sign in again to continue.",request_id:requestId}});}
 
 export async function authenticateLearner(request:FastifyRequest,pool:Pool,config:AppConfig):Promise<Account|undefined>{
@@ -59,7 +59,7 @@ export async function authenticateLearner(request:FastifyRequest,pool:Pool,confi
  const claims=verifyAccess(header.slice(7),config.AUTH_TOKEN_SECRET);
  if(!claims)return;
  const result=await pool.query<Account>(
-  "SELECT u.id,u.email,u.status,u.email_verified_at,p.display_name,p.locale,p.timezone FROM users u JOIN refresh_sessions s ON s.user_id=u.id AND s.id=$2 AND s.revoked_at IS NULL AND s.expires_at>now() LEFT JOIN user_profiles p ON p.user_id=u.id WHERE u.id=$1 AND u.status='active' AND u.deleted_at IS NULL AND (u.email_verified_at IS NOT NULL OR u.phone_verified_at IS NOT NULL)",
+  "SELECT u.id,u.email,u.status,u.email_verified_at,u.phone_verified_at,p.display_name,p.locale,p.timezone FROM users u JOIN refresh_sessions s ON s.user_id=u.id AND s.id=$2 AND s.revoked_at IS NULL AND s.expires_at>now() LEFT JOIN user_profiles p ON p.user_id=u.id WHERE u.id=$1 AND u.status='active' AND u.deleted_at IS NULL AND (u.email_verified_at IS NOT NULL OR u.phone_verified_at IS NOT NULL)",
   [claims.sub,claims.sid]
  );
  return result.rows[0];
