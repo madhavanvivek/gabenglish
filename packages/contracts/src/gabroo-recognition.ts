@@ -1,6 +1,8 @@
 import {z} from "zod";
 
 export const GABROO_AUDIO_MAX_BYTES=10*1024*1024;
+export const GABROO_RECOGNITION_DEFAULT_TIMEOUT_MS=15_000;
+export const GABROO_RECOGNITION_MAX_TIMEOUT_MS=60_000;
 export const GABROO_AUDIO_MIME_TYPES=[
  "audio/mp4","audio/m4a","audio/wav","audio/x-wav","audio/webm","audio/ogg"
 ] as const;
@@ -36,7 +38,8 @@ export type GabrooRecognitionErrorCode=
  |"PROVIDER_UNAVAILABLE"
  |"PROVIDER_TIMEOUT"
  |"PROVIDER_FAILED"
- |"EMPTY_TRANSCRIPT";
+ |"EMPTY_TRANSCRIPT"
+ |"INVALID_TIMEOUT";
 
 export class GabrooRecognitionError extends Error {
  constructor(public readonly code:GabrooRecognitionErrorCode,message:string){
@@ -66,6 +69,10 @@ export async function transcribeGabrooAudio(input:{
  if(input.audio.byteLength>GABROO_AUDIO_MAX_BYTES)throw new GabrooRecognitionError("AUDIO_TOO_LARGE","The audio recording is too large.");
  if(input.audio.byteLength!==parsed.data.sizeBytes)throw new GabrooRecognitionError("INVALID_AUDIO","The audio size does not match its metadata.");
  if(!input.provider)throw new GabrooRecognitionError("PROVIDER_UNAVAILABLE","Speech recognition is not configured.");
+ const timeoutMs=input.timeoutMs??GABROO_RECOGNITION_DEFAULT_TIMEOUT_MS;
+ if(!Number.isSafeInteger(timeoutMs)||timeoutMs<=0||timeoutMs>GABROO_RECOGNITION_MAX_TIMEOUT_MS){
+  throw new GabrooRecognitionError("INVALID_TIMEOUT","The speech recognition timeout is invalid.");
+ }
  if(input.signal?.aborted)throw new GabrooRecognitionError("PROVIDER_FAILED","Speech recognition was cancelled.");
  const controller=new AbortController();
  const abort=()=>controller.abort();
@@ -81,12 +88,11 @@ export async function transcribeGabrooAudio(input:{
    timedOut=true;
    controller.abort();
    reject(new GabrooRecognitionError("PROVIDER_TIMEOUT","Speech recognition took too long."));
-  },input.timeoutMs??15000);
+  },timeoutMs);
  });
  try{
   const raw=await Promise.race([
    cancellationPromise,
-   timeoutPromise,
    input.provider.transcribe({
     audio:input.audio,
     mimeType:parsed.data.mimeType,
