@@ -59,6 +59,12 @@ export async function registerGabrooMemoryRoutes(app:FastifyInstance,pool:Pool,c
   if(!updated.rows[0])return fail(reply,request.id,404,"MEMORY_NOT_FOUND","This saved memory is not available.");
   return {memory:updated.rows[0]};
  });
+ app.delete("/api/v1/gabroo/memory",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return fail(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
+  const deleted=await pool.query("DELETE FROM gabroo_learner_memory WHERE user_id=$1",[learner.id]);
+  return {deleted_count:deleted.rowCount??0};
+ });
  app.delete("/api/v1/gabroo/memory/:id",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return fail(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
