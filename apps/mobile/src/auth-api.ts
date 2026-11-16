@@ -134,3 +134,7 @@ export async function sendGabrooMessage(id:string,message:string){
 export async function deleteGabrooConversation(id:string){
  await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id),"DELETE");
 }
+
+export async function updateGabrooConversation(id:string,input:{title?:string|null;mode?:GabrooConversationMode;support_language?:"ml"|"en"}){
+ return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id),"PATCH",input) as {conversation:GabrooConversation};
+}
