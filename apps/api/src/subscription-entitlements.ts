@@ -20,7 +20,7 @@ export async function activateVerifiedSubscriptionPayment(pool:Pool,paymentTrans
    payment_id:string;subscription_id:string;user_id:string;provider_code:string;
    provider_event_id:string|null;status:string;verified_at:Date|null;
    amount_minor:string;currency:string;plan_code:string;billing_interval:string;
-   price_amount_minor:string;price_currency:string;period_start:Date|null;period_end:Date|null;
+   price_amount_minor:string;price_currency:string;current_period_start:Date|null;current_period_end:Date|null;
    subscription_status:string;
   }>(`
    SELECT pt.id AS payment_id,pt.subscription_id,s.user_id,pt.provider_code,
