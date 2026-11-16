@@ -275,3 +275,9 @@ Gabroo should speak mostly within the learner's demonstrated comfort range while
 Learners can interrupt at any time to ask about a word, phrase, grammar, meaning, tone or Gabroo's choice of expression, in Malayalam or English. Gabroo should pause, explain at the learner's level, give a natural example, check understanding when useful and resume the original conversation without losing context. Doubt clearing is available in every conversation mode and is not a separate paywall feature.
 
 Detailed behaviour is recorded in `docs/product/DAILY_ENGAGEMENT_AND_OPEN_CONVERSATION.md` and `docs/ai/GABROO_TEACHING_INTELLIGENCE_ARCHITECTURE.md`. This is an approved product requirement; adaptive runtime behaviour is not yet implemented.
+
+## 18. One subscription covers Gabenglish and Gabroo — approved commercial rule
+
+The learner buys one Gabenglish subscription, choosing either Monthly or Yearly. There is no additional Gabroo subscription, separate Gabroo add-on, chat credit pack, per-message fee or extra tier. The single active Gabenglish entitlement covers the complete paid learning experience, with **“Talk to Gabroo anytime”** as its central experience: open-topic conversations, progressive level adaptation, doubt clearing, optional daily activities, lessons, classes, practice and progress features.
+
+Free users keep their free diagnostic report and basic account access. The monthly/yearly Gabenglish subscription unlocks the paid experience for the selected period. Do not split Gabroo into a separately payable product or gate ordinary open conversation behind an extra purchase. Any fair-use controls must be transparent and consistent with this one-subscription promise.
