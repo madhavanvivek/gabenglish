@@ -442,6 +442,7 @@ Next implementation sequence:
 - Added a shared recognition contract for Malayalam (ml-IN), English (en-IN) and mixed Malayalam-English (ml-en) requests.
 - Audio metadata is validated against an allowlist of supported media types and a 10 MB maximum before an adapter receives the bytes.
 - Recognition results are schema-validated, including transcript length, detected language and optional confidence bounds.
+- Added a separate learner-reviewed transcript contract for any future voice-to-chat handoff. A transcript must be non-empty, within the text limit, carry a supported detected-language value, and include explicit `confirmed: true`; provider output is not eligible for automatic submission. The contract does not persist transcripts or enable transcription by itself.
 - The recognition boundary supports cancellation and a 15-second default timeout, bounded to a maximum of 60 seconds. Invalid timeout values are rejected before the provider is invoked, and cancellation/timeout settle even if a provider ignores its abort signal. It returns stable application error codes rather than leaking provider error messages.
 - No audio or transcript is persisted by this shared helper. The caller remains responsible for explicit learner consent, secure transport, retention and deletion policy.
 - No speech-recognition provider is configured or selected. There is no production microphone upload, transcription endpoint or live voice session yet. A provider adapter and security-reviewed upload route are still required.
