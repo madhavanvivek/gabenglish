@@ -148,8 +148,8 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
    if(user&&user.status!=="active"){await client.query("ROLLBACK");return reply.code(403).send({error:{code:"ACCOUNT_UNAVAILABLE",message:"This account is not available for sign-in. Please contact support.",request_id:request.id}});}
    if(!user){
     const created=challenge.channel==="email"
-     ?await client.query<{id:string}>("INSERT INTO users(email,email_normalized,email_verified_at,status) VALUES($1,$1,now(),'active') RETURNING id,status",[challenge.destination_normalized])
-     :await client.query<{id:string}>("INSERT INTO users(phone_e164,phone_verified_at,status) VALUES($1,now(),'active') RETURNING id,status",[challenge.destination_normalized]);
+     ?await client.query<{id:string;status:string}>("INSERT INTO users(email,email_normalized,email_verified_at,status) VALUES($1,$1,now(),'active') RETURNING id,status",[challenge.destination_normalized])
+     :await client.query<{id:string;status:string}>("INSERT INTO users(phone_e164,phone_verified_at,status) VALUES($1,now(),'active') RETURNING id,status",[challenge.destination_normalized]);
     user=created.rows[0]!;
     await client.query("INSERT INTO user_profiles(user_id) VALUES($1)",[user.id]);
     await client.query("INSERT INTO user_preferences(user_id) VALUES($1)",[user.id]);
