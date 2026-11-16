@@ -133,3 +133,12 @@ Avoid overfamiliar address terms such as “eda/edi” by default. Prefer the le
 - Learner choice is preserved.
 - Assessment limitations and confidence are visible.
 - No formal CEFR certification or equivalence is claimed.
+
+
+## 13. Evidence extraction implementation boundary
+
+The foundation API now has a first evidence-extraction module. It records observable response features such as response length, sentence count, discourse connectors and possible past/reason markers. It stores the prompt identifier, whether the source was typed text or a voice transcript, cautious evidence confidence and explicit limitations.
+
+This is **not** an English proficiency evaluator. These surface features must not be interpreted as proof of grammar accuracy, vocabulary range, comprehension, fluency, pronunciation or a learning stage. A long answer can be inaccurate; a short answer can be correct. The module intentionally does not assign a score or stage.
+
+The next assessment-engine milestone must add reviewed prompt-to-skill mapping, educator-authored analytic rubrics, multiple evidence samples per skill, uncertainty/coverage handling, human-reviewed calibration data and a report assembled only from defensible findings. A voice transcript remains transcript evidence; pronunciation requires audio analysis that has been independently validated.
