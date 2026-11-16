@@ -154,7 +154,7 @@ The Gabroo conversation API also supports `PATCH /api/v1/gabroo/conversations/:i
 The foundation branch includes these authenticated routes:
 - `POST /api/v1/gabroo/conversations`, `GET /api/v1/gabroo/conversations`, `GET /api/v1/gabroo/conversations/{id}`, `PATCH /api/v1/gabroo/conversations/{id}`, `DELETE /api/v1/gabroo/conversations/{id}`.
 - `POST /api/v1/gabroo/conversations/{id}/messages` sends one learner turn and persists the user/assistant pair atomically after a successful provider response. It requires an active server-side paid entitlement.
-- `GET /api/v1/gabroo/memory`, `POST /api/v1/gabroo/memory`, `PATCH /api/v1/gabroo/memory/{id}`, `DELETE /api/v1/gabroo/memory/{id}` manage learner-owned memory. These privacy controls require a verified account but are not gated by paid subscription expiry.
+- `GET /api/v1/gabroo/memory`, `POST /api/v1/gabroo/memory`, `PATCH /api/v1/gabroo/memory/{id}`, `DELETE /api/v1/gabroo/memory/{id}` and `DELETE /api/v1/gabroo/memory` manage learner-owned memory, including an explicit clear-all operation. These privacy controls require a verified account but are not gated by paid subscription expiry.
 
 The message route reads a short snapshot under a database lock, releases the transaction before calling the model provider, then re-locks and compares the conversation turn count before saving. Concurrent stale responses receive HTTP 409 and are not persisted. The provider request has a 15-second timeout and receives an abort signal. The message pair is inserted in a single transaction; failed provider responses do not leave a learner-only message behind.
 
