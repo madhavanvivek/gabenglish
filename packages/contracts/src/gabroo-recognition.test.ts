@@ -2,6 +2,7 @@ import {describe,expect,it,vi} from "vitest";
 import {
  GabrooRecognitionError,
  GABROO_AUDIO_MAX_BYTES,
+ gabrooReviewedTranscriptSchema,
  transcribeGabrooAudio,
  type GabrooSpeechRecognitionProvider
 } from "./gabroo-recognition.js";
@@ -87,6 +88,14 @@ describe("Gabroo provider-neutral speech recognition boundary",()=>{
   const transcribe=vi.fn(async()=>transcript);
   await expect(transcribeGabrooAudio({audio:"not bytes" as unknown as Uint8Array,metadata,provider:{transcribe}})).rejects.toMatchObject({code:"INVALID_AUDIO"});
   expect(transcribe).not.toHaveBeenCalled();
+ });
+
+ it("requires explicit learner confirmation for a reviewed transcript",()=>{
+  const confirmed={text:"നമസ്കാരം, how are you?",languageDetected:"mixed",edited:false,confirmed:true};
+  expect(gabrooReviewedTranscriptSchema.parse(confirmed)).toEqual(confirmed);
+  expect(gabrooReviewedTranscriptSchema.safeParse({...confirmed,confirmed:false}).success).toBe(false);
+  expect(gabrooReviewedTranscriptSchema.safeParse({...confirmed,text:"   "}).success).toBe(false);
+  expect(gabrooReviewedTranscriptSchema.safeParse({...confirmed,extra:"provider metadata"}).success).toBe(false);
  });
 
 });
