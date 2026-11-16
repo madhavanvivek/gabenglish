@@ -371,3 +371,14 @@ Next implementation sequence:
 - Contract tests cover supported/unsupported rates, default/range values, successful application, invalid input rejection and adapter failures.
 - This is a tested-by-design source addition, not yet a verified CI pass. The latest GitHub workflow-run lookup did not return a run for this commit; do not mark CI green until the actual workflow result is inspected.
 - No TTS/STT vendor or native audio dependency has been selected. No voice playback is exposed in the UI until a real adapter and audio asset/service exist.
+
+
+### Consent-first, provider-neutral voice-session lifecycle
+
+- Shared contracts now model the voice-session states: idle, requesting permission, listening, transcribing, generating, speaking, interrupted and error.
+- The transition function requires an explicit consent flag before a session can request microphone permission. Permission denial fails closed.
+- Capture, transcription, response generation and playback must occur in order; out-of-order provider callbacks are rejected.
+- Interruption is supported during active session stages. Resuming requires an explicit action and returns through the permission-request state.
+- Recovery from error requires reset. The lifecycle is provider-independent and does not request microphone access or capture audio by itself.
+- Automated contract tests cover consent gating, the complete lifecycle, permission denial, interruption/resume, error recovery and invalid transitions.
+- This is orchestration logic only. No microphone API, STT/TTS provider, real-time audio transport or voice UI is connected. Do not advertise voice chat as available.
