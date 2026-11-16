@@ -171,6 +171,9 @@ Current repository structure includes `apps/mobile`, `apps/api`, `packages/contr
 - Six core prompt records spanning the five hidden challenge bands, with a conservative coverage-first sequence and up to two optional clarification turns. Clarification turns are excluded from core assessment evidence.
 - PostgreSQL-backed placement sessions use optimistic revision checks to reject stale concurrent writes instead of silently overwriting a newer turn. Replaying the same successfully saved turn returns its cached response. The API distinguishes expired PostgreSQL rows from unknown session IDs so the client can show the correct restart flow.
 - A checksum-verified PostgreSQL migration runner applies ordered migrations under an advisory lock, records checksums in `schema_migrations`, skips unchanged applied files and rejects edits to already-applied migrations. The API package exposes `pnpm --filter @gabenglish/api db:migrate`.
+- Initial learner account API foundation: registration, scrypt password hashing, sign-in, short-lived signed access tokens, hashed rotating refresh tokens, logout/revocation and authenticated profile retrieval/update.
+- Learner preferences and versioned consent records can be stored; account deletion requests disable the account and revoke refresh sessions.
+- Login throttling is stored in PostgreSQL using keyed email/IP digests, without retaining raw email/IP values in the attempt log.
 - Mobile placement flow now provides an explicit restart action when a server session expires or is no longer available.
 - Gabroo's Concept C identity direction and respectful communication/address policy are documented.
 
@@ -183,7 +186,9 @@ The placement-selector correction passed workflow run 43859020856. The mobile ex
 - Reports and answers are retained only within the short-lived assessment session; a durable learner assessment history/report store is not yet implemented.
 - PostgreSQL persistence is conditional on deployment configuration and migration application; no live Gabenglish database or production deployment has been verified.
 - The mobile assessment is text-only. No microphone capture, STT, TTS or pronunciation evaluation is implemented. Transcript input support in the API is not a production voice feature.
-- Authentication, learner account lifecycle, production curriculum/content delivery, subscriptions/payments and admin application remain incomplete.
+- Learner authentication and basic account/profile/preferences/consent endpoints now exist as a foundation, but the lifecycle is incomplete: email verification, password reset, MFA, session/device management, distributed abuse monitoring, deletion worker/final erasure and audit/support workflows remain pending. Registration currently activates accounts before email verification; this is not production-ready.
+- Placement reports are still anonymous and are not linked to learner accounts; persistent assessment history remains pending.
+- Production curriculum/content delivery, subscriptions/payments and admin application remain incomplete.
 - No final Gabroo 3D model, rig or production animation assets are approved.
 - No production AI/speech provider has been selected or configured.
 
@@ -192,7 +197,7 @@ These limitations must remain visible in README, release notes and handover repo
 ## 12. Next implementation sequence
 
 1. Keep the PostgreSQL 16 integration suite green as migrations and session handling evolve; add a controlled deployment migration step, backup/restore verification and release rollback procedure before enabling PostgreSQL-backed placement in production.
-2. Introduce authenticated learner identity and account lifecycle before persisting completed assessment reports; define retention, consent and deletion controls.
+2. Complete account lifecycle hardening: email verification, password reset, session/device controls, distributed rate limiting, audit events, deletion processing and security review. Then link completed assessment reports to authenticated learner IDs with explicit retention/consent controls.
 3. Review the draft prompt-to-skill map with educators, then approve prompt objectives and mappings; do not enable skill findings until the analytic rubric and calibration gates are approved.
 4. Implement evidence coverage/uncertainty and a defensible report with a starting-stage recommendation only after educator validation.
 5. Produce the first complete Malayalam-supported lesson pack and editorial review workflow for all five stages.
