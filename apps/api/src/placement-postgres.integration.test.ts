@@ -121,7 +121,7 @@ integration("PostgreSQL placement session integration",()=>{
    const requested=await app.inject({method:"POST",url:"/api/v1/auth/otp/request",payload:{channel:"email",destination:email}});
    expect(requested.statusCode).toBe(202);
    expect(requested.json().masked_destination).not.toContain(email);
-   expect(deliveredCode).toMatch(/^\\d{6}$/);
+   expect(deliveredCode).toMatch(/^\d{6}$/);
    const beforeVerification=await pool.query("SELECT id FROM users WHERE email_normalized=$1",[email]);
    expect(beforeVerification.rows).toHaveLength(0);
    const verified=await app.inject({method:"POST",url:"/api/v1/auth/otp/verify",payload:{challenge_id:requested.json().challenge_id,code:deliveredCode}});
