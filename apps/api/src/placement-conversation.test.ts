@@ -66,7 +66,7 @@ describe("Gabroo conversational placement",()=>{
   const start=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",payload:{preferred_language:"en"}});
   const session=start.json().session_id;
   let promptId=start.json().prompt_id;
-  let completed;
+  let completed: Awaited<ReturnType<typeof app.inject>> | undefined;
   for(let i=0;i<6;i++){
    completed=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:session,turn:{prompt_id:promptId,response:"I usually work during the week. Last weekend I visited my family because we had a celebration and talked about our plans for the coming year."}}});
    if(completed.json().is_complete)break;
