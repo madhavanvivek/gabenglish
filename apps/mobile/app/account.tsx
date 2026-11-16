@@ -2,7 +2,7 @@ import {useEffect,useState} from "react";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {Link} from "expo-router";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {AuthApiError,getLearnerMe,logoutLearner,requestLearnerOtp,verifyLearnerOtp,type LearnerMe,type OtpChallenge} from "../src/auth-api";
+import {AuthApiError,getLearnerMe,getLatestFreeDiagnosticReport,logoutLearner,requestLearnerOtp,verifyLearnerOtp,type LearnerMe,type OtpChallenge,type SavedFreeDiagnosticReport} from "../src/auth-api";
 
 export default function AccountScreen(){
  const [channel,setChannel]=useState<"email"|"phone">("email");
@@ -10,12 +10,13 @@ export default function AccountScreen(){
  const [code,setCode]=useState("");
  const [challenge,setChallenge]=useState<OtpChallenge|null>(null);
  const [account,setAccount]=useState<LearnerMe|null>(null);
+ const [savedReport,setSavedReport]=useState<SavedFreeDiagnosticReport|null>(null);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
  useEffect(()=>{
   let active=true;
-  getLearnerMe().then(value=>{if(active)setAccount(value);}).catch(reason=>{
+  getLearnerMe().then(async value=>{if(active)setAccount(value);try{const report=await getLatestFreeDiagnosticReport();if(active)setSavedReport(report);}catch{/* No free report has been completed yet. */}}).catch(reason=>{
    if(active&&(!(reason instanceof AuthApiError)||reason.status!==401))setError(reason instanceof Error?reason.message:"Could not load your account.");
   });
   return()=>{active=false;};
@@ -35,7 +36,7 @@ export default function AccountScreen(){
   setBusy(true);setError("");setNotice("");
   try{
    await verifyLearnerOtp({challenge_id:challenge.challenge_id,code:code.trim()});
-   setAccount(await getLearnerMe());setChallenge(null);setCode("");
+   setAccount(await getLearnerMe());try{setSavedReport(await getLatestFreeDiagnosticReport());}catch{setSavedReport(null);}setChallenge(null);setCode("");
    setNotice("Your verified Gabenglish account is ready. Your free analysis can now be saved.");
   }catch(reason){setError(reason instanceof Error?reason.message:"Could not verify the code.");}
   finally{setBusy(false);}
@@ -57,6 +58,7 @@ export default function AccountScreen(){
    <Text style={s.info}>Support language: {account.preferences?.support_language==="ml"?"Malayalam":"English"}</Text>
    <Text style={s.info}>Daily target: {account.preferences?.daily_target_minutes??10} minutes</Text>
    <Text style={s.info}>Correction style: {account.preferences?.correction_mode??"balanced"}</Text>
+   {savedReport?<View style={s.savedReport}><Text style={s.reportTitle}>Your saved free analysis</Text><Text style={s.info}>Status: {savedReport.report.status} · {savedReport.report.response_count} responses</Text><Text style={s.info}>Assessment: {savedReport.assessment_mode.replace("_"," ")}</Text><Text style={s.reportText}>{savedReport.gabroo_explanation}</Text><Text style={s.freeBadgeText}>AVAILABLE WITHOUT A PAID PLAN</Text></View>:null}
    <Pressable disabled={busy} style={[s.button,s.secondary]} onPress={signOut}>{busy?<ActivityIndicator color="#54239A"/>:<Text style={s.secondaryText}>Sign out</Text>}</Pressable>
   </View>:<View style={s.card}>
    <Text style={s.sectionTop}>Register or sign in</Text>
@@ -83,5 +85,5 @@ const s=StyleSheet.create({
  label:{fontSize:13,fontWeight:"800",color:"#403A50",marginTop:17,marginBottom:7},input:{backgroundColor:"#FFFEFC",borderWidth:1,borderColor:"#E3DCEA",borderRadius:13,padding:13,fontSize:15,color:"#1F1B4D"},
  button:{backgroundColor:"#6A2BBF",borderRadius:14,padding:15,alignItems:"center",marginTop:20},buttonText:{color:"#fff",fontSize:14,fontWeight:"900"},disabled:{opacity:.45},secondary:{backgroundColor:"#EEE4FF"},secondaryText:{color:"#54239A",fontWeight:"900"},
  eyebrow:{fontSize:9,fontWeight:"900",letterSpacing:1.4,color:"#8A6AB6"},name:{fontSize:22,fontWeight:"900",color:"#1F1B4D",marginTop:8},contact:{fontSize:12,color:"#70677B",marginTop:7},freeBadge:{alignSelf:"flex-start",backgroundColor:"#E5F5E9",borderRadius:20,paddingVertical:7,paddingHorizontal:10,marginTop:14},freeBadgeText:{fontSize:10,fontWeight:"900",color:"#365B3A"},
- section:{fontSize:14,fontWeight:"900",color:"#403A50",marginTop:22,marginBottom:8},info:{fontSize:13,color:"#625A6D",marginTop:6},disclaimer:{fontSize:11,lineHeight:17,color:"#8A8293",marginTop:14},notice:{backgroundColor:"#E8F5EA",padding:13,borderRadius:12,marginTop:14},noticeText:{fontSize:12,lineHeight:18,color:"#365B3A"},error:{backgroundColor:"#FCE8E6",padding:13,borderRadius:12,marginTop:14},errorText:{fontSize:12,lineHeight:18,color:"#8D302A"},back:{alignSelf:"center",padding:14,marginTop:12},backText:{color:"#54239A",fontSize:13,fontWeight:"800"},change:{alignSelf:"center",padding:12,marginTop:5},changeText:{fontSize:12,fontWeight:"800",color:"#54239A"},footer:{textAlign:"center",color:"#938A9D",fontSize:11,marginTop:12}
+ savedReport:{backgroundColor:"#F7F2FF",borderRadius:14,padding:13,marginTop:18},reportTitle:{fontSize:14,fontWeight:"900",color:"#54239A",marginBottom:5},reportText:{fontSize:12,lineHeight:18,color:"#51476A",marginVertical:10},section:{fontSize:14,fontWeight:"900",color:"#403A50",marginTop:22,marginBottom:8},info:{fontSize:13,color:"#625A6D",marginTop:6},disclaimer:{fontSize:11,lineHeight:17,color:"#8A8293",marginTop:14},notice:{backgroundColor:"#E8F5EA",padding:13,borderRadius:12,marginTop:14},noticeText:{fontSize:12,lineHeight:18,color:"#365B3A"},error:{backgroundColor:"#FCE8E6",padding:13,borderRadius:12,marginTop:14},errorText:{fontSize:12,lineHeight:18,color:"#8D302A"},back:{alignSelf:"center",padding:14,marginTop:12},backText:{color:"#54239A",fontSize:13,fontWeight:"800"},change:{alignSelf:"center",padding:12,marginTop:5},changeText:{fontSize:12,fontWeight:"800",color:"#54239A"},footer:{textAlign:"center",color:"#938A9D",fontSize:11,marginTop:12}
 });
