@@ -27,6 +27,11 @@ describe("Gabroo teaching policy",()=>{
   const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",preferredName:" ",learningGoal:null});
   expect(policy.learnerContext).toEqual({});
  });
+ it("includes only bounded learner-approved memory entries",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",learnerMemory:[{category:"saved_phrase",memoryKey:"Useful phrase",content:"Could you please clarify?"}]});
+  expect(policy.learnerMemory).toEqual([{category:"saved_phrase",memoryKey:"Useful phrase",content:"Could you please clarify?"}]);
+  expect(buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"}).learnerMemory).toEqual([]);
+ });
  it("defines distinct correction and learning goals for each mode",()=>{
   const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
   const policies=modes.map(mode=>buildGabrooTeachingPolicy({mode,supportLanguage:"en"}));
