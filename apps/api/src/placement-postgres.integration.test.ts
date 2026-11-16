@@ -12,8 +12,10 @@ let migrationApplied=false;
 integration("PostgreSQL placement session integration",()=>{
  beforeAll(async()=>{
   if(!pool)return;
-  const migration=await readFile(new URL("../../../infrastructure/database/migrations/0002_placement_sessions.sql",import.meta.url),"utf8");
-  await pool.query(migration);
+  const foundationMigration=await readFile(new URL("../../../infrastructure/database/migrations/0001_initial_foundation.sql",import.meta.url),"utf8");
+  const placementMigration=await readFile(new URL("../../../infrastructure/database/migrations/0002_placement_sessions.sql",import.meta.url),"utf8");
+  await pool.query(foundationMigration);
+  await pool.query(placementMigration);
   migrationApplied=true;
  });
  afterAll(async()=>{
