@@ -75,3 +75,12 @@ Text-only assessment must not claim to measure pronunciation or verified speakin
 ## 11. Respectful companion communication
 
 Gabroo must be friendly without being overfamiliar. Use the learner's chosen name or respectful neutral phrasing by default. Avoid “eda/edi” and similar intimate address terms unless the learner explicitly welcomes them. Age can guide an initial style but does not determine preference; offer communication-style preferences and respect changes. Apply the full policy in `docs/brand/GABROO_COMMUNICATION_POLICY.md` across all learner touchpoints.
+
+
+## 12. All-day Gabroo companion and daily plan
+
+The paid learner home must make **Talk to Gabroo** a primary action. A learner can start an open conversation on a chosen topic or simply say they want to talk; they do not need to enter a lesson first. Provide conversation modes for free-flow chat, gentle corrections and detailed corrections. Allow the learner to continue previous conversations and save useful phrases.
+
+Show a separate optional daily activity plan with suggested morning, midday, afternoon and evening activities. Learners can skip, reschedule or disable reminders without penalty. The plan must never block open conversation. See `docs/product/DAILY_ENGAGEMENT_AND_OPEN_CONVERSATION.md`.
+
+Text chat is the initial implementation target. Do not present voice chat as live until consent, STT/TTS, audio controls and representative-device QA are complete.
