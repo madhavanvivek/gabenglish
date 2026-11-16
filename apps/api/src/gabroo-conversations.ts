@@ -37,10 +37,11 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   return {conversations:rows.rows};
  });
  app.get("/api/v1/gabroo/conversations/:id",async(request,reply)=>{
-  const learner=await learnerFor(request,reply,pool,config);if(!learner)return;
+  const learner=await authenticateLearner(request,pool,config);if(!learner)return error(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
   const idSchemaResult=idSchema.safeParse((request.params as {id?:string}).id);if(!idSchemaResult.success)return error(reply,request.id,400,"VALIDATION_ERROR","Invalid conversation id.");
   const found=await pool.query("SELECT "+conversationSelect+" FROM gabroo_conversations WHERE id=$1 AND user_id=$2",[idSchemaResult.data,learner.id]);
   if(!found.rows[0])return error(reply,request.id,404,"CONVERSATION_NOT_FOUND","This conversation is not available.");
+  const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);if(!entitlement)return error(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to view conversations.");
   const messages=await pool.query("SELECT id,sequence_number,role,content,created_at FROM gabroo_conversation_messages WHERE conversation_id=$1 ORDER BY sequence_number",[idSchemaResult.data]);
   return {conversation:found.rows[0],messages:messages.rows};
  });
@@ -52,10 +53,12 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   return reply.code(204).send();
  });
  app.post("/api/v1/gabroo/conversations/:id/messages",async(request,reply)=>{
-  const learner=await learnerFor(request,reply,pool,config);if(!learner)return;
-  if(!provider)return error(reply,request.id,503,"GABROO_PROVIDER_UNAVAILABLE","Gabroo conversations are not available yet. No message was saved.");
+  const learner=await authenticateLearner(request,pool,config);if(!learner)return error(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
   const parsedId=idSchema.safeParse((request.params as {id?:string}).id);const parsedBody=sendSchema.safeParse(request.body);
   if(!parsedId.success||!parsedBody.success)return error(reply,request.id,400,"VALIDATION_ERROR","Please provide a valid conversation and message.");
+  const owned=await pool.query("SELECT id FROM gabroo_conversations WHERE id=$1 AND user_id=$2",[parsedId.data,learner.id]);if(!owned.rows[0])return error(reply,request.id,404,"CONVERSATION_NOT_FOUND","This conversation is not available.");
+  const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);if(!entitlement)return error(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to chat with Gabroo.");
+  if(!provider)return error(reply,request.id,503,"GABROO_PROVIDER_UNAVAILABLE","Gabroo conversations are not available yet. No message was saved.");
   const client:PoolClient=await pool.connect();
   try{
    await client.query("BEGIN");
