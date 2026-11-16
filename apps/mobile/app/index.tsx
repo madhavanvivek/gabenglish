@@ -1,5 +1,5 @@
-import {useEffect,useState} from "react";
-import {Link} from "expo-router";
+import {useCallback,useState} from "react";
+import {Link,useFocusEffect} from "expo-router";
 import {Pressable,ScrollView,StyleSheet,Text,TextInput,View,ActivityIndicator} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {respondToPlacement,startPlacement,PlacementApiError} from "../src/placement-api";
@@ -12,7 +12,7 @@ export default function WelcomeScreen(){
  const [messages,setMessages]=useState<Message[]>([]),[name,setName]=useState("");
  const [sessionId,setSessionId]=useState<string|null>(null),[promptId,setPromptId]=useState<string|null>(null);
  const [accountReady,setAccountReady]=useState(false),[accountChecked,setAccountChecked]=useState(false);
- useEffect(()=>{let active=true;getLearnerMe().then(value=>{if(active)setAccountReady(Boolean(value.user.email_verified||value.user.phone_verified));}).catch(()=>{if(active)setAccountReady(false);}).finally(()=>{if(active)setAccountChecked(true);});return()=>{active=false;};},[]);
+ useFocusEffect(useCallback(()=>{let active=true;setAccountChecked(false);getLearnerMe().then(value=>{if(active)setAccountReady(Boolean(value.user.email_verified||value.user.phone_verified));}).catch(()=>{if(active)setAccountReady(false);}).finally(()=>{if(active)setAccountChecked(true);});return()=>{active=false;};},[]));
  const [turn,setTurn]=useState(0),[report,setReport]=useState<PlacementReport|null>(null),[explanation,setExplanation]=useState("");
  const [error,setError]=useState(""),[sessionExpired,setSessionExpired]=useState(false);
  const complete=report!==null;
