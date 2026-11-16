@@ -63,3 +63,15 @@ System text scaling; captions/transcripts where appropriate; adequate contrast; 
 
 ## 9. Screen acceptance
 Every screen specification must define purpose, primary action, navigation entry/exit, loading/empty/error states, validation, accessibility and analytics events.
+
+## 10. First meaningful learner experience — Gabroo placement conversation
+
+The placement assessment is a guided, adaptive conversation with Gabroo and should precede the conventional learner dashboard. Gabroo explains the purpose and process in the learner's selected support language, begins with approachable conversation, and raises or lowers prompt difficulty based on demonstrated ability. It is not a fixed multiple-choice test. Strong learners should not be made to repeat unnecessary beginner questions.
+
+After the assessment, show a detailed, revisitable learner report separately from Gabroo's personal explanation. The report contains evidence-based skill findings, strengths, improvement areas, recommended stage and assessment limitations. Gabroo then explains the findings in a personalised spoken message and transcript, using examples from the learner's responses. The learner can accept the recommendation, start from the beginning, choose another stage or continue with a harder challenge.
+
+Text-only assessment must not claim to measure pronunciation or verified speaking fluency. Voice capture requires clear explanation and consent. See `docs/learning/GABROO_CONVERSATIONAL_PLACEMENT.md` for assessment behaviour and stopping criteria.
+
+## 11. Respectful companion communication
+
+Gabroo must be friendly without being overfamiliar. Use the learner's chosen name or respectful neutral phrasing by default. Avoid “eda/edi” and similar intimate address terms unless the learner explicitly welcomes them. Age can guide an initial style but does not determine preference; offer communication-style preferences and respect changes. Apply the full policy in `docs/brand/GABROO_COMMUNICATION_POLICY.md` across all learner touchpoints.
