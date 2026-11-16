@@ -9,6 +9,7 @@ PostgreSQL transactional source of truth; UUID identifiers; UTC timestamps; owne
 - users: id, optional email/email_normalized and phone_e164, legacy prototype password hash (to be removed), status, per-channel verification timestamps, timestamps and deletion marker.
 - auth_otp_challenges: one-time challenge metadata, keyed code digest, purpose, channel, destination, request IP digest, expiry, attempt/consumption and delivery state. Never store the raw OTP.
 - auth_otp_verified_contacts: unique verified email/phone ownership records for future contact linking.
+- free_diagnostic_reports: durable, account-owned free report, evidence summary, Gabroo explanation and assessment mode; retained independently of paid subscription status.
 - user_profiles: user ID, display name, necessary locale/timezone/profile data.
 - user_preferences: support language, learning goal, daily target, correction mode, preferred voice and notification preferences.
 
@@ -48,7 +49,7 @@ Define cascade/restrict behaviour explicitly. Avoid accidental deletion of finan
 
 ## 13. Implemented schema migrations
 
-`0001_initial_foundation.sql` creates the initial domain schema; `0002_placement_sessions.sql` adds short-lived placement sessions; `0003_auth_login_throttling.sql` adds legacy sign-in throttling; `0004_passwordless_otp.sql` adds OTP challenge and verified-contact tables; `0005_placement_owner.sql` associates placement sessions with learner accounts. The physical schema is still incomplete relative to the logical model above.
+`0001_initial_foundation.sql` creates the initial domain schema; `0002_placement_sessions.sql` adds short-lived placement sessions; `0003_auth_login_throttling.sql` adds legacy sign-in throttling; `0004_passwordless_otp.sql` adds OTP challenge and verified-contact tables; `0005_placement_owner.sql` associates placement sessions with learner accounts; `0006_free_diagnostic_reports.sql` persists free analysis reports for later retrieval. The physical schema is still incomplete relative to the logical model above.
 
 ## 14. Next deliverables
 ER diagram; PostgreSQL DDL/migrations; constraints/index plan; data classification/retention matrix; seed strategy; migration and rollback strategy.
