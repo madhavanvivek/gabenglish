@@ -117,7 +117,7 @@ export function splitGabrooSpeechText(input:string):GabrooSpeechSegment[]{
  let leading="";
  for(const character of Array.from(input)){
   const language:GabrooSpeechLanguage|null=
-   /[\\u0D00-\\u0D7F]/u.test(character)?"ml":
+   /[\u0D00-\u0D7F]/u.test(character)?"ml":
    /[A-Za-z0-9]/u.test(character)?"en":null;
   if(language===null){
    if(segments.length)segments[segments.length-1].text+=character;
