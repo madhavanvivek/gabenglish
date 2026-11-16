@@ -46,13 +46,14 @@ Implemented on `foundation/app-skeleton`:
 - pnpm workspace, Fastify API foundation and shared Zod contracts.
 - Expo mobile prototype and GitHub Actions CI.
 - Placement conversation start/respond API with session/turn validation.
-- Deterministic predefined-prompt placement API with in-memory sessions, evidence extraction and a provisional non-diagnostic report.
-- Expo mobile conversation connected to the placement API, including dynamic server prompts, report rendering, request timeouts and explicit network/configuration errors.
+- Deterministic predefined-prompt placement API with short-lived PostgreSQL-backed sessions when configured, an in-memory test/development fallback, evidence extraction and a provisional non-diagnostic report.
+- Expo mobile conversation connected to the placement API, including dynamic server prompts, report rendering, request timeouts, explicit network/configuration errors and learner-controlled recovery when a session expires.
+- Database-backed placement writes use optimistic revision checks to prevent concurrent responses from overwriting one another; safe retries return the already-recorded result.
 - Product, placement and Gabroo communication documentation.
 
-Mobile API integration is committed; CI verification for this change is pending.
+Latest CI verification: GitHub Actions workflow run 43859171656 passed API typecheck, API tests, shared-contract typecheck and mobile typecheck. Subsequent concurrency-safety changes are being validated in the current branch CI run.
 
-**Important limitations:** the assessment is not yet a live AI tutor; the heuristic is not a validated proficiency rubric; sessions are in-memory; the report is provisional and intentionally makes no skill or stage recommendation; no voice capture or personalised voice explanation is connected. Microphone capture, STT, TTS, pronunciation assessment, authentication, persistent learner accounts, complete curriculum delivery, admin, subscriptions/payments and production deployment remain pending. Gabroo's physical character design is not final or approved for production.
+**Important limitations:** the assessment is not yet a live AI tutor; the prompt sequence is not a validated proficiency rubric; PostgreSQL session persistence is conditional on database configuration and migration 0002 being applied; no durable authenticated learner report history exists; the report is provisional and intentionally makes no skill or stage recommendation; no voice capture or personalised voice explanation is connected. Microphone capture, STT, TTS, pronunciation assessment, authentication, persistent learner accounts, complete curriculum delivery, admin, subscriptions/payments and production deployment remain pending. Gabroo's physical character design is not final or approved for production.
 
 See the consolidated status document for the full list of completed work, limitations and next steps.
 
