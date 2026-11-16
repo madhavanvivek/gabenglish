@@ -409,3 +409,11 @@ Next implementation sequence:
 - If a reply contains Malayalam but the device has no installed Malayalam voice, playback is not silently misrepresented as Malayalam; the learner receives an actionable notice.
 - Added contract tests for Malayalam-only text, mixed-language switching, punctuation, whitespace and digits.
 - This improves local device TTS only. Quality and pronunciation still depend on the installed OS voices; a consistent premium male Gabroo voice and live speech recognition remain future work.
+
+
+### Speech playback sequencing and navigation safety
+
+- Mixed-language runs are now spoken sequentially, awaiting completion of each device TTS segment before starting the next. This avoids overlapping or prematurely queued language changes.
+- Playback uses a run token so Stop, a newer Listen request, or leaving the Gabroo screen cancels the remaining segments.
+- The screen stops device speech when it loses focus, not only when the component is finally unmounted. This handles navigation stacks that keep screens mounted in the background.
+- These safeguards apply to local device playback; they do not imply live microphone capture or a production Gabroo voice provider.
