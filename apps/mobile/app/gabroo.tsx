@@ -4,12 +4,15 @@ import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,TextInput,View} f
 import {SafeAreaView} from "react-native-safe-area-context";
 import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type SubscriptionStatus,updateGabrooConversation} from "../src/auth-api";
 
-const conversationModes:{value:GabrooConversationMode;label:string}[]=[{value:"free_flow",label:"Free flow"},{value:"gentle_correction",label:"Gentle correction"},{value:"detailed_correction",label:"Detailed correction"},{value:"topic_practice",label:"Topic practice"},{value:"role_play",label:"Role-play"},{value:"vocabulary_building",label:"Vocabulary"},{value:"confidence_practice",label:"Confidence"}];\n\nexport default function GabrooScreen(){
+const conversationModes:{value:GabrooConversationMode;label:string}[]=[{value:"free_flow",label:"Free flow"},{value:"gentle_correction",label:"Gentle correction"},{value:"detailed_correction",label:"Detailed correction"},{value:"topic_practice",label:"Topic practice"},{value:"role_play",label:"Role-play"},{value:"vocabulary_building",label:"Vocabulary"},{value:"confidence_practice",label:"Confidence"}];
+
+export default function GabrooScreen(){
  const [subscription,setSubscription]=useState<SubscriptionStatus|null>(null);
  const [conversations,setConversations]=useState<GabrooConversation[]>([]);
  const [active,setActive]=useState<GabrooConversation|null>(null);
  const [messages,setMessages]=useState<GabrooConversationMessage[]>([]);
- const [draft,setDraft]=useState("");\n const [mode,setMode]=useState<GabrooConversationMode>("gentle_correction");
+ const [draft,setDraft]=useState("");
+ const [mode,setMode]=useState<GabrooConversationMode>("gentle_correction");
  const [busy,setBusy]=useState(false);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
