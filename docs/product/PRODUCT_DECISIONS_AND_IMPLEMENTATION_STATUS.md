@@ -320,3 +320,12 @@ The migration integration test now asserts the new migration is recorded, the tw
 Added an internal transactional activation service. It refuses to grant access unless a payment transaction is marked `succeeded`, has a server-verified timestamp and unique provider event reference, and matches the server-owned regional price, currency, plan and interval. It creates the entitlement and activates the subscription atomically; duplicate retries return the existing entitlement.
 
 This is deliberately not exposed as a public route. Provider-specific signature verification and server-to-server confirmation must be implemented before any production caller can mark a payment verified. Checkout, launch-discount campaign rules, refunds, renewals and cancellation remain outstanding. CI is running for the current implementation; do not treat the feature as validated until the latest run completes.
+
+
+### Gabroo persistent conversation foundation — implemented, provider pending
+
+- Added migration `0009_gabroo_conversations.sql` for learner-owned conversations and ordered text messages, with cascading deletion and bounded message length.
+- Added authenticated create/list/read/delete/send API routes. Create, list, read and send fail closed unless the learner has a verified account and active paid entitlement. Conversation deletion remains available to the authenticated owner even after subscription expiry.
+- Added an injectable provider-neutral `GabrooConversationProvider`. The API serializes each conversation turn and writes the learner message plus Gabroo response atomically after a valid provider response; failures do not leave a half-saved turn.
+- No AI provider/model is selected or configured. Without an injected provider, create/send return 503 and do not fabricate replies. There is no live Gabroo chat yet, no mobile chat UI, no voice, and no production fair-use/retention policy.
+- PostgreSQL integration coverage verifies anonymous rejection, free-account 403 gating, and that a free account cannot create a conversation row. Paid-provider turn persistence and cross-account read/delete need dedicated integration coverage before release.
