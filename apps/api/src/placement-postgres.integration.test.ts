@@ -7,6 +7,7 @@ import {randomUUID} from "node:crypto";
 import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
 import {runMigrations} from "./migrate.js";
+import {activateVerifiedSubscriptionPayment,SubscriptionActivationError} from "./subscription-entitlements.js";
 
 const databaseUrl=process.env.DATABASE_URL;
 const integration=databaseUrl?describe:describe.skip;
@@ -72,6 +73,45 @@ integration("PostgreSQL placement session integration",()=>{
    expect(current.json()).toEqual({access:"free",active:false,entitlement:null});
   }finally{
    await pool.query("DELETE FROM users WHERE email_normalized=$1",[email]);
+   await app.close();
+  }
+ });
+ it("activates only a verified, price-matched payment and is idempotent",async()=>{
+  if(!pool||!migrationApplied)return;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const email="subscription-activation-"+randomUUID()+"@example.test";
+  let userId:string|undefined,planId:string|undefined,priceId:string|undefined,subscriptionId:string|undefined,paymentId:string|undefined;
+  try{
+   const token=await createVerifiedTestSession(app,email,pool);
+   const me=await app.inject({method:"GET",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+token}});
+   userId=me.json().user.id;
+   const plan=await pool.query<{id:string}>("INSERT INTO subscription_plans(code,name,entitlements) VALUES('monthly','Monthly',jsonb_build_object('gabroo_companion',true)) RETURNING id");
+   planId=plan.rows[0]!.id;
+   const price=await pool.query<{id:string}>("INSERT INTO regional_prices(plan_id,country_code,currency,billing_interval,amount_minor) VALUES($1,'IN','INR','month',9900) RETURNING id",[planId]);
+   priceId=price.rows[0]!.id;
+   const subscription=await pool.query<{id:string}>("INSERT INTO subscriptions(user_id,plan_id,regional_price_id,status) VALUES($1,$2,$3,'pending') RETURNING id",[userId,planId,priceId]);
+   subscriptionId=subscription.rows[0]!.id;
+   const payment=await pool.query<{id:string}>("INSERT INTO payment_transactions(subscription_id,provider_code,provider_payment_ref,provider_event_id,amount_minor,currency,status) VALUES($1,'test-provider',$2,$3,9900,'INR','succeeded') RETURNING id",[subscriptionId,"pay-"+randomUUID(),"evt-"+randomUUID()]);
+   paymentId=payment.rows[0]!.id;
+   await expect(activateVerifiedSubscriptionPayment(pool,paymentId)).rejects.toMatchObject({code:"PAYMENT_NOT_VERIFIED"});
+   await pool.query("UPDATE payment_transactions SET verified_at=now() WHERE id=$1",[paymentId]);
+   const activated=await activateVerifiedSubscriptionPayment(pool,paymentId);
+   expect(activated.idempotent).toBe(false);
+   expect(new Date(activated.period_end).getTime()-new Date(activated.period_start).getTime()).toBe(30*24*60*60*1000);
+   const replay=await activateVerifiedSubscriptionPayment(pool,paymentId);
+   expect(replay.idempotent).toBe(true);
+   expect(replay.entitlement_id).toBe(activated.entitlement_id);
+   const status=await app.inject({method:"GET",url:"/api/v1/subscriptions/current",headers:{authorization:"Bearer "+token}});
+   expect(status.statusCode).toBe(200);
+   expect(status.json().access).toBe("paid");
+   const subscriptionRow=await pool.query<{status:string}>("SELECT status FROM subscriptions WHERE id=$1",[subscriptionId]);
+   expect(subscriptionRow.rows[0]?.status).toBe("active");
+  }finally{
+   if(paymentId)await pool.query("DELETE FROM payment_transactions WHERE id=$1",[paymentId]);
+   if(subscriptionId){await pool.query("DELETE FROM subscription_entitlements WHERE subscription_id=$1",[subscriptionId]);await pool.query("DELETE FROM subscriptions WHERE id=$1",[subscriptionId]);}
+   if(priceId)await pool.query("DELETE FROM regional_prices WHERE id=$1",[priceId]);
+   if(planId)await pool.query("DELETE FROM subscription_plans WHERE id=$1",[planId]);
+   if(userId)await pool.query("DELETE FROM users WHERE id=$1",[userId]);
    await app.close();
   }
  });
