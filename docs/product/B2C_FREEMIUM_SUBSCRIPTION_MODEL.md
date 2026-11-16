@@ -8,8 +8,9 @@ Owner approval: Captured from product direction in the conversation; payment pro
 Gabenglish is a direct-to-consumer (B2C), freemium-to-paid English-learning product. There are exactly two paid subscription terms in the initial offer: monthly and yearly. Do not create Basic/Pro/Advanced tiers or a six-month plan unless the owner later approves a change.
 
 The free experience is the acquisition and conversion funnel:
-1. A visitor creates a free account using a verified email address or verified mobile number.
-2. The learner takes one free English analysis/placement test.
+1. A visitor selects “Take Free English Analysis”.
+2. The visitor must register for a free account using a verified email address or verified mobile number before the test can begin.
+3. After successful OTP verification and sign-in, the learner takes the free English analysis/placement test.
 3. The learner receives the free analysis result and a clear explanation of what Gabroo can help them improve.
 4. The product presents monthly and yearly subscription options.
 5. After the payment provider confirms payment, the server grants a time-bounded entitlement to the Gabroo learning companion, classes, learner assessment/profile and learning progress.
@@ -18,7 +19,7 @@ The free diagnostic is not a paid class. Keep the free diagnostic result availab
 
 ## 2. Authentication and lead capture
 
-Account creation and login must be passwordless OTP verification. Support either or both verified contact methods on one learner account:
+Registration is mandatory before any analysis test begins. There is no anonymous or guest test path. Account creation and login must be passwordless OTP verification. Support either or both verified contact methods on one learner account:
 - Email OTP: Gmail, Outlook, Yahoo or any other valid email address. This is email ownership verification, not Google OAuth and not restricted to Gmail.
 - Mobile OTP: phone number in E.164 format, initially including Indian mobile numbers. A verified phone number can be used to sign in without email.
 
@@ -52,8 +53,8 @@ All prices are in Indian rupees (INR), consumer-facing and tax-inclusive at chec
 ## 4. Entitlements and access rules
 
 Free account:
-- Can sign up and sign in using verified email or mobile OTP.
-- Can take the free analysis/placement test.
+- Must register and sign in using verified email or mobile OTP before starting the analysis test.
+- Can take the free analysis/placement test only after successful registration and OTP verification.
 - Can view the resulting free analysis report and subscription offer.
 - Can manage basic account/contact details and privacy/security settings.
 - Cannot access paid classes, Gabroo's ongoing learning companion, paid practice, learner progress dashboard, or ongoing assessment/profile history.
@@ -99,10 +100,11 @@ A cancellation action must not prematurely remove already-paid access. A refund,
 
 ## 7. Required product surfaces
 
-1. Free welcome / sign-up screen with Email OTP and Phone OTP choices.
-2. OTP entry, resend timer, change destination and verification success/error states.
-3. Free analysis test introduction, test, provisional result and clear upgrade CTA.
-4. Pricing page with only Monthly and Yearly options, list price, launch price, duration and savings.
+1. Public welcome / product landing screen with a clear “Take Free English Analysis” CTA; selecting it opens mandatory registration.
+2. Free sign-up screen with Email OTP and Phone OTP choices.
+3. OTP entry, resend timer, change destination and verification success/error states.
+4. Free analysis test introduction, test, provisional result and clear upgrade CTA.
+5. Pricing page with only Monthly and Yearly options, list price, launch price, duration and savings.
 5. Payment pending, success, failure, retry and already-processing states.
 6. Paid learner home with Gabroo, classes, progress and assessments.
 7. Expired-subscription screen that preserves the account and free diagnostic but gates paid features.
