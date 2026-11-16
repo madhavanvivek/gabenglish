@@ -1,36 +1,12 @@
 import {createHash,createHmac,randomBytes,scrypt as scryptCallback,timingSafeEqual} from "node:crypto";
 import type {FastifyInstance,FastifyRequest} from "fastify";
 import type {Pool,PoolClient} from "pg";
-import {z} from "zod";
+import {authRegisterRequestSchema as registerSchema,authLoginRequestSchema as loginSchema,authRefreshRequestSchema as refreshSchema,learnerProfilePatchSchema as profilePatchSchema,learnerPreferencesPatchSchema as preferencesPatchSchema,learnerConsentRequestSchema as consentSchema} from "@gabenglish/contracts";
 import type {AppConfig} from "./config.js";
 
 function deriveKey(password:string,salt:Buffer,length:number,options:{N:number;r:number;p:number;maxmem:number}){
  return new Promise<Buffer>((resolve,reject)=>scryptCallback(password,salt,length,options,(error,key)=>error?reject(error):resolve(key as Buffer)));
 }
-const registerSchema=z.object({
- email:z.string().trim().email().max(254),
- password:z.string().min(10).max(128),
- display_name:z.string().trim().min(1).max(80).optional()
-});
-const loginSchema=z.object({email:z.string().trim().email().max(254),password:z.string().min(1).max(128)});
-const refreshSchema=z.object({refresh_token:z.string().min(40).max(256)});
-const profilePatchSchema=z.object({
- display_name:z.string().trim().min(1).max(80).optional(),
- locale:z.string().trim().min(2).max(20).optional(),
- timezone:z.string().trim().min(2).max(80).optional()
-}).refine(value=>Object.keys(value).length>0);
-const preferencesPatchSchema=z.object({
- support_language:z.enum(["ml","en"]).optional(),
- learning_goal:z.string().trim().max(200).nullable().optional(),
- correction_mode:z.enum(["gentle","balanced","detailed"]).optional(),
- daily_target_minutes:z.number().int().min(1).max(240).optional(),
- reminders_enabled:z.boolean().optional()
-}).refine(value=>Object.keys(value).length>0);
-const consentSchema=z.object({
- purpose:z.enum(["voice_processing","voice_retention","transcript_retention","analytics","personalized_learning"]),
- policy_version:z.string().trim().min(1).max(40),
- granted:z.boolean()
-});
 const ACCESS_TTL_SECONDS=15*60;
 const REFRESH_TTL_DAYS=30;
 type Account={id:string;email:string;display_name:string|null;locale:string;timezone:string;status:string;email_verified_at:Date|null};
