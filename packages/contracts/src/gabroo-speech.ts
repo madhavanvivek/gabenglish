@@ -33,3 +33,73 @@ export async function applyGabrooSpeechRate(
  await playback.setPlaybackRate(rate);
  return rate;
 }
+
+/** Provider-independent lifecycle for a single consent-based voice session. */
+export const gabrooVoiceSessionStateSchema=z.enum([
+ "idle","requesting_permission","listening","transcribing",
+ "generating","speaking","interrupted","error"
+]);
+export type GabrooVoiceSessionState=z.infer<typeof gabrooVoiceSessionStateSchema>;
+
+export type GabrooVoiceSessionEvent=
+ |{type:"start";consentGranted:boolean}
+ |{type:"permission_granted"}
+ |{type:"permission_denied"}
+ |{type:"capture_stopped"}
+ |{type:"transcript_ready"}
+ |{type:"response_ready"}
+ |{type:"playback_finished"}
+ |{type:"interrupt"}
+ |{type:"resume"}
+ |{type:"fail"}
+ |{type:"reset"};
+
+const activeVoiceStates:GabrooVoiceSessionState[]=[
+ "requesting_permission","listening","transcribing","generating","speaking"
+];
+
+/**
+ * Pure transition function: callers must obtain explicit consent before
+ * requesting microphone permission. Invalid transitions fail closed.
+ */
+export function transitionGabrooVoiceSession(
+ current:GabrooVoiceSessionState,
+ event:GabrooVoiceSessionEvent
+):GabrooVoiceSessionState{
+ const next:Partial<Record<GabrooVoiceSessionEvent["type"],GabrooVoiceSessionState>>={
+  start: "requesting_permission",
+  permission_granted:"listening",
+  permission_denied:"error",
+  capture_stopped:"transcribing",
+  transcript_ready:"generating",
+  response_ready:"speaking",
+  playback_finished:"idle",
+  interrupt:"interrupted",
+  resume:"requesting_permission",
+  fail:"error",
+  reset:"idle"
+ };
+ if(event.type==="start" && !event.consentGranted){
+  throw new Error("Explicit learner consent is required before microphone permission.");
+ }
+ if(event.type==="interrupt" && activeVoiceStates.includes(current)){
+  return "interrupted";
+ }
+ const allowed:Record<GabrooVoiceSessionEvent["type"],GabrooVoiceSessionState[]> ={
+  start:["idle"],
+  permission_granted:["requesting_permission"],
+  permission_denied:["requesting_permission"],
+  capture_stopped:["listening"],
+  transcript_ready:["transcribing"],
+  response_ready:["generating"],
+  playback_finished:["speaking"],
+  interrupt:activeVoiceStates,
+  resume:["interrupted"],
+  fail:activeVoiceStates,
+  reset:["interrupted","error"]
+ };
+ if(!allowed[event.type].includes(current)){
+  throw new Error(`Invalid Gabroo voice transition: ${current} -> ${event.type}.`);
+ }
+ return next[event.type]!;
+}
