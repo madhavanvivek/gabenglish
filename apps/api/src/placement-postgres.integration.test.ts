@@ -38,7 +38,7 @@ integration("PostgreSQL placement session integration",()=>{
   if(!pool||!migrationApplied)return;
   await runMigrations(pool);
   const result=await pool.query<{version:string}>("SELECT version FROM schema_migrations ORDER BY version");
-  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql"]);
+  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql"]);
  });
  it("rejects edits to an already-applied migration checksum",async()=>{
   if(!pool||!migrationApplied)return;
@@ -80,9 +80,14 @@ integration("PostgreSQL placement session integration",()=>{
    const profile=await app.inject({method:"PATCH",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+login.json().access_token},payload:{display_name:"Anu K",locale:"ml-IN"}});
    expect(profile.statusCode).toBe(200);
    expect(profile.json().user.display_name).toBe("Anu K");
-   const preferences=await app.inject({method:"PATCH",url:"/api/v1/auth/me/preferences",headers:{authorization:"Bearer "+login.json().access_token},payload:{support_language:"ml",daily_target_minutes:15,correction_mode:"gentle"}});
+   const preferences=await app.inject({method:"PATCH",url:"/api/v1/auth/me/preferences",headers:{authorization:"Bearer "+login.json().access_token},payload:{support_language:"ml",daily_target_minutes:15,correction_mode:"gentle",gabroo_speech_rate:0.85}});
    expect(preferences.statusCode).toBe(200);
    expect(preferences.json().preferences.daily_target_minutes).toBe(15);
+   expect(Number(preferences.json().preferences.gabroo_speech_rate)).toBe(0.85);
+   const persistedPreferences=await app.inject({method:"GET",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+login.json().access_token}});
+   expect(Number(persistedPreferences.json().preferences.gabroo_speech_rate)).toBe(0.85);
+   const invalidSpeechRate=await app.inject({method:"PATCH",url:"/api/v1/auth/me/preferences",headers:{authorization:"Bearer "+login.json().access_token},payload:{gabroo_speech_rate:1.03}});
+   expect(invalidSpeechRate.statusCode).toBe(400);
    const consent=await app.inject({method:"POST",url:"/api/v1/auth/me/consents",headers:{authorization:"Bearer "+login.json().access_token},payload:{purpose:"voice_processing",policy_version:"2026-11-v1",granted:true}});
    expect(consent.statusCode).toBe(201);
    expect(consent.json().consent.granted).toBe(true);
