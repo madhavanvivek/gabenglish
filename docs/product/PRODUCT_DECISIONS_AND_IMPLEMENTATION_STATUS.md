@@ -190,7 +190,7 @@ These limitations must remain visible in README, release notes and handover repo
 
 ## 12. Next implementation sequence
 
-1. Verify the latest optimistic-concurrency change in CI and add a real PostgreSQL integration test for simultaneous requests, expiry and restart behaviour.
+1. Add a real PostgreSQL integration test for simultaneous requests, expiry and restart behaviour; the current concurrency regression test uses a controlled pool double and does not replace a live-database test.
 2. Introduce authenticated learner identity and account lifecycle before persisting completed assessment reports; define retention, consent and deletion controls.
 3. Add educator-reviewed prompt objectives and prompt-to-skill mappings; do not enable skill findings until the analytic rubric and calibration gates are approved.
 4. Implement evidence coverage/uncertainty and a defensible report with a starting-stage recommendation only after educator validation.
