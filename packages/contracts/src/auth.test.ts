@@ -23,9 +23,11 @@ describe("learner Gabroo speech preferences",()=>{
   expect(learnerPreferencesPatchSchema.safeParse({gabroo_speech_rate:0.75}).success).toBe(true);
   expect(learnerPreferencesPatchSchema.safeParse({gabroo_speech_rate:1}).success).toBe(true);
   expect(learnerPreferencesPatchSchema.safeParse({gabroo_speech_rate:1.5}).success).toBe(true);
+  expect(learnerPreferencesPatchSchema.safeParse({gabroo_speech_rate:0.85}).success).toBe(true);
  });
  it("rejects playback rates outside the supported range",()=>{
   expect(learnerPreferencesPatchSchema.safeParse({gabroo_speech_rate:0.7}).success).toBe(false);
   expect(learnerPreferencesPatchSchema.safeParse({gabroo_speech_rate:1.51}).success).toBe(false);
+  expect(learnerPreferencesPatchSchema.safeParse({gabroo_speech_rate:1.03}).success).toBe(false);
  });
 });
