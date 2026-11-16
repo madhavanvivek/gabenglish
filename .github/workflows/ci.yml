@@ -35,6 +35,7 @@ jobs:
       - run: pnpm --filter @gabenglish/api typecheck
       - run: pnpm --filter @gabenglish/api test
       - run: pnpm --filter @gabenglish/contracts typecheck
+      - run: pnpm --filter @gabenglish/contracts test
   mobile:
     runs-on: ubuntu-latest
     steps:
