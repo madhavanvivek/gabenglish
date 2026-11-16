@@ -36,7 +36,12 @@ describe("Gabroo conversational placement",()=>{
   }
   expect(response?.json().is_complete).toBe(true);
   expect(response?.json().evidence).toHaveLength(6);
+  expect(response?.json().report).toMatchObject({status:"provisional",recommendation_status:"not_yet_available",assessment_mode:"text",response_count:6});
+  expect(response?.json().report.extended_samples).toBeGreaterThan(0);
+  expect(response?.json().report.limitations).toContain("Text does not provide evidence of pronunciation or spoken fluency.");
+  expect(response?.json().gabroo_explanation).toContain("not going to guess your English level");
   expect(response?.json()).not.toHaveProperty("score");
+  expect(response?.json()).not.toHaveProperty("suggested_stage");
   await app.close();
  });
  it("uses a gentle clarification instead of escalating after a very brief answer",async()=>{
