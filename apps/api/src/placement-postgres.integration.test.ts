@@ -112,6 +112,32 @@ integration("PostgreSQL placement session integration",()=>{
    await app.close();
   }
  });
+ it("verifies an email OTP once and issues a learner session only after verification",async()=>{
+  if(!pool||!migrationApplied)return;
+  let deliveredCode="";
+  const email="otp-"+randomUUID()+"@example.test";
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool,{send:async({code})=>{deliveredCode=code;return true;}});
+  try{
+   const requested=await app.inject({method:"POST",url:"/api/v1/auth/otp/request",payload:{channel:"email",destination:email}});
+   expect(requested.statusCode).toBe(202);
+   expect(requested.json().masked_destination).not.toContain(email);
+   expect(deliveredCode).toMatch(/^\\d{6}$/);
+   const beforeVerification=await pool.query("SELECT id FROM users WHERE email_normalized=$1",[email]);
+   expect(beforeVerification.rows).toHaveLength(0);
+   const verified=await app.inject({method:"POST",url:"/api/v1/auth/otp/verify",payload:{challenge_id:requested.json().challenge_id,code:deliveredCode}});
+   expect(verified.statusCode).toBe(200);
+   expect(verified.json().user.verified_channel).toBe("email");
+   expect(verified.json().access_token).toBeTruthy();
+   const me=await app.inject({method:"GET",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+verified.json().access_token}});
+   expect(me.statusCode).toBe(200);
+   expect(me.json().user.email).toBe(email);
+   const replay=await app.inject({method:"POST",url:"/api/v1/auth/otp/verify",payload:{challenge_id:requested.json().challenge_id,code:deliveredCode}});
+   expect(replay.statusCode).toBe(400);
+  }finally{
+   await pool.query("DELETE FROM users WHERE email_normalized=$1",[email]);
+   await app.close();
+  }
+ });
  it("persists an active conversation across API process restarts",async()=>{
   if(!pool||!migrationApplied)return;
   const firstApp=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
