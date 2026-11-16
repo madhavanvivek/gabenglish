@@ -11,7 +11,7 @@ export default function WelcomeScreen(){
  const [sessionId,setSessionId]=useState<string|null>(null),[promptId,setPromptId]=useState<string|null>(null);
  const [turn,setTurn]=useState(0),[report,setReport]=useState<PlacementReport|null>(null),[explanation,setExplanation]=useState("");
  const [error,setError]=useState("");
- const complete=Boolean(report);
+ const complete=report!==null;
  const handleError=(reason:unknown)=>setError(reason instanceof PlacementApiError?reason.message:"Something went wrong. Please try again.");
  const begin=async()=>{
   setBusy(true);setError("");
