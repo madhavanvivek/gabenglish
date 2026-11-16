@@ -64,6 +64,7 @@ export async function transcribeGabrooAudio(input:{
  );
  if(input.audio.byteLength===0)throw new GabrooRecognitionError("INVALID_AUDIO","The audio recording is empty.");
  if(input.audio.byteLength>GABROO_AUDIO_MAX_BYTES)throw new GabrooRecognitionError("AUDIO_TOO_LARGE","The audio recording is too large.");
+ if(input.audio.byteLength!==parsed.data.sizeBytes)throw new GabrooRecognitionError("INVALID_AUDIO","The audio size does not match its metadata.");
  if(!input.provider)throw new GabrooRecognitionError("PROVIDER_UNAVAILABLE","Speech recognition is not configured.");
  if(input.signal?.aborted)throw new GabrooRecognitionError("PROVIDER_FAILED","Speech recognition was cancelled.");
  const controller=new AbortController();
@@ -71,6 +72,10 @@ export async function transcribeGabrooAudio(input:{
  input.signal?.addEventListener("abort",abort,{once:true});
  let timedOut=false;
  let timeout:ReturnType<typeof setTimeout>|undefined;
+ let rejectCancellation:(reason:GabrooRecognitionError)=>void=()=>{};
+ const cancellationPromise=new Promise<never>((_,reject)=>{rejectCancellation=reject;});
+ const onAbort=()=>rejectCancellation(new GabrooRecognitionError("PROVIDER_FAILED","Speech recognition was cancelled."));
+ input.signal?.addEventListener("abort",onAbort,{once:true});
  const timeoutPromise=new Promise<never>((_,reject)=>{
   timeout=setTimeout(()=>{
    timedOut=true;
@@ -80,6 +85,8 @@ export async function transcribeGabrooAudio(input:{
  });
  try{
   const raw=await Promise.race([
+   cancellationPromise,
+   timeoutPromise,
    input.provider.transcribe({
     audio:input.audio,
     mimeType:parsed.data.mimeType,
@@ -106,5 +113,6 @@ export async function transcribeGabrooAudio(input:{
  }finally{
   if(timeout)clearTimeout(timeout);
   input.signal?.removeEventListener("abort",abort);
+  input.signal?.removeEventListener("abort",onAbort);
  }
 }
