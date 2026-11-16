@@ -12,3 +12,5 @@ export * from "./placement.js";
 export * from "./auth.js";
 
 export * from "./gabroo-speech.js";
+
+export * from "./gabroo-recognition.js";
