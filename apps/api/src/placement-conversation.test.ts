@@ -39,6 +39,16 @@ describe("Gabroo conversational placement",()=>{
   expect(response?.json()).not.toHaveProperty("score");
   await app.close();
  });
+ it("uses a gentle clarification instead of escalating after a very brief answer",async()=>{
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);
+  const start=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",payload:{preferred_language:"en"}});
+  const session=start.json().session_id;
+  const first=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:session,turn:{prompt_id:"intro",response:"Anu."}}});
+  expect(first.statusCode).toBe(200);
+  expect(first.json()).toMatchObject({prompt_id:"clarify",difficulty_band:1,is_complete:false});
+  expect(first.json().gabroo_message).toContain("tell me a little more");
+  await app.close();
+ });
  it("rejects unknown sessions",async()=>{
   const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);
   const r=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:"00000000-0000-4000-8000-000000000000",turn:{prompt_id:"intro",response:"Hello"}}});
