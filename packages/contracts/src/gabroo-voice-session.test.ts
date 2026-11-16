@@ -8,7 +8,7 @@ import {
 
 describe("Gabroo voice session state machine",()=>{
  it("accepts only the documented lifecycle states",()=>{
-  for(const state of ["idle","requesting_permission","listening","transcribing","generating","speaking","interrupted","error"]){
+  for(const state of ["idle","requesting_permission","ready","listening","transcribing","generating","speaking","interrupted","error"]){
    expect(gabrooVoiceSessionStateSchema.parse(state)).toBe(state);
   }
   expect(gabrooVoiceSessionStateSchema.safeParse("recording_forever").success).toBe(false);
@@ -24,13 +24,14 @@ describe("Gabroo voice session state machine",()=>{
   const events:GabrooVoiceSessionEvent[]=[
    {type:"start",consentGranted:true},
    {type:"permission_granted"},
+   {type:"begin_capture"},
    {type:"capture_stopped"},
    {type:"transcript_ready"},
    {type:"response_ready"},
    {type:"playback_finished"}
   ];
   const expected:GabrooVoiceSessionState[]=[
-   "requesting_permission","listening","transcribing","generating","speaking","idle"
+   "requesting_permission","ready","listening","transcribing","generating","speaking","idle"
   ];
   events.forEach((event,index)=>{
    state=transitionGabrooVoiceSession(state,event);
@@ -38,12 +39,19 @@ describe("Gabroo voice session state machine",()=>{
   });
  });
 
+ it("does not enter listening until capture is explicitly started",()=>{
+  const ready=transition("requesting_permission",{type:"permission_granted"});
+  expect(ready).toBe("ready");
+  expect(()=>transition(ready,{type:"capture_stopped"})).toThrow(/Invalid/);
+  expect(transition(ready,{type:"begin_capture"})).toBe("listening");
+ });
+
  it("fails closed when microphone permission is denied",()=>{
   expect(transitionGabrooVoiceSession("requesting_permission",{type:"permission_denied"})).toBe("error");
  });
 
  it("allows interruption during every active stage and requires explicit resume",()=>{
-  const active:GabrooVoiceSessionState[]=["requesting_permission","listening","transcribing","generating","speaking"];
+  const active:GabrooVoiceSessionState[]=["requesting_permission","ready","listening","transcribing","generating","speaking"];
   for(const state of active){
    expect(transitionGabrooVoiceSession(state,{type:"interrupt"})).toBe("interrupted");
   }
