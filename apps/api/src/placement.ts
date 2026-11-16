@@ -1,6 +1,8 @@
 import type {FastifyInstance} from "fastify";
 import {randomUUID} from "node:crypto";
 import type {Pool} from "pg";
+import type {AppConfig} from "./config.js";
+import {authenticateLearner} from "./auth.js";
 import {z} from "zod";
 import {placementSessionStartSchema,placementConversationRequestSchema} from "@gabenglish/contracts";
 import {extractResponseEvidence, type ResponseEvidence} from "./placement-evidence.js";
@@ -18,7 +20,7 @@ const prompts:Prompt[]=[
 {id:"opinion",band:4,text:"Some people believe that learning online is more effective than learning in a classroom. What is your view? Give examples."},
 {id:"scenario",band:5,text:"Imagine you are leading a team through an unexpected project delay. Explain how you would communicate the situation, handle disagreement and regain the client's confidence."}
 ];
-type Session={id:string;name?:string;style:string;language:string;turn:number;band:number;revision:number;clarificationCount:number;currentPromptId:string;responses:Array<{prompt_id:string;text:string;response_mode:"text"|"voice"}>;evidence:ResponseEvidence[];created_at:number;lastTurn?:{prompt_id:string;response:string;response_mode:"text"|"voice";result:Record<string,unknown>}};
+type Session={id:string;userId:string;name?:string;style:string;language:string;turn:number;band:number;revision:number;clarificationCount:number;currentPromptId:string;responses:Array<{prompt_id:string;text:string;response_mode:"text"|"voice"}>;evidence:ResponseEvidence[];created_at:number;lastTurn?:{prompt_id:string;response:string;response_mode:"text"|"voice";result:Record<string,unknown>}};
 const sessions=new Map<string,Session>();
 const SESSION_TTL_MS=30*60*1000;
 const MAX_ACTIVE_SESSIONS=1000;
@@ -67,13 +69,13 @@ function buildGabrooExplanation(report:ReturnType<typeof buildPlacementReport>){
  return `Thanks for chatting with me! ${sample} I’m not going to guess your English level from this short conversation. ${mode} We can build a clearer picture with a few guided activities, and you can start with Malayalam support whenever you like.`;
 }
 
-export async function registerPlacementRoutes(app:FastifyInstance,pool?:Pool){
+export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|undefined,config:AppConfig){
  const getSession=async(id:string)=>{if(pool){const found=await pool.query<{state:Session;expired:boolean}>("SELECT state,expires_at<=now() AS expired FROM placement_sessions WHERE id=$1",[id]);const row=found.rows[0];return row?{session:row.state,expired:row.expired}:undefined;}const session=sessions.get(id);return session?{session,expired:isPlacementSessionExpired(session.created_at)}:undefined;};
  const saveSession=async(session:Session):Promise<boolean>=>{
   if(pool){
    if(session.revision===0){
     session.revision=1;
-    await pool.query("INSERT INTO placement_sessions(id,state,created_at,expires_at,updated_at) VALUES($1,$2::jsonb,to_timestamp($3/1000.0),to_timestamp($3/1000.0)+interval '30 minutes',now())",[session.id,JSON.stringify(session),session.created_at]);
+    await pool.query("INSERT INTO placement_sessions(id,user_id,state,created_at,expires_at,updated_at) VALUES($1,$2,$3::jsonb,to_timestamp($4/1000.0),to_timestamp($4/1000.0)+interval '30 minutes',now())",[session.id,session.userId,JSON.stringify(session),session.created_at]);
     return true;
    }
    const expectedRevision=session.revision;
@@ -90,20 +92,27 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool?:Pool){
  const deleteSession=async(id:string)=>{if(pool)await pool.query("DELETE FROM placement_sessions WHERE id=$1",[id]);else sessions.delete(id);};
 
  app.post("/api/v1/placement/conversation/start",async(request,reply)=>{
+  if(!pool)return reply.code(503).send({error:{code:"DATABASE_UNAVAILABLE",message:"Sign-in is required before starting your free analysis.",request_id:request.id}});
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return reply.code(401).send({error:{code:"VERIFIED_ACCOUNT_REQUIRED",message:"Please register or sign in with a verified email or phone before starting your free analysis.",request_id:request.id}});
   const parsed=placementSessionStartSchema.safeParse(request.body??{});
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Please check your assessment preferences.",request_id:request.id}});
   pruneSessions();
   if(pool)await pool.query("DELETE FROM placement_sessions WHERE expires_at<=now()");
-  const id=randomUUID();const session:Session={id,name:parsed.data.display_name,style:parsed.data.communication_style,language:parsed.data.preferred_language,turn:0,band:1,revision:0,clarificationCount:0,currentPromptId:"intro",responses:[],evidence:[],created_at:Date.now()};await saveSession(session);
+  const id=randomUUID();const session:Session={id,userId:learner.id,name:parsed.data.display_name,style:parsed.data.communication_style,language:parsed.data.preferred_language,turn:0,band:1,revision:0,clarificationCount:0,currentPromptId:"intro",responses:[],evidence:[],created_at:Date.now()};await saveSession(session);
   const first=prompts[0]!;
   const greeting=session.language==="ml"?"ഹായ്! ഞാൻ Gabroo. നമുക്ക് ഒരു friendly conversation തുടങ്ങാം. ഇത് exam അല്ല; നിനക്ക് പറ്റുന്ന പോലെ സംസാരിച്ചാൽ മതി. തെറ്റുകൾ വന്നാലും പ്രശ്നമില്ല.":"Hi! I'm Gabroo. Let's have a relaxed conversation. This isn't an exam, so just express yourself naturally. Mistakes are completely okay.";
   return {session_id:id,prompt_id:first.id,gabroo_message:greeting+" "+first.text,difficulty_band:1,turn_number:1,is_complete:false};
  });
  app.post("/api/v1/placement/conversation/respond",async(request,reply)=>{
+  if(!pool)return reply.code(503).send({error:{code:"DATABASE_UNAVAILABLE",message:"Sign in to continue your free analysis.",request_id:request.id}});
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return reply.code(401).send({error:{code:"VERIFIED_ACCOUNT_REQUIRED",message:"Please sign in with your verified account to continue.",request_id:request.id}});
   const parsed=placementConversationRequestSchema.safeParse(request.body);
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Please provide a valid conversation response.",request_id:request.id}});
   const stored=await getSession(parsed.data.session_id);if(!stored)return reply.code(404).send({error:{code:"SESSION_NOT_FOUND",message:"This assessment session is no longer available. Please start again.",request_id:request.id}});
   const session=stored.session;
+  if(session.userId!==learner.id)return reply.code(404).send({error:{code:"SESSION_NOT_FOUND",message:"This assessment session is not available for this account.",request_id:request.id}});
   if(stored.expired||isPlacementSessionExpired(session.created_at)){await deleteSession(session.id);return reply.code(410).send({error:{code:"SESSION_EXPIRED",message:"This assessment session has expired. Please start again.",request_id:request.id}});}
   const incoming=parsed.data.turn;
   if(session.lastTurn?.prompt_id===incoming.prompt_id){
