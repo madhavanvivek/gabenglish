@@ -161,44 +161,42 @@ Current repository structure includes `apps/mobile`, `apps/api`, `packages/contr
 ## 11. Verified implementation status (2026-11-16)
 
 ### Implemented in the foundation branch
-- pnpm monorepo workspace.
-- Fastify API skeleton with health and readiness endpoints.
-- Shared Zod contracts package.
-- Expo/React Native mobile prototype.
+- pnpm monorepo, Fastify API skeleton, shared Zod contracts and Expo/React Native mobile application shell.
 - GitHub Actions CI workflow for API/contracts and mobile typecheck.
-- Placement conversation start/respond API endpoints with session and turn validation.
-- A deterministic, predefined-prompt placement prototype and basic heuristic.
-- Text-only mobile conversation prototype (currently local UI flow).
-- Placement and respectful communication documentation.
+- Placement conversation start/respond API endpoints with session, prompt-order and request validation.
+- Mobile placement flow connected to the API through an environment-configured client, with timeout handling, response-schema validation and safe user-facing errors.
+- Structured provisional report and separate Gabroo explanation returned by the API and displayed separately in the mobile prototype.
+- Observable response evidence extraction with explicit text/transcript limitations; no skill findings, proficiency score or stage recommendation is generated.
+- Short-lived placement session persistence support when PostgreSQL is configured and migration 0002_initial_placement_sessions.sql is applied; 30-minute expiry is documented. In-memory fallback remains for tests/development.
+- Six core prompt records spanning the five hidden challenge bands, with a conservative coverage-first sequence and up to two optional clarification turns. Clarification turns are excluded from core assessment evidence.
+- Gabroo's Concept C identity direction and respectful communication/address policy are documented.
 
-### Latest confirmed automated validation
-GitHub Actions run `43848505407` completed successfully for both `api` and `mobile` jobs, including API typecheck, API tests, contracts typecheck and mobile typecheck. This is a code/CI check, not a production readiness or learning-quality certification.
+### Latest validation checkpoint
+The scaffold CI run 43857730099 passed API and mobile jobs. The subsequent placement-selector change exposed three API test failures in run 43858947625; the failure was traced to an incorrectly escaped Unicode word-count expression, then corrected in commit 6e1a6bab67fcd4086d2b8c0af8b3f290bc20d4ea. CI for that correction is running as workflow run 43859020856; do not call the latest change green until that run completes successfully.
 
 ### Explicit limitations — not production-ready
-- The current assessment engine is deterministic and prompt-based, not a live LLM-driven adaptive tutor.
-- Its response heuristic is basic and is not a validated proficiency rubric.
-- Assessment sessions are held in process memory and are lost on API restart; no durable session/report persistence is implemented.
-- The mobile conversation prototype is not yet connected to the API.
-- No evidence-based detailed report or personalised Gabroo voice explanation is generated yet.
-- The current assessment is text-only; no microphone capture, STT, TTS or pronunciation evaluation is implemented.
-- No authentication, learner account lifecycle, production curriculum/content delivery, subscriptions/payments or admin application is complete.
-- No final Gabroo character model, rig or production animation assets are approved.
-- No Render production deployment or paid AI/speech provider has been configured.
+- The current placement selector is conservative coverage routing with clarification support, not a fully skill-aware adaptive assessment or live LLM-driven tutor.
+- No educator-approved prompt-to-skill mappings, analytic rubric or calibration dataset exists; therefore no learner skill ratings, confidence levels or starting-stage recommendation are produced.
+- Reports and answers are retained only within the short-lived assessment session; a durable learner assessment history/report store is not yet implemented.
+- PostgreSQL persistence is conditional on deployment configuration and migration application; no live Gabenglish database or production deployment has been verified.
+- The mobile assessment is text-only. No microphone capture, STT, TTS or pronunciation evaluation is implemented. Transcript input support in the API is not a production voice feature.
+- Authentication, learner account lifecycle, production curriculum/content delivery, subscriptions/payments and admin application remain incomplete.
+- No final Gabroo 3D model, rig or production animation assets are approved.
+- No production AI/speech provider has been selected or configured.
 
-These limitations must remain visible in README, release notes and future handover reports until verified changes replace them.
+These limitations must remain visible in README, release notes and handover reports until verified changes replace them.
 
 ## 12. Next implementation sequence
 
-1. Keep documentation and implementation aligned; define assessment engine interfaces and evidence model.
-2. Replace simple response-length heuristics with tested, skill-aware adaptive selection and explicit uncertainty handling; keep deterministic fallback clearly labelled.
-3. Design and validate the assessment rubric with English/Malayalam educators before assigning learner levels.
-4. Implement report generation from recorded evidence, with coverage/confidence and text-vs-voice limitations; implement Gabroo's separate personalised explanation only from report evidence.
-5. Connect mobile to the API using an environment-configured client with timeout, retry and safe error states.
-6. Add persistence and privacy-aware retention after database schema and consent requirements are approved.
-7. Produce the first complete Malayalam-supported lesson pack and editorial review workflow.
-8. Benchmark AI/STT/TTS providers before selecting one; then implement consent-based voice flows.
-9. Complete authentication/profile, admin/content workflows, security review, analytics and subscription decisions.
-10. Build full OpenAPI, ERD/migrations, wireframes/design system, threat model, deployment/backup plan and an estimated Phase 1 backlog.
+1. Complete and verify the current placement selector CI run; add coverage for retries, session expiry, malformed requests and database-backed session behaviour.
+2. Add educator-reviewed prompt objectives and prompt-to-skill mappings; do not enable skill findings until the analytic rubric and calibration gates are approved.
+3. Implement evidence coverage/uncertainty and a defensible report with a starting-stage recommendation only after educator validation.
+4. Persist completed assessment reports against authenticated learner accounts, with consent, retention and deletion controls.
+5. Improve mobile recovery for expired sessions, interrupted connectivity, safe retry and learner-controlled restart.
+6. Produce the first complete Malayalam-supported lesson pack and editorial review workflow for all five stages.
+7. Benchmark AI/STT/TTS providers before selecting one; then implement consent-based voice flows.
+8. Complete authentication/profile, admin/content workflows, security review, analytics and subscription decisions.
+9. Build full OpenAPI, ERD/migrations, wireframes/design system, threat model, deployment/backup plan and an estimated Phase 1 backlog.
 
 ## 13. Detailed documentation index
 
