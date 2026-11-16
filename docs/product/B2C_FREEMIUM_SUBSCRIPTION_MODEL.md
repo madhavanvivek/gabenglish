@@ -41,12 +41,12 @@ All prices are in Indian rupees (INR), consumer-facing and tax-inclusive at chec
 
 | Plan | Standard price | Current introductory price | Access duration |
 |---|---:|---:|---:|
-| Monthly | ₹99 | **₹69** (30.30% discount) | 30 days |
+| Monthly | ₹99 | **₹79** (20.20% discount) | 30 days |
 | Yearly | ₹1,188 | **₹799** (32.74% discount) | 360 days (12 × 30 days) |
 
 - The introductory discount applies only to the learner's first-ever successful subscription purchase. All subsequent renewals/re-purchases are charged at the then-current standard plan price unless a new, explicitly approved promotion rule is introduced.
 - The Superadmin must be able to configure the discount percentage independently for Monthly and Yearly plans from the admin portal, enable/disable each offer, and set an optional offer start/end time. The displayed offer price is calculated from the standard price and active percentage on the server; round to the nearest whole rupee and show the final amount before checkout.
-- The initial configured percentages are 30.30% for Monthly (₹99 → ₹69) and 32.74% for Yearly (₹1,188 → ₹799). These are editable launch defaults, not hard-coded constants.
+- The initial configured percentages are 20.20% for Monthly (₹99 → ₹79) and 32.74% for Yearly (₹1,188 → ₹799). These are editable launch defaults, not hard-coded constants.
 - The Superadmin can change future offer percentages, but changes must not alter a checkout already created, a verified purchase, or its stored invoice/transaction history. Store a snapshot of standard price, discount percentage, discount amount, final amount, currency, plan term and offer/version against each transaction.
 - Do not let a learner repeatedly qualify for the first-purchase offer by cancelling, allowing expiry, or creating another checkout. Eligibility must be enforced server-side against the learner's purchase history. Define account-merger and abuse handling before launch.
 - The yearly standard price is ₹99 × 12 = ₹1,188.
@@ -83,6 +83,20 @@ Expired/cancelled/failed payment:
 - Never trust a client-side payment success screen, local flag or receipt alone. Grant or extend entitlements only after server-side provider verification (signed webhook and/or server-to-server payment verification).
 
 The ordinary account profile (email, phone, display name, settings) is not the paid learner assessment/profile. Keep these concepts separate in the UI and API.
+
+### 4.2 Gabroo speaking-speed control
+
+When spoken Gabroo responses are available, every learner must be able to adjust how quickly Gabroo speaks. Provide an easy-to-find playback-speed control in the conversation/audio player and a persistent preference in voice settings. Offer a practical range (initial proposal: 0.75× to 1.5×, with 1.0× as the default), with clear labels and an easy reset to normal speed.
+
+- Apply the chosen speed consistently to Gabroo's spoken responses and replayed audio.
+- Preserve voice pitch/naturalness where the speech technology supports it; avoid making slow speech sound distorted.
+- Let learners change speed while listening, without restarting the conversation or changing the text response.
+- Save the learner's preference across sessions and devices where account settings sync is available; otherwise retain it locally until sync is implemented.
+- Do not change the learner's microphone recording speed, speech-recognition timing or the actual wording of Gabroo's response.
+- If a speech provider cannot generate at the requested rate, use supported client-side playback-rate controls or explain the limitation gracefully.
+- This is a learner accessibility and comprehension control included in the single Gabenglish subscription, not a separate paid feature.
+
+Voice remains unavailable until consent, STT/TTS, playback controls and device QA are implemented.
 
 ## 5. Subscription time calculation
 
