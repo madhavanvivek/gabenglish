@@ -362,3 +362,12 @@ Next implementation sequence:
 3. Implement consent-first audio playback and recording UX, visible recording state, graceful text fallback and device-level QA.
 4. Complete automated tests for the speech-rate preference and playback-rate application, then run the full PostgreSQL-backed CI suite.
 5. Configure a dedicated Gabenglish Render workspace and production services only after the workspace is available and infrastructure changes are reviewed. Keep the draft PR unmerged and do not deploy production without explicit approval.
+
+### Provider-neutral Gabroo playback contract (foundation implementation)
+
+- Shared contracts now define the approved 0.75×–1.50× range, 0.05× increments and 1.0× default.
+- A provider-neutral `GabrooAudioPlayback` interface exposes only `setPlaybackRate`, so future native/Expo/web audio adapters do not leak SDK types into product contracts.
+- `applyGabrooSpeechRate` validates the saved preference before calling the player, returns only after the adapter confirms success, and propagates player failures. Invalid rates never reach the audio adapter.
+- Contract tests cover supported/unsupported rates, default/range values, successful application, invalid input rejection and adapter failures.
+- This is a tested-by-design source addition, not yet a verified CI pass. The latest GitHub workflow-run lookup did not return a run for this commit; do not mark CI green until the actual workflow result is inspected.
+- No TTS/STT vendor or native audio dependency has been selected. No voice playback is exposed in the UI until a real adapter and audio asset/service exist.
