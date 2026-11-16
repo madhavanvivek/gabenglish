@@ -43,7 +43,12 @@ async function post<T>(path: string, body: unknown): Promise<T> {
         : `The assessment service returned an error (${response.status}).`;
       throw new PlacementApiError(message, response.status);
     }
-    if (path.startsWith("/api/v1/placement/conversation/")) {\n      const parsed = placementConversationResponseSchema.safeParse(payload);\n      if (!parsed.success) throw new PlacementApiError("The assessment server returned an unexpected response. Please try again.");\n      return parsed.data as T;\n    }\n    return payload as T;
+    if (path.startsWith("/api/v1/placement/conversation/")) {
+      const parsed = placementConversationResponseSchema.safeParse(payload);
+      if (!parsed.success) throw new PlacementApiError("The assessment server returned an unexpected response. Please try again.");
+      return parsed.data as T;
+    }
+    return payload as T;
   } catch (error) {
     if (error instanceof PlacementApiError) throw error;
     if (error instanceof Error && error.name === "AbortError") {
