@@ -31,7 +31,7 @@ export default function AccountScreen(){
   finally{setBusy(false);}
  };
  const verifyCode=async()=>{
-  if(busy||!challenge||!/^\\d{6}$/.test(code.trim()))return;
+  if(busy||!challenge||!/^\d{6}$/.test(code.trim()))return;
   setBusy(true);setError("");setNotice("");
   try{
    await verifyLearnerOtp({challenge_id:challenge.challenge_id,code:code.trim()});
@@ -67,7 +67,7 @@ export default function AccountScreen(){
    </View>
    <Text style={s.label}>{channel==="email"?"Email address":"Mobile number"}</Text>
    <TextInput value={destination} onChangeText={setDestination} placeholder={channel==="email"?"you@example.com":"+919876543210"} keyboardType={channel==="email"?"email-address":"phone-pad"} autoCapitalize="none" autoCorrect={false} style={s.input} editable={!busy&&!challenge}/>
-   {challenge?<><Text style={s.label}>6-digit verification code</Text><TextInput value={code} onChangeText={value=>setCode(value.replace(/\\D/g,"").slice(0,6))} placeholder="Enter the code" keyboardType="number-pad" maxLength={6} style={s.input} editable={!busy}/><Pressable disabled={busy||code.trim().length!==6} style={[s.button,(busy||code.trim().length!==6)&&s.disabled]} onPress={verifyCode}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Verify and continue</Text>}</Pressable><Pressable disabled={busy} onPress={()=>{setChallenge(null);setCode("");setNotice("");}} style={s.change}><Text style={s.changeText}>Change contact or request a new code</Text></Pressable></>:<Pressable disabled={busy||!destination.trim()} style={[s.button,(busy||!destination.trim())&&s.disabled]} onPress={requestCode}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Send verification code</Text>}</Pressable>}
+   {challenge?<><Text style={s.label}>6-digit verification code</Text><TextInput value={code} onChangeText={value=>setCode(value.replace(/\D/g,"").slice(0,6))} placeholder="Enter the code" keyboardType="number-pad" maxLength={6} style={s.input} editable={!busy}/><Pressable disabled={busy||code.trim().length!==6} style={[s.button,(busy||code.trim().length!==6)&&s.disabled]} onPress={verifyCode}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Verify and continue</Text>}</Pressable><Pressable disabled={busy} onPress={()=>{setChallenge(null);setCode("");setNotice("");}} style={s.change}><Text style={s.changeText}>Change contact or request a new code</Text></Pressable></>:<Pressable disabled={busy||!destination.trim()} style={[s.button,(busy||!destination.trim())&&s.disabled]} onPress={requestCode}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Send verification code</Text>}</Pressable>}
    <Text style={s.disclaimer}>Your free analysis starts only after your email or phone is verified. We never merge accounts just because contact details look similar.</Text>
   </View>}
   {notice?<View style={s.notice}><Text style={s.noticeText}>{notice}</Text></View>:null}
