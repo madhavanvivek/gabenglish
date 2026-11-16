@@ -107,13 +107,24 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
  app.post("/api/v1/auth/login",async(request,reply)=>{
   const parsed=loginSchema.safeParse(request.body);
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Enter a valid email and password.",request_id:request.id}});
+  const emailDigest=createHmac("sha256",secret).update("email:"+parsed.data.email.toLowerCase()).digest("hex");
+  const ipDigest=createHmac("sha256",secret).update("ip:"+request.ip).digest("hex");
+  const attempts=await pool.query<{email_count:number;ip_count:number}>(
+   "SELECT count(*) FILTER (WHERE email_digest=$1)::int AS email_count,count(*) FILTER (WHERE ip_digest=$2)::int AS ip_count FROM auth_login_attempts WHERE attempted_at>now()-interval '15 minutes' AND succeeded=false AND (email_digest=$1 OR ip_digest=$2)",
+   [emailDigest,ipDigest]
+  );
+  if((attempts.rows[0]?.email_count??0)>=10||(attempts.rows[0]?.ip_count??0)>=30)return reply.code(429).send({error:{code:"LOGIN_RATE_LIMITED",message:"Too many sign-in attempts. Please wait before trying again.",request_id:request.id}});
   const result=await pool.query<{id:string;email:string;password_hash:string|null;status:string}>(
    "SELECT id,email,password_hash,status FROM users WHERE email_normalized=$1 AND deleted_at IS NULL",
    [parsed.data.email.toLowerCase()]
   );
   const user=result.rows[0];
-  const valid=user?.password_hash?await verifyPassword(parsed.data.password,user.password_hash):false;
-  if(!user||user.status!=="active"||!valid)return reply.code(401).send({error:{code:"INVALID_CREDENTIALS",message:"Email or password is incorrect.",request_id:request.id}});
+  const valid=user?.password_hash?await verifyPassword(parsed.data.password,user.password_hash):(await hashPassword(parsed.data.password),false);
+  if(!user||user.status!=="active"||!valid){
+   await pool.query("INSERT INTO auth_login_attempts(email_digest,ip_digest,succeeded) VALUES($1,$2,false)",[emailDigest,ipDigest]);
+   return reply.code(401).send({error:{code:"INVALID_CREDENTIALS",message:"Email or password is incorrect.",request_id:request.id}});
+  }
+  await pool.query("INSERT INTO auth_login_attempts(email_digest,ip_digest,succeeded) VALUES($1,$2,true)",[emailDigest,ipDigest]);
   const client=await pool.connect();
   try{
    await client.query("BEGIN");
