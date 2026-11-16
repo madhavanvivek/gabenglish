@@ -31,3 +31,8 @@ The repository now includes a checksum-verified migration runner at `apps/api/sr
 This is not yet the complete application schema. It does not include every entity in the logical ERD, all exercise types, media storage workflow, notifications, recommendation evidence, complete admin content authoring, or every subscription entitlement detail. Add these with subsequent reviewed migrations.
 
 The migrations are executed against an ephemeral PostgreSQL 16 service in GitHub Actions. This validates the initial schema and runner in CI only; it does not mean a production database has been provisioned or migrated.
+
+
+## Verified subscription entitlement ledger — migration 0008
+
+Migration `0008_verified_subscription_entitlements.sql` restricts the initial commercial model to Monthly (30 days) and Yearly (360 days), INR, and adds the verified-payment entitlement ledger and active-entitlement read view. It does not seed plans, prices, transactions or entitlements and does not integrate a payment provider. Entitlement rows must only be created by a future server-side payment verification flow after signed-event and server-to-server verification. Do not expose paid features until server-side entitlement gates are implemented and tested.
