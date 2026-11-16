@@ -69,14 +69,25 @@ export async function transcribeGabrooAudio(input:{
  const controller=new AbortController();
  const abort=()=>controller.abort();
  input.signal?.addEventListener("abort",abort,{once:true});
- const timeout=setTimeout(()=>controller.abort(),input.timeoutMs??15000);
+ let timedOut=false;
+ let timeout:ReturnType<typeof setTimeout>|undefined;
+ const timeoutPromise=new Promise<never>((_,reject)=>{
+  timeout=setTimeout(()=>{
+   timedOut=true;
+   controller.abort();
+   reject(new GabrooRecognitionError("PROVIDER_TIMEOUT","Speech recognition took too long."));
+  },input.timeoutMs??15000);
+ });
  try{
-  const raw=await input.provider.transcribe({
-   audio:input.audio,
-   mimeType:parsed.data.mimeType,
-   language:parsed.data.language,
-   signal:controller.signal
-  });
+  const raw=await Promise.race([
+   input.provider.transcribe({
+    audio:input.audio,
+    mimeType:parsed.data.mimeType,
+    language:parsed.data.language,
+    signal:controller.signal
+   }),
+   timeoutPromise
+  ]);
   if(controller.signal.aborted)throw new GabrooRecognitionError(
    input.signal?.aborted?"PROVIDER_FAILED":"PROVIDER_TIMEOUT",
    input.signal?.aborted?"Speech recognition was cancelled.":"Speech recognition took too long."
@@ -90,9 +101,10 @@ export async function transcribeGabrooAudio(input:{
    input.signal?.aborted?"PROVIDER_FAILED":"PROVIDER_TIMEOUT",
    input.signal?.aborted?"Speech recognition was cancelled.":"Speech recognition took too long."
   );
+  if(timedOut)throw new GabrooRecognitionError("PROVIDER_TIMEOUT","Speech recognition took too long.");
   throw new GabrooRecognitionError("PROVIDER_FAILED","Speech recognition could not process this recording.");
  }finally{
-  clearTimeout(timeout);
+  if(timeout)clearTimeout(timeout);
   input.signal?.removeEventListener("abort",abort);
  }
 }
