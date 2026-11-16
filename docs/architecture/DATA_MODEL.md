@@ -6,7 +6,9 @@ Version 1.0 — logical model; physical schema and migrations follow after revie
 PostgreSQL transactional source of truth; UUID identifiers; UTC timestamps; ownership enforcement; immutable published content versions; media metadata separate from binaries; provider identifiers isolated; voice retention explicit; constraints and indexes based on query patterns.
 
 ## 2. Identity
-- users: id, email, phone, password hash or external identity, status, timestamps, deletion marker.
+- users: id, optional email/email_normalized and phone_e164, legacy prototype password hash (to be removed), status, per-channel verification timestamps, timestamps and deletion marker.
+- auth_otp_challenges: one-time challenge metadata, keyed code digest, purpose, channel, destination, request IP digest, expiry, attempt/consumption and delivery state. Never store the raw OTP.
+- auth_otp_verified_contacts: unique verified email/phone ownership records for future contact linking.
 - user_profiles: user ID, display name, necessary locale/timezone/profile data.
 - user_preferences: support language, learning goal, daily target, correction mode, preferred voice and notification preferences.
 
@@ -37,12 +39,16 @@ audio_assets, media_metadata, recording_consents, media_retention_jobs. Store ob
 subscription_plans, regional_prices, subscriptions, payment_transactions, payment_webhook_events, entitlements, admin_users, admin_roles, audit_logs, feature_flags, support_requests. Webhook processing must be idempotent and signature-verified.
 
 ## 11. Relationships
-One user has a profile/preferences; stages contain courses, courses modules, modules versioned lessons; users have progress and attempts; users have speaking sessions with ordered turns; vocabulary items are saved by many users; subscriptions reference plans and regional prices; AI usage references session/provider config where appropriate.
+One user has a profile/preferences; stages contain courses, courses modules, modules versioned lessons; users have progress and attempts; users have speaking sessions with ordered turns; each placement session belongs to one verified user and is inaccessible to other accounts; vocabulary items are saved by many users; subscriptions reference plans and regional prices; AI usage references session/provider config where appropriate.
 
 ## 12. Index candidates
 Unique normalised email/phone where present; unique user+lesson progress; user+created time for attempts; unique session+turn sequence; user+due time for revisions; user+status for subscriptions; unique provider webhook event ID.
 
 Define cascade/restrict behaviour explicitly. Avoid accidental deletion of financial audit records.
 
-## 13. Next deliverables
+## 13. Implemented schema migrations
+
+`0001_initial_foundation.sql` creates the initial domain schema; `0002_placement_sessions.sql` adds short-lived placement sessions; `0003_auth_login_throttling.sql` adds legacy sign-in throttling; `0004_passwordless_otp.sql` adds OTP challenge and verified-contact tables; `0005_placement_owner.sql` associates placement sessions with learner accounts. The physical schema is still incomplete relative to the logical model above.
+
+## 14. Next deliverables
 ER diagram; PostgreSQL DDL/migrations; constraints/index plan; data classification/retention matrix; seed strategy; migration and rollback strategy.
