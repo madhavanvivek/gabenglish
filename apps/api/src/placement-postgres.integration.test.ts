@@ -153,8 +153,11 @@ integration("PostgreSQL placement session integration",()=>{
   const otherEmail="gabroo-other-"+randomUUID()+"@example.test";
   let userId:string|undefined,otherUserId:string|undefined,planId:string|undefined,priceId:string|undefined,subscriptionId:string|undefined,paymentId:string|undefined;
   let providerCalls=0;let receivedMode:string|undefined;let receivedPolicy:{learnerContext:{preferredName?:string;learningGoal?:string;profileCorrectionPreference?:string};stageGuidance:string;learnerMemory:Array<{category:string;memoryKey:string;content:string}>}|undefined;
+  let concurrentCalls=0;let releaseConcurrent!:()=>void;const concurrentGate=new Promise<void>(resolve=>{releaseConcurrent=resolve;});
   const provider={reply:async(input:{mode:string;history:Array<{role:"user"|"assistant";content:string}>;teachingPolicy:{learnerContext:{preferredName?:string;learningGoal?:string;profileCorrectionPreference?:string};stageGuidance:string;learnerMemory:Array<{category:string;memoryKey:string;content:string}>}})=>{
    providerCalls++;receivedMode=input.mode;receivedPolicy=input.teachingPolicy;
+   const last=input.history.at(-1)?.content??"";
+   if(last.startsWith("parallel")){concurrentCalls++;if(concurrentCalls===2)releaseConcurrent();await concurrentGate;}
    expect(input.history.at(-1)?.role).toBe("user");
    return {content:"That sounds interesting. What happened next?"};
   }};
@@ -193,6 +196,13 @@ integration("PostgreSQL placement session integration",()=>{
    const read=await app.inject({method:"GET",url:"/api/v1/gabroo/conversations/"+conversationId,headers});
    expect(read.statusCode).toBe(200);
    expect(read.json().messages).toHaveLength(2);
+   const simultaneous=await Promise.all([
+    app.inject({method:"POST",url:"/api/v1/gabroo/conversations/"+conversationId+"/messages",headers,payload:{message:"parallel request one"}}),
+    app.inject({method:"POST",url:"/api/v1/gabroo/conversations/"+conversationId+"/messages",headers,payload:{message:"parallel request two"}})
+   ]);
+   expect(simultaneous.map(result=>result.statusCode).sort()).toEqual([200,409]);
+   const afterConcurrent=await pool.query<{turn_count:number;message_count:string}>("SELECT c.turn_count,(SELECT count(*)::text FROM gabroo_conversation_messages m WHERE m.conversation_id=c.id) AS message_count FROM gabroo_conversations c WHERE c.id=$1",[conversationId]);
+   expect(afterConcurrent.rows[0]).toMatchObject({turn_count:2,message_count:"4"});
    const otherRead=await app.inject({method:"GET",url:"/api/v1/gabroo/conversations/"+conversationId,headers:{authorization:"Bearer "+otherToken}});
    expect(otherRead.statusCode).toBe(404);
    const otherDelete=await app.inject({method:"DELETE",url:"/api/v1/gabroo/conversations/"+conversationId,headers:{authorization:"Bearer "+otherToken}});
