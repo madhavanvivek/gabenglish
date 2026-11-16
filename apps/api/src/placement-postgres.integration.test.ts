@@ -29,7 +29,7 @@ integration("PostgreSQL placement session integration",()=>{
   if(!pool||!migrationApplied)return;
   await runMigrations(pool);
   const result=await pool.query<{version:string}>("SELECT version FROM schema_migrations ORDER BY version");
-  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql"]);
+  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql"]);
  });
  it("rejects edits to an already-applied migration checksum",async()=>{
   if(!pool||!migrationApplied)return;
@@ -59,13 +59,19 @@ integration("PostgreSQL placement session integration",()=>{
    expect(stored.rows[0]?.password_hash).toMatch(/^scrypt\\$/);
    expect(stored.rows[0]?.email_verified_at).toBeNull();
 
-   const badLogin=await app.inject({method:"POST",url:"/api/v1/auth/login",payload:{email,password:"WrongPassword!2026"}});
-   expect(badLogin.statusCode).toBe(401);
    const login=await app.inject({method:"POST",url:"/api/v1/auth/login",payload:{email,password}});
    expect(login.statusCode).toBe(200);
+   const badLogin=await app.inject({method:"POST",url:"/api/v1/auth/login",payload:{email,password:"WrongPassword!2026"}});
+   expect(badLogin.statusCode).toBe(401);
    const me=await app.inject({method:"GET",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+login.json().access_token}});
    expect(me.statusCode).toBe(200);
    expect(me.json().user.display_name).toBe("Anu");
+   for(let attempt=0;attempt<9;attempt++){
+    const rejected=await app.inject({method:"POST",url:"/api/v1/auth/login",payload:{email,password:"WrongPassword!2026"}});
+    expect(rejected.statusCode).toBe(401);
+   }
+   const limited=await app.inject({method:"POST",url:"/api/v1/auth/login",payload:{email,password}});
+   expect(limited.statusCode).toBe(429);
 
    const oldRefresh=login.json().refresh_token as string;
    const rotated=await app.inject({method:"POST",url:"/api/v1/auth/refresh",payload:{refresh_token:oldRefresh}});
