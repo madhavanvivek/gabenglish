@@ -382,3 +382,13 @@ Next implementation sequence:
 - Recovery from error requires reset. The lifecycle is provider-independent and does not request microphone access or capture audio by itself.
 - Automated contract tests cover consent gating, the complete lifecycle, permission denial, interruption/resume, error recovery and invalid transitions.
 - This is orchestration logic only. No microphone API, STT/TTS provider, real-time audio transport or voice UI is connected. Do not advertise voice chat as available.
+
+
+### First mobile speech playback preview (device TTS)
+
+- Added the Expo SDK 53-compatible expo-speech dependency (~13.1.7) and a Listen control on Gabroo assistant replies.
+- The mobile conversation screen loads the learner's saved gabroo_speech_rate and applies it to each new speech utterance. The in-conversation slower/faster controls update the saved preference in 0.05× steps, within 0.75×–1.50×. The selected rate applies to the next listen/replay; changing it does not claim to retime an utterance already in progress.
+- Playback uses the operating system's installed text-to-speech voices. When a reply contains Malayalam script, the app looks for an installed ml-IN voice and gives a clear message rather than knowingly reading Malayalam with an English voice when none is available. English replies prefer en-IN, with device fallback.
+- Speech can be stopped, and playback is stopped when the Gabroo screen unmounts. Device speech errors are surfaced in the UI.
+- This is a local playback preview, not the final Gabroo character voice. Voice gender, expressive identity, consistent Malayalam-English code-switching, naturalness and quality vary by device and installed voices; no male Gabroo voice has been selected or approved. No microphone capture, STT or live voice conversation is implemented.
+- Expo documents expo-speech as supporting Android, iOS and web; the SDK 53 package reference identifies ~13.1.7 as the bundled version. Physical-device QA is still required, including iOS silent-mode behaviour and Malayalam voice availability.
