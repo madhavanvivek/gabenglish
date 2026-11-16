@@ -20,4 +20,12 @@ describe("API foundation",()=>{
   expect(r.json().error.code).toBe("VERIFIED_ACCOUNT_REQUIRED");
   await app.close();
  });
+ it("enforces the 10 MB audio upload limit before route processing",async()=>{
+  const pool={query:async()=>({rows:[]})} as any;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const payload=Buffer.alloc(10*1024*1024+1);
+  const r=await app.inject({method:"POST",url:"/api/v1/gabroo/recognition",headers:{"content-type":"audio/mp4","x-gabroo-consent":"true"},payload});
+  expect(r.statusCode).toBe(413);
+  await app.close();
+ });
 });
