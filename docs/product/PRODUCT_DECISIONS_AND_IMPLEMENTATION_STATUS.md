@@ -392,3 +392,11 @@ Next implementation sequence:
 - Speech can be stopped, and playback is stopped when the Gabroo screen unmounts. Device speech errors are surfaced in the UI.
 - This is a local playback preview, not the final Gabroo character voice. Voice gender, expressive identity, consistent Malayalam-English code-switching, naturalness and quality vary by device and installed voices; no male Gabroo voice has been selected or approved. No microphone capture, STT or live voice conversation is implemented.
 - Expo documents expo-speech as supporting Android, iOS and web; the SDK 53 package reference identifies ~13.1.7 as the bundled version. Physical-device QA is still required, including iOS silent-mode behaviour and Malayalam voice availability.
+
+
+### Consent-first voice session lifecycle contract
+
+- Added automated tests for the provider-neutral voice session state machine: idle, permission request, listening, transcription, response generation, speech playback, interruption and error.
+- A voice session cannot begin without explicit learner consent. Permission denial transitions to an error state; out-of-order lifecycle events are rejected rather than silently advancing.
+- Active stages can be interrupted, and recovery requires an explicit resume or reset transition.
+- This is a tested lifecycle contract only. It does not yet request microphone permission, capture audio, transcribe speech, or start live voice sessions. Those capabilities require a selected and reviewed speech provider/adapter and platform QA.
