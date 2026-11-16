@@ -417,3 +417,11 @@ Next implementation sequence:
 - Playback uses a run token so Stop, a newer Listen request, or leaving the Gabroo screen cancels the remaining segments.
 - The screen stops device speech when it loses focus, not only when the component is finally unmounted. This handles navigation stacks that keep screens mounted in the background.
 - These safeguards apply to local device playback; they do not imply live microphone capture or a production Gabroo voice provider.
+
+
+### Tested sequential speech playback queue
+
+- Extracted the speech-segment queue into the shared contracts package so ordering, saved playback rate and cancellation can be tested without a device or a speech-provider SDK.
+- The mobile Gabroo screen now uses this shared queue for its language-specific Expo Speech adapter.
+- Added automated tests for ordered mixed-language playback, cancellation between segments, cancellation before playback, invalid speed rejection before audio starts, and empty replies.
+- The queue is provider-neutral and does not request microphone access or record learner audio.
