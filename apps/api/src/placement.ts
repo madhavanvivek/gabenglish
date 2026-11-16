@@ -68,7 +68,7 @@ function buildGabrooExplanation(report:ReturnType<typeof buildPlacementReport>){
 }
 
 export async function registerPlacementRoutes(app:FastifyInstance,pool?:Pool){
- const getSession=async(id:string)=>{if(pool){const found=await pool.query<{state:Session}>("SELECT state FROM placement_sessions WHERE id=$1",[id]);return found.rows[0]?.state;}return sessions.get(id);};
+ const getSession=async(id:string)=>{if(pool){const found=await pool.query<{state:Session;expired:boolean}>("SELECT state,expires_at<=now() AS expired FROM placement_sessions WHERE id=$1",[id]);const row=found.rows[0];return row?{session:row.state,expired:row.expired}:undefined;}const session=sessions.get(id);return session?{session,expired:isPlacementSessionExpired(session.created_at)}:undefined;};
  const saveSession=async(session:Session):Promise<boolean>=>{
   if(pool){
    if(session.revision===0){
@@ -102,8 +102,9 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool?:Pool){
  app.post("/api/v1/placement/conversation/respond",async(request,reply)=>{
   const parsed=placementConversationRequestSchema.safeParse(request.body);
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Please provide a valid conversation response.",request_id:request.id}});
-  const session=await getSession(parsed.data.session_id);if(!session)return reply.code(404).send({error:{code:"SESSION_NOT_FOUND",message:"This assessment session is no longer available. Please start again.",request_id:request.id}});
-  if(isPlacementSessionExpired(session.created_at)){await deleteSession(session.id);return reply.code(410).send({error:{code:"SESSION_EXPIRED",message:"This assessment session has expired. Please start again.",request_id:request.id}});}
+  const stored=await getSession(parsed.data.session_id);if(!stored)return reply.code(404).send({error:{code:"SESSION_NOT_FOUND",message:"This assessment session is no longer available. Please start again.",request_id:request.id}});
+  const session=stored.session;
+  if(stored.expired||isPlacementSessionExpired(session.created_at)){await deleteSession(session.id);return reply.code(410).send({error:{code:"SESSION_EXPIRED",message:"This assessment session has expired. Please start again.",request_id:request.id}});}
   const incoming=parsed.data.turn;
   if(session.lastTurn?.prompt_id===incoming.prompt_id){
    if(session.lastTurn.response===incoming.response&&session.lastTurn.response_mode===incoming.response_mode)return reply.send(session.lastTurn.result);
