@@ -341,6 +341,6 @@ Implemented on `foundation/app-skeleton`:
 - At most 20 recently updated saved entries are passed to the Gabroo provider as bounded structured context.
 
 Still required:
-- Learner-facing memory management UI with inspect/edit/delete and clear personalisation controls.
+- Clear-all/disable-personalisation control and a more explicit learner-facing memory settings policy.
 - Explicit opt-out / clear-all flow and user education about how memory is used.
 - Provider integration and QA to validate that memory is used only as contextual assistance, not as an override of the learner's current request or teaching policy.
