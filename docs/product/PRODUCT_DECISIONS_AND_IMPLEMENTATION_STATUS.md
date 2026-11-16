@@ -169,10 +169,12 @@ Current repository structure includes `apps/mobile`, `apps/api`, `packages/contr
 - Observable response evidence extraction with explicit text/transcript limitations; no skill findings, proficiency score or stage recommendation is generated.
 - Short-lived placement session persistence support when PostgreSQL is configured and migration 0002_placement_sessions.sql is applied; 30-minute expiry is documented. In-memory fallback remains for tests/development.
 - Six core prompt records spanning the five hidden challenge bands, with a conservative coverage-first sequence and up to two optional clarification turns. Clarification turns are excluded from core assessment evidence.
+- PostgreSQL-backed placement sessions use optimistic revision checks to reject stale concurrent writes instead of silently overwriting a newer turn. Replaying the same successfully saved turn returns its cached response.
+- Mobile placement flow now provides an explicit restart action when a server session expires or is no longer available.
 - Gabroo's Concept C identity direction and respectful communication/address policy are documented.
 
 ### Latest validation checkpoint
-The scaffold CI run 43857730099 passed API and mobile jobs. The subsequent placement-selector change exposed three API test failures in run 43858947625; the failure was traced to an incorrectly escaped Unicode word-count expression, then corrected in commit 6e1a6bab67fcd4086d2b8c0af8b3f290bc20d4ea. CI for that correction is running as workflow run 43859020856; do not call the latest change green until that run completes successfully.
+The placement-selector correction passed workflow run 43859020856. The mobile expired-session recovery and API placement work then passed workflow run 43859171656 (API typecheck, API tests, shared-contract typecheck and mobile typecheck). The latest optimistic-concurrency implementation and regression test are newer than that completed run and require their own CI verification before being called green.
 
 ### Explicit limitations — not production-ready
 - The current placement selector is conservative coverage routing with clarification support, not a fully skill-aware adaptive assessment or live LLM-driven tutor.
@@ -188,15 +190,15 @@ These limitations must remain visible in README, release notes and handover repo
 
 ## 12. Next implementation sequence
 
-1. Complete and verify the current placement selector CI run; add coverage for retries, session expiry, malformed requests and database-backed session behaviour.
-2. Add educator-reviewed prompt objectives and prompt-to-skill mappings; do not enable skill findings until the analytic rubric and calibration gates are approved.
-3. Implement evidence coverage/uncertainty and a defensible report with a starting-stage recommendation only after educator validation.
-4. Persist completed assessment reports against authenticated learner accounts, with consent, retention and deletion controls.
-5. Improve mobile recovery for expired sessions, interrupted connectivity, safe retry and learner-controlled restart.
-6. Produce the first complete Malayalam-supported lesson pack and editorial review workflow for all five stages.
-7. Benchmark AI/STT/TTS providers before selecting one; then implement consent-based voice flows.
-8. Complete authentication/profile, admin/content workflows, security review, analytics and subscription decisions.
-9. Build full OpenAPI, ERD/migrations, wireframes/design system, threat model, deployment/backup plan and an estimated Phase 1 backlog.
+1. Verify the latest optimistic-concurrency change in CI and add a real PostgreSQL integration test for simultaneous requests, expiry and restart behaviour.
+2. Introduce authenticated learner identity and account lifecycle before persisting completed assessment reports; define retention, consent and deletion controls.
+3. Add educator-reviewed prompt objectives and prompt-to-skill mappings; do not enable skill findings until the analytic rubric and calibration gates are approved.
+4. Implement evidence coverage/uncertainty and a defensible report with a starting-stage recommendation only after educator validation.
+5. Produce the first complete Malayalam-supported lesson pack and editorial review workflow for all five stages.
+6. Benchmark AI/STT/TTS providers before selecting one; then implement consent-based voice flows.
+7. Complete profile, admin/content workflows, security review, analytics and subscription decisions.
+8. Build full OpenAPI, ERD/migrations, threat model, deployment/backup plan and an estimated Phase 1 backlog.
+
 
 ## 13. Detailed documentation index
 
