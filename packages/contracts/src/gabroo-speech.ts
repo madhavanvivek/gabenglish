@@ -135,3 +135,30 @@ export function splitGabrooSpeechText(input:string):GabrooSpeechSegment[]{
  if(leading&&segments.length)segments[segments.length-1].text+=leading;
  return segments.filter(segment=>segment.text.trim().length>0);
 }
+
+
+/** Minimal adapter used by the tested sequential speech queue. */
+export interface GabrooSegmentPlayback {
+ speak(segment:GabrooSpeechSegment,rate:GabrooSpeechRate):Promise<void>;
+}
+
+/**
+ * Play language-specific speech segments in order. The caller can cancel
+ * between segments without coupling the shared contract to AbortController
+ * or a particular native audio SDK.
+ */
+export async function playGabrooSpeechSegments(
+ segments:GabrooSpeechSegment[],
+ playback:GabrooSegmentPlayback,
+ preferredRate:number,
+ shouldStop:()=>boolean=()=>false
+):Promise<number>{
+ const rate=gabrooSpeechRateSchema.parse(preferredRate);
+ let completed=0;
+ for(const segment of segments){
+  if(shouldStop())break;
+  await playback.speak(segment,rate);
+  completed+=1;
+ }
+ return completed;
+}
