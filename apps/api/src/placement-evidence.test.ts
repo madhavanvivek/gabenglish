@@ -11,17 +11,21 @@ describe("placement response evidence extraction",()=>{
     expect(result.limitations).toContain("Text does not provide evidence of pronunciation or spoken fluency.");
     expect(result).not.toHaveProperty("score");
     expect(result).not.toHaveProperty("stage");
+    expect(result.observedSkills).toEqual([]);
+    expect(result.sampleSize).toBe("extended");
+    expect(result).not.toHaveProperty("confidence");
   });
 
-  it("marks brief answers as low evidence",()=>{
+  it("marks brief answers by sample size, not proficiency confidence",()=>{
     const result=extractResponseEvidence("intro","I'm fine.");
-    expect(result.confidence).toBe("low");
+    expect(result.sampleSize).toBe("brief");
     expect(result.observations).toContain("The response is brief; more evidence is needed.");
   });
 
   it("keeps voice transcript limitations explicit",()=>{
     const result=extractResponseEvidence("voice","I enjoy learning English.", "voice_transcript");
     expect(result.limitations).toContain("Transcript text cannot establish pronunciation quality.");
+    expect(result.observedSkills).toEqual([]);
   });
 
   it("counts Unicode Malayalam words",()=>{
