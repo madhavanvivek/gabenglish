@@ -90,6 +90,26 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
   return true;
  };
  const deleteSession=async(id:string)=>{if(pool)await pool.query("DELETE FROM placement_sessions WHERE id=$1",[id]);else sessions.delete(id);};
+ const persistCompletedReport=async(session:Session,result:Record<string,unknown>)=>{
+  if(!pool||result.is_complete!==true||!result.report)return;
+  const report=result.report as {assessment_mode?:"text"|"voice_transcript"|"mixed"};
+  await pool.query(
+   "INSERT INTO free_diagnostic_reports(user_id,placement_session_id,report,gabroo_explanation,assessment_mode) VALUES($1,$2,$3::jsonb,$4,$5) ON CONFLICT(placement_session_id) DO NOTHING",
+   [session.userId,session.id,JSON.stringify(result.report),String(result.gabroo_explanation??""),report.assessment_mode??"text"]
+  );
+ };
+
+
+ app.get("/api/v1/placement/reports/latest",async(request,reply)=>{
+  if(!pool)return reply.code(503).send({error:{code:"DATABASE_UNAVAILABLE",message:"Your saved report is temporarily unavailable.",request_id:request.id}});
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return reply.code(401).send({error:{code:"VERIFIED_ACCOUNT_REQUIRED",message:"Please sign in with your verified account to view your report.",request_id:request.id}});
+  const found=await pool.query<{id:string;report:Record<string,unknown>;gabroo_explanation:string;assessment_mode:string;created_at:Date}>(
+   "SELECT id,report,gabroo_explanation,assessment_mode,created_at FROM free_diagnostic_reports WHERE user_id=$1 ORDER BY created_at DESC LIMIT 1",[learner.id]
+  );
+  if(!found.rows[0])return reply.code(404).send({error:{code:"REPORT_NOT_FOUND",message:"You have not completed a free analysis yet.",request_id:request.id}});
+  return {report_id:found.rows[0].id,report:found.rows[0].report,gabroo_explanation:found.rows[0].gabroo_explanation,assessment_mode:found.rows[0].assessment_mode,created_at:found.rows[0].created_at,access:"free"};
+ });
 
  app.post("/api/v1/placement/conversation/start",async(request,reply)=>{
   if(!pool&&config.NODE_ENV!=="test")return reply.code(503).send({error:{code:"DATABASE_UNAVAILABLE",message:"Sign-in is required before starting your free analysis.",request_id:request.id}});
@@ -116,7 +136,7 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
   if(stored.expired||isPlacementSessionExpired(session.created_at)){await deleteSession(session.id);return reply.code(410).send({error:{code:"SESSION_EXPIRED",message:"This assessment session has expired. Please start again.",request_id:request.id}});}
   const incoming=parsed.data.turn;
   if(session.lastTurn?.prompt_id===incoming.prompt_id){
-   if(session.lastTurn.response===incoming.response&&session.lastTurn.response_mode===incoming.response_mode)return reply.send(session.lastTurn.result);
+   if(session.lastTurn.response===incoming.response&&session.lastTurn.response_mode===incoming.response_mode){await persistCompletedReport(session,session.lastTurn.result);return reply.send(session.lastTurn.result);}
    return reply.code(409).send({error:{code:"TURN_ALREADY_SUBMITTED",message:"This question has already been answered. Continue with the latest question.",request_id:request.id}});
   }
   const expected=prompts.find(p=>p.id===session.currentPromptId);if(!expected||expected.id!==incoming.prompt_id)return reply.code(409).send({error:{code:"TURN_OUT_OF_ORDER",message:"This response does not match the current assessment question.",request_id:request.id}});
@@ -131,6 +151,7 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
   session.lastTurn={prompt_id:incoming.prompt_id,response:incoming.response,response_mode:incoming.response_mode,result};
   const saved=await saveSession(session);
   if(!saved)return reply.code(409).send({error:{code:"SESSION_UPDATED",message:"This assessment changed while your response was being saved. Please retry the same answer to continue.",request_id:request.id}});
+  await persistCompletedReport(session,result);
   return result;
  });
  app.get("/api/v1/placement/questions",async()=>({assessment_version:"pilot-1",questions:quiz.map(({correct,...q})=>q)}));
