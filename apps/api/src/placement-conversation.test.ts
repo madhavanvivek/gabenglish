@@ -37,6 +37,7 @@ describe("Gabroo conversational placement",()=>{
   }
   expect(response?.json().is_complete).toBe(true);
   expect(response?.json().evidence).toHaveLength(6);
+  expect(response?.json().evidence.map((item:{prompt_id:string})=>item.prompt_id)).toEqual(["intro","routine","past","reason","opinion","scenario"]);
   expect(response?.json().report).toMatchObject({status:"provisional",recommendation_status:"not_yet_available",assessment_mode:"text",response_count:6});
   expect(response?.json().report.extended_samples).toBeGreaterThan(0);
   expect(response?.json().report.limitations).toContain("Text does not provide evidence of pronunciation or spoken fluency.");
@@ -98,6 +99,40 @@ describe("Gabroo conversational placement",()=>{
   const valid=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:session,turn:{prompt_id:"intro",response:"My name is Anu and I live in Calicut. I work as a designer."}}});
   expect(valid.statusCode).toBe(200);
   expect(valid.json().prompt_id).toBe("routine");
+  await app.close();
+ });
+
+
+ it("keeps clarification turns outside the six core evidence samples",async()=>{
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);
+  const start=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",payload:{preferred_language:"en"}});
+  const session=start.json().session_id;
+  let promptId=start.json().prompt_id;
+  const short=["Anu.","From Calicut."];
+  const long="I usually work during the week and spend time learning new things. Last weekend I visited my family because we had planned a small celebration together.";
+  let result:Awaited<ReturnType<typeof app.inject>>|undefined;
+  let shortIndex=0;
+  for(let i=0;i<8;i++){
+   const answer=i===0||i===2?short[shortIndex++]!:long;
+   result=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:session,turn:{prompt_id:promptId,response:answer}}});
+   expect(result.statusCode).toBe(200);
+   if(result.json().is_complete)break;
+   promptId=result.json().prompt_id;
+  }
+  expect(result?.json().is_complete).toBe(true);
+  expect(result?.json().report.response_count).toBe(6);
+  expect(result?.json().evidence.map((item:{prompt_id:string})=>item.prompt_id)).toEqual(["intro","routine","past","reason","opinion","scenario"]);
+  expect(result?.json().evidence.some((item:{prompt_id:string})=>item.prompt_id==="clarify")).toBe(false);
+  await app.close();
+ });
+ it("returns the same result when the latest turn is safely retried",async()=>{
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);
+  const start=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",payload:{preferred_language:"en"}});
+  const payload={session_id:start.json().session_id,turn:{prompt_id:"intro",response:"My name is Anu and I live in Kozhikode."}};
+  const first=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload});
+  const retry=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload});
+  expect(retry.statusCode).toBe(200);
+  expect(retry.json()).toEqual(first.json());
   await app.close();
  });
 
