@@ -192,7 +192,7 @@ These limitations must remain visible in README, release notes and handover repo
 
 1. Run and verify the PostgreSQL 16 integration suite in GitHub Actions; resolve any real-database issues before enabling PostgreSQL-backed placement in a deployment.
 2. Introduce authenticated learner identity and account lifecycle before persisting completed assessment reports; define retention, consent and deletion controls.
-3. Add educator-reviewed prompt objectives and prompt-to-skill mappings; do not enable skill findings until the analytic rubric and calibration gates are approved.
+3. Review the draft prompt-to-skill map with educators, then approve prompt objectives and mappings; do not enable skill findings until the analytic rubric and calibration gates are approved.
 4. Implement evidence coverage/uncertainty and a defensible report with a starting-stage recommendation only after educator validation.
 5. Produce the first complete Malayalam-supported lesson pack and editorial review workflow for all five stages.
 6. Benchmark AI/STT/TTS providers before selecting one; then implement consent-based voice flows.
