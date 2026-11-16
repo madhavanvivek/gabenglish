@@ -1,6 +1,7 @@
 import {describe,it,expect} from "vitest";
 import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
+import {isPlacementSessionExpired} from "./placement.js";
 
 describe("Gabroo conversational placement",()=>{
  it("starts with a supportive Malayalam-first introduction",async()=>{
