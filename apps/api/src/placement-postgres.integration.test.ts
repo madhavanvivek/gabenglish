@@ -45,8 +45,10 @@ integration("PostgreSQL placement session integration",()=>{
    app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload}),
    app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload})
   ]);
-  expect(results.filter(result=>result.statusCode===200)).toHaveLength(1);
-  expect(results.filter(result=>result.statusCode===409)).toHaveLength(1);
+  expect(results.every(result=>result.statusCode===200||result.statusCode===409)).toBe(true);
+  expect(results.some(result=>result.statusCode===200)).toBe(true);
+  const stored=await pool.query<{state:{revision:number;turn:number}}>("SELECT state FROM placement_sessions WHERE id=$1",[payload.session_id]);
+  expect(stored.rows[0]?.state).toMatchObject({revision:2,turn:1});
   const retry=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload});
   expect(retry.statusCode).toBe(200);
   expect(retry.json().prompt_id).toBe("routine");
