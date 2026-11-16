@@ -2,6 +2,7 @@ import {describe,expect,it,vi} from "vitest";
 import {
  GabrooRecognitionError,
  GABROO_AUDIO_MAX_BYTES,
+ confirmGabrooTranscript,
  gabrooReviewedTranscriptSchema,
  transcribeGabrooAudio,
  type GabrooSpeechRecognitionProvider
@@ -96,6 +97,19 @@ describe("Gabroo provider-neutral speech recognition boundary",()=>{
   expect(gabrooReviewedTranscriptSchema.safeParse({...confirmed,confirmed:false}).success).toBe(false);
   expect(gabrooReviewedTranscriptSchema.safeParse({...confirmed,text:"   "}).success).toBe(false);
   expect(gabrooReviewedTranscriptSchema.safeParse({...confirmed,extra:"provider metadata"}).success).toBe(false);
+ });
+
+ it("derives the edited flag from the learner-reviewed text",()=>{
+  const unchanged=confirmGabrooTranscript({providerTranscript:transcript,reviewedText:transcript.text,confirmed:true});
+  expect(unchanged).toEqual({...transcript,edited:false,confirmed:true});
+  const edited=confirmGabrooTranscript({providerTranscript:transcript,reviewedText:"നമസ്കാരം, how are you doing?",confirmed:true});
+  expect(edited).toEqual({text:"നമസ്കാരം, how are you doing?",languageDetected:"mixed",edited:true,confirmed:true});
+ });
+ it("does not create a reviewed transcript without explicit confirmation",()=>{
+  expect(()=>confirmGabrooTranscript({providerTranscript:transcript,reviewedText:transcript.text,confirmed:false})).toThrow("Explicit learner confirmation");
+ });
+ it("rejects an empty learner-edited transcript",()=>{
+  expect(()=>confirmGabrooTranscript({providerTranscript:transcript,reviewedText:"   ",confirmed:true})).toThrow();
  });
 
 });
