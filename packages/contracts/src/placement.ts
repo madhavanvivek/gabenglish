@@ -16,7 +16,18 @@ export const placementEvidenceSchema=z.object({
   metrics:z.object({word_count:z.number().int().nonnegative(),sentence_count:z.number().int().nonnegative(),connector_count:z.number().int().nonnegative(),has_past_reference:z.boolean(),has_reasoning_marker:z.boolean()})
 });
 export const placementSkillFindingSchema=z.object({skill:placementSkillSchema,finding:z.string(),confidence:z.enum(["low","medium","high"]),evidence:z.array(z.string())});
-export const placementConversationResponseSchema=z.object({session_id:z.string().uuid(),prompt_id:z.string(),gabroo_message:z.string(),difficulty_band:z.number().int().min(1).max(5),turn_number:z.number().int().positive(),is_complete:z.boolean()});
+export const placementReportSchema=z.object({
+  status:z.literal("provisional"),
+  recommendation_status:z.literal("not_yet_available"),
+  assessment_mode:z.enum(["text","voice_transcript","mixed"]),
+  response_count:z.number().int().nonnegative(),
+  extended_samples:z.number().int().nonnegative(),
+  brief_samples:z.number().int().nonnegative(),
+  observed_patterns:z.array(z.string()),
+  limitations:z.array(z.string()),
+  next_steps:z.array(z.string())
+});
+export const placementConversationResponseSchema=z.object({session_id:z.string().uuid(),prompt_id:z.string(),gabroo_message:z.string(),difficulty_band:z.number().int().min(1).max(5),turn_number:z.number().int().positive(),is_complete:z.boolean(),report:placementReportSchema.optional(),gabroo_explanation:z.string().optional(),evidence:z.array(placementEvidenceSchema).optional()});
 export type PlacementSessionStart=z.infer<typeof placementSessionStartSchema>;
 export type PlacementConversationRequest=z.infer<typeof placementConversationRequestSchema>;
 export type PlacementEvidence=z.infer<typeof placementEvidenceSchema>;
