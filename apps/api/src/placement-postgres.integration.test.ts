@@ -122,6 +122,30 @@ integration("PostgreSQL placement session integration",()=>{
    await app.close();
   }
  });
+
+ it("creates the Gabroo conversation schema and gates paid chat before writing data",async()=>{
+  if(!pool||!migrationApplied)return;
+  const columns=await pool.query<{column_name:string}>("SELECT column_name FROM information_schema.columns WHERE table_name='gabroo_conversations'");
+  expect(columns.rows.map(row=>row.column_name)).toContain("user_id");
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const email="gabroo-free-"+randomUUID()+"@example.test";
+  try{
+   const anonymous=await app.inject({method:"POST",url:"/api/v1/gabroo/conversations",payload:{}});
+   expect(anonymous.statusCode).toBe(401);
+   const token=await createVerifiedTestSession(app,email,pool);
+   const headers={authorization:"Bearer "+token};
+   const denied=await app.inject({method:"POST",url:"/api/v1/gabroo/conversations",headers,payload:{}});
+   expect(denied.statusCode).toBe(403);
+   expect(denied.json().error.code).toBe("PAID_SUBSCRIPTION_REQUIRED");
+   const count=await pool.query<{count:string}>("SELECT count(*)::text AS count FROM gabroo_conversations WHERE user_id=(SELECT id FROM users WHERE email_normalized=$1)",[email]);
+   expect(count.rows[0]?.count).toBe("0");
+   const history=await app.inject({method:"GET",url:"/api/v1/gabroo/conversations",headers});
+   expect(history.statusCode).toBe(403);
+  }finally{
+   await pool.query("DELETE FROM users WHERE email_normalized=$1",[email]);
+   await app.close();
+  }
+ });
  it("rejects edits to an already-applied migration checksum",async()=>{
   if(!pool||!migrationApplied)return;
   const directory=await mkdtemp(join(tmpdir(),"gabenglish-migrations-"));
