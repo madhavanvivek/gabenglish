@@ -46,7 +46,7 @@ Only two plans are offered initially:
 
 GET /subscriptions/plans returns server-owned active prices and durations; GET /subscriptions/current returns the verified paid-through entitlement; POST /subscriptions/checkout creates an idempotent checkout; POST /subscriptions/cancel handles the approved cancellation policy; POST /subscriptions/webhooks/{provider} receives signed, deduplicated payment events.
 
-The free account and free analysis test/result do not require paid entitlement. A verified learner can retain the free analysis report. Gabroo ongoing learning companion, classes, paid practice, ongoing learner assessment/profile and progress require an active server-side entitlement. Basic account settings are not gated. Access expires when now >= paid-through end timestamp. Monthly duration is 30 days; yearly duration is 360 days. Keep the existing free result distinct from paid assessment/profile history. Payment client callbacks are never proof of payment.
+The free account and free analysis test/result do not require paid entitlement. A verified learner can retain the free analysis report. `GET /api/v1/placement/reports/latest` returns the latest account-owned report after sign-in, including after paid subscription expiry. Gabroo ongoing learning companion, classes, paid practice, ongoing learner assessment/profile and progress require an active server-side entitlement. Basic account settings are not gated. Access expires when now >= paid-through end timestamp. Monthly duration is 30 days; yearly duration is 360 days. Keep the existing free result distinct from paid assessment/profile history. Payment client callbacks are never proof of payment.
 
 ## 9. Administration
 GET /admin/users; GET /admin/users/{id}; GET/POST /admin/content; PATCH /admin/content/{id}; POST /admin/content/{id}/publish; GET /admin/ai/providers; PATCH /admin/ai/configurations/{id}; GET /admin/analytics; GET /admin/audit-logs. Enforce roles server-side and audit sensitive actions.
@@ -63,6 +63,7 @@ OpenAPI 3.x; request/response schemas; auth and role matrix; error catalogue; pa
 The current Fastify service exposes these prototype routes:
 - `POST /api/v1/placement/conversation/start` — requires a verified learner bearer session, validates preferred support language, optional display name and communication style; creates an account-owned session and returns the first prompt.
 - `POST /api/v1/placement/conversation/respond` — requires the owning verified learner session, validates session ID and prompt/turn order; accepts a text response and returns the next prototype prompt or completion state.
+- `GET /api/v1/placement/reports/latest` — returns the latest persisted free diagnostic report for the signed-in learner; it remains available without paid entitlement.
 - Legacy pilot routes remain: `GET /api/v1/placement/questions` and `POST /api/v1/placement/score`. These are fixed multiple-choice pilot endpoints and are not the intended primary placement experience.
 
 **Prototype limitations:** conversation sessions are held in process memory; prompt content is predefined; adaptation uses a simple heuristic; the mobile prototype is not yet connected to these routes; there is no persistent assessment history, validated rubric, detailed learner report, or personalised Gabroo voice explanation. The endpoints are not a production assessment contract.
