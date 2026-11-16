@@ -344,3 +344,21 @@ Still required:
 - Disable-personalisation toggle and a more explicit learner-facing memory settings policy.
 - Explicit opt-out / clear-all flow and user education about how memory is used.
 - Provider integration and QA to validate that memory is used only as contextual assistance, not as an override of the learner's current request or teaching policy.
+
+## 13. Gabroo conversation, memory and speech-preference checkpoint
+
+Verified in the foundation branch after the earlier checkpoint:
+
+- **Open Gabroo conversations:** authenticated conversation create/list/read/update/delete and message-turn APIs are implemented. Conversation history is learner-owned; ownership is checked on access. Paid entitlement is enforced server-side before a conversation is created or history is returned.
+- **Provider boundary:** the conversation service accepts an injected reply provider, keeping the application independent of a specific AI vendor. The production provider, model, safety evaluation and operational credentials are not yet selected/configured.
+- **Learner memory:** learners can explicitly save, inspect, edit and delete their own goals, interests, useful phrases and learning notes. The conversation teaching context receives saved learner memory; do not silently infer or store personal memories.
+- **Subscription foundation:** the database includes subscription plans, regional prices, payment transactions and verified entitlements. Entitlement activation requires a verified, price-matched payment and is idempotent. This is not a live checkout integration; payment provider selection and production webhook configuration remain open.
+- **Gabroo speaking-speed preference:** account preference `gabroo_speech_rate` is persisted and validated from 0.75× through 1.50× in 0.05× increments, defaulting to 1.0×. The account screen exposes slower/faster controls and reset-to-normal, and the API integration test checks persistence and rejects an invalid 1.03× value.
+- **Important voice limitation:** no production TTS playback, STT, microphone capture or voice conversation is connected yet. The saved speed preference is ready to be consumed by the future playback layer, but it does not currently change any audio. Do not describe voice conversations or live playback-speed adjustment as implemented.
+
+Next implementation sequence:
+1. Add a focused, provider-neutral speech/playback contract and a testable playback controller that consumes the saved speech rate without binding the product to an unbenchmarked vendor.
+2. Benchmark candidate TTS voices against the approved male, friendly, energetic Gabroo direction, Kerala Malayalam and Malayalam-English code-switching; document quality, latency, licensing, privacy and cost before selecting a provider.
+3. Implement consent-first audio playback and recording UX, visible recording state, graceful text fallback and device-level QA.
+4. Complete automated tests for the speech-rate preference and playback-rate application, then run the full PostgreSQL-backed CI suite.
+5. Configure a dedicated Gabenglish Render workspace and production services only after the workspace is available and infrastructure changes are reviewed. Keep the draft PR unmerged and do not deploy production without explicit approval.
