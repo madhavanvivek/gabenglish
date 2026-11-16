@@ -174,7 +174,7 @@ Current repository structure includes `apps/mobile`, `apps/api`, `packages/contr
 - Gabroo's Concept C identity direction and respectful communication/address policy are documented.
 
 ### Latest validation checkpoint
-The placement-selector correction passed workflow run 43859020856. The mobile expired-session recovery and API placement work then passed workflow run 43859171656 (API typecheck, API tests, shared-contract typecheck and mobile typecheck). The latest optimistic-concurrency implementation and regression test are newer than that completed run and require their own CI verification before being called green.
+The placement-selector correction passed workflow run 43859020856. The mobile expired-session recovery and API placement work then passed workflow run 43859171656 (API typecheck, API tests, shared-contract typecheck and mobile typecheck). The optimistic-concurrency implementation and regression test passed workflow run 43859779934: API typecheck, all 21 API tests, shared-contract typecheck and mobile typecheck. The latest documentation-only commits are also running through CI; no production deployment has been performed.
 
 ### Explicit limitations — not production-ready
 - The current placement selector is conservative coverage routing with clarification support, not a fully skill-aware adaptive assessment or live LLM-driven tutor.
