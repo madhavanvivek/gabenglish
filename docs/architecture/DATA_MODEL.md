@@ -53,3 +53,8 @@ Define cascade/restrict behaviour explicitly. Avoid accidental deletion of finan
 
 ## 14. Next deliverables
 ER diagram; PostgreSQL DDL/migrations; constraints/index plan; data classification/retention matrix; seed strategy; migration and rollback strategy.
+
+
+### Persistent Gabroo conversation tables (migration 0009)
+
+`gabroo_conversations` belongs to one learner and stores a selected conversation mode, Malayalam/English support preference, open/closed state and timestamps. `gabroo_conversation_messages` stores ordered user/assistant text only, with a per-conversation unique sequence. Deleting the learner or conversation cascades to its messages. Message bodies are bounded to 12,000 characters. Do not store hidden reasoning, private system prompts or provider credentials in these tables. Learners can delete individual conversation histories; a fuller retention/export policy remains a launch requirement.
