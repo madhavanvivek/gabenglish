@@ -87,12 +87,16 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
   const destination=channel==="email"?parsed.data.destination.trim().toLowerCase():parsed.data.destination.trim();
   const ipDigest=createHmac("sha256",secret).update("ip:"+request.ip).digest("hex");
   const destinationDigest=createHmac("sha256",secret).update(channel+":"+destination).digest("hex");
-  const limits=await pool.query<{recent:number;hourly:number;ip_hourly:number}>(
-   "SELECT count(*) FILTER(WHERE created_at>now()-interval '60 seconds')::int AS recent,count(*) FILTER(WHERE created_at>now()-interval '1 hour')::int AS hourly,count(*) FILTER(WHERE request_ip_digest=$2 AND created_at>now()-interval '1 hour')::int AS ip_hourly FROM auth_otp_challenges WHERE channel=$1 AND destination_normalized=$3",
-   [channel,ipDigest,destination]
+  const limits=await pool.query<{recent:number;hourly:number}>(
+   "SELECT count(*) FILTER(WHERE created_at>now()-interval '60 seconds')::int AS recent,count(*) FILTER(WHERE created_at>now()-interval '1 hour')::int AS hourly FROM auth_otp_challenges WHERE channel=$1 AND destination_normalized=$2",
+   [channel,destination]
+  );
+  const ipLimits=await pool.query<{ip_hourly:number}>(
+   "SELECT count(*)::int AS ip_hourly FROM auth_otp_challenges WHERE request_ip_digest=$1 AND created_at>now()-interval '1 hour'",
+   [ipDigest]
   );
   const counts=limits.rows[0]!;
-  if(counts.recent>0||counts.hourly>=5||counts.ip_hourly>=20)return reply.code(429).send({error:{code:"OTP_RATE_LIMITED",message:"Too many verification requests. Please wait before trying again.",request_id:request.id,retry_after_seconds:60}});
+  if(counts.recent>0||counts.hourly>=5||(ipLimits.rows[0]?.ip_hourly??0)>=20)return reply.code(429).send({error:{code:"OTP_RATE_LIMITED",message:"Too many verification requests. Please wait before trying again.",request_id:request.id,retry_after_seconds:60}});
   const code=String(randomInt(0,1000000)).padStart(6,"0");
   const id=randomUUID();
   const codeDigest=createHmac("sha256",secret).update("otp:"+id+":"+code).digest("hex");
