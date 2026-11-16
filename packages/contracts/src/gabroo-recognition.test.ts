@@ -101,7 +101,7 @@ describe("Gabroo provider-neutral speech recognition boundary",()=>{
 
  it("derives the edited flag from the learner-reviewed text",()=>{
   const unchanged=confirmGabrooTranscript({providerTranscript:transcript,reviewedText:transcript.text,confirmed:true});
-  expect(unchanged).toEqual({...transcript,edited:false,confirmed:true});
+  expect(unchanged).toEqual({text:transcript.text,languageDetected:"mixed",edited:false,confirmed:true});
   const edited=confirmGabrooTranscript({providerTranscript:transcript,reviewedText:"നമസ്കാരം, how are you doing?",confirmed:true});
   expect(edited).toEqual({text:"നമസ്കാരം, how are you doing?",languageDetected:"mixed",edited:true,confirmed:true});
  });
