@@ -60,4 +60,44 @@ describe("Gabroo conversational placement",()=>{
   expect(r.statusCode).toBe(404);
   await app.close();
  });
+ it("validates the completed response against the shared placement contract",async()=>{
+  const {placementConversationResponseSchema}=await import("@gabenglish/contracts");
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);
+  const start=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",payload:{preferred_language:"en"}});
+  const session=start.json().session_id;
+  let promptId=start.json().prompt_id;
+  let completed;
+  for(let i=0;i<6;i++){
+   completed=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:session,turn:{prompt_id:promptId,response:"I usually work during the week. Last weekend I visited my family because we had a celebration and talked about our plans for the coming year."}}});
+   if(completed.json().is_complete)break;
+   promptId=completed.json().prompt_id;
+  }
+  expect(completed?.statusCode).toBe(200);
+  expect(()=>placementConversationResponseSchema.parse(completed?.json())).not.toThrow();
+  await app.close();
+ });
+ it("asks for clarification only once and does not treat repeated short answers as a level signal",async()=>{
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);
+  const start=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",payload:{preferred_language:"en"}});
+  const session=start.json().session_id;
+  const first=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:session,turn:{prompt_id:"intro",response:"Anu."}}});
+  expect(first.json().prompt_id).toBe("clarify");
+  const second=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:session,turn:{prompt_id:"clarify",response:"From Calicut."}}});
+  expect(second.statusCode).toBe(200);
+  expect(second.json().prompt_id).not.toBe("clarify");
+  expect(second.json().difficulty_band).toBe(1);
+  await app.close();
+ });
+ it("rejects an empty response without advancing the session",async()=>{
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);
+  const start=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",payload:{preferred_language:"en"}});
+  const session=start.json().session_id;
+  const invalid=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:session,turn:{prompt_id:"intro",response:"   "}}});
+  expect(invalid.statusCode).toBe(400);
+  const valid=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:session,turn:{prompt_id:"intro",response:"My name is Anu and I live in Calicut. I work as a designer."}}});
+  expect(valid.statusCode).toBe(200);
+  expect(valid.json().prompt_id).toBe("routine");
+  await app.close();
+ });
+
 });
