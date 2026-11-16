@@ -15,15 +15,14 @@ Never expose stack traces, provider secrets or internal prompts.
 
 ## 2. Authentication/profile — approved passwordless OTP model
 The B2C learner experience uses verified email or phone OTP, not passwords. Proposed contracts:
-- POST /auth/otp/email/request — request an email OTP (any valid email provider).
-- POST /auth/otp/phone/request — request a phone OTP (E.164 number).
-- POST /auth/otp/verify — atomically verify a one-time code and issue a session.
+- POST `/api/v1/auth/otp/request` — request an email or phone OTP using `{channel,destination}`.
+- POST `/api/v1/auth/otp/verify` — atomically verify a one-time code and issue a session only after verification.
 - POST /auth/contacts/email/link/request and POST /auth/contacts/phone/link/request — challenge a new contact while authenticated.
 - POST /auth/contacts/link/verify — verify and attach the contact to the current learner account.
 - POST /auth/refresh and POST /auth/logout — rotate/revoke sessions.
 - GET/PATCH /users/me and GET/PATCH /users/me/preferences — account/profile/preferences.
 
-OTP values must be hashed/keyed, expire after five minutes, be one-time, attempt-limited (maximum five attempts), resend-cooled-down and rate-limited per destination and IP. Mask destinations and avoid account enumeration. Do not issue sessions before a contact is verified. Email and SMS delivery adapters remain provider-neutral pending selection. Migration `0004_passwordless_otp.sql` now provisions challenge storage with purpose/channel constraints, hashed-code storage, expiry, attempt limits, delivery state and request-IP digests, plus a unique verified-contact registry. Shared Zod contracts now validate email/phone OTP requests and six-digit verification payloads. These are schema/contracts only: OTP request/verify endpoints, delivery adapters, account/session issuance, contact linking and public removal of legacy password routes are not implemented yet. The current password endpoints/screen remain a prototype and must not be presented as the approved B2C flow.
+OTP values must be hashed/keyed, expire after five minutes, be one-time, attempt-limited (maximum five attempts), resend-cooled-down and rate-limited per destination and IP. Mask destinations and avoid account enumeration. Do not issue sessions before a contact is verified. Email and SMS delivery adapters remain provider-neutral pending selection. The request and verification endpoints now exist, including destination/IP throttling, five-minute expiry, maximum five attempts, keyed OTP digests, generic verification errors, session issuance after verification and replay rejection. The delivery adapter is injectable and fails closed when none is configured; no real email/SMS provider is connected, so customer delivery is not operational. Migration `0004_passwordless_otp.sql` provisions challenge storage and a verified-contact registry. Shared Zod contracts validate email/phone requests and six-digit codes. Authenticated contact linking, placement ownership enforcement and removal of legacy password routes remain outstanding. The current password endpoints/screen remain a prototype and must not be presented as the approved B2C flow.
 
 ## 3. Assessment
 POST /assessments; GET /assessments/{id}; POST /assessments/{id}/answers; POST /assessments/{id}/complete; GET /assessments/{id}/result. Tie submissions to published versions and make retries safe.
