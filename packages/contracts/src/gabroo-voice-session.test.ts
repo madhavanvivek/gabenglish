@@ -58,9 +58,10 @@ describe("Gabroo voice session state machine",()=>{
   expect(transitionGabrooVoiceSession("interrupted",{type:"resume"})).toBe("requesting_permission");
  });
 
- it("allows recovery only through reset from an interrupted or error state",()=>{
+ it("allows recovery through reset from ready, interrupted or error states",()=>{
   expect(transitionGabrooVoiceSession("error",{type:"reset"})).toBe("idle");
   expect(transitionGabrooVoiceSession("interrupted",{type:"reset"})).toBe("idle");
+  expect(transitionGabrooVoiceSession("ready",{type:"reset"})).toBe("idle");
   expect(()=>transitionGabrooVoiceSession("listening",{type:"reset"})).toThrow("Invalid Gabroo voice transition");
  });
 
