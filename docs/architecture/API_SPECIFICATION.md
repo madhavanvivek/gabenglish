@@ -41,7 +41,7 @@ POST /media/upload-intents; POST /media/{id}/complete; POST /speech/transcriptio
 
 ## 8. B2C subscriptions and entitlement
 Only two plans are offered initially:
-- Monthly: ₹99 standard / ₹69 launch price; 30 days.
+- Monthly: ₹99 standard / ₹79 launch price; 30 days.
 - Yearly: ₹1,188 standard / ₹799 launch price; 360 days (12 × 30 days).
 
 GET /subscriptions/plans returns server-owned active prices and durations; GET /subscriptions/current returns the verified paid-through entitlement; POST /subscriptions/checkout creates an idempotent checkout; POST /subscriptions/cancel handles the approved cancellation policy; POST /subscriptions/webhooks/{provider} receives signed, deduplicated payment events.
@@ -100,3 +100,19 @@ Security limitations of this prototype: it does not verify email or phone, has n
 
 
 Mobile account client: `apps/mobile/src/auth-api.ts` and `apps/mobile/app/account.tsx` currently demonstrate password-based registration/login and secure token storage only. This screen is superseded by the approved email/phone OTP experience and should be replaced rather than presented as the final sign-up UX.
+
+
+## 13. Subscription entitlement schema foundation — 16 November 2026
+
+Migration `0008_verified_subscription_entitlements.sql` adds the first fail-closed paid-access ledger. It does not connect a payment provider, create checkout sessions, or grant any learner paid access.
+
+- Restricts initial plan codes to `monthly` and `yearly`; regional billing intervals are limited to 30-day month and 360-day year conventions, with INR currency.
+- Adds verified-payment metadata to payment transactions.
+- Adds immutable purchase-level entitlement snapshots containing the provider/event reference, plan, INR price/discount snapshot, verified payment timestamp and exact period.
+- Requires a verified-payment timestamp and unique provider event reference for each entitlement; duplicate payment/event grants are constrained by unique keys.
+- Enforces exact 30-day and 360-day periods in PostgreSQL.
+- Adds `active_subscription_entitlements`, a database read view that returns only verified, currently in-period access (`period_start <= now() < period_end`).
+
+The migration intentionally creates no plan rows, price rows, payment records or active entitlements. The payment provider remains undecided. A future webhook/verification handler must validate provider signatures and server-to-server payment state, process events transactionally and idempotently, and be the only application path that writes entitlement rows. Paid feature routes are not yet implemented or gated by this view; no live paid feature should be exposed until those gates are in place. Free diagnostic reports and basic account access remain independent.
+
+CI is required to validate migration application, constraints, view behaviour and safe re-run before this schema foundation is considered complete.
