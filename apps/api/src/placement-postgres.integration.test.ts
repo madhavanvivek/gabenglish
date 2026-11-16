@@ -39,7 +39,7 @@ integration("PostgreSQL placement session integration",()=>{
   if(!pool||!migrationApplied)return;
   await runMigrations(pool);
   const result=await pool.query<{version:string}>("SELECT version FROM schema_migrations ORDER BY version");
-  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql"]);
+  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql"]);
  });
  it("creates a fail-closed verified subscription entitlement ledger with only monthly and yearly terms",async()=>{
   if(!pool||!migrationApplied)return;
@@ -207,6 +207,39 @@ integration("PostgreSQL placement session integration",()=>{
    if(planId)await pool.query("DELETE FROM subscription_plans WHERE id=$1",[planId]);
    if(userId)await pool.query("DELETE FROM users WHERE id=$1",[userId]);
    if(otherUserId)await pool.query("DELETE FROM users WHERE id=$1",[otherUserId]);
+   await app.close();
+  }
+ });
+ it("lets verified learners inspect, edit and delete their private Gabroo memory without a paid entitlement",async()=>{
+  if(!pool||!migrationApplied)return;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const email="memory-"+randomUUID()+"@example.test";
+  const otherEmail="memory-other-"+randomUUID()+"@example.test";
+  try{
+   const token=await createVerifiedTestSession(app,email,pool);
+   const otherToken=await createVerifiedTestSession(app,otherEmail,pool);
+   const headers={authorization:"Bearer "+token};
+   const created=await app.inject({method:"POST",url:"/api/v1/gabroo/memory",headers,payload:{category:"interest",memory_key:"Travel",content:"Enjoys discussing travel and local culture."}});
+   expect(created.statusCode).toBe(201);
+   const memoryId=created.json().memory.id as string;
+   expect(created.json().memory.source).toBe("learner_saved");
+   const listed=await app.inject({method:"GET",url:"/api/v1/gabroo/memory",headers});
+   expect(listed.statusCode).toBe(200);
+   expect(listed.json().memory).toHaveLength(1);
+   const otherList=await app.inject({method:"GET",url:"/api/v1/gabroo/memory",headers:{authorization:"Bearer "+otherToken}});
+   expect(otherList.statusCode).toBe(200);
+   expect(otherList.json().memory).toHaveLength(0);
+   const updated=await app.inject({method:"PATCH",url:"/api/v1/gabroo/memory/"+memoryId,headers,payload:{content:"Enjoys discussing travel, food and local culture."}});
+   expect(updated.statusCode).toBe(200);
+   expect(updated.json().memory.content).toContain("food");
+   const otherDelete=await app.inject({method:"DELETE",url:"/api/v1/gabroo/memory/"+memoryId,headers:{authorization:"Bearer "+otherToken}});
+   expect(otherDelete.statusCode).toBe(404);
+   const deleted=await app.inject({method:"DELETE",url:"/api/v1/gabroo/memory/"+memoryId,headers});
+   expect(deleted.statusCode).toBe(204);
+   const afterDelete=await app.inject({method:"GET",url:"/api/v1/gabroo/memory",headers});
+   expect(afterDelete.json().memory).toHaveLength(0);
+  }finally{
+   await pool.query("DELETE FROM users WHERE email_normalized IN ($1,$2)",[email,otherEmail]);
    await app.close();
   }
  });
