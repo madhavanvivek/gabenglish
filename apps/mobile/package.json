@@ -19,7 +19,8 @@
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
     "@gabenglish/contracts": "workspace:*",
-    "expo-secure-store": "~14.2.3"
+    "expo-secure-store": "~14.2.3",
+    "expo-speech": "~13.1.7"
   },
   "devDependencies": {
     "@types/react": "~19.0.10",
