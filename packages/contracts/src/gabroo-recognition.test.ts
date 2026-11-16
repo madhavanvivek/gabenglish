@@ -83,4 +83,10 @@ describe("Gabroo provider-neutral speech recognition boundary",()=>{
   await expect(transcribeGabrooAudio({audio,metadata,provider,timeoutMs:60_000})).resolves.toEqual(transcript);
  });
 
+ it("rejects non-byte audio input before provider invocation",async()=>{
+  const transcribe=vi.fn(async()=>transcript);
+  await expect(transcribeGabrooAudio({audio:"not bytes" as unknown as Uint8Array,metadata,provider:{transcribe}})).rejects.toMatchObject({code:"INVALID_AUDIO"});
+  expect(transcribe).not.toHaveBeenCalled();
+ });
+
 });
