@@ -176,3 +176,12 @@ The mobile application must never call a model provider directly or contain prov
 - Treating every conversation as reusable shared training data.
 - Automatically publishing AI-generated curriculum.
 - Claiming that the live Gabroo AI tutor or voice coach is already operational.
+
+
+## 14. All-day open conversation and activity planning
+
+The paid product includes an open-conversation mode as a first-class use case, not merely a lesson-specific chat. The learner can initiate a topic at any time, resume their own prior conversation, or use optional structured daily activities. The daily plan is a recommendation layer and never a gate in front of open chat.
+
+Conversation mode is a teaching-policy input: `free_flow`, `gentle_correction`, or `detailed_correction`. Topic-practice, role-play, vocabulary-building and confidence-practice are activity intents. In free-flow mode, preserve conversational rhythm and defer minor corrections; in detailed mode, give focused explanations and retries. All modes retain the stage, support-language, age and communication-policy constraints.
+
+Use private, compact learner memory for explicitly saved interests/phrases and repeated learning evidence. Never promote private conversation content to the shared curriculum automatically. Every conversation request must verify learner ownership and active subscription entitlement on the server. The full product and fair-use requirements are in `docs/product/DAILY_ENGAGEMENT_AND_OPEN_CONVERSATION.md`.
