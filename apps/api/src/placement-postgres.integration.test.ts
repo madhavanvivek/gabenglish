@@ -152,9 +152,9 @@ integration("PostgreSQL placement session integration",()=>{
   const email="gabroo-paid-"+randomUUID()+"@example.test";
   const otherEmail="gabroo-other-"+randomUUID()+"@example.test";
   let userId:string|undefined,otherUserId:string|undefined,planId:string|undefined,priceId:string|undefined,subscriptionId:string|undefined,paymentId:string|undefined;
-  let providerCalls=0;
-  const provider={reply:async(input:{history:Array<{role:"user"|"assistant";content:string}>})=>{
-   providerCalls++;
+  let providerCalls=0;let receivedMode:string|undefined;
+  const provider={reply:async(input:{mode:string;history:Array<{role:"user"|"assistant";content:string}>})=>{
+   providerCalls++;receivedMode=input.mode;
    expect(input.history.at(-1)?.role).toBe("user");
    return {content:"That sounds interesting. What happened next?"};
   }};
@@ -177,11 +177,13 @@ integration("PostgreSQL placement session integration",()=>{
    const created=await app.inject({method:"POST",url:"/api/v1/gabroo/conversations",headers,payload:{mode:"gentle_correction",support_language:"ml"}});
    expect(created.statusCode).toBe(201);
    const conversationId=created.json().conversation.id as string;
+   const changed=await app.inject({method:"PATCH",url:"/api/v1/gabroo/conversations/"+conversationId,headers,payload:{mode:"free_flow"}});
+   expect(changed.statusCode).toBe(200);expect(changed.json().conversation.mode).toBe("free_flow");
    const sent=await app.inject({method:"POST",url:"/api/v1/gabroo/conversations/"+conversationId+"/messages",headers,payload:{message:"I went to the beach yesterday."}});
    expect(sent.statusCode).toBe(200);
    expect(sent.json().messages).toHaveLength(2);
    expect(sent.json().messages.map((message:{role:string})=>message.role)).toEqual(["user","assistant"]);
-   expect(providerCalls).toBe(1);
+   expect(providerCalls).toBe(1);expect(receivedMode).toBe("free_flow");
    const read=await app.inject({method:"GET",url:"/api/v1/gabroo/conversations/"+conversationId,headers});
    expect(read.statusCode).toBe(200);
    expect(read.json().messages).toHaveLength(2);
