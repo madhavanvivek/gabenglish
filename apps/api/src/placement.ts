@@ -65,6 +65,7 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool?:Pool){
   const parsed=placementSessionStartSchema.safeParse(request.body??{});
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Please check your assessment preferences.",request_id:request.id}});
   pruneSessions();
+  if(pool)await pool.query("DELETE FROM placement_sessions WHERE expires_at<=now()");
   const id=randomUUID();const session:Session={id,name:parsed.data.display_name,style:parsed.data.communication_style,language:parsed.data.preferred_language,turn:0,band:1,currentPromptId:"intro",responses:[],evidence:[],created_at:Date.now()};if(pool)await saveSession(session);else sessions.set(id,session);
   const first=prompts[0]!;
   const greeting=session.language==="ml"?"ഹായ്! ഞാൻ Gabroo. നമുക്ക് ഒരു friendly conversation തുടങ്ങാം. ഇത് exam അല്ല; നിനക്ക് പറ്റുന്ന പോലെ സംസാരിച്ചാൽ മതി. തെറ്റുകൾ വന്നാലും പ്രശ്നമില്ല.":"Hi! I'm Gabroo. Let's have a relaxed conversation. This isn't an exam, so just express yourself naturally. Mistakes are completely okay.";
