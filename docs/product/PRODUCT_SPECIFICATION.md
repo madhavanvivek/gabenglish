@@ -81,4 +81,4 @@ Paid access is granted only after server-side payment confirmation and expires a
 Registration/profile, placement assessment, personalised beginner-to-intermediate path, grammar, vocabulary, translation, listening, AI speaking, validated pronunciation feedback, progress dashboard, daily challenges, subscription and content administration. iOS reuses shared mobile code after Android validation.
 
 ## 11. Phase 0 exclusions
-Full lesson production, public launch, final price commitments, unvalidated fluency/accent claims, additional Indian languages before Malayalam validation, and final Gabroo physical design before concept approval.
+Full lesson production, public launch, payment provider selection and checkout activation, auto-renewal until explicitly approved, unvalidated fluency/accent claims, additional Indian languages before Malayalam validation, and final Gabroo physical design before concept approval. The initial monthly/yearly price points and 30/360-day durations are product decisions; payment and tax implementation still require review.
