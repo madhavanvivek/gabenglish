@@ -250,6 +250,12 @@ integration("PostgreSQL placement session integration",()=>{
    expect(deleted.statusCode).toBe(204);
    const afterDelete=await app.inject({method:"GET",url:"/api/v1/gabroo/memory",headers});
    expect(afterDelete.json().memory).toHaveLength(0);
+   await app.inject({method:"POST",url:"/api/v1/gabroo/memory",headers,payload:{category:"goal",memory_key:"Speaking",content:"Practise speaking at work."}});
+   const cleared=await app.inject({method:"DELETE",url:"/api/v1/gabroo/memory",headers});
+   expect(cleared.statusCode).toBe(200);
+   expect(cleared.json().deleted_count).toBe(1);
+   const afterClear=await app.inject({method:"GET",url:"/api/v1/gabroo/memory",headers});
+   expect(afterClear.json().memory).toHaveLength(0);
   }finally{
    await pool.query("DELETE FROM users WHERE email_normalized IN ($1,$2)",[email,otherEmail]);
    await app.close();
