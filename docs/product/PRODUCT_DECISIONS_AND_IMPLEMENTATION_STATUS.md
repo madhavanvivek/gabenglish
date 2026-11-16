@@ -255,3 +255,15 @@ Important status:
 - Do not promote conversation transcripts into shared teaching content automatically. Private learner memory and aggregate analytics remain separate from the shared library.
 - The previous CI run for the app foundation passed. CI for these new documentation/content commits is running; final green status must be confirmed against the latest branch SHA.
 
+
+
+## 16. All-day Gabroo subscription experience — 2026-11-16
+
+Product direction clarified: the paid Gabroo subscription is an all-day English-learning companion, not simply access to scheduled lessons. An active subscriber can initiate open conversations with Gabroo on broad learner-chosen topics, and can optionally follow a personalised daily activity plan. Open chat must remain a first-class action and must never be blocked by the daily plan.
+
+New specification:
+- `docs/product/DAILY_ENGAGEMENT_AND_OPEN_CONVERSATION.md` — open-topic conversation, correction modes, daily activity planner, private memory, subscription entitlement, fair-use/availability transparency, reminders, safety and acceptance criteria.
+
+This is a product specification, not a claim that the chat product is implemented. The current foundation has placement and OTP/report flows; provider-backed live AI conversations, chat history, conversation memory, entitlement enforcement, daily planner, notifications and voice chat remain implementation work. Text conversation is the first target; voice remains future work after consent and speech QA.
+
+The approved subscription prices and 30/360-day periods are unchanged. Open chat and daily activities are paid features; the free diagnostic report remains accessible after expiry. Provider selection and any production fair-use thresholds remain undecided.
