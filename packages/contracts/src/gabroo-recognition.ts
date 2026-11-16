@@ -36,6 +36,27 @@ export const gabrooReviewedTranscriptSchema=z.object({
 }).strict();
 export type GabrooReviewedTranscript=z.infer<typeof gabrooReviewedTranscriptSchema>;
 
+/**
+ * Convert provider output plus the learner's edited text into the only
+ * transcript shape allowed for a future chat handoff. The edited flag is
+ * derived here rather than trusted from the client.
+ */
+export function confirmGabrooTranscript(input:{
+ providerTranscript:GabrooTranscript;
+ reviewedText:string;
+ confirmed:boolean;
+}):GabrooReviewedTranscript{
+ if(!input.confirmed)throw new Error("Explicit learner confirmation is required.");
+ const original=gabrooTranscriptSchema.parse(input.providerTranscript);
+ const reviewedText=input.reviewedText.trim();
+ return gabrooReviewedTranscriptSchema.parse({
+  text:reviewedText,
+  languageDetected:original.languageDetected,
+  edited:reviewedText!==original.text,
+  confirmed:true
+ });
+}
+
 export interface GabrooSpeechRecognitionProvider {
  transcribe(input:{
   audio:Uint8Array;
