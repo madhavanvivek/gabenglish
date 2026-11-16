@@ -65,7 +65,7 @@ export async function activateVerifiedSubscriptionPayment(pool:Pool,paymentTrans
     plan_code,currency,standard_amount_minor,discount_amount_minor,paid_amount_minor,
     period_start,period_end,verified_payment_at
    )
-   VALUES($1,$2,$3,$4,$5,$6,$7,$8,0,$8,$9,$9+($10||' days')::interval,$9)
+   VALUES($1,$2,$3,$4,$5,$6,$7,$8,0,$8,$9::timestamptz,$9::timestamptz+($10::integer*interval '1 day'),$9::timestamptz)
    RETURNING id,period_start,period_end
   `,[row.user_id,row.subscription_id,row.payment_id,row.provider_code,row.provider_event_id,row.plan_code,row.currency,row.amount_minor,periodStart,String(days)]);
   const entitlement=inserted.rows[0]!;
