@@ -186,7 +186,7 @@ The placement-selector correction passed workflow run 43859020856. The mobile ex
 - Reports and answers are retained only within the short-lived assessment session; a durable learner assessment history/report store is not yet implemented.
 - PostgreSQL persistence is conditional on deployment configuration and migration application; no live Gabenglish database or production deployment has been verified.
 - The mobile assessment is text-only. No microphone capture, STT, TTS or pronunciation evaluation is implemented. Transcript input support in the API is not a production voice feature.
-- Learner authentication and basic account/profile/preferences/consent endpoints now exist as a foundation, but the lifecycle is incomplete: email verification, password reset, MFA, session/device management, distributed abuse monitoring, deletion worker/final erasure and audit/support workflows remain pending. Registration currently activates accounts before email verification; this is not production-ready.
+- Learner authentication and basic account/profile/preferences/consent endpoints plus a basic mobile sign-in/registration screen now exist as a foundation, but the lifecycle is incomplete: email verification, password reset, MFA, session/device management, distributed abuse monitoring, deletion worker/final erasure and audit/support workflows remain pending. Registration currently activates accounts before email verification; this is not production-ready.
 - Placement reports are still anonymous and are not linked to learner accounts; persistent assessment history remains pending.
 - Production curriculum/content delivery, subscriptions/payments and admin application remain incomplete.
 - No final Gabroo 3D model, rig or production animation assets are approved.
