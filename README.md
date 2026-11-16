@@ -38,18 +38,21 @@ Readiness: `GET http://localhost:4000/api/v1/ready` (requires a reachable databa
 
 Start mobile: `pnpm --filter @gabenglish/mobile start`.
 
+For the mobile app, copy `apps/mobile/.env.example` to `apps/mobile/.env` and set `EXPO_PUBLIC_API_BASE_URL` to the reachable Gabenglish API origin. Use an HTTPS URL outside localhost. A physical phone cannot reach your development computer through `localhost`; use a LAN address or a hosted development API. This variable is public app configuration—never place credentials or provider secrets in it.
+
 ## Current implementation status (2026-11-16)
 
 Implemented on `foundation/app-skeleton`:
 - pnpm workspace, Fastify API foundation and shared Zod contracts.
 - Expo mobile prototype and GitHub Actions CI.
 - Placement conversation start/respond API with session/turn validation.
-- Deterministic predefined-prompt placement prototype and a local text-only mobile conversation prototype.
+- Deterministic predefined-prompt placement API with in-memory sessions, evidence extraction and a provisional non-diagnostic report.
+- Expo mobile conversation connected to the placement API, including dynamic server prompts, report rendering, request timeouts and explicit network/configuration errors.
 - Product, placement and Gabroo communication documentation.
 
-Latest confirmed CI run `43848505407`: API and mobile jobs passed (API typecheck/tests, contracts typecheck and mobile typecheck).
+Mobile API integration is committed; CI verification for this change is pending.
 
-**Important limitations:** the assessment is not yet a live AI tutor; the heuristic is not a validated proficiency rubric; sessions are in-memory; the mobile prototype is not yet API-connected; there is no evidence-based learner report or personalised voice explanation yet. Microphone capture, STT, TTS, pronunciation assessment, authentication, persistent learner accounts, complete curriculum delivery, admin, subscriptions/payments and production deployment remain pending. Gabroo's physical character design is not final or approved for production.
+**Important limitations:** the assessment is not yet a live AI tutor; the heuristic is not a validated proficiency rubric; sessions are in-memory; the report is provisional and intentionally makes no skill or stage recommendation; no voice capture or personalised voice explanation is connected. Microphone capture, STT, TTS, pronunciation assessment, authentication, persistent learner accounts, complete curriculum delivery, admin, subscriptions/payments and production deployment remain pending. Gabroo's physical character design is not final or approved for production.
 
 See the consolidated status document for the full list of completed work, limitations and next steps.
 
