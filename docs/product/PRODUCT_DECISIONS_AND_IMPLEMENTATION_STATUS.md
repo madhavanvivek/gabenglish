@@ -445,3 +445,6 @@ Next implementation sequence:
 - The recognition boundary supports cancellation and a 15-second default timeout, and returns stable application error codes rather than leaking provider error messages.
 - No audio or transcript is persisted by this shared helper. The caller remains responsible for explicit learner consent, secure transport, retention and deletion policy.
 - No speech-recognition provider is configured or selected. There is no production microphone upload, transcription endpoint or live voice session yet. A provider adapter and security-reviewed upload route are still required.
+
+- Follow-up hardening: the recognition boundary now verifies that the actual byte length matches the declared metadata size and rejects mismatches before invoking a provider.
+- Cancellation now settles promptly even if a future provider adapter ignores its abort signal; this prevents a cancelled learner action from remaining pending indefinitely.
