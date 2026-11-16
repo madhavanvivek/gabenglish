@@ -65,3 +65,22 @@ Before production, replace or version this pilot with an OpenAPI-reviewed contra
 - idempotency, rate limits, ownership checks, retention/deletion and audit events.
 
 Do not expose a learner-facing numeric score until the rubric has been calibrated and approved.
+
+
+## Learner authentication API foundation (implemented on foundation/app-skeleton)
+
+All routes below require a configured PostgreSQL pool. Access tokens are short-lived bearer tokens; refresh tokens are opaque, stored as SHA-256 hashes, single-use and rotated on refresh.
+
+| Method | Route | Purpose |
+|---|---|---|
+| POST | `/api/v1/auth/register` | Create learner account, profile and default preferences |
+| POST | `/api/v1/auth/login` | Verify credentials and issue access/refresh tokens |
+| POST | `/api/v1/auth/refresh` | Revoke the presented refresh token and rotate it |
+| POST | `/api/v1/auth/logout` | Revoke the presented refresh token |
+| GET | `/api/v1/auth/me` | Return authenticated profile and preferences |
+| PATCH | `/api/v1/auth/me` | Update display name, locale or timezone |
+| PATCH | `/api/v1/auth/me/preferences` | Update support language, learning goal, correction mode, daily target or reminders |
+| POST | `/api/v1/auth/me/consents` | Record a purpose and policy-version consent decision |
+| POST | `/api/v1/auth/me/deletion-request` | Disable the account and revoke refresh sessions; does not perform final erasure |
+
+Security limitations: email verification, password reset, MFA, device/session management, full account erasure and learner-linked assessment history are not implemented. Registration currently creates an active but unverified account. Login throttling is database-backed, keyed by HMAC digests and limited to 10 failures per email digest or 30 per request-IP digest in a 15-minute window. This is an initial abuse-control layer, not a substitute for a production edge/WAF policy.
