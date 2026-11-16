@@ -80,9 +80,9 @@ Before production, replace or version this pilot with an OpenAPI-reviewed contra
 Do not expose a learner-facing numeric score until the rubric has been calibrated and approved.
 
 
-## Learner authentication API foundation (implemented on foundation/app-skeleton)
+## Legacy password-auth prototype (implemented, superseded by the approved OTP model)
 
-All routes below require a configured PostgreSQL pool. Access tokens are short-lived bearer tokens bound to a refresh-session ID and checked against its active database row on every request; refresh tokens are opaque, stored as SHA-256 hashes, single-use and rotated on refresh. Rotation and logout revoke the old session, immediately invalidating its access token.
+These routes exist only as a temporary engineering prototype on the foundation branch. They are not the approved B2C authentication experience and must be replaced by the passwordless email/phone OTP contracts in section 2 before public beta. The existing session implementation has short-lived access tokens bound to revocable refresh-session rows and hashed, rotating refresh tokens, but its password-based registration/login must not be extended as the customer sign-up flow.
 
 | Method | Route | Purpose |
 |---|---|---|
@@ -96,7 +96,7 @@ All routes below require a configured PostgreSQL pool. Access tokens are short-l
 | POST | `/api/v1/auth/me/consents` | Record a purpose and policy-version consent decision |
 | POST | `/api/v1/auth/me/deletion-request` | Disable the account and revoke refresh sessions; does not perform final erasure |
 
-Security limitations: email verification, password reset, MFA, device/session management, full account erasure and learner-linked assessment history are not implemented. Registration currently creates an active but unverified account. Login throttling is database-backed, keyed by HMAC digests and limited to 10 failures per email digest or 30 per request-IP digest in a 15-minute window. This is an initial abuse-control layer, not a substitute for a production edge/WAF policy.
+Security limitations of this prototype: it does not verify email or phone, has no OTP delivery, and registration activates an unverified account. It is unsuitable for public B2C launch. The database-backed password login throttling is prototype-only and will need to be redesigned for OTP send/verify abuse controls. Full account erasure and learner-linked assessment history are not implemented.
 
 
-Mobile account client: `apps/mobile/src/auth-api.ts` uses Expo SecureStore for access and refresh tokens, rotates refresh tokens after an authenticated request receives 401, and exposes account/profile/preference operations. The account screen is `apps/mobile/app/account.tsx`. The learner home screen links to this route. Email verification and password recovery are not available; the UI must continue to disclose the unverified-email limitation.
+Mobile account client: `apps/mobile/src/auth-api.ts` and `apps/mobile/app/account.tsx` currently demonstrate password-based registration/login and secure token storage only. This screen is superseded by the approved email/phone OTP experience and should be replaced rather than presented as the final sign-up UX.
