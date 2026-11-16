@@ -425,3 +425,13 @@ Next implementation sequence:
 - The mobile Gabroo screen now uses this shared queue for its language-specific Expo Speech adapter.
 - Added automated tests for ordered mixed-language playback, cancellation between segments, cancellation before playback, invalid speed rejection before audio starts, and empty replies.
 - The queue is provider-neutral and does not request microphone access or record learner audio.
+
+
+### Consent-first microphone permission preflight
+
+- Added an explicit learner-facing consent step in the Gabroo conversation screen. The operating-system microphone permission prompt is never requested automatically on screen load.
+- The learner must actively select the consent statement and then press the permission action. The request is made through the Expo AV permission API.
+- Android and iOS microphone permission descriptions explain that access is requested only when the learner chooses to prepare a voice conversation.
+- Corrected the shared voice lifecycle: permission approval now enters a distinct `ready` state. It does **not** mean the microphone is recording or that the session is listening. A separate `begin_capture` event is required to enter `listening`.
+- The current screen only checks OS permission. It does not start recording, store audio, upload audio or invoke speech recognition. Live speech recognition and capture controls remain unimplemented.
+- Consent is an explicit in-screen action for this permission preflight; learners can clear the in-screen consent state. Revoking OS permission itself remains available in device settings.
