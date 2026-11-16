@@ -9,3 +9,4 @@ export const tutorTextTurnSchema=z.object({input:z.object({type:z.literal("text"
 export type TutorTextTurn=z.infer<typeof tutorTextTurnSchema>;
 
 export * from "./placement.js";
+export * from "./auth.js";
