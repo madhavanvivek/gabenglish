@@ -163,6 +163,73 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
   }catch(error){await client.query("ROLLBACK");if((error as {code?:string}).code==="23505")return reply.code(409).send({error:{code:"CONTACT_ALREADY_LINKED",message:"This contact is already linked to another account.",request_id:request.id}});throw error;}
   finally{client.release();}
  });
+
+ app.post("/api/v1/auth/contacts/otp/request",async(request,reply)=>{
+  if(!otpDelivery)return reply.code(503).send({error:{code:"OTP_DELIVERY_UNAVAILABLE",message:"Verification is temporarily unavailable. Please try again later.",request_id:request.id}});
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return unauthorized(reply,request.id);
+  const parsed=otpRequestSchema.safeParse(request.body);
+  if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Enter a valid email address or international phone number.",request_id:request.id}});
+  const channel=parsed.data.channel;
+  const destination=channel==="email"?parsed.data.destination.trim().toLowerCase():parsed.data.destination.trim();
+  const column=channel==="email"?"email_normalized":"phone_e164";
+  const existing=await pool.query<{id:string}>(`SELECT id FROM users WHERE ${column}=$1 AND deleted_at IS NULL`,[destination]);
+  if(existing.rows[0])return reply.code(409).send({error:{code:"CONTACT_ALREADY_LINKED",message:"This contact is already linked to an account. Accounts are never merged automatically.",request_id:request.id}});
+  const ipDigest=createHmac("sha256",secret).update("ip:"+request.ip).digest("hex");
+  const limits=await pool.query<{recent:number;hourly:number}>("SELECT count(*) FILTER(WHERE created_at>now()-interval '60 seconds')::int AS recent,count(*) FILTER(WHERE created_at>now()-interval '1 hour')::int AS hourly FROM auth_otp_challenges WHERE channel=$1 AND destination_normalized=$2",[channel,destination]);
+  const ipLimits=await pool.query<{ip_hourly:number}>("SELECT count(*)::int AS ip_hourly FROM auth_otp_challenges WHERE request_ip_digest=$1 AND created_at>now()-interval '1 hour'",[ipDigest]);
+  if((limits.rows[0]?.recent??0)>0||(limits.rows[0]?.hourly??0)>=5||(ipLimits.rows[0]?.ip_hourly??0)>=20)return reply.code(429).send({error:{code:"OTP_RATE_LIMITED",message:"Too many verification requests. Please wait before trying again.",request_id:request.id,retry_after_seconds:60}});
+  const id=randomUUID();const code=String(randomInt(0,1000000)).padStart(6,"0");
+  const codeDigest=createHmac("sha256",secret).update("otp:"+id+":"+code).digest("hex");
+  await pool.query("INSERT INTO auth_otp_challenges(id,user_id,channel,destination_normalized,purpose,code_digest,request_ip_digest,expires_at) VALUES($1,$2,$3,$4,'contact_link',$5,$6,now()+interval '5 minutes')",[id,learner.id,channel,destination,codeDigest,ipDigest]);
+  let sent=false;try{sent=await otpDelivery.send({channel,destination,code,expiresInSeconds:300});}catch{sent=false;}
+  await pool.query("UPDATE auth_otp_challenges SET delivery_status=$2 WHERE id=$1",[id,sent?"sent":"failed"]);
+  if(!sent)return reply.code(503).send({error:{code:"OTP_DELIVERY_FAILED",message:"We could not send your verification code. Please try again later.",request_id:request.id}});
+  const masked=channel==="email"?destination.replace(/^(.{1,2}).*(@.*)$/,"$1•••$2"):destination.slice(0,-4).replace(/./g,"•")+destination.slice(-4);
+  return reply.code(202).send({challenge_id:id,channel,masked_destination:masked,expires_in_seconds:300,resend_after_seconds:60});
+ });
+
+ app.post("/api/v1/auth/contacts/otp/verify",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return unauthorized(reply,request.id);
+  const parsed=otpVerifySchema.safeParse(request.body);
+  if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Enter the verification code sent to your new contact.",request_id:request.id}});
+  const client=await pool.connect();
+  try{
+   await client.query("BEGIN");
+   const found=await client.query<{id:string;user_id:string;channel:"email"|"phone";destination_normalized:string;code_digest:string;attempts:number;max_attempts:number;delivery_status:string;expires_at:Date;consumed_at:Date|null}>(
+    "SELECT id,user_id,channel,destination_normalized,code_digest,attempts,max_attempts,delivery_status,expires_at,consumed_at FROM auth_otp_challenges WHERE id=$1 AND purpose='contact_link' AND user_id=$2 FOR UPDATE",[parsed.data.challenge_id,learner.id]
+   );
+   const challenge=found.rows[0];
+   if(!challenge||challenge.consumed_at||challenge.delivery_status!=="sent"||new Date(challenge.expires_at).getTime()<=Date.now()||challenge.attempts>=challenge.max_attempts){
+    await client.query("ROLLBACK");return reply.code(400).send({error:{code:"OTP_INVALID_OR_EXPIRED",message:"This verification code is invalid or has expired. Request a new code.",request_id:request.id}});
+   }
+   const supplied=createHmac("sha256",secret).update("otp:"+challenge.id+":"+parsed.data.code).digest();
+   const expected=Buffer.from(challenge.code_digest,"hex");
+   if(supplied.length!==expected.length||!timingSafeEqual(supplied,expected)){
+    await client.query("UPDATE auth_otp_challenges SET attempts=attempts+1 WHERE id=$1",[challenge.id]);
+    await client.query("COMMIT");return reply.code(400).send({error:{code:"OTP_INVALID_OR_EXPIRED",message:"This verification code is invalid or has expired. Request a new code.",request_id:request.id}});
+   }
+   const column=challenge.channel==="email"?"email_normalized":"phone_e164";
+   const existing=await client.query<{id:string}>(`SELECT id FROM users WHERE ${column}=$1 AND deleted_at IS NULL FOR UPDATE`,[challenge.destination_normalized]);
+   if(existing.rows[0]&&existing.rows[0].id!==learner.id){
+    await client.query("ROLLBACK");return reply.code(409).send({error:{code:"CONTACT_ALREADY_LINKED",message:"This contact is already linked to another account. Accounts are never merged automatically.",request_id:request.id}});
+   }
+   if(challenge.channel==="email"){
+    const updated=await client.query("UPDATE users SET email=$2,email_normalized=$2,email_verified_at=now(),updated_at=now() WHERE id=$1 AND (email_normalized IS NULL OR email_normalized=$2)",[learner.id,challenge.destination_normalized]);
+    if(updated.rowCount!==1){await client.query("ROLLBACK");return reply.code(409).send({error:{code:"CONTACT_SLOT_OCCUPIED",message:"An email address is already linked to this account.",request_id:request.id}});}
+   }else{
+    const updated=await client.query("UPDATE users SET phone_e164=$2,phone_verified_at=now(),updated_at=now() WHERE id=$1 AND (phone_e164 IS NULL OR phone_e164=$2)",[learner.id,challenge.destination_normalized]);
+    if(updated.rowCount!==1){await client.query("ROLLBACK");return reply.code(409).send({error:{code:"CONTACT_SLOT_OCCUPIED",message:"A phone number is already linked to this account.",request_id:request.id}});}
+   }
+   await client.query("INSERT INTO auth_otp_verified_contacts(user_id,channel,destination_normalized) VALUES($1,$2,$3) ON CONFLICT(channel,destination_normalized) DO NOTHING",[learner.id,challenge.channel,challenge.destination_normalized]);
+   await client.query("UPDATE auth_otp_challenges SET consumed_at=now() WHERE id=$1",[challenge.id]);
+   await client.query("COMMIT");
+   return {status:"verified",channel:challenge.channel,masked_destination:challenge.channel==="email"?challenge.destination_normalized.replace(/^(.{1,2}).*(@.*)$/,"$1•••$2"):challenge.destination_normalized.slice(-4).padStart(challenge.destination_normalized.length,"•")};
+  }catch(error){await client.query("ROLLBACK");if((error as {code?:string}).code==="23505")return reply.code(409).send({error:{code:"CONTACT_ALREADY_LINKED",message:"This contact is already linked to another account.",request_id:request.id}});throw error;}
+  finally{client.release();}
+ });
+
  app.post("/api/v1/auth/register",async(request,reply)=>{
   if(config.NODE_ENV!=="test")return reply.code(410).send({error:{code:"PASSWORD_AUTH_RETIRED",message:"Password sign-up is no longer available. Use email or phone verification instead.",request_id:request.id}});
   const parsed=registerSchema.safeParse(request.body);
