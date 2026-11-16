@@ -136,4 +136,48 @@ describe("Gabroo conversational placement",()=>{
   await app.close();
  });
 
+ it("prevents concurrent database writes from overwriting a newer placement turn",async()=>{
+  const {randomUUID}=await import("node:crypto");
+  let stored:Record<string,any>|undefined;
+  let selects=0;
+  let releaseSelects!:()=>void;
+  const selectBarrier=new Promise<void>(resolve=>{releaseSelects=resolve;});
+  const fakePool={
+   query:async(sql:string,params?:unknown[])=>{
+    if(sql.startsWith("INSERT INTO placement_sessions")){
+     stored={id:params?.[0],state:JSON.parse(String(params?.[1])),expires_at:Date.now()+30*60*1000};
+     return {rows:[]};
+    }
+    if(sql.startsWith("SELECT state FROM placement_sessions")){
+     selects+=1;
+     if(selects===2)releaseSelects();
+     await selectBarrier;
+     return {rows:stored?[{state:structuredClone(stored.state)}]:[]};
+    }
+    if(sql.startsWith("UPDATE placement_sessions")){
+     if(stored&&stored.state.revision===params?.[2]){
+      stored.state=JSON.parse(String(params?.[1]));
+      return {rows:[{id:stored.id}]};
+     }
+     return {rows:[]};
+    }
+    return {rows:[]};
+   }
+  } as unknown as import("pg").Pool;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false,fakePool);
+  const start=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",payload:{preferred_language:"en"}});
+  const payload={session_id:start.json().session_id,turn:{prompt_id:"intro",response:"My name is Anu and I live in Kozhikode."}};
+  const concurrent=await Promise.all([
+   app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload}),
+   app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload})
+  ]);
+  expect(concurrent.filter(item=>item.statusCode===200)).toHaveLength(1);
+  expect(concurrent.filter(item=>item.statusCode===409)).toHaveLength(1);
+  const retry=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload});
+  expect(retry.statusCode).toBe(200);
+  expect(retry.json().prompt_id).toBe("routine");
+  expect(stored?.state.revision).toBe(2);
+  await app.close();
+ });
+
 });
