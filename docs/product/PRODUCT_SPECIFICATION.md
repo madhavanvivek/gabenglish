@@ -73,7 +73,7 @@ Only two paid plans are in the initial offer:
 
 No additional paid tiers or six-month plan. Paid entitlement unlocks Gabroo's ongoing learning companion, classes, paid practice, learner assessment/profile and progress history. The free analysis report remains available without a subscription. Basic account identity/profile settings are not the paid learner assessment/profile.
 
-Sign-up and login are passwordless: verify either an email OTP (any valid email provider, including Gmail) or mobile OTP. A learner can link both verified contact methods to one account. Do not treat email OTP as Google OAuth. The current password-based account implementation is a prototype and must be replaced before public beta.
+Registration is mandatory before the free analysis test; anonymous/guest testing is not offered. Sign-up and login are passwordless: verify either an email OTP (any valid email provider, including Gmail) or mobile OTP. A learner can link both verified contact methods to one account. Do not treat email OTP as Google OAuth. The current password-based account implementation is a prototype and must be replaced before public beta.
 
 Paid access is granted only after server-side payment confirmation and expires at the server-recorded paid-through timestamp. Monthly = purchase/renewal start + 30 days; yearly = start + 360 days. Expiry gates paid features but does not delete account or progress. Current default assumption is manual renewal; auto-renewal is not approved. See `docs/product/B2C_FREEMIUM_SUBSCRIPTION_MODEL.md` for lifecycle, security, price and payment requirements.
 
