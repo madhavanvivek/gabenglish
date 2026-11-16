@@ -81,6 +81,9 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
    const conversation=found.rows[0];
    if(!conversation){await client.query("ROLLBACK");return error(reply,request.id,404,"CONVERSATION_NOT_FOUND","This conversation is not available.");}
    if(conversation.status!=="open"){await client.query("ROLLBACK");return error(reply,request.id,409,"CONVERSATION_CLOSED","This conversation is closed.");}
+   const profile=await client.query<{display_name:string|null;learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed"}>(
+    "SELECT p.display_name,up.learning_goal,up.correction_mode FROM user_profiles p JOIN user_preferences up ON up.user_id=p.user_id WHERE p.user_id=$1",[learner.id]);
+   const learnerProfile=profile.rows[0];
    const existing=await client.query<{role:"user"|"assistant";content:string}>("SELECT role,content FROM gabroo_conversation_messages WHERE conversation_id=$1 ORDER BY sequence_number DESC LIMIT 20",[conversation.id]);
    const history=[...existing.rows].reverse();
    const controller=new AbortController();
@@ -91,7 +94,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
      timeout=setTimeout(()=>{controller.abort();reject(new Error("Gabroo provider timed out"));},PROVIDER_TIMEOUT_MS);
     });
     response=await Promise.race([
-     provider.reply({mode:conversation.mode,supportLanguage:conversation.support_language,history:[...history,{role:"user",content:parsedBody.data.message}],signal:controller.signal,teachingPolicy:buildGabrooTeachingPolicy({mode:conversation.mode,supportLanguage:conversation.support_language})}),
+     provider.reply({mode:conversation.mode,supportLanguage:conversation.support_language,history:[...history,{role:"user",content:parsedBody.data.message}],signal:controller.signal,teachingPolicy:buildGabrooTeachingPolicy({mode:conversation.mode,supportLanguage:conversation.support_language,preferredName:learnerProfile?.display_name,learningGoal:learnerProfile?.learning_goal,profileCorrectionPreference:learnerProfile?.correction_mode})}),
      timedOut
     ]);
    }finally{
