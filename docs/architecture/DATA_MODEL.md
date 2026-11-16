@@ -49,7 +49,7 @@ Define cascade/restrict behaviour explicitly. Avoid accidental deletion of finan
 
 ## 13. Implemented schema migrations
 
-`0001_initial_foundation.sql` creates the initial domain schema; `0002_placement_sessions.sql` adds short-lived placement sessions; `0003_auth_login_throttling.sql` adds legacy sign-in throttling; `0004_passwordless_otp.sql` adds OTP challenge and verified-contact tables; `0005_placement_owner.sql` associates placement sessions with learner accounts; `0006_free_diagnostic_reports.sql` persists free analysis reports for later retrieval. The physical schema is still incomplete relative to the logical model above.
+`0001_initial_foundation.sql` creates the initial domain schema; `0002_placement_sessions.sql` adds short-lived placement sessions; `0003_auth_login_throttling.sql` adds legacy sign-in throttling; `0004_passwordless_otp.sql` adds OTP challenge and verified-contact tables; `0005_placement_owner.sql` associates placement sessions with learner accounts; `0006_free_diagnostic_reports.sql` persists free analysis reports for later retrieval; `0007_gabroo_speech_rate.sql` stores the learner-controlled Gabroo playback-rate preference; `0008_verified_subscription_entitlements.sql` constrains the initial commercial model to monthly/yearly INR plans and adds a verified-payment entitlement ledger/read view. The physical schema is still incomplete relative to the logical model above.
 
 ## 14. Next deliverables
 ER diagram; PostgreSQL DDL/migrations; constraints/index plan; data classification/retention matrix; seed strategy; migration and rollback strategy.
