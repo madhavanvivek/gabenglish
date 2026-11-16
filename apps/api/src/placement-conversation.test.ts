@@ -131,7 +131,7 @@ describe("Gabroo conversational placement",()=>{
   const start=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",payload:{preferred_language:"en"}});
   const payload={session_id:start.json().session_id,turn:{prompt_id:"intro",response:"My name is Anu and I live in Kozhikode."}};
   const first=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload});
-  const retry=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",headers,payload});
+  const retry=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload});
   expect(retry.statusCode).toBe(200);
   expect(retry.json()).toEqual(first.json());
   await app.close();
