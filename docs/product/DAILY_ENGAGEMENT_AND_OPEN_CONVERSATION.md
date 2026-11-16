@@ -114,6 +114,12 @@ Server-side entitlement checks must protect conversation start/respond, saved co
 
 An expired learner can still sign in, see the free report, account settings and subscription renewal path. Preserve paid learning history according to the approved retention policy; do not delete it merely because a subscription expired.
 
+### 6.1 One subscription covers the complete paid experience
+
+There is no separate Gabroo subscription or add-on. The learner chooses one Gabenglish plan—Monthly or Yearly—and that single payment unlocks the complete paid Gabenglish experience for the purchased period. “Talk to Gabroo anytime”, open-topic conversation, progressive next-level challenges, doubt clearing, optional daily activities, classes, practice and paid progress features are included under the same entitlement.
+
+Do not create a separate Gabroo checkout, add-on, message-credit purchase, premium chat tier or per-conversation fee. The daily planner supports the Gabroo relationship; it is not separately monetised. Keep the existing free diagnostic report and basic account access available outside the paid entitlement.
+
 ## 7. Fair use, availability and cost transparency
 
 The product goal is an always-available companion experience, not a promise of mathematically unlimited compute or guaranteed uninterrupted service. Avoid arbitrary tiny daily message caps that undermine the subscription promise. Before launch, establish a generous, transparent fair-use policy based on operational capacity, abuse prevention and safety. If temporary limits or degraded modes are necessary:
