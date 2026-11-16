@@ -1,6 +1,7 @@
 import {describe,expect,it} from "vitest";
 import {
  gabrooVoiceSessionStateSchema,
+ GABROO_LOCAL_CAPTURE_MAX_MS,
  transitionGabrooVoiceSession,
  transitionGabrooVoiceSession as transition,
  type GabrooVoiceSessionEvent,
@@ -83,5 +84,10 @@ describe("Gabroo voice session state machine",()=>{
   expect(transcribing).toBe("transcribing");
   expect(transition(transcribing,{type:"capture_discarded"})).toBe("ready");
   expect(()=>transition("listening",{type:"capture_discarded"})).toThrow("Invalid Gabroo voice transition");
+ });
+
+ it("keeps the local microphone validation recording strictly time-bounded",()=>{
+  expect(GABROO_LOCAL_CAPTURE_MAX_MS).toBe(15_000);
+  expect(Number.isSafeInteger(GABROO_LOCAL_CAPTURE_MAX_MS)).toBe(true);
  });
 });
