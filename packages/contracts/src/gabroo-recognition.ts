@@ -65,6 +65,7 @@ export async function transcribeGabrooAudio(input:{
   input.metadata?.sizeBytes>GABROO_AUDIO_MAX_BYTES?"AUDIO_TOO_LARGE":"INVALID_AUDIO",
   "The audio file format or size is not supported."
  );
+ if(!(input.audio instanceof Uint8Array))throw new GabrooRecognitionError("INVALID_AUDIO","The audio recording is invalid.");
  if(input.audio.byteLength===0)throw new GabrooRecognitionError("INVALID_AUDIO","The audio recording is empty.");
  if(input.audio.byteLength>GABROO_AUDIO_MAX_BYTES)throw new GabrooRecognitionError("AUDIO_TOO_LARGE","The audio recording is too large.");
  if(input.audio.byteLength!==parsed.data.sizeBytes)throw new GabrooRecognitionError("INVALID_AUDIO","The audio size does not match its metadata.");
