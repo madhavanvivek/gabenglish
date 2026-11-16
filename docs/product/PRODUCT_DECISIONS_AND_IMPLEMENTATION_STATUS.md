@@ -167,7 +167,7 @@ Current repository structure includes `apps/mobile`, `apps/api`, `packages/contr
 - Mobile placement flow connected to the API through an environment-configured client, with timeout handling, response-schema validation and safe user-facing errors.
 - Structured provisional report and separate Gabroo explanation returned by the API and displayed separately in the mobile prototype.
 - Observable response evidence extraction with explicit text/transcript limitations; no skill findings, proficiency score or stage recommendation is generated.
-- Short-lived placement session persistence support when PostgreSQL is configured and migration 0002_initial_placement_sessions.sql is applied; 30-minute expiry is documented. In-memory fallback remains for tests/development.
+- Short-lived placement session persistence support when PostgreSQL is configured and migration 0002_placement_sessions.sql is applied; 30-minute expiry is documented. In-memory fallback remains for tests/development.
 - Six core prompt records spanning the five hidden challenge bands, with a conservative coverage-first sequence and up to two optional clarification turns. Clarification turns are excluded from core assessment evidence.
 - Gabroo's Concept C identity direction and respectful communication/address policy are documented.
 
