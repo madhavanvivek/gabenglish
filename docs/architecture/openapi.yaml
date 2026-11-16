@@ -1,0 +1,494 @@
+openapi: 3.1.0
+info:
+  title: Gabenglish API
+  version: 1.0.0
+  description: Initial versioned API contract for the Gabenglish Android-first learning platform.
+servers:
+  - url: https://api.gabenglish.example/api/v1
+    description: Placeholder production URL; replace after domain and deployment approval.
+  - url: http://localhost:4000/api/v1
+    description: Local development
+security:
+  - bearerAuth: []
+tags:
+  - name: Health
+  - name: Auth
+  - name: Learner
+  - name: Learning
+  - name: Progress
+  - name: Vocabulary
+  - name: Speaking
+paths:
+  /health:
+    get:
+      tags: [Health]
+      security: []
+      summary: Liveness check
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /ready:
+    get:
+      tags: [Health]
+      security: []
+      summary: Readiness check including required dependencies
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Register a learner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created; verification may be required before sign-in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Authenticate a learner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Rotate refresh token and issue a new access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Tokens rotated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke current refresh session
+      responses:
+        '204':
+          description: Session revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /users/me:
+    get:
+      tags: [Learner]
+      summary: Get current learner profile
+      responses:
+        '200':
+          description: Learner profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearnerProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [Learner]
+      summary: Update current learner profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name: { type: string, minLength: 1, maxLength: 80 }
+                locale: { type: string, example: ml-IN }
+                timezone: { type: string, example: Asia/Kolkata }
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearnerProfile'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /users/me/preferences:
+    get:
+      tags: [Learner]
+      summary: Get learning preferences
+      responses:
+        '200':
+          description: Preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preferences'
+    patch:
+      tags: [Learner]
+      summary: Update learning preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Preferences'
+      responses:
+        '200':
+          description: Updated preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preferences'
+  /learning/path:
+    get:
+      tags: [Learning]
+      summary: Get personalised learning path
+      responses:
+        '200':
+          description: Current path and next recommended activity
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  current_stage: { type: string }
+                  next_activity: { type: object, additionalProperties: true }
+                  recommendations:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+  /lessons/{lessonId}:
+    get:
+      tags: [Learning]
+      summary: Get current published lesson
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Published lesson version
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lesson_id: { type: string, format: uuid }
+                  version_id: { type: string, format: uuid }
+                  content: { type: object, additionalProperties: true }
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /lessons/{lessonId}/start:
+    post:
+      tags: [Learning]
+      summary: Start or resume lesson progress
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Current progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonProgress'
+  /lessons/{lessonId}/complete:
+    post:
+      tags: [Learning]
+      summary: Complete a lesson after server-side validation
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Completion result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonProgress'
+        '409':
+          description: Completion requirements not met
+  /progress/overview:
+    get:
+      tags: [Progress]
+      summary: Get learner progress overview
+      responses:
+        '200':
+          description: Progress overview
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /vocabulary/review:
+    get:
+      tags: [Vocabulary]
+      summary: Get vocabulary due for revision
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Due vocabulary items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+  /speaking/sessions:
+    post:
+      tags: [Speaking]
+      summary: Start a speaking practice session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode: { type: string, default: free_practice }
+                correction_mode:
+                  type: string
+                  enum: [gentle, balanced, detailed]
+      responses:
+        '201':
+          description: Session started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeakingSession'
+  /speaking/sessions/{sessionId}/turns:
+    post:
+      tags: [Speaking]
+      summary: Submit a text turn or a controlled audio asset reference
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpeakingTurnRequest'
+      responses:
+        '201':
+          description: Tutor reply and optional structured feedback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeakingTurnResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /speaking/sessions/{sessionId}/end:
+    post:
+      tags: [Speaking]
+      summary: End speaking session and request summary
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Session summary
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        request_id: { type: string }
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 10, maxLength: 128 }
+        display_name: { type: string, maxLength: 80 }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    AuthResponse:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in]
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { type: string, enum: [Bearer] }
+        expires_in: { type: integer }
+        user:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string }
+    LearnerProfile:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        display_name: { type: string }
+        locale: { type: string }
+        timezone: { type: string }
+    Preferences:
+      type: object
+      properties:
+        support_language: { type: string, enum: [ml, en] }
+        learning_goal: { type: string }
+        correction_mode: { type: string, enum: [gentle, balanced, detailed] }
+        daily_target_minutes: { type: integer, minimum: 1, maximum: 240 }
+        reduced_motion: { type: boolean }
+        reminders_enabled: { type: boolean }
+    LessonProgress:
+      type: object
+      properties:
+        lesson_id: { type: string, format: uuid }
+        status: { type: string, enum: [not_started, in_progress, completed] }
+        progress_percent: { type: number, minimum: 0, maximum: 100 }
+        completed_at: { type: string, format: date-time, nullable: true }
+    SpeakingSession:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [active, completed, abandoned] }
+        correction_mode: { type: string, enum: [gentle, balanced, detailed] }
+    SpeakingTurnRequest:
+      type: object
+      properties:
+        input:
+          oneOf:
+            - type: object
+              required: [type, text]
+              properties:
+                type: { const: text }
+                text: { type: string, minLength: 1, maxLength: 5000 }
+            - type: object
+              required: [type, media_asset_id]
+              properties:
+                type: { const: audio }
+                media_asset_id: { type: string, format: uuid }
+        correction_mode: { type: string, enum: [gentle, balanced, detailed] }
+      required: [input]
+    SpeakingTurnResponse:
+      type: object
+      properties:
+        turn_id: { type: string, format: uuid }
+        reply:
+          type: object
+          properties:
+            text: { type: string }
+            language: { type: string, enum: [ml, en, mixed] }
+            audio_asset_id: { type: string, format: uuid, nullable: true }
+        feedback:
+          type: array
+          items:
+            type: object
+            properties:
+              category: { type: string, enum: [grammar, naturalness, vocabulary, pronunciation, register, clarity] }
+              original: { type: string }
+              suggested: { type: string }
+              explanation_ml: { type: string }
+              severity: { type: string, enum: [note, suggestion, important] }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            request_id: { type: string }
+            details: { type: array, items: { type: object, additionalProperties: true } }
+  responses:
+    Unauthorized:
+      description: Authentication required or invalid
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ServiceUnavailable:
+      description: Dependency unavailable
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
