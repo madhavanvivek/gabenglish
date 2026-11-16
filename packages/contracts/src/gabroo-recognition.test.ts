@@ -70,4 +70,17 @@ describe("Gabroo provider-neutral speech recognition boundary",()=>{
   controller.abort();
   await expect(pending).rejects.toMatchObject({code:"PROVIDER_FAILED",message:"Speech recognition was cancelled."});
  });
+ it("rejects invalid timeout values before invoking the provider",async()=>{
+  const transcribe=vi.fn(async()=>transcript);
+  const provider={transcribe};
+  for(const timeoutMs of [0,-1,1.5,Number.NaN,Number.POSITIVE_INFINITY,60_001]){
+   await expect(transcribeGabrooAudio({audio,metadata,provider,timeoutMs})).rejects.toMatchObject({code:"INVALID_TIMEOUT"});
+  }
+  expect(transcribe).not.toHaveBeenCalled();
+ });
+ it("accepts the maximum supported timeout boundary",async()=>{
+  const provider={transcribe:vi.fn(async()=>transcript)};
+  await expect(transcribeGabrooAudio({audio,metadata,provider,timeoutMs:60_000})).resolves.toEqual(transcript);
+ });
+
 });
