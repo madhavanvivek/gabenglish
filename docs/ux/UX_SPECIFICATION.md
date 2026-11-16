@@ -44,7 +44,7 @@ Original sentence; corrected version; natural alternative; error category; Malay
 Skill-specific history, evidence-based strengths and improvement areas, recommended next activity. No unsupported fluency or certification labels.
 
 ### Profile and subscription
-Account/preferences; support language; notification settings; voice settings when available; subscription/renewal/cancellation; privacy, recording consent and account deletion.
+Account/preferences; support language; notification settings; voice settings (including Gabroo playback speed when voice is available); subscription/renewal/cancellation; privacy, recording consent and account deletion.
 
 ## 4. Speaking states
 Idle, listening, processing, speaking, feedback, paused, permission denied, network failure and provider failure. Always show whether microphone capture is active. Prevent duplicate submissions and preserve safe retry context.
@@ -83,4 +83,4 @@ The paid learner home must make **Talk to Gabroo** a primary action. A learner c
 
 Show a separate optional daily activity plan with suggested morning, midday, afternoon and evening activities. Learners can skip, reschedule or disable reminders without penalty. The plan must never block open conversation. See `docs/product/DAILY_ENGAGEMENT_AND_OPEN_CONVERSATION.md`.
 
-Text chat is the initial implementation target. Do not present voice chat as live until consent, STT/TTS, audio controls and representative-device QA are complete.
+Text chat is the initial implementation target. Do not present voice chat as live until consent, STT/TTS, audio controls and representative-device QA are complete. When voice is available, include an in-player Gabroo playback-speed control (initial proposed range 0.75×–1.5×, default 1.0×), a reset-to-normal action and a saved learner preference. Preserve pitch where supported and apply the speed to Gabroo playback only, never the learner's microphone capture.
