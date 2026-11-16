@@ -304,3 +304,12 @@ This is a schema foundation only:
 - Free diagnostic reports and basic account access remain independent of paid entitlement.
 
 The migration integration test now asserts the new migration is recorded, the two-plan/interval constraints exist, the active-entitlement view is empty on the CI database, and the verified payment timestamp/provider event reference are mandatory. CI status for the new commit must be checked before calling this change validated.
+
+
+### Implemented subscription status API foundation
+
+- Added `GET /api/v1/subscriptions/current`, authenticated through the verified learner session.
+- The API reads only the database's active verified entitlement view and returns free access when no valid entitlement exists.
+- Added reusable server-side `getActiveSubscriptionEntitlement(pool, userId)` lookup for future paid-route gates.
+- Added PostgreSQL integration coverage for unauthenticated rejection and default free access.
+- No payment mutation, checkout, webhook, provider configuration or entitlement grant endpoint has been created. Paid feature routes still need to enforce the lookup before any paid content or AI usage is exposed.
