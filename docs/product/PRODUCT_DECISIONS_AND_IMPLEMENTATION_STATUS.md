@@ -267,3 +267,11 @@ New specification:
 This is a product specification, not a claim that the chat product is implemented. The current foundation has placement and OTP/report flows; provider-backed live AI conversations, chat history, conversation memory, entitlement enforcement, daily planner, notifications and voice chat remain implementation work. Text conversation is the first target; voice remains future work after consent and speech QA.
 
 The approved subscription prices and 30/360-day periods are unchanged. Open chat and daily activities are paid features; the free diagnostic report remains accessible after expiry. Provider selection and any production fair-use thresholds remain undecided.
+
+## 17. Progressive challenge and doubt clearing — approved product direction
+
+Gabroo should speak mostly within the learner's demonstrated comfort range while regularly introducing manageable next-level language and conversational challenges. The learner's current stage is a default guide, not a ceiling. Difficulty should adapt to comprehension, recent responses, topic familiarity and explicit requests to simplify or increase challenge. Avoid fixed advanced-language quotas and sudden jumps that overwhelm learners.
+
+Learners can interrupt at any time to ask about a word, phrase, grammar, meaning, tone or Gabroo's choice of expression, in Malayalam or English. Gabroo should pause, explain at the learner's level, give a natural example, check understanding when useful and resume the original conversation without losing context. Doubt clearing is available in every conversation mode and is not a separate paywall feature.
+
+Detailed behaviour is recorded in `docs/product/DAILY_ENGAGEMENT_AND_OPEN_CONVERSATION.md` and `docs/ai/GABROO_TEACHING_INTELLIGENCE_ARCHITECTURE.md`. This is an approved product requirement; adaptive runtime behaviour is not yet implemented.
