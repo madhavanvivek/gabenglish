@@ -56,7 +56,7 @@ integration("PostgreSQL placement session integration",()=>{
    expect(account.refresh_token).toBeTruthy();
    const stored=await pool.query<{password_hash:string;email_verified_at:Date|null}>("SELECT password_hash,email_verified_at FROM users WHERE email_normalized=$1",[email]);
    expect(stored.rows[0]?.password_hash).not.toBe(password);
-   expect(stored.rows[0]?.password_hash).toMatch(/^scrypt\\$/);
+   expect(stored.rows[0]?.password_hash.startsWith("scrypt$")).toBe(true);
    expect(stored.rows[0]?.email_verified_at).toBeNull();
 
    const login=await app.inject({method:"POST",url:"/api/v1/auth/login",payload:{email,password}});
