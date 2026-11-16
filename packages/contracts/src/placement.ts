@@ -9,9 +9,9 @@ export const placementConversationRequestSchema=z.object({session_id:z.string().
 export const placementEvidenceSchema=z.object({
   prompt_id:z.string().min(1),
   source:z.enum(["text","voice_transcript"]),
-  observed_skills:z.array(placementSkillSchema),
+  observed_skills:z.array(placementSkillSchema).max(0),
   observations:z.array(z.string()),
-  confidence:z.enum(["low","medium"]),
+  sample_size:z.enum(["brief","extended"]),
   limitations:z.array(z.string()),
   metrics:z.object({word_count:z.number().int().nonnegative(),sentence_count:z.number().int().nonnegative(),connector_count:z.number().int().nonnegative(),has_past_reference:z.boolean(),has_reasoning_marker:z.boolean()})
 });
