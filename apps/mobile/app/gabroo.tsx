@@ -1,6 +1,6 @@
 import {useCallback,useRef,useState} from "react";
 import * as Speech from "expo-speech";
-import {splitGabrooSpeechText} from "@gabenglish/contracts";
+import {playGabrooSpeechSegments,splitGabrooSpeechText} from "@gabenglish/contracts";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
@@ -95,15 +95,16 @@ export default function GabrooScreen(){
     return;
    }
    setSpeakingMessageId(message.id);
-   for(const segment of segments){
-    if(run!==speechRunRef.current)return;
-    const voice=segment.language==="ml"?malayalamVoice:englishVoice;
-    await speakSegment(segment.text,{
-     rate:speechRate,
-     language:voice?.language??(segment.language==="ml"?"ml-IN":"en-IN"),
-     ...(voice?{voice:voice.identifier}:{})
-    });
-   }
+   await playGabrooSpeechSegments(segments,{
+    speak:async(segment,rate)=>{
+     const voice=segment.language==="ml"?malayalamVoice:englishVoice;
+     await speakSegment(segment.text,{
+      rate,
+      language:voice?.language??(segment.language==="ml"?"ml-IN":"en-IN"),
+      ...(voice?{voice:voice.identifier}:{})
+     });
+    }
+   },speechRate,()=>run!==speechRunRef.current);
    if(run===speechRunRef.current)setSpeakingMessageId(null);
   }catch{
    if(run===speechRunRef.current){
