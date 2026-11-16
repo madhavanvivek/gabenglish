@@ -174,7 +174,7 @@ Current repository structure includes `apps/mobile`, `apps/api`, `packages/contr
 - Gabroo's Concept C identity direction and respectful communication/address policy are documented.
 
 ### Latest validation checkpoint
-The placement-selector correction passed workflow run 43859020856. The mobile expired-session recovery and API placement work then passed workflow run 43859171656 (API typecheck, API tests, shared-contract typecheck and mobile typecheck). The optimistic-concurrency implementation and regression test passed workflow run 43859779934: API typecheck, all 21 API tests, shared-contract typecheck and mobile typecheck. CI now provisions PostgreSQL 16 for the API test job and runs integration tests for session persistence across API restarts, concurrent responses and expiry handling. Verify the resulting workflow before treating this database gate as passed. No production deployment has been performed.
+The placement-selector correction passed workflow run 43859020856. The mobile expired-session recovery and API placement work then passed workflow run 43859171656 (API typecheck, API tests, shared-contract typecheck and mobile typecheck). The optimistic-concurrency implementation and regression test passed workflow run 43859779934: API typecheck, all 21 API tests, shared-contract typecheck and mobile typecheck. The real PostgreSQL 16 integration suite passed workflow run 43861505662: CI applied migrations 0001 and 0002, then verified session persistence across API restarts, concurrent response handling and expiry. API typecheck, API tests, shared-contract typecheck and mobile typecheck all passed. No production deployment has been performed.
 
 ### Explicit limitations — not production-ready
 - The current placement selector is conservative coverage routing with clarification support, not a fully skill-aware adaptive assessment or live LLM-driven tutor.
@@ -190,7 +190,7 @@ These limitations must remain visible in README, release notes and handover repo
 
 ## 12. Next implementation sequence
 
-1. Run and verify the PostgreSQL 16 integration suite in GitHub Actions; resolve any real-database issues before enabling PostgreSQL-backed placement in a deployment.
+1. Keep the PostgreSQL 16 integration suite green as migrations and session handling evolve; add migration-ledger and production migration-runner support before enabling PostgreSQL-backed placement in a deployment.
 2. Introduce authenticated learner identity and account lifecycle before persisting completed assessment reports; define retention, consent and deletion controls.
 3. Review the draft prompt-to-skill map with educators, then approve prompt objectives and mappings; do not enable skill findings until the analytic rubric and calibration gates are approved.
 4. Implement evidence coverage/uncertainty and a defensible report with a starting-stage recommendation only after educator validation.
