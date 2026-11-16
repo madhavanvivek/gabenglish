@@ -69,7 +69,7 @@ Do not expose a learner-facing numeric score until the rubric has been calibrate
 
 ## Learner authentication API foundation (implemented on foundation/app-skeleton)
 
-All routes below require a configured PostgreSQL pool. Access tokens are short-lived bearer tokens; refresh tokens are opaque, stored as SHA-256 hashes, single-use and rotated on refresh.
+All routes below require a configured PostgreSQL pool. Access tokens are short-lived bearer tokens bound to a refresh-session ID and checked against its active database row on every request; refresh tokens are opaque, stored as SHA-256 hashes, single-use and rotated on refresh. Rotation and logout revoke the old session, immediately invalidating its access token.
 
 | Method | Route | Purpose |
 |---|---|---|
