@@ -137,7 +137,6 @@ describe("Gabroo conversational placement",()=>{
  });
 
  it("prevents concurrent database writes from overwriting a newer placement turn",async()=>{
-  const {randomUUID}=await import("node:crypto");
   let stored:Record<string,any>|undefined;
   let selects=0;
   let releaseSelects!:()=>void;
