@@ -57,7 +57,10 @@ export async function activateVerifiedSubscriptionPayment(pool:Pool,paymentTrans
   if(row.subscription_status!=="pending"&&row.subscription_status!=="active"){
    throw new SubscriptionActivationError("SUBSCRIPTION_UNAVAILABLE");
   }
-  const periodStart=row.verified_at;
+  const verifiedAt=row.verified_at;
+  // Early manual renewals preserve the remaining paid time instead of overwriting it.
+  const currentPeriodEnd=row.current_period_end;
+  const periodStart=currentPeriodEnd&&currentPeriodEnd.getTime()>verifiedAt.getTime()?currentPeriodEnd:verifiedAt;
   const days=row.plan_code==="monthly"?30:360;
   const inserted=await client.query<{id:string;period_start:Date;period_end:Date}>(`
    INSERT INTO subscription_entitlements(
