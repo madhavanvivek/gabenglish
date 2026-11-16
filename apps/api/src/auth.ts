@@ -13,6 +13,23 @@ const registerSchema=z.object({
 });
 const loginSchema=z.object({email:z.string().trim().email().max(254),password:z.string().min(1).max(128)});
 const refreshSchema=z.object({refresh_token:z.string().min(40).max(256)});
+const profilePatchSchema=z.object({
+ display_name:z.string().trim().min(1).max(80).optional(),
+ locale:z.string().trim().min(2).max(20).optional(),
+ timezone:z.string().trim().min(2).max(80).optional()
+}).refine(value=>Object.keys(value).length>0);
+const preferencesPatchSchema=z.object({
+ support_language:z.enum(["ml","en"]).optional(),
+ learning_goal:z.string().trim().max(200).nullable().optional(),
+ correction_mode:z.enum(["gentle","balanced","detailed"]).optional(),
+ daily_target_minutes:z.number().int().min(1).max(240).optional(),
+ reminders_enabled:z.boolean().optional()
+}).refine(value=>Object.keys(value).length>0);
+const consentSchema=z.object({
+ purpose:z.enum(["voice_processing","voice_retention","transcript_retention","analytics","personalized_learning"]),
+ policy_version:z.string().trim().min(1).max(40),
+ granted:z.boolean()
+});
 const ACCESS_TTL_SECONDS=15*60;
 const REFRESH_TTL_DAYS=30;
 type Account={id:string;email:string;display_name:string|null;locale:string;timezone:string;status:string};
@@ -159,6 +176,58 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"A valid refresh token is required.",request_id:request.id}});
   await pool.query("UPDATE refresh_sessions SET revoked_at=now() WHERE token_hash=$1 AND revoked_at IS NULL",[digest(parsed.data.refresh_token)]);
   return reply.code(204).send();
+ });
+
+ 
+ app.patch("/api/v1/auth/me",async(request,reply)=>{
+  const user=await authenticate(request);
+  if(!user)return unauthorized(reply,request.id);
+  const parsed=profilePatchSchema.safeParse(request.body);
+  if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Provide at least one valid profile field.",request_id:request.id}});
+  const values=parsed.data;
+  const updated=await pool.query(
+   "UPDATE user_profiles SET display_name=COALESCE($2,display_name),locale=COALESCE($3,locale),timezone=COALESCE($4,timezone),updated_at=now() WHERE user_id=$1 RETURNING user_id,display_name,locale,timezone",
+   [user.id,values.display_name??null,values.locale??null,values.timezone??null]
+  );
+  return {user:updated.rows[0]};
+ });
+
+ app.patch("/api/v1/auth/me/preferences",async(request,reply)=>{
+  const user=await authenticate(request);
+  if(!user)return unauthorized(reply,request.id);
+  const parsed=preferencesPatchSchema.safeParse(request.body);
+  if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Provide valid learning preferences.",request_id:request.id}});
+  const values=parsed.data;
+  const updated=await pool.query(
+   "UPDATE user_preferences SET support_language=COALESCE($2,support_language),learning_goal=CASE WHEN $3::boolean THEN $4 ELSE learning_goal END,correction_mode=COALESCE($5,correction_mode),daily_target_minutes=COALESCE($6,daily_target_minutes),reminders_enabled=COALESCE($7,reminders_enabled),updated_at=now() WHERE user_id=$1 RETURNING support_language,learning_goal,correction_mode,daily_target_minutes,reminders_enabled",
+   [user.id,values.support_language??null,Object.hasOwn(values,"learning_goal"),values.learning_goal??null,values.correction_mode??null,values.daily_target_minutes??null,values.reminders_enabled??null]
+  );
+  return {preferences:updated.rows[0]};
+ });
+
+ app.post("/api/v1/auth/me/consents",async(request,reply)=>{
+  const user=await authenticate(request);
+  if(!user)return unauthorized(reply,request.id);
+  const parsed=consentSchema.safeParse(request.body);
+  if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Provide a valid consent purpose and policy version.",request_id:request.id}});
+  const result=await pool.query(
+   "INSERT INTO consent_records(user_id,purpose,policy_version,granted,withdrawn_at) VALUES($1,$2,$3,$4,CASE WHEN $4 THEN NULL ELSE now() END) RETURNING id,purpose,policy_version,granted,captured_at,withdrawn_at",
+   [user.id,parsed.data.purpose,parsed.data.policy_version,parsed.data.granted]
+  );
+  return reply.code(201).send({consent:result.rows[0]});
+ });
+
+ app.post("/api/v1/auth/me/deletion-request",async(request,reply)=>{
+  const user=await authenticate(request);
+  if(!user)return unauthorized(reply,request.id);
+  const client=await pool.connect();
+  try{
+   await client.query("BEGIN");
+   await client.query("UPDATE users SET status='deletion_requested',updated_at=now() WHERE id=$1",[user.id]);
+   await client.query("UPDATE refresh_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL",[user.id]);
+   await client.query("COMMIT");
+   return reply.code(202).send({status:"deletion_requested",message:"Your account is disabled and a deletion request has been recorded. Final deletion processing is not yet automated."});
+  }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
  });
 
  app.get("/api/v1/auth/me",async(request,reply)=>{
