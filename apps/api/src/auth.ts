@@ -33,7 +33,7 @@ const consentSchema=z.object({
 });
 const ACCESS_TTL_SECONDS=15*60;
 const REFRESH_TTL_DAYS=30;
-type Account={id:string;email:string;display_name:string|null;locale:string;timezone:string;status:string};
+type Account={id:string;email:string;display_name:string|null;locale:string;timezone:string;status:string;email_verified_at:Date|null};
 type AccessClaims={sub:string;exp:number;iss:"gabenglish-api";aud:"gabenglish-app"};
 
 function digest(token:string){return createHash("sha256").update(token).digest("hex");}
@@ -74,7 +74,7 @@ function verifyAccess(token:string,secret:string,now=Math.floor(Date.now()/1000)
  }catch{return;}
 }
 function createRefreshToken(){return randomBytes(48).toString("base64url");}
-function safeUser(row:Account){return {id:row.id,email:row.email,display_name:row.display_name,locale:row.locale,timezone:row.timezone};}
+function safeUser(row:Account){return {id:row.id,email:row.email,email_verified:Boolean(row.email_verified_at),display_name:row.display_name,locale:row.locale,timezone:row.timezone};}
 function unauthorized(reply:any,requestId:string){return reply.code(401).send({error:{code:"UNAUTHORIZED",message:"Please sign in again to continue.",request_id:requestId}});}
 
 export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:AppConfig){
@@ -85,7 +85,7 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
   const claims=verifyAccess(header.slice(7),secret);
   if(!claims)return;
   const result=await pool.query<Account>(
-   "SELECT u.id,u.email,u.status,p.display_name,p.locale,p.timezone FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id WHERE u.id=$1 AND u.status='active' AND u.deleted_at IS NULL",
+   "SELECT u.id,u.email,u.status,u.email_verified_at,p.display_name,p.locale,p.timezone FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id WHERE u.id=$1 AND u.status='active' AND u.deleted_at IS NULL",
    [claims.sub]
   );
   return result.rows[0];
@@ -133,8 +133,8 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
    [emailDigest,ipDigest]
   );
   if((attempts.rows[0]?.email_count??0)>=10||(attempts.rows[0]?.ip_count??0)>=30)return reply.code(429).send({error:{code:"LOGIN_RATE_LIMITED",message:"Too many sign-in attempts. Please wait before trying again.",request_id:request.id,retry_after_seconds:900}});
-  const result=await pool.query<{id:string;email:string;password_hash:string|null;status:string}>(
-   "SELECT id,email,password_hash,status FROM users WHERE email_normalized=$1 AND deleted_at IS NULL",
+  const result=await pool.query<{id:string;email:string;password_hash:string|null;status:string;email_verified_at:Date|null}>(
+   "SELECT id,email,password_hash,status,email_verified_at FROM users WHERE email_normalized=$1 AND deleted_at IS NULL",
    [parsed.data.email.toLowerCase()]
   );
   const user=result.rows[0];
@@ -150,7 +150,7 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
    await client.query("UPDATE refresh_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL AND expires_at<=now()",[user.id]);
    const tokens=await issueTokens(client,user.id);
    await client.query("COMMIT");
-   return {user:{id:user.id,email:user.email},...tokens,email_verified:false};
+   return {user:{id:user.id,email:user.email,email_verified:Boolean(user.email_verified_at)},...tokens,email_verified:Boolean(user.email_verified_at)};
   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
  });
 
