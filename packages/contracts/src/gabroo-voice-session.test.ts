@@ -76,4 +76,12 @@ describe("Gabroo voice session state machine",()=>{
   expect(transitionGabrooVoiceSession("listening",{type:"fail"})).toBe("error");
   expect(transitionGabrooVoiceSession("speaking",{type:"fail"})).toBe("error");
  });
+
+ it("returns to permission-ready only after a stopped local capture is discarded",()=>{
+  const listening=transition("ready",{type:"begin_capture"});
+  const transcribing=transition(listening,{type:"capture_stopped"});
+  expect(transcribing).toBe("transcribing");
+  expect(transition(transcribing,{type:"capture_discarded"})).toBe("ready");
+  expect(()=>transition("listening",{type:"capture_discarded"})).toThrow("Invalid Gabroo voice transition");
+ });
 });
