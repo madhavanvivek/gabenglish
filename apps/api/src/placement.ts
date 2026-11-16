@@ -21,7 +21,6 @@ type Session={id:string;name?:string;style:string;language:string;turn:number;ba
 const sessions=new Map<string,Session>();
 function responseSignal(text:string){const words=text.trim().split(/\s+/).filter(Boolean);const clauses=(text.match(/[.!?;,]/g)||[]).length;const connectors=/\b(because|although|however|therefore|while|whereas|for example|if|when|since)\b/i.test(text);const past=/\b(yesterday|last|ago|was|were|did|went|had|visited|worked)\b/i.test(text);return {wordCount:words.length,clauses,connectors,past};}
 function chooseBand(session:Session){if(session.responses.length<2)return 1;const recent=session.responses.slice(-2).map(r=>responseSignal(r.text));const latest=recent.at(-1);if(!latest||latest.wordCount<8)return session.band;const avg=recent.reduce((n,x)=>n+x.wordCount,0)/recent.length;const advanced=recent.some(x=>x.connectors&&x.wordCount>=22);if(advanced&&avg>=25)return Math.min(5,session.band+1);if(avg>=16)return Math.min(4,Math.max(3,session.band+1));if(avg>=8)return Math.min(3,Math.max(2,session.band+1));return Math.max(1,Math.min(session.band,2));}
-function gabrooName(name?:string){return name?name.trim():"there";}
 export async function registerPlacementRoutes(app:FastifyInstance){
  app.post("/api/v1/placement/conversation/start",async(request,reply)=>{
   const parsed=placementSessionStartSchema.safeParse(request.body??{});
@@ -40,7 +39,10 @@ export async function registerPlacementRoutes(app:FastifyInstance){
   session.evidence.push(extractResponseEvidence(expected.id,parsed.data.turn.response,parsed.data.turn.response_mode==="voice"?"voice_transcript":"text"));
   session.turn+=1;
   const nextBand=chooseBand(session);session.band=nextBand;
-  const next=prompts.find(p=>p.band===nextBand&&p.id!==expected.id&& !session.responses.some(x=>x.prompt_id===p.id))??prompts.find(p=>!session.responses.some(x=>x.prompt_id===p.id));
+  const hasClarification=session.responses.some(x=>x.prompt_id==="clarify");
+  const latestSignal=responseSignal(parsed.data.turn.response);
+  const shouldClarify=latestSignal.wordCount<8&&!hasClarification&&session.responses.length<5;
+  const next=shouldClarify?prompts.find(p=>p.id==="clarify"):prompts.find(p=>p.band===nextBand&&p.id!==expected.id&&p.id!=="clarify"&&!session.responses.some(x=>x.prompt_id===p.id))??prompts.find(p=>p.id!=="clarify"&&!session.responses.some(x=>x.prompt_id===p.id));
   const complete=!next||session.responses.length>=6;
   if(complete){return {session_id:session.id,prompt_id:"complete",gabroo_message:"Thank you for sharing that with me. I have enough of an initial picture to prepare your learning recommendation. This is a preliminary conversation assessment; a fuller speaking assessment needs voice input.",difficulty_band:session.band,turn_number:session.turn+1,is_complete:true,evidence:session.evidence};}
   const selected=next!;session.currentPromptId=selected.id;
