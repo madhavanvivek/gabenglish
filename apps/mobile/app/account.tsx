@@ -38,7 +38,7 @@ export default function AccountScreen(){
  const signOut=async()=>{
   setBusy(true);setError("");setNotice("");
   try{await logoutLearner();setAccount(null);setNotice("You have been signed out.");}
-  catch(reason){setError(reason instanceof Error?reason.message:"Could not sign out.");}
+  catch(reason){setAccount(null);setError("Your tokens were cleared from this device, but server-side session revocation could not be confirmed. "+(reason instanceof Error?reason.message:"Please contact support if this continues."));}
   finally{setBusy(false);}
  };
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
