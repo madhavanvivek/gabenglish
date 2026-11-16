@@ -329,3 +329,18 @@ This is deliberately not exposed as a public route. Provider-specific signature 
 - Added an injectable provider-neutral `GabrooConversationProvider`. The API serializes each conversation turn and writes the learner message plus Gabroo response atomically after a valid provider response; failures do not leave a half-saved turn.
 - No AI provider/model is selected or configured. Without an injected provider, create/send return 503 and do not fabricate replies. There is no live Gabroo chat yet, no mobile chat UI, no voice, and no production fair-use/retention policy.
 - PostgreSQL integration coverage verifies anonymous rejection, free-account 403 gating, and that a free account cannot create a conversation row. Paid-provider turn persistence and cross-account read/delete need dedicated integration coverage before release.
+
+
+## Gabroo private learner memory implementation (16 November 2026)
+
+Implemented on `foundation/app-skeleton`:
+- PostgreSQL migration `0010_gabroo_learner_memory.sql` stores learner-owned goals, interests, saved phrases and learning notes.
+- Authenticated API supports list/create/edit/delete. All operations are scoped to the verified account.
+- Memory privacy controls remain available after subscription expiry; account deletion cascades saved memory.
+- Only learner-saved entries are currently accepted. No transcript auto-extraction, sensitive personal inference, or shared-curriculum promotion is implemented.
+- At most 20 recently updated saved entries are passed to the Gabroo provider as bounded structured context.
+
+Still required:
+- Learner-facing memory management UI with inspect/edit/delete and clear personalisation controls.
+- Explicit opt-out / clear-all flow and user education about how memory is used.
+- Provider integration and QA to validate that memory is used only as contextual assistance, not as an override of the learner's current request or teaching policy.
