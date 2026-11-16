@@ -197,11 +197,9 @@ export default function GabrooScreen(){
   setRecordingBusy(true);setSpeechNotice("");
   const uri=recording.getURI();
   recording.setOnRecordingStatusUpdate(null);
-  let stopped=false;
   let deleted=false;
   try{
    await recording.stopAndUnloadAsync();
-   stopped=true;
    recordingRef.current=null;
    setVoiceSessionState(current=>transitionGabrooVoiceSession(current,{type:"capture_stopped"}));
    if(uri){await FileSystem.deleteAsync(uri,{idempotent:true});deleted=true;}
