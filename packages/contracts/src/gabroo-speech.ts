@@ -34,6 +34,9 @@ export async function applyGabrooSpeechRate(
  return rate;
 }
 
+/** Maximum duration of the local-only microphone validation recording. */
+export const GABROO_LOCAL_CAPTURE_MAX_MS=15_000;
+
 /** Provider-independent lifecycle for a single consent-based voice session. */
 export const gabrooVoiceSessionStateSchema=z.enum([
  "idle","requesting_permission","ready","listening","transcribing",
