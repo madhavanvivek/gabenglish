@@ -12,7 +12,7 @@ export type LearnerAccount={
  id:string;email:string|null;email_verified:boolean;phone_verified:boolean;display_name:string|null;locale:string;timezone:string;
 };
 export type LearnerPreferences={
- support_language:"ml"|"en";learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed";daily_target_minutes:number;reminders_enabled:boolean;
+ support_language:"ml"|"en";learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed";daily_target_minutes:number;reminders_enabled:boolean;gabroo_speech_rate:number;
 };
 export type LearnerMe={user:LearnerAccount;preferences:LearnerPreferences|null};
 
