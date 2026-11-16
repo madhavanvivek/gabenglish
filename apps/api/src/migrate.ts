@@ -13,18 +13,21 @@ export async function runMigrations(pool:Pool,migrationsDirectory=DEFAULT_MIGRAT
  try{
   await client.query("SELECT pg_advisory_lock(hashtext($1))",[LOCK_KEY]);
   locked=true;
-  await client.query(\`CREATE TABLE IF NOT EXISTS schema_migrations(
-   version text PRIMARY KEY,
-   checksum text NOT NULL,
-   applied_at timestamptz NOT NULL DEFAULT now()
-  )\`);
+  const ledgerSql=[
+   "CREATE TABLE IF NOT EXISTS schema_migrations(",
+   "version text PRIMARY KEY,",
+   "checksum text NOT NULL,",
+   "applied_at timestamptz NOT NULL DEFAULT now()",
+   ")"
+  ].join("\n");
+  await client.query(ledgerSql);
   const files=(await readdir(migrationsDirectory)).filter(name=>/^\d+.*\.sql$/.test(name)).sort();
   for(const version of files){
    const sql=await readFile(join(migrationsDirectory,version),"utf8");
    const checksum=createHash("sha256").update(sql).digest("hex");
    const existing=await client.query<{checksum:string}>("SELECT checksum FROM schema_migrations WHERE version=$1",[version]);
    if(existing.rows[0]){
-    if(existing.rows[0].checksum!==checksum)throw new Error(\`Applied migration checksum mismatch: \${version}\`);
+    if(existing.rows[0].checksum!==checksum)throw new Error("Applied migration checksum mismatch: "+version);
     continue;
    }
    await client.query("BEGIN");
