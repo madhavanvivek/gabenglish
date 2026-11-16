@@ -1,4 +1,5 @@
 import {describe,it,expect} from "vitest";
+import {createHmac} from "node:crypto";
 import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
 import {isPlacementSessionExpired} from "./placement.js";
@@ -130,7 +131,7 @@ describe("Gabroo conversational placement",()=>{
   const start=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",payload:{preferred_language:"en"}});
   const payload={session_id:start.json().session_id,turn:{prompt_id:"intro",response:"My name is Anu and I live in Kozhikode."}};
   const first=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload});
-  const retry=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload});
+  const retry=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",headers,payload});
   expect(retry.statusCode).toBe(200);
   expect(retry.json()).toEqual(first.json());
   await app.close();
@@ -143,8 +144,9 @@ describe("Gabroo conversational placement",()=>{
   const selectBarrier=new Promise<void>(resolve=>{releaseSelects=resolve;});
   const fakePool={
    query:async(sql:string,params?:unknown[])=>{
+    if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"11111111-1111-4111-8111-111111111111",email:"test@example.test",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:null,locale:"ml-IN",timezone:"Asia/Kolkata"}]};
     if(sql.startsWith("INSERT INTO placement_sessions")){
-     stored={id:params?.[0],state:JSON.parse(String(params?.[1])),expires_at:Date.now()+30*60*1000};
+     stored={id:params?.[0],state:JSON.parse(String(params?.[2])),expires_at:Date.now()+30*60*1000};
      return {rows:[]};
     }
     if(sql.startsWith("SELECT state,expires_at<=now() AS expired FROM placement_sessions")){
@@ -163,12 +165,17 @@ describe("Gabroo conversational placement",()=>{
     return {rows:[]};
    }
   } as unknown as import("pg").Pool;
-  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false,fakePool);
-  const start=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",payload:{preferred_language:"en"}});
+  const config=loadConfig({NODE_ENV:"test"});
+  const claims={sub:"11111111-1111-4111-8111-111111111111",sid:"22222222-2222-4222-8222-222222222222",exp:Math.floor(Date.now()/1000)+900,iss:"gabenglish-api",aud:"gabenglish-app"};
+  const body=Buffer.from(JSON.stringify(claims)).toString("base64url");
+  const token=body+"."+createHmac("sha256",config.AUTH_TOKEN_SECRET).update(body).digest("base64url");
+  const headers={authorization:"Bearer "+token};
+  const app=await buildApp(config,async()=>false,fakePool);
+  const start=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",headers,payload:{preferred_language:"en"}});
   const payload={session_id:start.json().session_id,turn:{prompt_id:"intro",response:"My name is Anu and I live in Kozhikode."}};
   const concurrent=await Promise.all([
-   app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload}),
-   app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload})
+   app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",headers,payload}),
+   app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",headers,payload})
   ]);
   expect(concurrent.filter(item=>item.statusCode===200)).toHaveLength(1);
   expect(concurrent.filter(item=>item.statusCode===409)).toHaveLength(1);
