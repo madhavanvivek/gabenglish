@@ -1,7 +1,7 @@
-import {createHash,createHmac,randomBytes,scrypt as scryptCallback,timingSafeEqual} from "node:crypto";
+import {createHash,createHmac,randomBytes,randomInt,scrypt as scryptCallback,timingSafeEqual} from "node:crypto";
 import type {FastifyInstance,FastifyRequest} from "fastify";
 import type {Pool,PoolClient} from "pg";
-import {authRegisterRequestSchema as registerSchema,authLoginRequestSchema as loginSchema,authRefreshRequestSchema as refreshSchema,learnerProfilePatchSchema as profilePatchSchema,learnerPreferencesPatchSchema as preferencesPatchSchema,learnerConsentRequestSchema as consentSchema} from "@gabenglish/contracts";
+import {authRegisterRequestSchema as registerSchema,authLoginRequestSchema as loginSchema,authRefreshRequestSchema as refreshSchema,learnerProfilePatchSchema as profilePatchSchema,learnerPreferencesPatchSchema as preferencesPatchSchema,learnerConsentRequestSchema as consentSchema,otpRequestSchema,otpVerifySchema} from "@gabenglish/contracts";
 import type {AppConfig} from "./config.js";
 
 function deriveKey(password:string,salt:Buffer,length:number,options:{N:number;r:number;p:number;maxmem:number}){
@@ -9,7 +9,7 @@ function deriveKey(password:string,salt:Buffer,length:number,options:{N:number;r
 }
 const ACCESS_TTL_SECONDS=15*60;
 const REFRESH_TTL_DAYS=30;
-type Account={id:string;email:string;display_name:string|null;locale:string;timezone:string;status:string;email_verified_at:Date|null};
+type Account={id:string;email:string|null;display_name:string|null;locale:string;timezone:string;status:string;email_verified_at:Date|null};
 type AccessClaims={sub:string;sid:string;exp:number;iss:"gabenglish-api";aud:"gabenglish-app"};
 
 function digest(token:string){return createHash("sha256").update(token).digest("hex");}
@@ -53,7 +53,8 @@ function createRefreshToken(){return randomBytes(48).toString("base64url");}
 function safeUser(row:Account){return {id:row.id,email:row.email,email_verified:Boolean(row.email_verified_at),display_name:row.display_name,locale:row.locale,timezone:row.timezone};}
 function unauthorized(reply:any,requestId:string){return reply.code(401).send({error:{code:"UNAUTHORIZED",message:"Please sign in again to continue.",request_id:requestId}});}
 
-export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:AppConfig){
+export type OtpDeliveryAdapter={send(input:{channel:"email"|"phone";destination:string;code:string;expiresInSeconds:number}):Promise<boolean>};
+export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:AppConfig,otpDelivery?:OtpDeliveryAdapter){
  const secret=config.AUTH_TOKEN_SECRET;
  const authenticate=async(request:FastifyRequest):Promise<Account|undefined>=>{
   const header=request.headers.authorization;
@@ -76,7 +77,76 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
   return {access_token,refresh_token,token_type:"Bearer",expires_in:ACCESS_TTL_SECONDS};
  };
 
- app.post("/api/v1/auth/register",async(request,reply)=>{
+
+ // Passwordless B2C OTP flow. Delivery remains fail-closed until an email/SMS adapter is configured.
+ app.post("/api/v1/auth/otp/request",async(request,reply)=>{
+  const parsed=otpRequestSchema.safeParse(request.body);
+  if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Enter a valid email address or international phone number.",request_id:request.id}});
+  if(!otpDelivery)return reply.code(503).send({error:{code:"OTP_DELIVERY_UNAVAILABLE",message:"Verification is temporarily unavailable. Please try again later.",request_id:request.id}});
+  const channel=parsed.data.channel;
+  const destination=channel==="email"?parsed.data.destination.trim().toLowerCase():parsed.data.destination.trim();
+  const ipDigest=createHmac("sha256",secret).update("ip:"+request.ip).digest("hex");
+  const destinationDigest=createHmac("sha256",secret).update(channel+":"+destination).digest("hex");
+  const limits=await pool.query<{recent:number;hourly:number;ip_hourly:number}>(
+   "SELECT count(*) FILTER(WHERE created_at>now()-interval '60 seconds')::int AS recent,count(*) FILTER(WHERE created_at>now()-interval '1 hour')::int AS hourly,count(*) FILTER(WHERE request_ip_digest=$2 AND created_at>now()-interval '1 hour')::int AS ip_hourly FROM auth_otp_challenges WHERE channel=$1 AND destination_normalized=$3",
+   [channel,ipDigest,destination]
+  );
+  const counts=limits.rows[0]!;
+  if(counts.recent>0||counts.hourly>=5||counts.ip_hourly>=20)return reply.code(429).send({error:{code:"OTP_RATE_LIMITED",message:"Too many verification requests. Please wait before trying again.",request_id:request.id,retry_after_seconds:60}});
+  const code=String(randomInt(0,1000000)).padStart(6,"0");
+  const id=randomUUID();
+  const codeDigest=createHmac("sha256",secret).update("otp:"+id+":"+code).digest("hex");
+  await pool.query("INSERT INTO auth_otp_challenges(id,channel,destination_normalized,purpose,code_digest,request_ip_digest,expires_at) VALUES($1,$2,$3,'signup_signin',$4,$5,now()+interval '5 minutes')",[id,channel,destination,codeDigest,ipDigest]);
+  let sent=false;
+  try{sent=await otpDelivery.send({channel,destination,code,expiresInSeconds:300});}catch{sent=false;}
+  await pool.query("UPDATE auth_otp_challenges SET delivery_status=$2 WHERE id=$1",[id,sent?"sent":"failed"]);
+  if(!sent)return reply.code(503).send({error:{code:"OTP_DELIVERY_FAILED",message:"We could not send your verification code. Please try again later.",request_id:request.id}});
+  const masked=channel==="email"?destination.replace(/^(.{1,2}).*(@.*)$/,"$1•••$2"):destination.slice(0,-4).replace(/./g,"•")+destination.slice(-4);
+  return reply.code(202).send({challenge_id:id,channel,masked_destination:masked,expires_in_seconds:300,resend_after_seconds:60});
+ });
+
+ app.post("/api/v1/auth/otp/verify",async(request,reply)=>{
+  const parsed=otpVerifySchema.safeParse(request.body);
+  if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Enter the verification code sent to you.",request_id:request.id}});
+  const client=await pool.connect();
+  try{
+   await client.query("BEGIN");
+   const found=await client.query<{id:string;channel:"email"|"phone";destination_normalized:string;code_digest:string;attempts:number;max_attempts:number;delivery_status:string;expires_at:Date;consumed_at:Date|null}>(
+    "SELECT id,channel,destination_normalized,code_digest,attempts,max_attempts,delivery_status,expires_at,consumed_at FROM auth_otp_challenges WHERE id=$1 AND purpose='signup_signin' FOR UPDATE",[parsed.data.challenge_id]
+   );
+   const challenge=found.rows[0];
+   if(!challenge||challenge.consumed_at||challenge.delivery_status!=="sent"||new Date(challenge.expires_at).getTime()<=Date.now()||challenge.attempts>=challenge.max_attempts){
+    await client.query("ROLLBACK");
+    return reply.code(400).send({error:{code:"OTP_INVALID_OR_EXPIRED",message:"This verification code is invalid or has expired. Request a new code.",request_id:request.id}});
+   }
+   const supplied=createHmac("sha256",secret).update("otp:"+challenge.id+":"+parsed.data.code).digest();
+   const expected=Buffer.from(challenge.code_digest,"hex");
+   if(supplied.length!==expected.length||!timingSafeEqual(supplied,expected)){
+    await client.query("UPDATE auth_otp_challenges SET attempts=attempts+1 WHERE id=$1",[challenge.id]);
+    await client.query("COMMIT");
+    return reply.code(400).send({error:{code:"OTP_INVALID_OR_EXPIRED",message:"This verification code is invalid or has expired. Request a new code.",request_id:request.id}});
+   }
+   let user=challenge.channel==="email"
+    ?(await client.query<{id:string} & Record<string,unknown>>("SELECT id FROM users WHERE email_normalized=$1 AND deleted_at IS NULL FOR UPDATE",[challenge.destination_normalized])).rows[0]
+    :(await client.query<{id:string} & Record<string,unknown>>("SELECT id FROM users WHERE phone_e164=$1 AND deleted_at IS NULL FOR UPDATE",[challenge.destination_normalized])).rows[0];
+   if(!user){
+    const created=challenge.channel==="email"
+     ?await client.query<{id:string}>("INSERT INTO users(email,email_normalized,email_verified_at,status) VALUES($1,$1,now(),'active') RETURNING id",[challenge.destination_normalized])
+     :await client.query<{id:string}>("INSERT INTO users(phone_e164,phone_verified_at,status) VALUES($1,now(),'active') RETURNING id",[challenge.destination_normalized]);
+    user=created.rows[0]!;
+    await client.query("INSERT INTO user_profiles(user_id) VALUES($1)",[user.id]);
+    await client.query("INSERT INTO user_preferences(user_id) VALUES($1)",[user.id]);
+   }else{
+    await client.query(challenge.channel==="email"?"UPDATE users SET email_verified_at=COALESCE(email_verified_at,now()),status='active',updated_at=now() WHERE id=$1":"UPDATE users SET phone_verified_at=COALESCE(phone_verified_at,now()),status='active',updated_at=now() WHERE id=$1",[user.id]);
+   }
+   await client.query("UPDATE auth_otp_challenges SET consumed_at=now() WHERE id=$1",[challenge.id]);
+   const tokens=await issueTokens(client,user.id);
+   await client.query("COMMIT");
+   return {user:{id:user.id,verified_channel:challenge.channel},...tokens};
+  }catch(error){await client.query("ROLLBACK");if((error as {code?:string}).code==="23505")return reply.code(409).send({error:{code:"CONTACT_ALREADY_LINKED",message:"This contact is already linked to another account.",request_id:request.id}});throw error;}
+  finally{client.release();}
+ });
+\n app.post("/api/v1/auth/register",async(request,reply)=>{
   const parsed=registerSchema.safeParse(request.body);
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Enter a valid email, a password of at least 10 characters, and an optional display name.",request_id:request.id}});
   const email=parsed.data.email.toLowerCase();
