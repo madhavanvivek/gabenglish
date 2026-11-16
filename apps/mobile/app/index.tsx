@@ -10,11 +10,16 @@ export default function WelcomeScreen(){
  const [messages,setMessages]=useState<Message[]>([]),[name,setName]=useState("");
  const [sessionId,setSessionId]=useState<string|null>(null),[promptId,setPromptId]=useState<string|null>(null);
  const [turn,setTurn]=useState(0),[report,setReport]=useState<PlacementReport|null>(null),[explanation,setExplanation]=useState("");
- const [error,setError]=useState("");
+ const [error,setError]=useState(""),[sessionExpired,setSessionExpired]=useState(false);
  const complete=report!==null;
- const handleError=(reason:unknown)=>setError(reason instanceof PlacementApiError?reason.message:"Something went wrong. Please try again.");
+ const handleError=(reason:unknown)=>{
+  if(reason instanceof PlacementApiError&&(reason.status===410||(reason.status===404&&reason.message.toLowerCase().includes("session")))){
+   setSessionExpired(true);setError("This assessment session has expired or is no longer available. Start a new conversation to continue.");return;
+  }
+  setError(reason instanceof PlacementApiError?reason.message:"Something went wrong. Please try again.");
+ };
  const begin=async()=>{
-  setBusy(true);setError("");
+  setBusy(true);setError("");setSessionExpired(false);
   try{
    const result=await startPlacement({preferred_language:"ml",communication_style:"friendly_respectful",...(name.trim()?{display_name:name.trim()}:{})});
    setSessionId(result.session_id);setPromptId(result.prompt_id);setTurn(result.turn_number);
@@ -31,13 +36,13 @@ export default function WelcomeScreen(){
    if(result.is_complete&&result.report){setReport(result.report);setExplanation(result.gabroo_explanation??"");}
   }catch(reason){handleError(reason);}finally{setBusy(false);}
  };
- const restart=()=>{setStarted(false);setBusy(false);setAnswer("");setMessages([]);setName("");setSessionId(null);setPromptId(null);setTurn(0);setReport(null);setExplanation("");setError("");};
+ const restart=()=>{setStarted(false);setBusy(false);setAnswer("");setMessages([]);setName("");setSessionId(null);setPromptId(null);setTurn(0);setReport(null);setExplanation("");setError("");setSessionExpired(false);};
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
   <View style={s.header}><View style={s.logo}><Text style={s.logoText}>G</Text></View><Text style={s.brand}>Gabenglish</Text><Text style={s.kicker}>MEET YOUR ENGLISH BUDDY</Text></View>
   {!started&&<><View style={s.hero}><Text style={s.wave}>👋</Text><Text style={s.heroTitle}>Hi, I'm Gabroo!</Text><Text style={s.copy}>നമുക്ക് സംസാരിച്ച് നിന്റെ English skills മനസ്സിലാക്കാം. ഇത് പരീക്ഷയല്ല. നിനക്ക് അറിയാവുന്ന പോലെ സംസാരിച്ചാൽ മതി.</Text></View><Text style={s.label}>What should I call you? (optional)</Text><TextInput value={name} onChangeText={setName} placeholder="Your name" style={s.input} editable={!busy}/><View style={s.note}><Text style={s.noteText}>Gabroo will begin with a simple conversation and adapt the next question. This is a preliminary text assessment, not a formal exam. You can stop whenever you like.</Text></View><Pressable disabled={busy} style={[s.button,busy&&s.disabled]} onPress={begin}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Start conversation</Text>}</Pressable></>}
   {started&&!complete&&<><View style={s.row}><Text style={s.heading}>Your conversation with Gabroo</Text><Text style={s.muted}>Turn {turn}</Text></View><View style={s.track}><View style={[s.fill,{width:`${Math.min(94,turn*14)}%`}]} /></View>{messages.map((m,i)=><View key={i} style={[s.bubble,m.role==="learner"?s.learner:s.gabroo]}><Text style={s.speaker}>{m.role==="learner"?"YOU":"GABROO"}</Text><Text style={s.message}>{m.text}</Text></View>)}<Text style={s.label}>Your response</Text><TextInput multiline value={answer} onChangeText={setAnswer} placeholder="Type your answer in English. Malayalam is okay if you need help." style={[s.input,s.answer]} editable={!busy}/><Pressable disabled={!answer.trim()||busy} style={[s.button,(!answer.trim()||busy)&&s.disabled]} onPress={send}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Send answer</Text>}</Pressable><Text style={s.disclaimer}>Text assessment only. It cannot verify pronunciation or spoken fluency. Your answers are held in a temporary server session.</Text></>}
   {complete&&<><View style={s.hero}><Text style={s.wave}>🌟</Text><Text style={s.heroTitle}>Thank you{name.trim()?`, ${name.trim()}`:""}!</Text><Text style={s.copy}>നമ്മൾ സംസാരിച്ചതിന് നന്ദി. Here is what this first conversation can—and cannot—tell us.</Text></View><Text style={s.heading}>Your preliminary report</Text><View style={s.report}><Text style={s.reportBig}>Assessment: provisional</Text><Text style={s.copy}>Learning-stage recommendation: not available yet</Text><Text style={s.metric}>Responses received: {report.response_count}</Text><Text style={s.metric}>Longer samples: {report.extended_samples} · Brief samples: {report.brief_samples}</Text><Text style={s.section}>Observed response patterns</Text>{report.observed_patterns.length?report.observed_patterns.map((item,i)=><Text key={i} style={s.bullet}>• {item}</Text>):<Text style={s.copy}>No validated skill findings are available from this pilot.</Text>}<Text style={s.section}>Assessment limitations</Text>{report.limitations.map((item,i)=><Text key={i} style={s.bullet}>• {item}</Text>)}<Text style={s.section}>Suggested next steps</Text>{report.next_steps.map((item,i)=><Text key={i} style={s.bullet}>• {item}</Text>)}</View><View style={s.note}><Text style={s.speaker}>GABROO EXPLAINS</Text><Text style={s.message}>{explanation}</Text></View><Pressable style={s.button} onPress={restart}><Text style={s.buttonText}>Start again</Text></Pressable></>}
-  {error.length>0&&<View style={s.error}><Text style={s.errorTitle}>Couldn't continue</Text><Text style={s.errorText}>{error}</Text></View>}
+  {error.length>0&&<View style={s.error}><Text style={s.errorTitle}>Couldn't continue</Text><Text style={s.errorText}>{error}</Text>{sessionExpired&&<Pressable style={s.button} onPress={restart}><Text style={s.buttonText}>Start a new assessment</Text></Pressable>}</View>}
   <Text style={s.footer}>A little practice every day makes a difference.</Text>
  </ScrollView></SafeAreaView>;
 }
