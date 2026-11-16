@@ -219,6 +219,7 @@ These limitations must remain visible in README, release notes and handover repo
 ## 14. Detailed documentation index
 
 - Product requirements: `docs/product/PRODUCT_SPECIFICATION.md`
+- B2C freemium, OTP and subscription model: `docs/product/B2C_FREEMIUM_SUBSCRIPTION_MODEL.md`
 - UX and screen inventory: `docs/ux/UX_SPECIFICATION.md`
 - Android MVP flows: `docs/ux/ANDROID_MVP_FLOWS.md`
 - Gabroo character direction: `docs/brand/GABROO_CHARACTER_GUIDE.md`
