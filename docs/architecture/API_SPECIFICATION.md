@@ -44,3 +44,24 @@ Request fields: session_id; input.type (text or audio reference); input.text whe
 
 ## 11. Required next contracts
 OpenAPI 3.x; request/response schemas; auth and role matrix; error catalogue; pagination/filter conventions; rate limits; idempotency; contract tests and generated-client strategy.
+
+
+## 12. Implemented placement conversation pilot (foundation branch)
+
+The current Fastify service exposes these prototype routes:
+- `POST /api/v1/placement/conversation/start` — validates preferred support language, optional display name and communication style; creates an ephemeral session and returns the first prompt.
+- `POST /api/v1/placement/conversation/respond` — validates session ID and prompt/turn order; accepts a text response and returns the next prototype prompt or completion state.
+- Legacy pilot routes remain: `GET /api/v1/placement/questions` and `POST /api/v1/placement/score`. These are fixed multiple-choice pilot endpoints and are not the intended primary placement experience.
+
+**Prototype limitations:** conversation sessions are held in process memory; prompt content is predefined; adaptation uses a simple heuristic; the mobile prototype is not yet connected to these routes; there is no persistent assessment history, validated rubric, detailed learner report, or personalised Gabroo voice explanation. The endpoints are not a production assessment contract.
+
+Before production, replace or version this pilot with an OpenAPI-reviewed contract that supports:
+- authenticated or privacy-reviewed anonymous sessions, expiry, explicit completion/abandonment and safe resume policy;
+- response mode, consent reference and transcript confidence for voice submissions;
+- prompt/evidence identifiers and skill/difficulty metadata without leaking answer keys or internal evaluation prompts;
+- evidence-based skill findings with confidence, coverage and "not assessed" states;
+- a separate report resource and Gabroo explanation resource (text plus optional audio asset);
+- learner stage selection/override and recommendation acknowledgement;
+- idempotency, rate limits, ownership checks, retention/deletion and audit events.
+
+Do not expose a learner-facing numeric score until the rubric has been calibrated and approved.
