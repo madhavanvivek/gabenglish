@@ -209,3 +209,12 @@ The policy includes the five approved learner-stage guidance profiles. Until a l
 The address policy requires the learner's explicitly selected name or respectful neutral language. It prohibits default overfamiliar forms such as “eda/edi” and prohibits inferring consent to slang from age, gender or writing style.
 
 This is a deterministic policy foundation, not a live AI integration. The conversation API now loads the authenticated learner's display name, learning goal and profile correction preference from their own profile/preferences and passes only those bounded fields into the policy context. A validated learning stage is not yet available: the current free diagnostic report intentionally makes no stage recommendation, so the policy continues to mark stage as unknown rather than infer one. The selected conversation mode remains authoritative for the current turn; profile correction preference is contextual until a learner explicitly chooses a mode. Provider adapters must treat policy and learner profile fields as separate trusted context, never allow learner text to override policy, and honour the request abort signal.
+
+
+## 16. Learner-controlled private memory foundation (16 November 2026)
+
+The API now provides a learner-owned private memory store with four intentionally narrow categories: goals, interests, saved phrases and learning notes. A learner can list, create, edit and delete entries. Each entry is scoped to the authenticated account; another account cannot read, update or delete it. These privacy controls remain available after paid access expires.
+
+Only learner-saved entries enter this store in the current implementation. The system does not automatically extract facts from transcripts, infer sensitive personal attributes, or promote conversation content into shared curriculum. The provider receives at most the 20 most recently updated saved entries as bounded structured context. This context is separate from the current conversation history and from the shared lesson library.
+
+The current API foundation is not yet a complete learner-facing memory-management screen. The next UI pass must make review, editing and deletion discoverable, explain what is remembered, and provide a clear way to disable or clear personalisation. Account deletion cascades the memory records. No raw transcript or hidden model reasoning is stored as memory.
