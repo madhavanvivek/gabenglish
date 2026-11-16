@@ -8,8 +8,9 @@ import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
 export type GabrooConversationMode="free_flow"|"gentle_correction"|"detailed_correction"|"topic_practice"|"role_play"|"vocabulary_building"|"confidence_practice";
 export type GabrooMessage={role:"user"|"assistant";content:string};
 export type GabrooConversationProvider={
-  reply(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";history:GabrooMessage[]}):Promise<{content:string}>;
+  reply(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";history:GabrooMessage[];signal:AbortSignal}):Promise<{content:string}>;
 };
+const PROVIDER_TIMEOUT_MS=15_000;
 const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
 const createSchema=z.object({title:z.string().trim().min(1).max(120).optional(),mode:z.enum(modes).default("gentle_correction"),support_language:z.enum(["ml","en"]).default("ml")}).strict();
 const sendSchema=z.object({message:z.string().trim().min(1).max(12000)}).strict();
@@ -81,7 +82,20 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
    if(conversation.status!=="open"){await client.query("ROLLBACK");return error(reply,request.id,409,"CONVERSATION_CLOSED","This conversation is closed.");}
    const existing=await client.query<{role:"user"|"assistant";content:string}>("SELECT role,content FROM gabroo_conversation_messages WHERE conversation_id=$1 ORDER BY sequence_number DESC LIMIT 20",[conversation.id]);
    const history=[...existing.rows].reverse();
-   const response=await provider.reply({mode:conversation.mode,supportLanguage:conversation.support_language,history:[...history,{role:"user",content:parsedBody.data.message}]});
+   const controller=new AbortController();
+   let timeout:ReturnType<typeof setTimeout>|undefined;
+   let response:{content:string};
+   try{
+    const timedOut=new Promise<never>((_,reject)=>{
+     timeout=setTimeout(()=>{controller.abort();reject(new Error("Gabroo provider timed out"));},PROVIDER_TIMEOUT_MS);
+    });
+    response=await Promise.race([
+     provider.reply({mode:conversation.mode,supportLanguage:conversation.support_language,history:[...history,{role:"user",content:parsedBody.data.message}],signal:controller.signal}),
+     timedOut
+    ]);
+   }finally{
+    if(timeout)clearTimeout(timeout);
+   }
    const answer=typeof response?.content==="string"?response.content.trim():"";
    if(!answer||answer.length>12000)throw new Error("Gabroo provider returned an invalid response");
    const userSequence=conversation.turn_count*2+1;
