@@ -75,7 +75,7 @@ export async function verifyLearnerOtp(input:{challenge_id:string;code:string}){
  return {tokens,payload};
 }
 export async function requestContactOtp(input:{channel:"email"|"phone";destination:string}){
- return await authorized("POST" as never,"/api/v1/auth/contacts/otp/request","POST" as never,input) as OtpChallenge;
+ return await authorized("/api/v1/auth/contacts/otp/request","POST",input) as OtpChallenge;
 }
 export async function registerLearner(input:{email:string;password:string;display_name?:string}){
  const payload=await post("/api/v1/auth/register",input);
@@ -87,7 +87,7 @@ export async function loginLearner(input:{email:string;password:string}){
  const tokens=await saveTokens(payload);
  return {tokens,email_verified:Boolean(payload.email_verified)};
 }
-async function authorized(path:string,method:"GET"|"PATCH",body?:unknown):Promise<unknown>{
+async function authorized(path:string,method:"GET"|"POST"|"PATCH",body?:unknown):Promise<unknown>{
  let access=await SecureStore.getItemAsync(ACCESS_KEY);
  if(!access){await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);}
  const send=()=>fetch(baseUrl()+path,{method,headers:{"content-type":"application/json",accept:"application/json",authorization:"Bearer "+access},...(body===undefined?{}:{body:JSON.stringify(body)})});
