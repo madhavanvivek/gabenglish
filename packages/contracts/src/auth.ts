@@ -38,7 +38,8 @@ export const learnerPreferencesPatchSchema=z.object({
  learning_goal:z.string().trim().max(200).nullable().optional(),
  correction_mode:z.enum(["gentle","balanced","detailed"]).optional(),
  daily_target_minutes:z.number().int().min(1).max(240).optional(),
- reminders_enabled:z.boolean().optional()
+ reminders_enabled:z.boolean().optional(),
+ gabroo_speech_rate:z.number().min(0.75).max(1.5).optional()
 }).refine(value=>Object.keys(value).length>0);
 export type LearnerPreferencesPatch=z.infer<typeof learnerPreferencesPatchSchema>;
 
