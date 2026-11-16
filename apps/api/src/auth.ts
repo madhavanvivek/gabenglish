@@ -1,4 +1,4 @@
-import {createHash,createHmac,randomBytes,randomInt,scrypt as scryptCallback,timingSafeEqual} from "node:crypto";
+import {createHash,createHmac,randomBytes,randomInt,randomUUID,scrypt as scryptCallback,timingSafeEqual} from "node:crypto";
 import type {FastifyInstance,FastifyRequest} from "fastify";
 import type {Pool,PoolClient} from "pg";
 import {authRegisterRequestSchema as registerSchema,authLoginRequestSchema as loginSchema,authRefreshRequestSchema as refreshSchema,learnerProfilePatchSchema as profilePatchSchema,learnerPreferencesPatchSchema as preferencesPatchSchema,learnerConsentRequestSchema as consentSchema,otpRequestSchema,otpVerifySchema} from "@gabenglish/contracts";
