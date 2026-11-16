@@ -1,0 +1,74 @@
+# Gabenglish Product Specification
+
+Version 1.0 — Phase 0 baseline; review required.
+
+## 1. Vision
+Gabenglish helps Malayalam-speaking learners build practical English communication skills through structured learning and an AI tutor who explains patiently in natural Kerala Malayalam, then gradually shifts learners towards English-first communication.
+
+**Promise:** Learn English in Malayalam. Build confidence. Gradually think and speak in English.
+
+It should feel like learning with a witty, supportive friend—not conventional tuition and not an unstructured chatbot.
+
+## 2. Initial audience
+- Malayalam-speaking learners in Kerala and India.
+- Beginners with limited spoken-English confidence.
+- Learners who know some grammar but hesitate to speak.
+- Students and early-career professionals.
+- Adults seeking practical social, workplace and interview communication.
+
+Additional Indian languages are future scope, after Malayalam quality is proven.
+
+## 3. Product principles
+1. Confidence and useful communication matter as much as grammar.
+2. Start with the learner's strongest support language and reduce assistance progressively.
+3. Explain natural English, not mechanical word-for-word translations.
+4. Accept valid alternative answers.
+5. Separate grammar correctness from naturalness and register.
+6. Correct constructively; do not interrupt every utterance by default.
+7. Adapt to demonstrated proficiency, not lesson count alone.
+8. Allow Malayalam explanations at every stage.
+9. Make practice entertaining without sacrificing accuracy.
+10. Measure learning improvement, not only time spent.
+
+## 4. Gabroo behaviour — locked
+Male voice direction; funny, energetic and friendly. Natural Kerala Malayalam with casual slang. Humour is playful and gently teasing, never insulting, humiliating or discouraging. Gabroo is talkative, witty, patient and encouraging; understands Malayalam-English code-switching; uses relatable examples; and gradually shifts language mix as proficiency improves.
+
+Physical design is not approved. Explore kid-style, bigger/adult-style and ageless stylised concepts. Select one canonical identity and document it before final 3D production.
+
+## 5. Five learning stages
+### Stage 1 — Malayalam Mode
+Malayalam-led explanations; English words, meanings and pronunciation; basic sentence construction, greetings, questions and everyday expressions; short supported speaking attempts. Illustrative balance 90% Malayalam support / 10% English.
+
+### Stage 2 — Malayalam + English Mix
+Malayalam explanations with more English examples; everyday sentence patterns, tense basics, questions and negatives; natural translation; short answers and guided conversation. Illustrative balance 65/35.
+
+### Stage 3 — English Practice Mode
+Mostly English interaction with Malayalam support on demand; longer sentences, storytelling, listening comprehension, roleplay and feedback. Illustrative balance 35/65.
+
+### Stage 4 — English Immersion
+English-first social and workplace communication; opinions, interviews, idioms, phrasal verbs and spontaneous speaking. Illustrative balance 10/90.
+
+### Stage 5 — Expert Communication
+Spontaneous conversation, presentations, professional communication, debate, persuasion, nuance, register and advanced expression. English-first with Malayalam explanations available on request.
+
+Ratios are guidance, not rigid quotas. Advancement requires evidence across relevant skills and a confidence check; lesson count or a single quiz is insufficient.
+
+## 6. Core modules
+Onboarding and placement; personalised path; Grammar Academy; Malayalam-to-English translation; Vocabulary Builder and spaced revision; Listening Academy; Pronunciation Coach; AI Speaking Tutor; real-life scenarios; daily challenges; progress analytics and recommendations.
+
+## 7. Speaking tutor
+Support free and guided conversation, roleplay (introductions, shopping, travel, office, customer interactions, meetings and interviews), transcript/replay, learner-controlled correction, corrected sentences, natural alternatives, Malayalam explanations and adaptive difficulty.
+
+Feedback distinguishes grammar error, vocabulary issue, understandability, unnatural but valid phrasing and register mismatch. Do not overstate pronunciation precision without validation.
+
+## 8. Progress model
+Track grammar, vocabulary, listening, sentence construction, speaking fluency, pronunciation/intelligibility and confidence/participation separately. Explain scores and their evidence. Do not represent internal estimates as formal certification.
+
+## 9. Monetisation
+Freemium direction; final prices and limits require willingness-to-pay and AI-cost validation. Potential tiers: Free (core lessons and limited AI practice), Premium (full curriculum and more speaking/feedback), Advanced (extended roleplay, interview preparation and professional English). Support regional pricing, monthly/yearly plans, trials, promotions, cancellation and entitlement enforcement.
+
+## 10. Initial Android public-release scope
+Registration/profile, placement assessment, personalised beginner-to-intermediate path, grammar, vocabulary, translation, listening, AI speaking, validated pronunciation feedback, progress dashboard, daily challenges, subscription and content administration. iOS reuses shared mobile code after Android validation.
+
+## 11. Phase 0 exclusions
+Full lesson production, public launch, final price commitments, unvalidated fluency/accent claims, additional Indian languages before Malayalam validation, and final Gabroo physical design before concept approval.
