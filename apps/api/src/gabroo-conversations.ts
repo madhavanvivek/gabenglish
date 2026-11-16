@@ -74,45 +74,91 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);if(!entitlement)return error(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to chat with Gabroo.");
   if(!provider)return error(reply,request.id,503,"GABROO_PROVIDER_UNAVAILABLE","Gabroo conversations are not available yet. No message was saved.");
   const client:PoolClient=await pool.connect();
+  let snapshot:{id:string;mode:GabrooConversationMode;support_language:"ml"|"en";status:string;turn_count:number}|undefined;
+  let history:GabrooMessage[]=[];
+  let learnerProfile:{display_name:string|null;learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed"}|undefined;
+  let savedMemory:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>=[];
   try{
    await client.query("BEGIN");
    const found=await client.query<{id:string;mode:GabrooConversationMode;support_language:"ml"|"en";status:string;turn_count:number}>(
     "SELECT id,mode,support_language,status,turn_count FROM gabroo_conversations WHERE id=$1 AND user_id=$2 FOR UPDATE",[parsedId.data,learner.id]);
-   const conversation=found.rows[0];
-   if(!conversation){await client.query("ROLLBACK");return error(reply,request.id,404,"CONVERSATION_NOT_FOUND","This conversation is not available.");}
-   if(conversation.status!=="open"){await client.query("ROLLBACK");return error(reply,request.id,409,"CONVERSATION_CLOSED","This conversation is closed.");}
+   snapshot=found.rows[0];
+   if(!snapshot){await client.query("ROLLBACK");return error(reply,request.id,404,"CONVERSATION_NOT_FOUND","This conversation is not available.");}
+   if(snapshot.status!=="open"){await client.query("ROLLBACK");return error(reply,request.id,409,"CONVERSATION_CLOSED","This conversation is closed.");}
    const profile=await client.query<{display_name:string|null;learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed"}>(
     "SELECT p.display_name,up.learning_goal,up.correction_mode FROM user_profiles p JOIN user_preferences up ON up.user_id=p.user_id WHERE p.user_id=$1",[learner.id]);
-   const learnerProfile=profile.rows[0];
-   const savedMemory=await client.query<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>(
+   learnerProfile=profile.rows[0];
+   const memory=await client.query<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>(
     "SELECT category,memory_key,content FROM gabroo_learner_memory WHERE user_id=$1 ORDER BY updated_at DESC LIMIT 20",[learner.id]);
-   const existing=await client.query<{role:"user"|"assistant";content:string}>("SELECT role,content FROM gabroo_conversation_messages WHERE conversation_id=$1 ORDER BY sequence_number DESC LIMIT 20",[conversation.id]);
-   const history=[...existing.rows].reverse();
-   const controller=new AbortController();
-   let timeout:ReturnType<typeof setTimeout>|undefined;
-   let response:{content:string};
-   try{
-    const timedOut=new Promise<never>((_,reject)=>{
-     timeout=setTimeout(()=>{controller.abort();reject(new Error("Gabroo provider timed out"));},PROVIDER_TIMEOUT_MS);
-    });
-    response=await Promise.race([
-     provider.reply({mode:conversation.mode,supportLanguage:conversation.support_language,history:[...history,{role:"user",content:parsedBody.data.message}],signal:controller.signal,teachingPolicy:buildGabrooTeachingPolicy({mode:conversation.mode,supportLanguage:conversation.support_language,preferredName:learnerProfile?.display_name,learningGoal:learnerProfile?.learning_goal,profileCorrectionPreference:learnerProfile?.correction_mode,learnerMemory:savedMemory.rows.map(item=>({category:item.category,memoryKey:item.memory_key,content:item.content}))})}),
-     timedOut
-    ]);
-   }finally{
-    if(timeout)clearTimeout(timeout);
-   }
-   const answer=typeof response?.content==="string"?response.content.trim():"";
-   if(!answer||answer.length>12000)throw new Error("Gabroo provider returned an invalid response");
-   const userSequence=conversation.turn_count*2+1;
-   const assistantSequence=userSequence+1;
-   const inserted=await client.query(
-    "INSERT INTO gabroo_conversation_messages(conversation_id,sequence_number,role,content) VALUES($1,$2,'user',$3),($1,$4,'assistant',$5) RETURNING id,sequence_number,role,content,created_at",
-    [conversation.id,userSequence,parsedBody.data.message,assistantSequence,answer]);
-   await client.query("UPDATE gabroo_conversations SET turn_count=turn_count+1,updated_at=now() WHERE id=$1",[conversation.id]);
+   savedMemory=memory.rows;
+   const existing=await client.query<{role:"user"|"assistant";content:string}>(
+    "SELECT role,content FROM gabroo_conversation_messages WHERE conversation_id=$1 ORDER BY sequence_number DESC LIMIT 20",[snapshot.id]);
+   history=[...existing.rows].reverse();
    await client.query("COMMIT");
+  }catch(e){
+   await client.query("ROLLBACK").catch(()=>undefined);
+   request.log.error({request_id:request.id},"Gabroo conversation context load failed");
+   return error(reply,request.id,503,"GABROO_REPLY_UNAVAILABLE","Gabroo could not load this conversation just now. Please try again.");
+  }finally{
+   client.release();
+  }
+  const controller=new AbortController();
+  let timeout:ReturnType<typeof setTimeout>|undefined;
+  let response:{content:string};
+  try{
+   const timedOut=new Promise<never>((_,reject)=>{
+    timeout=setTimeout(()=>{controller.abort();reject(new Error("Gabroo provider timed out"));},PROVIDER_TIMEOUT_MS);
+   });
+   response=await Promise.race([
+    provider.reply({
+     mode:snapshot!.mode,
+     supportLanguage:snapshot!.support_language,
+     history:[...history,{role:"user",content:parsedBody.data.message}],
+     signal:controller.signal,
+     teachingPolicy:buildGabrooTeachingPolicy({
+      mode:snapshot!.mode,
+      supportLanguage:snapshot!.support_language,
+      preferredName:learnerProfile?.display_name,
+      learningGoal:learnerProfile?.learning_goal,
+      profileCorrectionPreference:learnerProfile?.correction_mode,
+      learnerMemory:savedMemory.map(item=>({category:item.category,memoryKey:item.memory_key,content:item.content}))
+     })
+    }),
+    timedOut
+   ]);
+  }catch(e){
+   request.log.error({request_id:request.id},"Gabroo conversation provider request failed");
+   return error(reply,request.id,503,"GABROO_REPLY_UNAVAILABLE","Gabroo could not respond just now. Your message was not saved; please try again.");
+  }finally{
+   if(timeout)clearTimeout(timeout);
+  }
+  const answer=typeof response?.content==="string"?response.content.trim():"";
+  if(!answer||answer.length>12000)return error(reply,request.id,503,"GABROO_REPLY_UNAVAILABLE","Gabroo returned an invalid response. Your message was not saved.");
+  const writeClient:PoolClient=await pool.connect();
+  try{
+   await writeClient.query("BEGIN");
+   const current=await writeClient.query<{status:string;turn_count:number}>(
+    "SELECT status,turn_count FROM gabroo_conversations WHERE id=$1 AND user_id=$2 FOR UPDATE",[parsedId.data,learner.id]);
+   const latest=current.rows[0];
+   if(!latest){await writeClient.query("ROLLBACK");return error(reply,request.id,404,"CONVERSATION_NOT_FOUND","This conversation is not available.");}
+   if(latest.status!=="open"){await writeClient.query("ROLLBACK");return error(reply,request.id,409,"CONVERSATION_CLOSED","This conversation was closed while Gabroo was responding.");}
+   if(latest.turn_count!==snapshot!.turn_count){await writeClient.query("ROLLBACK");return error(reply,request.id,409,"CONVERSATION_UPDATED_RETRY","A newer message was saved first. Please reload the conversation and try again.");}
+   const active=await writeClient.query("SELECT user_id FROM active_subscription_entitlements WHERE user_id=$1",[learner.id]);
+   if(!active.rows[0]){await writeClient.query("ROLLBACK");return error(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","Your Gabroo subscription is no longer active. Your conversation remains saved.");}
+   const userSequence=latest.turn_count*2+1;
+   const assistantSequence=userSequence+1;
+   const inserted=await writeClient.query(
+    "INSERT INTO gabroo_conversation_messages(conversation_id,sequence_number,role,content) VALUES($1,$2,'user',$3),($1,$4,'assistant',$5) RETURNING id,sequence_number,role,content,created_at",
+    [parsedId.data,userSequence,parsedBody.data.message,assistantSequence,answer]);
+   await writeClient.query("UPDATE gabroo_conversations SET turn_count=turn_count+1,updated_at=now() WHERE id=$1",[parsedId.data]);
+   await writeClient.query("COMMIT");
    return {messages:inserted.rows};
-  }catch(e){await client.query("ROLLBACK").catch(()=>undefined);request.log.error({request_id:request.id},"Gabroo conversation provider request failed");return error(reply,request.id,503,"GABROO_REPLY_UNAVAILABLE","Gabroo could not respond just now. Your message was not saved; please try again.");}
-  finally{client.release();}
+  }catch(e){
+   await writeClient.query("ROLLBACK").catch(()=>undefined);
+   request.log.error({request_id:request.id},"Gabroo conversation save failed");
+   return error(reply,request.id,503,"GABROO_REPLY_UNAVAILABLE","Gabroo could not save this reply. Your message was not saved; please try again.");
+  }finally{
+   writeClient.release();
+  }
  });
 }
