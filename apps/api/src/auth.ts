@@ -152,7 +152,7 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
   }catch(error){await client.query("ROLLBACK");if((error as {code?:string}).code==="23505")return reply.code(409).send({error:{code:"CONTACT_ALREADY_LINKED",message:"This contact is already linked to another account.",request_id:request.id}});throw error;}
   finally{client.release();}
  });
-\n app.post("/api/v1/auth/register",async(request,reply)=>{
+ app.post("/api/v1/auth/register",async(request,reply)=>{
   const parsed=registerSchema.safeParse(request.body);
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Enter a valid email, a password of at least 10 characters, and an optional display name.",request_id:request.id}});
   const email=parsed.data.email.toLowerCase();
