@@ -10,7 +10,7 @@ function deriveKey(password:string,salt:Buffer,length:number,options:{N:number;r
 const ACCESS_TTL_SECONDS=15*60;
 const REFRESH_TTL_DAYS=30;
 type Account={id:string;email:string;display_name:string|null;locale:string;timezone:string;status:string;email_verified_at:Date|null};
-type AccessClaims={sub:string;exp:number;iss:"gabenglish-api";aud:"gabenglish-app"};
+type AccessClaims={sub:string;sid:string;exp:number;iss:"gabenglish-api";aud:"gabenglish-app"};
 
 function digest(token:string){return createHash("sha256").update(token).digest("hex");}
 async function hashPassword(password:string){
@@ -30,8 +30,8 @@ async function verifyPassword(password:string,encoded:string){
   return expected.length===actual.length&&timingSafeEqual(expected,actual);
  }catch{return false;}
 }
-function signAccess(userId:string,secret:string,now=Math.floor(Date.now()/1000)){
- const claims:AccessClaims={sub:userId,exp:now+ACCESS_TTL_SECONDS,iss:"gabenglish-api",aud:"gabenglish-app"};
+function signAccess(userId:string,sessionId:string,secret:string,now=Math.floor(Date.now()/1000)){
+ const claims:AccessClaims={sub:userId,sid:sessionId,exp:now+ACCESS_TTL_SECONDS,iss:"gabenglish-api",aud:"gabenglish-app"};
  const payload=Buffer.from(JSON.stringify(claims)).toString("base64url");
  const signature=createHmac("sha256",secret).update(payload).digest("base64url");
  return payload+"."+signature;
@@ -45,7 +45,7 @@ function verifyAccess(token:string,secret:string,now=Math.floor(Date.now()/1000)
  if(expected.length!==supplied.length||!timingSafeEqual(expected,supplied))return;
  try{
   const claims=JSON.parse(Buffer.from(parts[0]!,"base64url").toString("utf8")) as AccessClaims;
-  if(typeof claims.sub!=="string"||!claims.sub||!Number.isInteger(claims.exp)||claims.exp<=now||claims.iss!=="gabenglish-api"||claims.aud!=="gabenglish-app")return;
+  if(typeof claims.sub!=="string"||!claims.sub||typeof claims.sid!=="string"||!claims.sid||!Number.isInteger(claims.exp)||claims.exp<=now||claims.iss!=="gabenglish-api"||claims.aud!=="gabenglish-app")return;
   return claims;
  }catch{return;}
 }
@@ -61,15 +61,18 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
   const claims=verifyAccess(header.slice(7),secret);
   if(!claims)return;
   const result=await pool.query<Account>(
-   "SELECT u.id,u.email,u.status,u.email_verified_at,p.display_name,p.locale,p.timezone FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id WHERE u.id=$1 AND u.status='active' AND u.deleted_at IS NULL",
-   [claims.sub]
+   "SELECT u.id,u.email,u.status,u.email_verified_at,p.display_name,p.locale,p.timezone FROM users u JOIN refresh_sessions s ON s.user_id=u.id AND s.id=$2 AND s.revoked_at IS NULL AND s.expires_at>now() LEFT JOIN user_profiles p ON p.user_id=u.id WHERE u.id=$1 AND u.status='active' AND u.deleted_at IS NULL",
+   [claims.sub,claims.sid]
   );
   return result.rows[0];
  };
  const issueTokens=async(client:PoolClient,userId:string)=>{
-  const access_token=signAccess(userId,secret);
   const refresh_token=createRefreshToken();
-  await client.query("INSERT INTO refresh_sessions(user_id,token_hash,expires_at) VALUES($1,$2,now()+($3||' days')::interval)",[userId,digest(refresh_token),String(REFRESH_TTL_DAYS)]);
+  const created=await client.query<{id:string}>(
+   "INSERT INTO refresh_sessions(user_id,token_hash,expires_at) VALUES($1,$2,now()+($3||' days')::interval) RETURNING id",
+   [userId,digest(refresh_token),String(REFRESH_TTL_DAYS)]
+  );
+  const access_token=signAccess(userId,created.rows[0]!.id,secret);
   return {access_token,refresh_token,token_type:"Bearer",expires_in:ACCESS_TTL_SECONDS};
  };
 
