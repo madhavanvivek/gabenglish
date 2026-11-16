@@ -185,3 +185,17 @@ The paid product includes an open-conversation mode as a first-class use case, n
 Conversation mode is a teaching-policy input: `free_flow`, `gentle_correction`, or `detailed_correction`. Topic-practice, role-play, vocabulary-building and confidence-practice are activity intents. In free-flow mode, preserve conversational rhythm and defer minor corrections; in detailed mode, give focused explanations and retries. All modes retain the stage, support-language, age and communication-policy constraints.
 
 Use private, compact learner memory for explicitly saved interests/phrases and repeated learning evidence. Never promote private conversation content to the shared curriculum automatically. Every conversation request must verify learner ownership and active subscription entitlement on the server. The full product and fair-use requirements are in `docs/product/DAILY_ENGAGEMENT_AND_OPEN_CONVERSATION.md`.
+
+## 15. Progressive challenge and contextual doubt resolution
+
+Gabroo's language-generation policy must use **comprehensible stretch**, not a rigid single-level ceiling. The learner's current stage establishes the default comfort range; it does not prohibit exposure to the next stage.
+
+For each turn, the orchestrator should choose response difficulty using the learner's current stage, demonstrated comprehension, recent successful use, confusion and clarification requests, topic familiarity, selected conversation mode, and explicit requests to simplify or increase challenge.
+
+Keep most of the response accessible, then introduce one manageable stretch element where appropriate (for example, a useful phrase, a richer sentence, a new word in context or a more nuanced question). Do not stack several unfamiliar concepts in one turn. Do not treat stage as a permanent ceiling or infer mastery from a single successful response.
+
+When the learner interrupts with a doubt, resolve it before continuing the previous thread. Address the exact question, use a stage-appropriate explanation and Malayalam support as needed, give a concise example, then offer a natural bridge back to the conversation. Preserve the original topic and pending question so the learner does not have to repeat themselves.
+
+Suggested orchestrator intents/actions include `clarify_word_or_phrase`, `explain_grammar_in_context`, `explain_meaning_or_register`, `simplify_previous_response`, `model_pronunciation_from_audio` (only when valid audio evidence exists), and `resume_conversation`. These are teaching intents, not separate paid products.
+
+Measure whether learners understood or reused the stretch expression; do not optimise for how often advanced language is inserted. Learners can request a simpler explanation or more challenge at any time.
