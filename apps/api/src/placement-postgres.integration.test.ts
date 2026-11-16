@@ -66,6 +66,8 @@ integration("PostgreSQL placement session integration",()=>{
    const me=await app.inject({method:"GET",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+login.json().access_token}});
    expect(me.statusCode).toBe(200);
    expect(me.json().user.display_name).toBe("Anu");
+   const secondLogin=await app.inject({method:"POST",url:"/api/v1/auth/login",payload:{email,password}});
+   expect(secondLogin.statusCode).toBe(200);
    const profile=await app.inject({method:"PATCH",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+login.json().access_token},payload:{display_name:"Anu K",locale:"ml-IN"}});
    expect(profile.statusCode).toBe(200);
    expect(profile.json().user.display_name).toBe("Anu K");
@@ -96,11 +98,13 @@ integration("PostgreSQL placement session integration",()=>{
    expect(afterLogout.statusCode).toBe(401);
    const revokedAccess=await app.inject({method:"GET",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+rotated.json().access_token}});
    expect(revokedAccess.statusCode).toBe(401);
-   const deletion=await app.inject({method:"POST",url:"/api/v1/auth/me/deletion-request",headers:{authorization:"Bearer "+rotated.json().access_token}});
+   const deletion=await app.inject({method:"POST",url:"/api/v1/auth/me/deletion-request",headers:{authorization:"Bearer "+secondLogin.json().access_token}});
    expect(deletion.statusCode).toBe(202);
    expect(deletion.json().status).toBe("deletion_requested");
-   const afterDeletion=await app.inject({method:"GET",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+rotated.json().access_token}});
+   const afterDeletion=await app.inject({method:"GET",url:"/api/v1/auth/me",headers:{authorization:"Bearer "+secondLogin.json().access_token}});
    expect(afterDeletion.statusCode).toBe(401);
+   const refreshAfterDeletion=await app.inject({method:"POST",url:"/api/v1/auth/refresh",payload:{refresh_token:secondLogin.json().refresh_token}});
+   expect(refreshAfterDeletion.statusCode).toBe(401);
    const unauthenticated=await app.inject({method:"GET",url:"/api/v1/auth/me"});
    expect(unauthenticated.statusCode).toBe(401);
   }finally{
