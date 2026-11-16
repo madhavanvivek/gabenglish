@@ -400,3 +400,12 @@ Next implementation sequence:
 - A voice session cannot begin without explicit learner consent. Permission denial transitions to an error state; out-of-order lifecycle events are rejected rather than silently advancing.
 - Active stages can be interrupted, and recovery requires an explicit resume or reset transition.
 - This is a tested lifecycle contract only. It does not yet request microphone permission, capture audio, transcribe speech, or start live voice sessions. Those capabilities require a selected and reviewed speech provider/adapter and platform QA.
+
+
+### Malayalam-English mixed-language speech playback
+
+- Added a shared text segmentation helper that preserves the original order, whitespace and punctuation while separating Malayalam-script and Latin-script runs.
+- Gabroo's mobile Listen action now queues each run with the matching installed device voice: Malayalam runs use an ml-IN voice and Latin-script runs prefer en-IN. The learner's saved speech rate is applied to every run.
+- If a reply contains Malayalam but the device has no installed Malayalam voice, playback is not silently misrepresented as Malayalam; the learner receives an actionable notice.
+- Added contract tests for Malayalam-only text, mixed-language switching, punctuation, whitespace and digits.
+- This improves local device TTS only. Quality and pronunciation still depend on the installed OS voices; a consistent premium male Gabroo voice and live speech recognition remain future work.
