@@ -457,3 +457,4 @@ Next implementation sequence:
 - The shared voice lifecycle now includes a guarded `capture_discarded` transition from transcribing back to ready, so a local test cannot be mistaken for a completed transcript.
 - Leaving the Gabroo screen attempts to stop and unload any active recording and delete its temporary file.
 - This is a local capture and deletion validation only. Audio is not uploaded, retained in the account, transcribed, or sent to a provider. Live voice conversation remains incomplete.
+- The local microphone test is capped at 15 seconds and automatically stops and deletes its temporary recording at the limit.
