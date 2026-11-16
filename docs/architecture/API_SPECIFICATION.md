@@ -84,3 +84,6 @@ All routes below require a configured PostgreSQL pool. Access tokens are short-l
 | POST | `/api/v1/auth/me/deletion-request` | Disable the account and revoke refresh sessions; does not perform final erasure |
 
 Security limitations: email verification, password reset, MFA, device/session management, full account erasure and learner-linked assessment history are not implemented. Registration currently creates an active but unverified account. Login throttling is database-backed, keyed by HMAC digests and limited to 10 failures per email digest or 30 per request-IP digest in a 15-minute window. This is an initial abuse-control layer, not a substitute for a production edge/WAF policy.
+
+
+Mobile account client: `apps/mobile/src/auth-api.ts` uses Expo SecureStore for access and refresh tokens, rotates refresh tokens after an authenticated request receives 401, and exposes account/profile/preference operations. The account screen is `apps/mobile/app/account.tsx`. The learner home screen links to this route. Email verification and password recovery are not available; the UI must continue to disclose the unverified-email limitation.
