@@ -2,6 +2,7 @@ import {describe,expect,it} from "vitest";
 import {
  gabrooVoiceSessionStateSchema,
  transitionGabrooVoiceSession,
+ transitionGabrooVoiceSession as transition,
  type GabrooVoiceSessionEvent,
  type GabrooVoiceSessionState
 } from "./gabroo-speech.js";
