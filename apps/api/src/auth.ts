@@ -133,8 +133,9 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
     return reply.code(400).send({error:{code:"OTP_INVALID_OR_EXPIRED",message:"This verification code is invalid or has expired. Request a new code.",request_id:request.id}});
    }
    let user=challenge.channel==="email"
-    ?(await client.query<{id:string} & Record<string,unknown>>("SELECT id FROM users WHERE email_normalized=$1 AND deleted_at IS NULL FOR UPDATE",[challenge.destination_normalized])).rows[0]
-    :(await client.query<{id:string} & Record<string,unknown>>("SELECT id FROM users WHERE phone_e164=$1 AND deleted_at IS NULL FOR UPDATE",[challenge.destination_normalized])).rows[0];
+    ?(await client.query<{id:string;status:string}>("SELECT id,status FROM users WHERE email_normalized=$1 AND deleted_at IS NULL FOR UPDATE",[challenge.destination_normalized])).rows[0]
+    :(await client.query<{id:string;status:string}>("SELECT id,status FROM users WHERE phone_e164=$1 AND deleted_at IS NULL FOR UPDATE",[challenge.destination_normalized])).rows[0];
+   if(user&&user.status!=="active"){await client.query("ROLLBACK");return reply.code(403).send({error:{code:"ACCOUNT_UNAVAILABLE",message:"This account is not available for sign-in. Please contact support.",request_id:request.id}});}
    if(!user){
     const created=challenge.channel==="email"
      ?await client.query<{id:string}>("INSERT INTO users(email,email_normalized,email_verified_at,status) VALUES($1,$1,now(),'active') RETURNING id",[challenge.destination_normalized])
