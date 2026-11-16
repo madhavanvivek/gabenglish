@@ -29,3 +29,4 @@ Start mobile: `pnpm --filter @gabenglish/mobile start`
 The foundation branch contains an initial pnpm monorepo scaffold, Fastify health/readiness API, API tests, shared Zod contracts, and Expo welcome screen. Authentication, learner workflows, content delivery, speech/AI integrations, production Gabroo assets, admin UI and payment flows are not implemented yet. The GitHub Actions workflow is configured; successful CI execution must be confirmed from its run results.
 
 Do not use resources, credentials or deployments belonging to Ozhzo, Fabnotch, Endroser or other projects.
+
