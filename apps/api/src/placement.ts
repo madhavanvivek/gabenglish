@@ -24,7 +24,7 @@ const SESSION_TTL_MS=30*60*1000;
 const MAX_ACTIVE_SESSIONS=1000;
 export function isPlacementSessionExpired(createdAt:number,now=Date.now()){return now-createdAt>SESSION_TTL_MS;}
 function pruneSessions(now=Date.now()){for(const [id,session] of sessions){if(isPlacementSessionExpired(session.created_at,now))sessions.delete(id);}while(sessions.size>=MAX_ACTIVE_SESSIONS){const oldest=sessions.keys().next().value as string|undefined;if(!oldest)break;sessions.delete(oldest);}}
-function countWords(text:string){return text.match(/[\\p{L}\\p{N}][\\p{L}\\p{M}\\p{N}'’-]*/gu)?.length??0;}
+function countWords(text:string){return text.match(/[\p{L}\p{N}][\p{L}\p{M}\p{N}'’-]*/gu)?.length??0;}
 const CORE_PROMPT_IDS=["intro","routine","past","reason","opinion","scenario"] as const;
 /** Conservative routing only: never infer proficiency from sample length or surface markers. */
 function selectNextPrompt(session:Session,currentPromptId:string,response:string):Prompt|undefined{
