@@ -1,0 +1,292 @@
+{
+  "schema_version": "1.0",
+  "locale": "ml-IN",
+  "language_pair": [
+    "ml",
+    "en"
+  ],
+  "items": [
+    {
+      "id": "grammar.simple-present.daily-routines",
+      "version": "0.1.0",
+      "type": "lesson",
+      "title": "Talking about daily routines",
+      "summary": "Use the simple present to describe habits and regular activities.",
+      "stage": 1,
+      "difficulty": "beginner",
+      "skills": [
+        "grammar",
+        "sentence_construction",
+        "conversation"
+      ],
+      "topic_tags": [
+        "simple-present",
+        "daily-routines",
+        "verbs"
+      ],
+      "learning_objectives": [
+        "Recognise simple-present statements about regular activities.",
+        "Build a basic subject + verb + object sentence.",
+        "Use the third-person singular -s form in a simple sentence."
+      ],
+      "prerequisites": [],
+      "age_suitability": [
+        "general"
+      ],
+      "body": {
+        "explanation_en": "Use the simple present for habits, routines and facts. With I, you, we and they, use the base verb. With he, she and it, the verb usually takes -s or -es.",
+        "explanation_ml": "പതിവായി ചെയ്യുന്ന കാര്യങ്ങൾ, ദിനചര്യകൾ, പൊതുവായ സത്യങ്ങൾ എന്നിവ പറയാൻ Simple Present ഉപയോഗിക്കുന്നു. I, you, we, they എന്നിവയ്ക്കൊപ്പം സാധാരണ verb-ന്റെ base form ഉപയോഗിക്കും. He, she, it എന്നിവയ്ക്കൊപ്പം പലപ്പോഴും verb-ന് -s അല്ലെങ്കിൽ -es ചേർക്കും.",
+        "examples": [
+          {
+            "en": "I work in Kozhikode.",
+            "ml": "ഞാൻ കോഴിക്കോട് ജോലി ചെയ്യുന്നു.",
+            "note": "A regular or general statement."
+          },
+          {
+            "en": "She works in a bank.",
+            "ml": "അവൾ ഒരു ബാങ്കിൽ ജോലി ചെയ്യുന്നു.",
+            "note": "Third-person singular: work → works."
+          },
+          {
+            "en": "They play football every evening.",
+            "ml": "അവർ എല്ലാ വൈകുന്നേരവും ഫുട്ബോൾ കളിക്കുന്നു.",
+            "note": "A repeated activity."
+          }
+        ],
+        "common_errors": [
+          {
+            "incorrect": "She work in a bank.",
+            "correct": "She works in a bank.",
+            "reason_en": "Use works with she in a simple-present affirmative sentence."
+          }
+        ],
+        "guided_practice": [
+          {
+            "prompt_en": "He ____ (go) to work by bus.",
+            "accepted_answers": [
+              "goes"
+            ],
+            "hint_en": "Use the he/she/it form.",
+            "explanation_en": "With he, use goes."
+          },
+          {
+            "prompt_en": "I ____ (read) every night.",
+            "accepted_answers": [
+              "read"
+            ],
+            "hint_en": "Use the base verb with I.",
+            "explanation_en": "With I, use read."
+          }
+        ],
+        "independent_prompt": "Write one sentence about something you do every day.",
+        "completion_criteria": [
+          "Produces a meaningful routine sentence.",
+          "Uses a suitable simple-present verb form."
+        ]
+      },
+      "accepted_alternatives": [],
+      "common_errors": [
+        "Omitting -s/-es with he, she or it.",
+        "Adding -s to the verb after I, you, we or they."
+      ],
+      "editorial": {
+        "author": "Gabenglish curriculum team",
+        "reviewer_roles": [
+          "English educator",
+          "Fluent Kerala Malayalam editor",
+          "Learning designer"
+        ],
+        "review_status": "pending",
+        "source_notes": "Original instructional draft; verify examples and Malayalam wording before publication."
+      },
+      "status": "draft"
+    },
+    {
+      "id": "grammar.simple-past.completed-actions",
+      "version": "0.1.0",
+      "type": "lesson",
+      "title": "Talking about yesterday",
+      "summary": "Use the simple past to describe completed actions in the past.",
+      "stage": 1,
+      "difficulty": "beginner",
+      "skills": [
+        "grammar",
+        "sentence_construction",
+        "conversation"
+      ],
+      "topic_tags": [
+        "simple-past",
+        "past-time",
+        "irregular-verbs"
+      ],
+      "learning_objectives": [
+        "Recognise completed past actions.",
+        "Use common regular and irregular past-tense verbs.",
+        "Describe one event that happened yesterday."
+      ],
+      "prerequisites": [
+        "grammar.simple-present.daily-routines"
+      ],
+      "age_suitability": [
+        "general"
+      ],
+      "body": {
+        "explanation_en": "Use the simple past for an action or event completed at a past time. Regular verbs often take -ed; many common verbs are irregular and must be learned in context.",
+        "explanation_ml": "കഴിഞ്ഞുപോയ ഒരു സമയത്ത് പൂർത്തിയായ പ്രവർത്തനമോ സംഭവമോ പറയാൻ Simple Past ഉപയോഗിക്കുന്നു. ചില verbs-ന് -ed ചേർക്കും; go → went പോലുള്ള irregular verbs പ്രത്യേകം പഠിക്കണം.",
+        "examples": [
+          {
+            "en": "I visited my friend yesterday.",
+            "ml": "ഞാൻ ഇന്നലെ എന്റെ സുഹൃത്തിനെ സന്ദർശിച്ചു.",
+            "note": "Regular verb: visit → visited."
+          },
+          {
+            "en": "I went to the office yesterday.",
+            "ml": "ഞാൻ ഇന്നലെ ഓഫീസിൽ പോയി.",
+            "note": "Irregular verb: go → went."
+          },
+          {
+            "en": "We watched a movie last night.",
+            "ml": "ഞങ്ങൾ ഇന്നലെ രാത്രി ഒരു സിനിമ കണ്ടു.",
+            "note": "Completed past activity."
+          }
+        ],
+        "common_errors": [
+          {
+            "incorrect": "Yesterday I go to the office.",
+            "correct": "Yesterday I went to the office.",
+            "reason_en": "The event is completed in the past; use went, the past form of go."
+          }
+        ],
+        "guided_practice": [
+          {
+            "prompt_en": "Last Sunday, we ____ (visit) our cousins.",
+            "accepted_answers": [
+              "visited"
+            ],
+            "hint_en": "This is a regular verb.",
+            "explanation_en": "Add -ed: visit → visited."
+          },
+          {
+            "prompt_en": "Yesterday, she ____ (eat) breakfast early.",
+            "accepted_answers": [
+              "ate"
+            ],
+            "hint_en": "This is an irregular verb.",
+            "explanation_en": "The past form of eat is ate."
+          }
+        ],
+        "independent_prompt": "Write two sentences about what you did yesterday.",
+        "completion_criteria": [
+          "Uses a past-time expression appropriately.",
+          "Uses a correct past-tense verb in a meaningful sentence."
+        ]
+      },
+      "accepted_alternatives": [],
+      "common_errors": [
+        "Using the base form after a clear past-time reference.",
+        "Adding -ed to irregular verbs such as go, eat and see."
+      ],
+      "editorial": {
+        "author": "Gabenglish curriculum team",
+        "reviewer_roles": [
+          "English educator",
+          "Fluent Kerala Malayalam editor",
+          "Learning designer"
+        ],
+        "review_status": "pending",
+        "source_notes": "Original instructional draft; verify examples and Malayalam wording before publication."
+      },
+      "status": "draft"
+    },
+    {
+      "id": "conversation.self-introduction.basic",
+      "version": "0.1.0",
+      "type": "lesson",
+      "title": "Introducing yourself",
+      "summary": "Practise a short, natural self-introduction in everyday situations.",
+      "stage": 1,
+      "difficulty": "beginner",
+      "skills": [
+        "conversation",
+        "vocabulary",
+        "sentence_construction"
+      ],
+      "topic_tags": [
+        "introductions",
+        "personal-information",
+        "greetings"
+      ],
+      "learning_objectives": [
+        "Greet someone politely.",
+        "Say your name and where you are from.",
+        "Ask the other person a simple introductory question."
+      ],
+      "prerequisites": [],
+      "age_suitability": [
+        "general"
+      ],
+      "body": {
+        "explanation_en": "A simple introduction can include a greeting, your name and one relevant detail. You do not need to memorise a long speech.",
+        "explanation_ml": "സ്വയം പരിചയപ്പെടുത്തുമ്പോൾ ഒരു അഭിവാദ്യം, പേര്, ആവശ്യമായ ഒരു ചെറിയ വിവരം എന്നിവ പറഞ്ഞാൽ മതി. നീണ്ട പ്രസംഗം മനഃപാഠമാക്കേണ്ടതില്ല.",
+        "dialogue": [
+          {
+            "speaker": "A",
+            "en": "Hello! I'm Anu. What's your name?",
+            "ml": "ഹലോ! എന്റെ പേര് അനു. നിങ്ങളുടെ പേര് എന്താണ്?"
+          },
+          {
+            "speaker": "B",
+            "en": "Hi, I'm Rahul. Nice to meet you.",
+            "ml": "ഹായ്, ഞാൻ രാഹുലാണ്. കണ്ടുമുട്ടിയതിൽ സന്തോഷം."
+          },
+          {
+            "speaker": "A",
+            "en": "Nice to meet you too. Where are you from?",
+            "ml": "എനിക്കും സന്തോഷം. നിങ്ങൾ എവിടെ നിന്നാണ്?"
+          }
+        ],
+        "useful_phrases": [
+          {
+            "en": "I'm from Kozhikode.",
+            "function": "Say where you are from."
+          },
+          {
+            "en": "I live in Kannur.",
+            "function": "Say where you live."
+          },
+          {
+            "en": "What do you do?",
+            "function": "Ask about someone's work or usual occupation; use politely and in a suitable context."
+          }
+        ],
+        "independent_prompt": "Introduce yourself in two or three sentences. Share only details you are comfortable sharing.",
+        "completion_criteria": [
+          "Uses a greeting.",
+          "Provides a simple introduction.",
+          "Can ask or respond to one introductory question."
+        ]
+      },
+      "accepted_alternatives": [
+        "My name is ...",
+        "I'm ...",
+        "I come from ...",
+        "I'm originally from ..."
+      ],
+      "common_errors": [
+        "Using an unnecessarily long memorised introduction.",
+        "Confusing where someone is from with where they currently live."
+      ],
+      "editorial": {
+        "author": "Gabenglish curriculum team",
+        "reviewer_roles": [
+          "English educator",
+          "Fluent Kerala Malayalam editor",
+          "Learning designer"
+        ],
+        "review_status": "pending",
+        "source_notes": "Original instructional draft; review politeness and Malayalam phrasing before publication."
+      },
+      "status": "draft"
+    }
+  ]
+}
