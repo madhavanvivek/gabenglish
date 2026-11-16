@@ -147,6 +147,15 @@ integration("PostgreSQL placement session integration",()=>{
    await app.close();
   }
  });
+ it("blocks anonymous visitors from starting the free analysis",async()=>{
+  if(!pool||!migrationApplied)return;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  try{
+   const response=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",payload:{preferred_language:"en"}});
+   expect(response.statusCode).toBe(401);
+   expect(response.json().error.code).toBe("VERIFIED_ACCOUNT_REQUIRED");
+  }finally{await app.close();}
+ });
  it("persists an active conversation across API process restarts",async()=>{
   if(!pool||!migrationApplied)return;
   const firstApp=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
