@@ -34,7 +34,7 @@ Gabenglish teaches practical English, not memorisation alone. It should help lea
 - Offer changeable communication styles: Friendly and respectful (default), Casual and conversational, Playful and energetic, Calm and professional.
 - Children receive age-appropriate, safe communication; teenagers are not forced into slang; adults and older adults are treated respectfully without patronising assumptions.
 
-See `docs/brand/GABROO_CHARACTER_GUIDE.md` and `docs/brand/GABROO_COMMUNICATION_POLICY.md`. Gabroo's physical design is not final: concept artwork is for review only until explicitly approved. No generated concept is a production asset or canonical model sheet without approval.
+See `docs/brand/GABROO_CHARACTER_GUIDE.md` and `docs/brand/GABROO_COMMUNICATION_POLICY.md`. The learner-supplied Gabroo character artwork is the approved identity reference. The Version 2 Gabenglish logo treatment is approved as the visual direction (17 November 2026); this approves the logo composition and brand presentation, not a change to Gabroo’s canonical facial identity. A production-ready character model sheet and vector logo assets still need to be prepared and reviewed. Generated concept renders are not production assets.
 
 ## 3. Learning stages and progression
 
@@ -547,3 +547,13 @@ Next implementation sequence:
 - The progress screen does not invent streaks, scores, stage advancement or longitudinal charts. It presents only the evidence available from the saved report.
 - Added navigation from Home to Progress. Further work: real lesson delivery, practice/revision and persisted learning activity, subscription checkout/management, final navigation and device QA.
 - CI and physical Android QA remain outstanding. No merge or production deployment performed.
+
+
+## 16. Approved Version 2 brand direction (2026-11-17)
+
+- Approved the Version 2 visual direction for the Gabenglish logo: brighter, high-contrast purple wordmark; purple-and-yellow “with Gabroo” lockup; more legible “YOUR AI ENGLISH TUTOR” tagline; and a cleaner, consistent brand system.
+- The approved identity system should include four practical variants: primary mascot + wordmark lockup, app icon using the Gabroo face, compact horizontal logo, and a single-colour logo/standalone “G” brand mark.
+- Preserve the original learner-supplied Gabroo character as the canonical character reference. Do not silently substitute a newly generated face, hairstyle, age, outfit or character identity when preparing final artwork.
+- Keep the established purple identity and yellow accent. Use sufficient contrast on both light and dark backgrounds; the near-black wordmark on black in the initial concept is not an approved treatment.
+- The generated Version 2 presentation is a visual direction/mockup, not a production-ready vector master. Next brand-artwork tasks: create clean vector wordmark and brand mark, prepare transparent-background logo exports and app icon crops, verify typography/spacing at small sizes, and prepare light/dark/monochrome variants. Final exports should be reviewed before being wired into app launch assets.
+- This approval does not approve any new character model or claim that the production mascot/animation asset pipeline is complete.
