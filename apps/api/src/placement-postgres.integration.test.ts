@@ -39,7 +39,7 @@ integration("PostgreSQL placement session integration",()=>{
   if(!pool||!migrationApplied)return;
   await runMigrations(pool);
   const result=await pool.query<{version:string}>("SELECT version FROM schema_migrations ORDER BY version");
-  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql","0011_learning_direction.sql","0012_gabroo_conversation_direction.sql","0013_directional_diagnostic_reports.sql","0014_direction_aware_curriculum_progress.sql","0015_learner_exercise_attempts.sql","0016_subscription_offer_pricing.sql","0017_subscription_checkout_quotes.sql","0018_admin_subscription_controls.sql"]);
+  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql","0011_learning_direction.sql","0012_gabroo_conversation_direction.sql","0013_directional_diagnostic_reports.sql","0014_direction_aware_curriculum_progress.sql","0015_learner_exercise_attempts.sql","0016_subscription_offer_pricing.sql","0017_subscription_checkout_quotes.sql","0018_admin_subscription_controls.sql","0019_admin_session_idle_timeout.sql"]);
  });
 
  it("authenticates Superadmins, manages offer windows, audits changes and revokes admin sessions",async()=>{
@@ -112,6 +112,16 @@ integration("PostgreSQL placement session integration",()=>{
     expect(logout.statusCode).toBe(204);
     const afterLogout=await app.inject({method:"GET",url:"/api/v1/admin/subscription-offers",headers});
     expect(afterLogout.statusCode).toBe(401);
+
+    const idleLogin=await app.inject({method:"POST",url:"/api/v1/admin/auth/login",payload:{email,password}});
+    expect(idleLogin.statusCode).toBe(200);
+    const idleToken=idleLogin.json().access_token as string;
+    const idleClaims=JSON.parse(Buffer.from(idleToken.split(".")[0]!, "base64url").toString("utf8")) as {sid:string};
+    await pool.query("UPDATE admin_sessions SET last_seen_at=now()-interval '31 minutes' WHERE id=$1",[idleClaims.sid]);
+    const idleRejected=await app.inject({method:"GET",url:"/api/v1/admin/subscription-offers",headers:{authorization:"Bearer "+idleToken}});
+    expect(idleRejected.statusCode).toBe(401);
+    const idleSession=await app.inject({method:"GET",url:"/api/v1/admin/sessions?limit=10&offset=0",headers});
+    expect(idleSession.json().sessions).not.toEqual(expect.arrayContaining([expect.objectContaining({id:idleClaims.sid})]));
    }finally{await app.close();}
   }finally{
    await pool.query("DELETE FROM admin_accounts WHERE id=$1",[adminId]);
