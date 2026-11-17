@@ -160,3 +160,8 @@ This document records the approved product direction for design and architecture
 ## 11. Malayalam assessment blueprint — implementation status
 
 A draft-only machine-readable blueprint defines six independent evidence domains for the en_to_ml journey: listening comprehension, functional vocabulary, phrase recall, sentence construction, contextual conversational response and optional script recognition. It is deliberately unpublished and has no scoring weights, proficiency label or automated placement. Every task records limitations; script recognition is included only when the learner opts into script learning. This is an implementation scaffold, not educator-reviewed assessment content. Recording assets, accepted variants, task validation and fluent Malayalam educator review remain required before activation.
+
+
+## 12. Direction-aware curriculum storage — implementation status
+
+Migration `0014_direction_aware_curriculum_progress.sql` adds explicit direction/source/target metadata to courses and lesson versions, plus script mode, register, dialect scope, romanisation and educator-review metadata. Existing course and lesson-version records are safely backfilled to the established `ml_to_en` / Malayalam-source / English-target path. New course-level and lesson-version-level learner progress tables are direction-scoped. Database triggers reject progress records whose course, lesson version and selected direction do not agree. Existing legacy progress rows are left untouched. The migration creates no Malayalam lessons and does not publish draft content; educator approval remains a separate requirement.
