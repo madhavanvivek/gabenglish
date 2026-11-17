@@ -116,7 +116,7 @@ export async function registerAdminRoutes(app:FastifyInstance,pool:Pool,config:A
   const claims=verifyAdminToken(request.headers.authorization!.slice(7),secret)!;
   const [sessions,total]=await Promise.all([
    pool.query("SELECT s.id,s.admin_account_id,a.email_normalized AS admin_email,s.created_at,s.expires_at,s.revoked_at,(s.id=$3) AS is_current FROM admin_sessions s JOIN admin_accounts a ON a.id=s.admin_account_id WHERE a.status='active' AND s.revoked_at IS NULL AND s.expires_at>now() AND s.last_seen_at>now()-interval '30 minutes' ORDER BY s.created_at DESC,s.id DESC LIMIT $1 OFFSET $2",[query.data.limit,query.data.offset,claims.sid]),
-   pool.query<{count:string}>("SELECT count(*)::text AS count FROM admin_sessions s JOIN admin_accounts a ON a.id=s.admin_account_id WHERE a.status='active' AND s.revoked_at IS NULL AND s.expires_at>now()")
+   pool.query<{count:string}>("SELECT count(*)::text AS count FROM admin_sessions s JOIN admin_accounts a ON a.id=s.admin_account_id WHERE a.status='active' AND s.revoked_at IS NULL AND s.expires_at>now() AND s.last_seen_at>now()-interval '30 minutes'")
   ]);
   return {sessions:sessions.rows,total:Number(total.rows[0]?.count??0),limit:query.data.limit,offset:query.data.offset};
  });
