@@ -96,7 +96,7 @@ Do not mark Phase 0 complete merely because the scaffold or prototype CI passes.
 ### Immediate next gates
 1. Keep the self-hosted Mac runner healthy and retain the passing validation run as evidence; add any missing test coverage as workflows mature.
 2. Review PR #1 and reconcile its remaining implementation checklist against the current product decisions.
-3. Verify the subscription offer calculation in API tests for first purchase, renewal, disabled/expired offers, and price snapshot immutability.
+3. Add and verify the server-side subscription offer calculator for initial purchases, renewals/re-purchases, disabled/expired offers and immutable transaction price snapshots. The pure quote calculator and unit tests have now been added; checkout persistence and admin configuration remain outstanding.
 4. Complete Android end-to-end QA for account lifecycle, free placement, paid entitlement, open Gabroo conversation, saved speaking speed and navigation/accessibility.
 5. Keep production deployment blocked until secrets, OTP delivery, payment verification, speech-provider decisions and release checks are complete.
 
@@ -108,3 +108,13 @@ This checkpoint is a status record, not a claim that the listed gates have passe
 - Temporary Mac workflow run #7 (`44129446387`) completed successfully on the `gabenglish-mac` self-hosted runner. API typecheck, API tests, PostgreSQL integration tests, shared-contract typecheck/tests and mobile typecheck all passed.
 - Hosted CI run #981 (`44129311415`) also passed API and mobile jobs, including the Expo Android production-bundle smoke test.
 - The PR description and this plan should treat the earlier runner-allocation issue as resolved for these runs. Continue monitoring runner availability; do not infer device QA or production readiness from CI alone.
+
+
+## 10. Subscription pricing foundation checkpoint (2026-11-17)
+
+- Added `apps/api/src/subscription-pricing.ts`, a deterministic server-side quote calculator for the two approved INR plans.
+- Initial offer defaults are represented as versioned rules: Monthly ₹99 → ₹79 (20.20%) and Yearly ₹1,188 → ₹799 (32.74%).
+- Offer eligibility is evaluated at a supplied server timestamp; start is inclusive and end is exclusive. Disabled or out-of-window offers return the standard price.
+- Discounts are rounded to the nearest whole rupee using integer minor-unit amounts. The quote includes standard, discount and payable amounts, offer version, and evaluation timestamp so a future checkout handler can persist an immutable snapshot.
+- Added unit coverage for both launch prices, renewal/re-purchase parity, disabled and time-windowed offers, rounding, and invalid configuration.
+- This is a tested pricing-calculation foundation only. It is not yet connected to checkout, payment-provider verification, Superadmin offer management, or entitlement activation. Do not describe subscriptions as purchasable until those flows are implemented and tested.
