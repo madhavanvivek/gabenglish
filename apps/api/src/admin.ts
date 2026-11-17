@@ -79,6 +79,7 @@ export async function registerAdminRoutes(app:FastifyInstance,pool:Pool,config:A
     await client.query("COMMIT");
     return reply.code(401).send({error:{code:"ADMIN_AUTHENTICATION_FAILED",message:"Administrator sign-in failed. Check your credentials or try again later.",request_id:request.id}});
    }
+   if(!admin)throw new Error("ADMIN_ACCOUNT_UNAVAILABLE");
    const roles=await client.query<{code:string}>("SELECT r.code FROM admin_account_roles ar JOIN admin_roles r ON r.id=ar.admin_role_id WHERE ar.admin_account_id=$1",[admin.id]);
    if(!roles.rows.some(row=>row.code==="superadmin")){
     await client.query("COMMIT");
