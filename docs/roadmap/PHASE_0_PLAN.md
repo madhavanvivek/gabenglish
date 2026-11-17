@@ -153,3 +153,9 @@ This checkpoint is a status record, not a claim that the listed gates have passe
 - Add MFA and operational monitoring/alerting for admin lockouts and audit events.
 - Perform a focused security review and penetration test before production exposure.
 - Payment provider selection, checkout intent creation and signed webhook verification remain separate blockers.
+
+### Superadmin validation result
+- Hosted CI run #1010 (44136100170) passed the new Superadmin/PostgreSQL integration tests.
+- Hosted CI run #1015 (44136368589) passed after storing and verifying the digest of the issued admin access token against its revocable database session.
+- Hosted CI run #1017 (44136465606) passed the latest API typecheck/tests, PostgreSQL integration suite, shared-contract typecheck/tests, mobile typecheck/unit tests and Expo Android production-bundle smoke test.
+- The Superadmin API foundation is therefore CI-validated. The admin web UI, MFA, invitation/recovery lifecycle, audit browser, security review and production deployment remain incomplete.
