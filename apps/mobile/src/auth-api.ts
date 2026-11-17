@@ -226,7 +226,7 @@ export async function getPublishedLearningCatalog(){
 }
 
 export type LearningLessonDetail={
- lesson:{id:string;slug:string;title:string;version_id:string;version:number;learning_direction:"ml_to_en"|"en_to_ml";source_language:string;target_language:string;support_language:string;content:unknown;script_mode:string;register:string|null;dialect_scope:string|null;romanisation:string|null;content:LearnerLessonContent};
+ lesson:{id:string;slug:string;title:string;version_id:string;version:number;learning_direction:"ml_to_en"|"en_to_ml";source_language:string;target_language:string;support_language:string;script_mode:string;register:string|null;dialect_scope:string|null;romanisation:string|null;content:LearnerLessonContent};
  progress:null|{status:"not_started"|"in_progress"|"completed";progress_percent:number;updated_at:string};
 };
 export async function getLearningLesson(id:string){
