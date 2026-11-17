@@ -77,3 +77,27 @@ Latest confirmed CI run `43848505407` passed the API and mobile jobs. This confi
 - Prioritised Phase 1 backlog with estimates, dependencies and acceptance criteria.
 
 Do not mark Phase 0 complete merely because the scaffold or prototype CI passes.
+
+
+## 8. Foundation implementation checkpoint (2026-11-17)
+
+### Repository and review state
+- Application foundation is maintained on `foundation/app-skeleton`; PR #1 targets review and remains a draft. Do not merge or deploy it without owner approval.
+- The application scaffold includes the pnpm workspace, Fastify API, shared Zod contracts and Expo mobile application. The PR description records the current implemented workflows and their limitations.
+- The manual temporary-Mac CI workflow checks out `foundation/app-skeleton` and validates API typecheck/tests, PostgreSQL integration tests, shared-contract checks and mobile typecheck.
+- The latest reported workflow attempt (run number 886 in the PR notes) exited before runner allocation: runner ID 0 and no executed steps. Treat this as an infrastructure/runner availability blocker, not a passing or failing code test. Do not claim fresh CI validation until jobs actually execute.
+
+### Product decision reconciliation
+- Monthly launch price is ₹79 against ₹99 standard; yearly launch price is ₹799 against ₹1,188 standard.
+- Superadmin-configured monthly/yearly discounts can apply to renewals and re-purchases while the relevant offer remains enabled and within its configured offer window. Each checkout must snapshot its server-calculated price; later admin changes must not rewrite completed purchases.
+- The subscription and product specifications were reconciled on 2026-11-17 to remove the obsolete ₹69 monthly price and first-purchase-only discount rule.
+- Gabroo speaking-speed preference remains a learner-controlled setting; validate end-to-end playback-rate behavior on physical Android devices before claiming voice playback is complete.
+
+### Immediate next gates
+1. Restore/attach the temporary self-hosted Mac runner and obtain an executed CI result; if that runner is not dependable, move the validation workflow to a supported hosted runner with PostgreSQL service.
+2. Review PR #1 and reconcile its remaining implementation checklist against the current product decisions.
+3. Verify the subscription offer calculation in API tests for first purchase, renewal, disabled/expired offers, and price snapshot immutability.
+4. Complete Android end-to-end QA for account lifecycle, free placement, paid entitlement, open Gabroo conversation, saved speaking speed and navigation/accessibility.
+5. Keep production deployment blocked until secrets, OTP delivery, payment verification, speech-provider decisions and release checks are complete.
+
+This checkpoint is a status record, not a claim that the listed gates have passed.
