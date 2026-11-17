@@ -41,8 +41,15 @@ export default function GabrooScreen(){
   try{
    const status=await getSubscriptionStatus();setSubscription(status);
    const learner=await getLearnerMe();setSpeechRate(learner.preferences?.gabroo_speech_rate??1);
-   if(status.active){const result=await listGabrooConversations();setConversations(result.conversations);}
-   else{setConversations([]);setActive(null);setMessages([]);}
+   if(status.active){
+    const result=await listGabrooConversations();
+    setConversations(result.conversations);
+    try{setRecognitionStatus(await getGabrooRecognitionStatus());}
+    catch{setRecognitionStatus(null);}
+   }else{
+    setRecognitionStatus(null);
+    setConversations([]);setActive(null);setMessages([]);
+   }
   }catch(reason){setError(reason instanceof Error?reason.message:"Could not load Gabroo.");}
   finally{setLoading(false);}
  },[]);
