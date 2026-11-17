@@ -1,8 +1,9 @@
-import {useState} from "react";
+import {useEffect,useState} from "react";
 import {Link} from "expo-router";
 import {Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
+import {getLearnerMe} from "../src/auth-api";
 import {colors,radius,space} from "../src/theme";
 
 const stages=[
@@ -14,14 +15,18 @@ const stages=[
 ];
 export default function LearnScreen(){
  const [selected,setSelected]=useState(1);
+ const [direction,setDirection]=useState<"ml_to_en"|"en_to_ml">("ml_to_en");
+ useEffect(()=>{let active=true;void getLearnerMe().then(me=>{if(active)setDirection(me.preferences?.learning_direction??"ml_to_en");}).catch(()=>{});return()=>{active=false;};},[]);
  const stage=stages[selected-1];
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
   <View style={s.header}><Link href="/home" style={s.back}>‹ Home</Link><BrandMark size={42}/><Text style={s.brand}>Your learning path</Text><Text style={s.subtitle}>Five stages. One step at a time.</Text></View>
-  <View style={s.intro}><Eyebrow>BUILT AROUND YOUR JOURNEY</Eyebrow><Text style={s.introTitle}>From Malayalam support to confident English.</Text><Text style={s.introBody}>The learning path gradually shifts from Malayalam explanations to independent English communication. You can still ask Gabroo for Malayalam help at any stage.</Text></View>
+  <View style={s.intro}><Eyebrow>BUILT AROUND YOUR JOURNEY</Eyebrow><Text style={s.introTitle}>{direction==="ml_to_en"?"From Malayalam support to confident English.":"Build confidence speaking Malayalam, with clear English explanations."}</Text><Text style={s.introBody}>{direction==="ml_to_en"?"The learning path gradually shifts from Malayalam explanations to independent English communication. You can still ask Gabroo for Malayalam help at any stage.":"The Malayalam learning path is being designed separately, with spoken phrases, listening, pronunciation, script support and real-life conversation. Reviewed lessons are not published yet."}</Text></View>
+  {direction==="ml_to_en"?<>
   <Text style={s.sectionTitle}>Explore the five stages</Text>
   <View style={s.stageList}>{stages.map(item=><Pressable key={item.number} accessibilityRole="button" accessibilityState={{selected:selected===item.number}} onPress={()=>setSelected(item.number)} style={[s.stageCard,selected===item.number&&s.stageSelected]}><View style={[s.stageNumber,selected===item.number&&s.stageNumberSelected]}><Text style={[s.stageNumberText,selected===item.number&&s.stageNumberTextSelected]}>{item.number}</Text></View><View style={s.stageCopy}><Text style={s.stageName}>{item.name}</Text><Text style={s.stageTag}>{item.tag}</Text></View><Text style={s.chevron}>{selected===item.number?"●":"›"}</Text></Pressable>)}</View>
   <SurfaceCard soft><Eyebrow>STAGE {stage.number} OVERVIEW</Eyebrow><Text style={s.detailTitle}>{stage.name}</Text><Text style={s.detailBody}>{stage.summary}</Text><Text style={s.focusHeading}>What you will build</Text>{stage.focus.map(item=><View key={item} style={s.focusRow}><Text style={s.bullet}>•</Text><Text style={s.focusText}>{item}</Text></View>)}</SurfaceCard>
-  <View style={s.reviewNotice}><Text style={s.noticeTitle}>Curriculum quality comes first</Text><Text style={s.noticeBody}>The stage framework is ready for review. Individual lessons and exercises are still being authored and checked by English and Kerala Malayalam reviewers, so draft material is not shown as published lessons.</Text></View>
+  </>:<SurfaceCard soft><Eyebrow>MALAYALAM THROUGH ENGLISH</Eyebrow><Text style={s.detailTitle}>Your Malayalam learning journey</Text><Text style={s.detailBody}>A separate beginner-first curriculum is being prepared. These are the planned learning areas, not published lessons.</Text>{["Greetings and introductions","Useful everyday phrases and polite requests","Listening and pronunciation foundations","Food, shopping, travel and directions","Workplace and social conversations","Malayalam script and reading support"].map((item,index)=><View key={item} style={s.focusRow}><Text style={s.bullet}>{index+1}.</Text><Text style={s.focusText}>{item}</Text></View>)}</SurfaceCard>}
+  <View style={s.reviewNotice}><Text style={s.noticeTitle}>Curriculum quality comes first</Text><Text style={s.noticeBody}>{direction==="ml_to_en"?"The English stage framework is ready for review. Individual lessons and exercises are still being authored and checked by English and Kerala Malayalam reviewers, so draft material is not shown as published lessons.":"Malayalam lessons, audio and practice activities are not available yet. Each item will require fluent Malayalam educator review before publication."}</Text></View>
   <View style={s.talkCard}><Text style={s.talkTitle}>Want to practise right now?</Text><Text style={s.talkBody}>You can start a conversation with Gabroo without waiting for a lesson.</Text><Link href="/gabroo" style={s.talkLink}>Talk to Gabroo →</Link></View>
  </ScrollView></SafeAreaView>;
 }
