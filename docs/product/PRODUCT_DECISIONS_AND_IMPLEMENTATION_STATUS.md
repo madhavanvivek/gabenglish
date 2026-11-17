@@ -1,7 +1,7 @@
 # Gabenglish Product Decisions, Requirements and Delivery Status
 
 Version 1.0 — consolidated product and implementation reference
-Last reviewed: 2026-11-16
+Last reviewed: 2026-11-17
 
 This document consolidates the important product decisions and delivery boundaries established for Gabenglish. It complements the detailed specifications linked below. If implementation and documentation differ, record the difference here and update the relevant detailed specification; do not silently treat a prototype as a production capability.
 
@@ -125,7 +125,7 @@ Open decisions requiring ADRs: authentication/session provider, ORM/migration ap
 
 The current commercial model is B2C freemium. Learners create a free account using email OTP or phone OTP, take a free analysis/placement test and see the free result before being invited to subscribe to Gabroo. Email OTP accepts Gmail and other email providers; this is not Google OAuth. Learners may verify both email and phone and link them to one account.
 
-Only two initial paid terms are approved: Monthly ₹99 standard / ₹79 introductory first-purchase offer (20.20% discount) for exactly 30 days; Yearly ₹1,188 standard / ₹799 introductory first-purchase offer (32.74% discount) for exactly 360 days (12 × 30-day months). No six-month or tiered packages. The introductory offer applies only to a learner's first-ever successful subscription purchase; later renewals/re-purchases use the standard price. Superadmin can independently configure the discount percentage for each plan, enable/disable each offer and set an offer window in the admin portal. Server-side price calculation and immutable transaction price snapshots are required. Paid subscription unlocks Gabroo learning companion, classes, paid practice, ongoing learner assessment/profile and progress. Free analysis report and basic account details remain available without subscription. Paid access is controlled server-side and ends at the paid-through timestamp. Manual renewal is the default until auto-renewal is explicitly approved. Payment provider remains undecided.
+Only two initial paid terms are approved: Monthly ₹99 standard / ₹79 current offer (20.20% discount) for exactly 30 days; Yearly ₹1,188 standard / ₹799 current offer (32.74% discount) for exactly 360 days (12 × 30-day months). No six-month or tiered packages. The offer may apply to initial purchases, renewals and re-purchases while enabled and within its configured offer window; when disabled or expired, the then-current standard price applies. Superadmin can independently configure the discount percentage for each plan, enable/disable each offer and set an offer window in the admin portal. The server calculates the final price and stores an immutable transaction price snapshot; later admin changes never rewrite completed checkouts or purchases. Paid subscription unlocks Gabroo learning companion, classes, paid practice, ongoing learner assessment/profile and progress. Free analysis report and basic account details remain available without subscription. Paid access is controlled server-side and ends at the paid-through timestamp. Manual renewal is the default until auto-renewal is explicitly approved. Payment provider remains undecided.
 
 Detailed requirements: `docs/product/B2C_FREEMIUM_SUBSCRIPTION_MODEL.md`.
 
