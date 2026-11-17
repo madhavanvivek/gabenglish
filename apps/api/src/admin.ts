@@ -44,8 +44,8 @@ async function authenticateAdmin(request:FastifyRequest,pool:Pool,secret:string)
  const header=request.headers.authorization;if(!header?.startsWith("Bearer "))return;
  const claims=verifyAdminToken(header.slice(7),secret);if(!claims)return;
  const result=await pool.query<AdminIdentity>(
-  "SELECT a.id,a.email_normalized,array_agg(r.code) FILTER (WHERE r.code IS NOT NULL) AS roles FROM admin_accounts a JOIN admin_sessions s ON s.admin_account_id=a.id AND s.id=$2 AND s.revoked_at IS NULL AND s.expires_at>now() LEFT JOIN admin_account_roles ar ON ar.admin_account_id=a.id LEFT JOIN admin_roles r ON r.id=ar.admin_role_id WHERE a.id=$1 AND a.status='active' GROUP BY a.id,a.email_normalized",
-  [claims.sub,claims.sid]
+  "SELECT a.id,a.email_normalized,array_agg(r.code) FILTER (WHERE r.code IS NOT NULL) AS roles FROM admin_accounts a JOIN admin_sessions s ON s.admin_account_id=a.id AND s.id=$2 AND s.token_hash=$3 AND s.revoked_at IS NULL AND s.expires_at>now() LEFT JOIN admin_account_roles ar ON ar.admin_account_id=a.id LEFT JOIN admin_roles r ON r.id=ar.admin_role_id WHERE a.id=$1 AND a.status='active' GROUP BY a.id,a.email_normalized",
+  [claims.sub,claims.sid,digest(header.slice(7))]
  );
  return result.rows[0];
 }
