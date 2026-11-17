@@ -21,12 +21,15 @@ export async function activateVerifiedSubscriptionPayment(pool:Pool,paymentTrans
    provider_event_id:string|null;status:string;verified_at:Date|null;
    amount_minor:string;currency:string;plan_code:string;billing_interval:string;
    price_amount_minor:string;price_currency:string;current_period_start:Date|null;current_period_end:Date|null;
-   subscription_status:string;
+   subscription_status:string;price_standard_amount_minor:string|null;price_discount_amount_minor:string|null;
+   price_discount_basis_points:number|null;price_offer_version:number|null;price_quoted_at:Date|null;
   }>(`
    SELECT pt.id AS payment_id,pt.subscription_id,s.user_id,pt.provider_code,
     pt.provider_event_id,pt.status,pt.verified_at,pt.amount_minor::text,pt.currency,
     sp.code AS plan_code,rp.billing_interval,rp.amount_minor::text AS price_amount_minor,
-    rp.currency AS price_currency,s.current_period_start,s.current_period_end,s.status AS subscription_status
+    rp.currency AS price_currency,s.current_period_start,s.current_period_end,s.status AS subscription_status,
+    pt.price_standard_amount_minor::text,pt.price_discount_amount_minor::text,
+    pt.price_discount_basis_points,pt.price_offer_version,pt.price_quoted_at
    FROM payment_transactions pt
    JOIN subscriptions s ON s.id=pt.subscription_id
    JOIN subscription_plans sp ON sp.id=s.plan_id
@@ -38,7 +41,19 @@ export async function activateVerifiedSubscriptionPayment(pool:Pool,paymentTrans
   if(!row||row.status!=="succeeded"||!row.verified_at||!row.provider_event_id){
    throw new SubscriptionActivationError("PAYMENT_NOT_VERIFIED");
   }
-  if(row.amount_minor!==row.price_amount_minor||row.currency.trim()!==row.price_currency.trim()||
+  const hasSnapshot=row.price_standard_amount_minor!==null;
+  const standardAmount=hasSnapshot?row.price_standard_amount_minor!:row.price_amount_minor;
+  const discountAmount=hasSnapshot?row.price_discount_amount_minor!:"0";
+  const paidAmount=hasSnapshot
+   ?(BigInt(standardAmount)-BigInt(discountAmount)).toString()
+   :row.price_amount_minor;
+  const snapshotValid=!hasSnapshot||(
+   row.price_discount_amount_minor!==null&&
+   row.price_discount_basis_points!==null&&row.price_discount_basis_points>=0&&row.price_discount_basis_points<10000&&
+   row.price_offer_version!==null&&row.price_offer_version>0&&row.price_quoted_at!==null&&
+   standardAmount===row.price_amount_minor
+  );
+  if(!snapshotValid||row.amount_minor!==paidAmount||row.currency.trim()!==row.price_currency.trim()||
     (row.plan_code==="monthly"&&row.billing_interval!=="month")||
     (row.plan_code==="yearly"&&row.billing_interval!=="year")||
     !["monthly","yearly"].includes(row.plan_code)){
@@ -49,10 +64,8 @@ export async function activateVerifiedSubscriptionPayment(pool:Pool,paymentTrans
    [row.payment_id,row.provider_code,row.provider_event_id]
   );
   if(existing.rows[0]){
-   if(existing.rows[0].id){
-    await client.query("COMMIT");
-    return {entitlement_id:existing.rows[0].id,period_start:existing.rows[0].period_start,period_end:existing.rows[0].period_end,idempotent:true};
-   }
+   await client.query("COMMIT");
+   return {entitlement_id:existing.rows[0].id,period_start:existing.rows[0].period_start,period_end:existing.rows[0].period_end,idempotent:true};
   }
   if(row.subscription_status!=="pending"&&row.subscription_status!=="active"){
    throw new SubscriptionActivationError("SUBSCRIPTION_UNAVAILABLE");
@@ -68,9 +81,9 @@ export async function activateVerifiedSubscriptionPayment(pool:Pool,paymentTrans
     plan_code,currency,standard_amount_minor,discount_amount_minor,paid_amount_minor,
     period_start,period_end,verified_payment_at
    )
-   VALUES($1,$2,$3,$4,$5,$6,$7,$8,0,$8,$9::timestamptz,$9::timestamptz+($10::integer*interval '1 day'),$9::timestamptz)
+   VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::timestamptz,$11::timestamptz+($12::integer*interval '1 day'),$13::timestamptz)
    RETURNING id,period_start,period_end
-  `,[row.user_id,row.subscription_id,row.payment_id,row.provider_code,row.provider_event_id,row.plan_code,row.currency,row.amount_minor,periodStart,String(days)]);
+  `,[row.user_id,row.subscription_id,row.payment_id,row.provider_code,row.provider_event_id,row.plan_code,row.currency,standardAmount,discountAmount,paidAmount,periodStart,String(days),verifiedAt]);
   const entitlement=inserted.rows[0]!;
   await client.query(
    "UPDATE subscriptions SET status='active',current_period_start=$2,current_period_end=$3 WHERE id=$1",
@@ -81,7 +94,6 @@ export async function activateVerifiedSubscriptionPayment(pool:Pool,paymentTrans
  }catch(error){
   await client.query("ROLLBACK");
   if(error instanceof SubscriptionActivationError)throw error;
-  // A duplicate provider event/payment race is resolved by the idempotent retry.
   if((error as {code?:string})?.code==="23505")throw new SubscriptionActivationError("PAYMENT_ALREADY_ASSIGNED");
   throw error;
  }finally{client.release();}
