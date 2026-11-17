@@ -1,4 +1,5 @@
-import {ActivityIndicator,Pressable,StyleSheet,Text,View,type PressableProps} from "react-native";
+import {ActivityIndicator,Pressable,StyleSheet,Text,View} from "react-native";
+import type {ReactNode} from "react";
 import {colors,radius,space,typeScale} from "./theme";
 
 export function BrandMark({size=48}:{size?:number}){
@@ -11,7 +12,7 @@ export function PrimaryButton({label,onPress,loading=false,disabled=false}:{labe
   {loading?<ActivityIndicator color="#FFFFFF"/>:<Text style={s.buttonText}>{label}</Text>}
  </Pressable>;
 }
-export function SurfaceCard({children,soft=false}:{children:React.ReactNode;soft?:boolean}){
+export function SurfaceCard({children,soft=false}:{children:ReactNode;soft?:boolean}){
  return <View style={[s.card,soft&&s.cardSoft]}>{children}</View>;
 }
 export function Eyebrow({children}:{children:string}){
