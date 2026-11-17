@@ -45,14 +45,16 @@ Never seed a default password, make an unauthenticated bootstrap endpoint, or ex
 - POST /api/v1/admin/auth/logout
 - GET /api/v1/admin/subscription-offers
 - GET /api/v1/admin/audit-events (redacted, paginated, filterable by action)
+- GET /api/v1/admin/sessions (active sessions with current-session marker)
+- DELETE /api/v1/admin/sessions/{sessionId} (revoke an active administrator session)
 - PUT /api/v1/admin/subscription-offers/{monthly|yearly}
 
 Send the admin access token as Authorization: Bearer <token>. The token is not a learner token and must not be stored in learner session storage.
 
 ## Remaining admin release work
 
-- Admin web UI, MFA, recovery and account invitation lifecycle.
+- MFA, recovery and account invitation lifecycle. A first static Superadmin console now exists at `apps/admin-console/index.html`; setup and deployment requirements are in [the console runbook](../admin/SUPERADMIN_CONSOLE.md).
 - Role delegation and least-privilege roles beyond the initial Superadmin.
 - Security review, penetration testing, lockout monitoring and alerting.
-- Audit-log export and admin session management UI.
+- Audit-log export and browser-based security hardening (CSP, idle timeout and production hosting review). The console currently supports session listing/revocation and audit browsing.
 - Payment provider setup and verified webhook processing remain separate gates.
