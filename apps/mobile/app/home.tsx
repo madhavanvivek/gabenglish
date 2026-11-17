@@ -5,7 +5,7 @@ import {SafeAreaView} from "react-native-safe-area-context";
 import {AuthApiError,getLearnerMe,getSubscriptionStatus,listGabrooConversations,updateLearnerPreferences,type LearnerMe,type SubscriptionStatus,type GabrooConversation} from "../src/auth-api";
 import {BrandMark,SurfaceCard,Eyebrow} from "../src/ui";
 import {colors,radius,space} from "../src/theme";
-import {adjustGabrooSpeechRate} from "../src/learner-settings";
+import {adjustGabrooSpeechRate,resolveLearningDirection} from "../src/learner-settings";
 
 export default function HomeScreen(){
  const [learner,setLearner]=useState<LearnerMe|null>(null);
@@ -23,7 +23,7 @@ export default function HomeScreen(){
   setLoading(true);setError("");setNotice("");
   try{
    const me=await getLearnerMe();
-   setLearner(me);setSpeechRate(me.preferences?.gabroo_speech_rate??1);setLearningDirection(me.preferences?.learning_direction??"ml_to_en");
+   setLearner(me);setSpeechRate(me.preferences?.gabroo_speech_rate??1);setLearningDirection(resolveLearningDirection(me.preferences?.learning_direction));
    const status=await getSubscriptionStatus();setSubscription(status);
    if(status.active){
     try{setConversations((await listGabrooConversations()).conversations);}
@@ -39,7 +39,7 @@ export default function HomeScreen(){
   const previous=learningDirection;setLearningDirection(next);setSavingDirection(true);setError("");setNotice("");
   try{
    await updateLearnerPreferences({learning_direction:next});
-   const me=await getLearnerMe();setLearner(me);setLearningDirection(me.preferences?.learning_direction??next);
+   const me=await getLearnerMe();setLearner(me);setLearningDirection(resolveLearningDirection(me.preferences?.learning_direction));
    setNotice("Your learning direction preference is saved.");
   }catch(reason){setLearningDirection(previous);setError(reason instanceof Error?reason.message:"Could not save your learning direction.");}
   finally{setSavingDirection(false);}
