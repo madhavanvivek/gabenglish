@@ -42,7 +42,7 @@ The value is the API origin only, without the `/api/v1` suffix. In production us
 
 The short-lived admin bearer token is held in tab-scoped `sessionStorage`, not persistent local storage. Sign-out attempts to revoke the current server-side session. Closing the tab clears the browser copy but does not revoke the server-side session; it remains valid until expiry or explicit revocation. Administrators should sign out on shared devices.
 
-The console currently has no MFA, password recovery, invitation flow, audit export, role delegation, or automated idle timeout. These are outstanding security/release items. No payment provider is selected, and this console does not initiate checkout or change learner entitlements.
+The API enforces a 30-minute inactivity timeout for administrator sessions. Every successful authenticated admin API request refreshes the server-side activity timestamp; an idle session is rejected even if its browser tab remains open, and it disappears from the active-session inventory. This is enforced in PostgreSQL-backed session checks rather than relying on a browser timer. The console currently has no MFA, password recovery, invitation flow, audit export, or role delegation. These remain outstanding security/release items. No payment provider is selected, and this console does not initiate checkout or change learner entitlements.
 
 ## Manual acceptance checklist
 
