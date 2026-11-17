@@ -120,7 +120,9 @@ integration("PostgreSQL placement session integration",()=>{
     await pool.query("UPDATE admin_sessions SET last_seen_at=now()-interval '31 minutes' WHERE id=$1",[idleClaims.sid]);
     const idleRejected=await app.inject({method:"GET",url:"/api/v1/admin/subscription-offers",headers:{authorization:"Bearer "+idleToken}});
     expect(idleRejected.statusCode).toBe(401);
-    const idleSession=await app.inject({method:"GET",url:"/api/v1/admin/sessions?limit=10&offset=0",headers});
+    const inventoryLogin=await app.inject({method:"POST",url:"/api/v1/admin/auth/login",payload:{email,password}});
+    expect(inventoryLogin.statusCode).toBe(200);
+    const idleSession=await app.inject({method:"GET",url:"/api/v1/admin/sessions?limit=10&offset=0",headers:{authorization:"Bearer "+inventoryLogin.json().access_token}});
     expect(idleSession.json().sessions).not.toEqual(expect.arrayContaining([expect.objectContaining({id:idleClaims.sid})]));
    }finally{await app.close();}
   }finally{
