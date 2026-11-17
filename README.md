@@ -26,6 +26,8 @@ Read the consolidated source of truth: [Product decisions and implementation sta
 
 ## Local setup
 
+For the VS Code + Android emulator/physical-device preview workflow, follow [Mobile preview and IDE setup](docs/development/MOBILE_PREVIEW_SETUP.md).
+
 Requirements: Node.js 22+, pnpm 10.10+; PostgreSQL 15+ for database-backed readiness.
 
 ```bash
