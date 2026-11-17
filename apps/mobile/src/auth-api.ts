@@ -1,5 +1,6 @@
 import * as SecureStore from "expo-secure-store";
-import {authTokenResponseSchema,type AuthTokenResponse} from "@gabenglish/contracts";
+import * as FileSystem from "expo-file-system/legacy";
+import {authTokenResponseSchema,gabrooRecognitionResponseSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse} from "@gabenglish/contracts";
 
 const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
 const ACCESS_KEY="gabenglish.auth.access";
@@ -122,6 +123,59 @@ export type GabrooConversationMode="free_flow"|"gentle_correction"|"detailed_cor
 export type GabrooConversation={id:string;title:string|null;mode:GabrooConversationMode;support_language:"ml"|"en";status:"open"|"closed";turn_count:number;created_at:string;updated_at:string;closed_at:string|null};
 export type GabrooConversationMessage={id:string;sequence_number:number;role:"user"|"assistant";content:string;created_at:string};
 export type SubscriptionStatus={access:"free"|"paid";active:boolean;entitlement:null|{plan_code:string;currency:string;amount_minor:number;period_start:string;period_end:string}};
+
+/**
+ * Upload a learner-consented local recording for transcription. The API
+ * returns an unconfirmed transcript only; the UI must show it for review.
+ * This helper never submits transcript text to a conversation.
+ */
+export async function recognizeGabrooAudio(input:{
+ uri:string;
+ mimeType:"audio/mp4"|"audio/m4a"|"audio/wav"|"audio/x-wav"|"audio/webm"|"audio/ogg";
+ language:GabrooRecognitionLanguage;
+ consentGranted:true;
+}):Promise<GabrooRecognitionResponse>{
+ if(input.consentGranted!==true)throw new AuthApiError("Explicit microphone and transcription consent is required.");
+ const upload=async(accessToken:string)=>{
+  const result=await FileSystem.uploadAsync(baseUrl()+"/api/v1/gabroo/recognition",input.uri,{
+   httpMethod:"POST",
+   uploadType:FileSystem.FileSystemUploadType.BINARY_CONTENT,
+   headers:{
+    authorization:"Bearer "+accessToken,
+    "content-type":input.mimeType,
+    accept:"application/json",
+    "x-gabroo-consent":"true",
+    "x-gabroo-language":input.language
+   }
+  });
+  let payload:unknown=null;
+  try{payload=JSON.parse(result.body) as unknown;}catch{}
+  if(result.status<200||result.status>=300){
+   const message=typeof payload==="object"&&payload!==null&&"error" in payload&&typeof payload.error==="object"&&payload.error!==null&&"message" in payload.error&&typeof payload.error.message==="string"?payload.error.message:`Speech recognition is unavailable (${result.status}).`;
+   throw new AuthApiError(message,result.status);
+  }
+  const parsed=gabrooRecognitionResponseSchema.safeParse(payload);
+  if(!parsed.success)throw new AuthApiError("Speech recognition returned an invalid response.");
+  return parsed.data;
+ };
+ let access=await SecureStore.getItemAsync(ACCESS_KEY);
+ if(!access){await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);}
+ if(!access)throw new AuthApiError("Your session has expired. Please sign in again.",401);
+ try{
+  try{return await upload(access);}
+  catch(error){
+   if(!(error instanceof AuthApiError)||error.status!==401)throw error;
+   await renewSession();
+   const refreshed=await SecureStore.getItemAsync(ACCESS_KEY);
+   if(!refreshed)throw new AuthApiError("Your session has expired. Please sign in again.",401);
+   return await upload(refreshed);
+  }
+ }catch(error){
+  if(error instanceof AuthApiError)throw error;
+  throw new AuthApiError("Could not upload the recording. Check your connection and try again.");
+ }
+}
+
 export async function getSubscriptionStatus(){return await authorized("/api/v1/subscriptions/current","GET") as SubscriptionStatus;}
 export async function listGabrooConversations(){return await authorized("/api/v1/gabroo/conversations","GET") as {conversations:GabrooConversation[]};}
 export async function getGabrooConversation(id:string){return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id),"GET") as {conversation:GabrooConversation;messages:GabrooConversationMessage[]};}
