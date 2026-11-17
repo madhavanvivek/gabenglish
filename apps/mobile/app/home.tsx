@@ -1,0 +1,68 @@
+import {useCallback,useState} from "react";
+import {Link,useFocusEffect} from "expo-router";
+import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
+import {SafeAreaView} from "react-native-safe-area-context";
+import {AuthApiError,getLearnerMe,getSubscriptionStatus,listGabrooConversations,updateLearnerPreferences,type LearnerMe,type SubscriptionStatus,type GabrooConversation} from "../src/auth-api";
+import {BrandMark,PrimaryButton,SurfaceCard,Eyebrow} from "../src/ui";
+import {colors,radius,space,typeScale} from "../src/theme";
+
+export default function HomeScreen(){
+ const [learner,setLearner]=useState<LearnerMe|null>(null);
+ const [subscription,setSubscription]=useState<SubscriptionStatus|null>(null);
+ const [conversations,setConversations]=useState<GabrooConversation[]>([]);
+ const [loading,setLoading]=useState(true);
+ const [savingSpeed,setSavingSpeed]=useState(false);
+ const [error,setError]=useState("");
+ const [notice,setNotice]=useState("");
+ const [speechRate,setSpeechRate]=useState(1);
+ const [refreshKey,setRefreshKey]=useState(0);
+ const load=useCallback(async()=>{
+  setLoading(true);setError("");setNotice("");
+  try{
+   const me=await getLearnerMe();
+   setLearner(me);setSpeechRate(me.preferences?.gabroo_speech_rate??1);
+   const status=await getSubscriptionStatus();setSubscription(status);
+   if(status.active){
+    try{setConversations((await listGabrooConversations()).conversations);}
+    catch(reason){if(!(reason instanceof AuthApiError&&reason.status===403))throw reason;}
+   }else setConversations([]);
+  }catch(reason){
+   setError(reason instanceof Error?reason.message:"Could not load your learning home.");
+  }finally{setLoading(false);}
+ },[]);
+ useFocusEffect(useCallback(()=>{void load();},[load,refreshKey]));
+ const changeSpeed=async(delta:number)=>{
+  const next=Math.min(1.5,Math.max(.75,Math.round((speechRate+delta)*100)/100));
+  if(next===speechRate||savingSpeed)return;
+  const previous=speechRate;setSpeechRate(next);setSavingSpeed(true);setNotice("");setError("");
+  try{await updateLearnerPreferences({gabroo_speech_rate:next});setNotice("Gabroo's speaking speed preference is saved.");}
+  catch(reason){setSpeechRate(previous);setError(reason instanceof Error?reason.message:"Could not save the speaking speed.");}
+  finally{setSavingSpeed(false);}
+ };
+ const firstName=learner?.user.display_name?.trim().split(/\\s+/)[0];
+ const active=subscription?.active===true;
+ return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
+  <View style={s.header}><View style={s.brandRow}><BrandMark size={42}/><View><Text style={s.brand}>Gabenglish</Text><Text style={s.tagline}>YOUR ENGLISH, YOUR PACE</Text></View></View><Link href="/account" asChild><Pressable accessibilityRole="button" style={s.profile}><Text style={s.profileText}>Profile</Text></Pressable></Link></View>
+  {loading?<View style={s.loading}><ActivityIndicator size="large" color={colors.primary}/><Text style={s.muted}>Getting your learning space ready…</Text></View>:<>
+   <View style={s.welcome}><Eyebrow>YOUR LEARNING SPACE</Eyebrow><Text style={s.greeting}>Hello{firstName?" "+firstName:""}! 👋</Text><Text style={s.intro}>A little English, a little confidence — and Gabroo whenever you need a conversation.</Text></View>
+   <View style={s.hero}><View style={s.heroTop}><View style={s.avatar}><Text style={s.avatarText}>G</Text></View><View style={s.heroCopy}><Text style={s.heroEyebrow}>YOUR EVERYDAY ENGLISH BUDDY</Text><Text style={s.heroTitle}>Talk to Gabroo</Text></View></View><Text style={s.heroBody}>Start with any topic. Ask a question, practise a real-life situation, or simply say hello. You don't need to choose a lesson first.</Text>{active?<PrimaryButton label="Start talking with Gabroo  →" onPress={()=>{}}/>:<Link href="/account" asChild><Pressable style={s.heroButton}><Text style={s.heroButtonText}>View account and subscription  →</Text></Pressable></Link>}<Text style={s.heroFoot}>{active?"Included in your active Gabenglish subscription.":"An active subscription is required for open conversations."}</Text></View>
+   <View style={s.sectionHead}><Text style={s.sectionTitle}>Your learning activity</Text><Text style={s.sectionMeta}>LIVE ACCOUNT DATA</Text></View>
+   <View style={s.statsRow}><SurfaceCard soft><Text style={s.statValue}>{active?conversations.length:"—"}</Text><Text style={s.statLabel}>Saved conversations</Text></SurfaceCard><SurfaceCard><Text style={[s.statValue,{color:active?colors.success:colors.warning}]}>{active?"Active":"Free access"}</Text><Text style={s.statLabel}>Subscription</Text></SurfaceCard></View>
+   <SurfaceCard><View style={s.cardHeading}><Text style={s.cardTitle}>Continue a conversation</Text><Link href="/gabroo" style={s.textLink}>Open all →</Link></View>{!active?<Text style={s.body}>Your free English analysis and account remain available. Choose a plan from your account to unlock Gabroo conversations.</Text>:conversations.length===0?<Text style={s.body}>Your conversations will appear here after your first chat with Gabroo.</Text>:conversations.slice(0,3).map(item=><Link key={item.id} href="/gabroo" asChild><Pressable style={s.conversation}><View style={s.conversationIcon}><Text>💬</Text></View><View style={s.conversationCopy}><Text style={s.conversationTitle}>{item.title??"Conversation with Gabroo"}</Text><Text style={s.conversationMeta}>{item.turn_count} exchanges · {new Date(item.updated_at).toLocaleDateString()}</Text></View><Text style={s.chevron}>›</Text></Pressable></Link>)}</SurfaceCard>
+   <SurfaceCard soft><Eyebrow>MAKE IT COMFORTABLE</Eyebrow><Text style={s.cardTitle}>Gabroo speaking speed</Text><Text style={s.body}>Choose a pace that is easy to understand. Your preference is saved to your account and used when Gabroo speaks aloud.</Text><View style={s.speedRow}><Pressable accessibilityRole="button" accessibilityLabel="Slow down Gabroo" disabled={speechRate<=.75||savingSpeed} onPress={()=>void changeSpeed(-.05)} style={[s.speedButton,(speechRate<=.75||savingSpeed)&&s.disabled]}><Text style={s.speedButtonText}>−</Text></Pressable><View style={s.speedValue}><Text style={s.speedNumber}>{speechRate.toFixed(2).replace(/0$/,"")}×</Text><Text style={s.speedCaption}>PLAYBACK SPEED</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Speed up Gabroo" disabled={speechRate>=1.5||savingSpeed} onPress={()=>void changeSpeed(.05)} style={[s.speedButton,(speechRate>=1.5||savingSpeed)&&s.disabled]}><Text style={s.speedButtonText}>+</Text></Pressable></View><Pressable onPress={()=>void changeSpeed(1-speechRate)} disabled={savingSpeed||speechRate===1} style={s.reset}><Text style={s.resetText}>Reset to normal · 1.0×</Text></Pressable></SurfaceCard>
+   <View style={s.bottomLinks}><Link href="/" style={s.bottomLink}>Free English analysis</Link><Link href="/account" style={s.bottomLink}>Account, report and preferences</Link></View>
+  </>}
+  {!!notice&&<Text accessibilityRole="status" style={s.notice}>{notice}</Text>}{!!error&&<View style={s.error}><Text style={s.errorText}>{error}</Text><Pressable onPress={()=>setRefreshKey(value=>value+1)}><Text style={s.retry}>Try again</Text></Pressable></View>}
+  <Text style={s.footer}>Learn at your own pace. No pressure, just progress.</Text>
+ </ScrollView></SafeAreaView>;
+}
+const s=StyleSheet.create({
+ safe:{flex:1,backgroundColor:colors.background},page:{flexGrow:1,padding:space.xl,paddingBottom:36,gap:space.lg},
+ header:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},brandRow:{flexDirection:"row",alignItems:"center",gap:11},brand:{fontSize:20,fontWeight:"900",color:colors.text},tagline:{fontSize:9,fontWeight:"900",letterSpacing:1.1,color:colors.secondary,marginTop:3},profile:{paddingVertical:9,paddingHorizontal:13,borderRadius:radius.pill,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border},profileText:{fontSize:12,fontWeight:"800",color:colors.primaryStrong},
+ loading:{paddingVertical:70,alignItems:"center",gap:12},muted:{color:colors.textMuted,fontSize:13},welcome:{paddingTop:8,gap:6},greeting:{fontSize:30,fontWeight:"900",color:colors.text},intro:{fontSize:14,lineHeight:21,color:colors.textMuted},
+ hero:{backgroundColor:colors.primaryStrong,borderRadius:radius.xl,padding:space.xl,gap:13},heroTop:{flexDirection:"row",alignItems:"center",gap:12},avatar:{width:52,height:52,borderRadius:18,backgroundColor:"#FFFFFF",alignItems:"center",justifyContent:"center"},avatarText:{fontSize:31,fontWeight:"900",color:colors.primary},heroCopy:{flex:1},heroEyebrow:{fontSize:9,fontWeight:"900",letterSpacing:1,color:"#D9C5FF"},heroTitle:{fontSize:23,fontWeight:"900",color:"#FFFFFF",marginTop:3},heroBody:{fontSize:13,lineHeight:20,color:"#F1EAFE"},heroButton:{backgroundColor:colors.accent,borderRadius:radius.md,minHeight:50,alignItems:"center",justifyContent:"center",paddingHorizontal:12},heroButtonText:{fontSize:14,fontWeight:"900",color:colors.text},heroFoot:{fontSize:10,lineHeight:15,color:"#E0D1F6"},
+ sectionHead:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:4},sectionTitle:{fontSize:17,fontWeight:"900",color:colors.text},sectionMeta:{fontSize:9,fontWeight:"900",letterSpacing:1,color:colors.textMuted},statsRow:{flexDirection:"row",gap:10},statValue:{fontSize:23,fontWeight:"900",color:colors.primaryStrong},statLabel:{fontSize:11,color:colors.textMuted,marginTop:5},
+ cardHeading:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:8},cardTitle:{fontSize:16,fontWeight:"900",color:colors.text,marginTop:4},textLink:{fontSize:11,fontWeight:"900",color:colors.primary},body:{fontSize:12,lineHeight:18,color:colors.textMuted,marginTop:8},conversation:{flexDirection:"row",alignItems:"center",paddingVertical:11,borderTopWidth:1,borderTopColor:colors.border,gap:10},conversationIcon:{width:34,height:34,borderRadius:12,backgroundColor:colors.surfaceSoft,alignItems:"center",justifyContent:"center"},conversationCopy:{flex:1},conversationTitle:{fontSize:12,fontWeight:"800",color:colors.text},conversationMeta:{fontSize:10,color:colors.textMuted,marginTop:4},chevron:{fontSize:23,color:colors.secondary},
+ speedRow:{flexDirection:"row",alignItems:"center",justifyContent:"center",gap:25,marginTop:14},speedButton:{width:44,height:44,borderRadius:14,backgroundColor:colors.primary,alignItems:"center",justifyContent:"center"},speedButtonText:{fontSize:26,fontWeight:"700",color:"#FFFFFF"},speedValue:{alignItems:"center",minWidth:90},speedNumber:{fontSize:27,fontWeight:"900",color:colors.primaryStrong},speedCaption:{fontSize:9,fontWeight:"900",letterSpacing:1,color:colors.textMuted,marginTop:2},disabled:{opacity:.4},reset:{alignSelf:"center",padding:9,marginTop:3},resetText:{fontSize:11,fontWeight:"800",color:colors.primaryStrong},
+ bottomLinks:{flexDirection:"row",justifyContent:"space-between",flexWrap:"wrap",gap:12},bottomLink:{fontSize:11,fontWeight:"800",color:colors.primary},notice:{fontSize:11,color:colors.success,textAlign:"center"},error:{backgroundColor:"#FCE8E6",padding:13,borderRadius:12},errorText:{fontSize:12,color:colors.danger},retry:{color:colors.primaryStrong,fontWeight:"900",marginTop:8},footer:{fontSize:10,color:colors.textMuted,textAlign:"center",marginTop:5}
+});
