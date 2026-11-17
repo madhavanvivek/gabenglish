@@ -19,6 +19,12 @@ export async function buildApp(config:AppConfig,databaseCheck:()=>Promise<boolea
  await registerPlacementRoutes(app,pool,config);
  if(pool){await registerAuthRoutes(app,pool,config,otpDelivery);await registerSubscriptionRoutes(app,pool,config);await registerGabrooConversationRoutes(app,pool,config,gabrooProvider);await registerGabrooRecognitionRoutes(app,pool,config,gabrooRecognitionProvider);await registerGabrooMemoryRoutes(app,pool,config);await registerLearningRoutes(app,pool,config);}
  app.setNotFoundHandler(async(_q,r)=>r.code(404).send({error:{code:"NOT_FOUND",message:"The requested resource was not found.",request_id:r.request.id}}));
- app.setErrorHandler(async(e,q,r)=>{q.log.error({err:e},"Unhandled request error");return r.code(500).send({error:{code:"INTERNAL_ERROR",message:"An unexpected error occurred.",request_id:q.id}});});
+ app.setErrorHandler(async(e,q,r)=>{
+  const code=(e as {code?:string}).code;
+  if(code==="FST_ERR_CTP_INVALID_MEDIA_TYPE")return r.code(415).send({error:{code:"INVALID_AUDIO",message:"This media type is not supported.",request_id:q.id}});
+  if(code==="FST_ERR_CTP_BODY_TOO_LARGE")return r.code(413).send({error:{code:"AUDIO_TOO_LARGE",message:"The request body exceeds the permitted size.",request_id:q.id}});
+  q.log.error({err:e},"Unhandled request error");
+  return r.code(500).send({error:{code:"INTERNAL_ERROR",message:"An unexpected error occurred.",request_id:q.id}});
+ });
  return app;
 }
