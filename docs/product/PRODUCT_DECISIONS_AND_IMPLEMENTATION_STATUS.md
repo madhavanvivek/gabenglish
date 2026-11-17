@@ -516,3 +516,12 @@ Next implementation sequence:
 - Audio is held temporarily in the app cache and deleted after transcription, on discard, when the app backgrounds, or when the screen loses focus. This app-side cleanup does not assert provider-side retention/deletion behavior.
 - The UI remains hidden for transcription when provider readiness is unavailable. No provider credentials or service were configured as part of this change.
 - Verification limitation: GitHub Actions currently exits before job steps/logs are available, so this implementation has not yet been validated by CI or on physical devices. The voice provider remains unconfigured in the current environment.
+
+
+## 13. Mobile UI foundation progress (2026-11-17)
+
+- Added shared semantic mobile theme tokens for colour, spacing, radii and type scale.
+- Added reusable mobile primitives for the Gabenglish brand mark, primary action, surface card and eyebrow label.
+- Applied shared brand/background tokens to the root app surface and the placement, account and Gabroo learner screens.
+- Refactored the placement screen to use shared brand and primary-action primitives.
+- This is an initial UI foundation only. The final UI is not green: complete onboarding, home/dashboard, learning, progress, subscription and profile flows still need implementation/refinement; the full design system, final Gabroo art, Malayalam font/device validation, accessibility and usability QA remain open.
