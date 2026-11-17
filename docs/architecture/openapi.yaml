@@ -19,6 +19,7 @@ tags:
   - name: Vocabulary
   - name: Speaking
   - name: Subscription
+  - name: Admin
 paths:
   /health:
     get:
@@ -438,6 +439,112 @@ paths:
                 additionalProperties: true
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /admin/auth/login:
+    post:
+      tags: [Admin]
+      security: []
+      summary: Sign in a provisioned Superadmin account
+      description: Admin authentication is separate from learner authentication. There is no public administrator registration or default account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 1, maxLength: 128 }
+      responses:
+        '200':
+          description: Admin session created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in, admin]
+                properties:
+                  access_token: { type: string }
+                  token_type: { type: string, enum: [Bearer] }
+                  expires_in: { type: integer }
+                  admin:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      email: { type: string, format: email }
+                      roles: { type: array, items: { type: string } }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Active account does not have the Superadmin role
+  /admin/auth/logout:
+    post:
+      tags: [Admin]
+      summary: Revoke the current administrator session
+      responses:
+        '204': { description: Session revoked }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /admin/subscription-offers:
+    get:
+      tags: [Admin]
+      summary: List current subscription offer rules
+      responses:
+        '200':
+          description: Monthly and yearly offer configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  offers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        plan_code: { type: string, enum: [monthly, yearly] }
+                        standard_amount_minor: { type: integer }
+                        discount_basis_points: { type: integer, minimum: 0, maximum: 9999 }
+                        enabled: { type: boolean }
+                        starts_at: { type: string, format: date-time, nullable: true }
+                        ends_at: { type: string, format: date-time, nullable: true }
+                        version: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: Superadmin role required }
+  /admin/subscription-offers/{planCode}:
+    put:
+      tags: [Admin]
+      summary: Update the discount and offer window for one plan
+      parameters:
+        - in: path
+          name: planCode
+          required: true
+          schema: { type: string, enum: [monthly, yearly] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [discount_basis_points, enabled, starts_at, ends_at]
+              properties:
+                discount_basis_points: { type: integer, minimum: 0, maximum: 9999 }
+                enabled: { type: boolean }
+                starts_at: { type: string, format: date-time, nullable: true }
+                ends_at: { type: string, format: date-time, nullable: true }
+      responses:
+        '200':
+          description: Updated offer with incremented version
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  offer: { type: object, additionalProperties: true }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: Superadmin role required }
 
 components:
   securitySchemes:
