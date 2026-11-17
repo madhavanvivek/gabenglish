@@ -58,3 +58,8 @@ Send the admin access token as Authorization: Bearer <token>. The token is not a
 - Security review, penetration testing, lockout monitoring and alerting.
 - Audit-log export and browser-based security hardening (CSP, idle timeout and production hosting review). The console currently supports session listing/revocation and audit browsing.
 - Payment provider setup and verified webhook processing remain separate gates.
+
+
+## Administrator session inactivity timeout
+
+Administrator sessions are limited to 30 minutes of inactivity. Migration `0019_admin_session_idle_timeout.sql` adds the server-side `last_seen_at` timestamp. Each successful authenticated admin API request atomically refreshes it; a request with an idle timestamp older than 30 minutes is rejected, regardless of whether the browser tab is still open. Idle sessions are omitted from the active-session inventory. This is an inactivity control, not a replacement for MFA, short-lived credential handling, or periodic security review.
