@@ -590,3 +590,10 @@ Next implementation sequence:
 - Added policy tests for both directions and for avoiding invented Malayalam proficiency stages.
 - This is a direction-aware orchestration foundation, not a completed Malayalam course. The Malayalam curriculum, direction-specific placement assessment, reviewed content, per-direction progress records, and live AI provider integration remain outstanding.
 - Validation status: code changes committed to `foundation/app-skeleton`; GitHub Actions must complete its actual runner steps before this work can be called tested. No merge or production deployment performed.
+
+## 20. Direction-safe free diagnostic and report retrieval (2026-11-17)
+
+- Added migration `0013_directional_diagnostic_reports.sql` to tag diagnostic reports with the learning direction and target language they assess. Existing reports remain tagged as English acquisition (`ml_to_en`).
+- The current free conversation diagnostic is English-specific. The API now refuses to start it for a learner whose saved direction is Malayalam acquisition, returning a clear unavailable-assessment response rather than silently assessing the wrong language.
+- Latest-report retrieval is scoped to the learner's selected direction and includes the report's direction metadata. An English report will not be presented as evidence of Malayalam proficiency.
+- The Malayalam assessment is still not implemented. This is an intentional product-integrity guard, not a completed assessment flow.
