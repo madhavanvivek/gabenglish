@@ -557,3 +557,14 @@ Next implementation sequence:
 - Keep the established purple identity and yellow accent. Use sufficient contrast on both light and dark backgrounds; the near-black wordmark on black in the initial concept is not an approved treatment.
 - The generated Version 2 presentation is a visual direction/mockup, not a production-ready vector master. Next brand-artwork tasks: create clean vector wordmark and brand mark, prepare transparent-background logo exports and app icon crops, verify typography/spacing at small sizes, and prepare light/dark/monochrome variants. Final exports should be reviewed before being wired into app launch assets.
 - This approval does not approve any new character model or claim that the production mascot/animation asset pipeline is complete.
+
+
+## 17. Bidirectional language learning expansion (2026-11-17)
+
+- Approved the product direction to support two distinct learning journeys: English through Malayalam (`ml_to_en`) and Malayalam through English (`en_to_ml`).
+- The existing English-through-Malayalam journey remains the default and launch foundation. Existing learners must not be silently switched.
+- Target language, support/explanation language and learning direction are separate concepts. Do not overload the existing `support_language` preference to represent course direction.
+- The Malayalam-through-English journey requires its own curriculum, assessment blueprint, register/politeness guidance, script and optional romanisation support, and fluent educator review. It is not a translated copy of the English curriculum.
+- Initial product recommendation is to include both directions under the existing subscription model; no price, billing or entitlement changes are authorised.
+- Detailed architecture, learner journeys, pedagogy, content metadata, rollout and acceptance criteria are documented in `docs/learning/BIDIRECTIONAL_LANGUAGE_LEARNING.md`.
+- This is a product/architecture decision only. Direction persistence, selector UI, Malayalam curriculum, assessment, direction-aware tutor behaviour and release QA remain unimplemented. No new language direction should be shown as production-ready until its reviewed content and flows exist.
