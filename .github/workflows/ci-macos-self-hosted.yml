@@ -1,0 +1,79 @@
+name: Gabenglish CI (temporary Mac runner)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gabenglish-mac-ci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    # Register the Mac runner with this custom label.
+    # This workflow is manual-only; it does not run for public pull requests.
+    runs-on: [self-hosted, macOS, gabenglish-mac]
+    timeout-minutes: 45
+    env:
+      DATABASE_URL: postgres://${{ runner.name }}@localhost:5432/gabenglish_test
+    steps:
+      - name: Check out selected branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v brew
+          command -v node
+          command -v pnpm
+          node --version
+          pnpm --version
+          brew --prefix postgresql@16
+
+      - name: Start local PostgreSQL 16
+        shell: bash
+        run: |
+          set -euo pipefail
+          PG_BIN="$(brew --prefix postgresql@16)/bin"
+          echo "$PG_BIN" >> "$GITHUB_PATH"
+          export PATH="$PG_BIN:$PATH"
+          brew services start postgresql@16
+          for attempt in {1..30}; do
+            if pg_isready -h localhost -p 5432; then
+              break
+            fi
+            sleep 2
+          done
+          pg_isready -h localhost -p 5432
+
+          DB_USER="$(whoami)"
+          if ! psql -h localhost -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$DB_USER'" | grep -q 1; then
+            createuser -h localhost "$DB_USER"
+          fi
+          if ! psql -h localhost -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'gabenglish_test'" | grep -q 1; then
+            createdb -h localhost -O "$DB_USER" gabenglish_test
+          fi
+          echo "DATABASE_URL=postgres://$DB_USER@localhost:5432/gabenglish_test" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: API typecheck
+        run: pnpm --filter @gabenglish/api typecheck
+
+      - name: API tests and PostgreSQL integration tests
+        run: pnpm --filter @gabenglish/api test
+
+      - name: Shared contracts typecheck
+        run: pnpm --filter @gabenglish/contracts typecheck
+
+      - name: Shared contracts tests
+        run: pnpm --filter @gabenglish/contracts test
+
+      - name: Mobile typecheck
+        run: pnpm --filter @gabenglish/mobile typecheck
