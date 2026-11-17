@@ -26,3 +26,15 @@ CREATE INDEX subscription_checkout_quotes_expiry_idx
 
 COMMENT ON TABLE subscription_checkout_quotes IS
   'Immutable, short-lived server-side price quotes. A quote alone never creates a payment or paid entitlement.';
+
+
+CREATE FUNCTION reject_subscription_checkout_quote_update()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'Subscription checkout quotes are immutable';
+END;
+$$;
+
+CREATE TRIGGER subscription_checkout_quotes_immutable
+  BEFORE UPDATE ON subscription_checkout_quotes
+  FOR EACH ROW EXECUTE FUNCTION reject_subscription_checkout_quote_update();
