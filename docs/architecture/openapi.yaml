@@ -18,6 +18,7 @@ tags:
   - name: Progress
   - name: Vocabulary
   - name: Speaking
+  - name: Subscription
 paths:
   /health:
     get:
@@ -349,6 +350,95 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+  /subscriptions/prices:
+    get:
+      tags: [Subscription]
+      security: []
+      summary: Get the current server-calculated monthly and yearly prices
+      responses:
+        '200':
+          description: Current INR prices and active offer details
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [currency, prices]
+                properties:
+                  currency: { type: string, enum: [INR] }
+                  prices:
+                    type: array
+                    items:
+                      type: object
+                      required: [plan_code, billing_days, standard_amount_minor, discount_amount_minor, payable_amount_minor, offer_version, quoted_at]
+                      properties:
+                        plan_code: { type: string, enum: [monthly, yearly] }
+                        currency: { type: string, enum: [INR] }
+                        billing_days: { type: integer, enum: [30, 360] }
+                        standard_amount_minor: { type: integer }
+                        discount_amount_minor: { type: integer }
+                        payable_amount_minor: { type: integer }
+                        discount_basis_points: { type: integer }
+                        offer_applied: { type: boolean }
+                        offer_version: { type: integer }
+                        quoted_at: { type: string, format: date-time }
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /subscriptions/checkout/quote:
+    post:
+      tags: [Subscription]
+      summary: Create a learner-owned, short-lived immutable price quote
+      description: Creates a 15-minute price quote only. It does not create a payment intent, process a payment or grant paid access.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan_code]
+              properties:
+                plan_code: { type: string, enum: [monthly, yearly] }
+      responses:
+        '201':
+          description: Quote created; payment is still required
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [quote_id, plan_code, currency, standard_amount_minor, discount_amount_minor, payable_amount_minor, offer_version, quoted_at, expires_at, payment_required, access_granted]
+                properties:
+                  quote_id: { type: string, format: uuid }
+                  plan_code: { type: string, enum: [monthly, yearly] }
+                  currency: { type: string, enum: [INR] }
+                  standard_amount_minor: { type: integer }
+                  discount_amount_minor: { type: integer }
+                  payable_amount_minor: { type: integer }
+                  discount_basis_points: { type: integer }
+                  offer_version: { type: integer }
+                  quoted_at: { type: string, format: date-time }
+                  expires_at: { type: string, format: date-time }
+                  payment_required: { type: boolean, enum: [true] }
+                  access_granted: { type: boolean, enum: [false] }
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /subscriptions/current:
+    get:
+      tags: [Subscription]
+      summary: Get the authenticated learner's current paid entitlement
+      responses:
+        '200':
+          description: Current paid entitlement or free access
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
 components:
   securitySchemes:
     bearerAuth:
