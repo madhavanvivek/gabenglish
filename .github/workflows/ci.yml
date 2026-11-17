@@ -49,4 +49,5 @@ jobs:
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm --filter @gabenglish/mobile typecheck
       - name: Export Android bundle (Expo production bundle smoke test)
-        run: pnpm --filter @gabenglish/mobile exec expo export --platform android --output-dir ../../artifacts/android-export
+        working-directory: apps/mobile
+        run: pnpm exec expo export --platform android
