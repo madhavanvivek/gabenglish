@@ -8,7 +8,7 @@ const transcript={text:"നമസ്കാരം, how are you?",languageDetected
 
 describe("Gabroo recognition service consent boundary",()=>{
  it("refuses recognition without explicit learner consent",async()=>{
-  const transcribe=vi.fn(async()=>transcript);
+  const transcribe=vi.fn(async (_input:Parameters<GabrooSpeechRecognitionProvider["transcribe"]>[0])=>transcript);
   const provider:GabrooSpeechRecognitionProvider={transcribe};
   await expect(recognizeGabrooAudio({audio,metadata,consentGranted:false,provider})).rejects.toMatchObject({
    code:"CONSENT_REQUIRED"
@@ -17,7 +17,7 @@ describe("Gabroo recognition service consent boundary",()=>{
  });
 
  it("does not treat missing consent as consent",async()=>{
-  const transcribe=vi.fn(async()=>transcript);
+  const transcribe=vi.fn(async (_input:Parameters<GabrooSpeechRecognitionProvider["transcribe"]>[0])=>transcript);
   const provider:GabrooSpeechRecognitionProvider={transcribe};
   await expect(recognizeGabrooAudio({
    audio,metadata,consentGranted:undefined as unknown as boolean,provider
@@ -26,7 +26,7 @@ describe("Gabroo recognition service consent boundary",()=>{
  });
 
  it("passes validated audio to the injected provider only after consent",async()=>{
-  const transcribe=vi.fn(async()=>transcript);
+  const transcribe=vi.fn(async (_input:Parameters<GabrooSpeechRecognitionProvider["transcribe"]>[0])=>transcript);
   const provider:GabrooSpeechRecognitionProvider={transcribe};
   await expect(recognizeGabrooAudio({audio,metadata,consentGranted:true,provider})).resolves.toEqual(transcript);
   expect(transcribe).toHaveBeenCalledTimes(1);
@@ -51,7 +51,7 @@ describe("Gabroo recognition service consent boundary",()=>{
  });
 
  it("rejects mismatched audio metadata before provider invocation",async()=>{
-  const transcribe=vi.fn(async()=>transcript);
+  const transcribe=vi.fn(async (_input:Parameters<GabrooSpeechRecognitionProvider["transcribe"]>[0])=>transcript);
   const provider:GabrooSpeechRecognitionProvider={transcribe};
   await expect(recognizeGabrooAudio({
    audio,metadata:{...metadata,sizeBytes:4},consentGranted:true,provider
