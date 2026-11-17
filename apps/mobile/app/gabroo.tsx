@@ -1,7 +1,7 @@
 import {useCallback,useEffect,useRef,useState} from "react";
 import * as Speech from "expo-speech";
 import {Audio} from "expo-av";
-import * as FileSystem from "expo-file-system/legacy";
+import * as FileSystem from "expo-file-system";
 import {confirmGabrooTranscript,GABROO_LOCAL_CAPTURE_MAX_MS,playGabrooSpeechSegments,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooVoiceSessionState,type GabrooTranscript} from "@gabenglish/contracts";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
