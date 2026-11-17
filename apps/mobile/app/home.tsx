@@ -5,6 +5,7 @@ import {SafeAreaView} from "react-native-safe-area-context";
 import {AuthApiError,getLearnerMe,getSubscriptionStatus,listGabrooConversations,updateLearnerPreferences,type LearnerMe,type SubscriptionStatus,type GabrooConversation} from "../src/auth-api";
 import {BrandMark,SurfaceCard,Eyebrow} from "../src/ui";
 import {colors,radius,space} from "../src/theme";
+import {adjustGabrooSpeechRate} from "../src/learner-settings";
 
 export default function HomeScreen(){
  const [learner,setLearner]=useState<LearnerMe|null>(null);
@@ -44,7 +45,7 @@ export default function HomeScreen(){
   finally{setSavingDirection(false);}
  };
  const changeSpeed=async(delta:number)=>{
-  const next=Math.min(1.5,Math.max(.75,Math.round((speechRate+delta)*100)/100));
+  const next=adjustGabrooSpeechRate(speechRate,delta);
   if(next===speechRate||savingSpeed)return;
   const previous=speechRate;setSpeechRate(next);setSavingSpeed(true);setNotice("");setError("");
   try{await updateLearnerPreferences({gabroo_speech_rate:next});setNotice("Gabroo's speaking speed preference is saved.");}
