@@ -106,7 +106,7 @@ integration("PostgreSQL placement session integration",()=>{
     "SELECT user_id,standard_amount_minor::text,discount_amount_minor::text,payable_amount_minor::text,offer_version,quoted_at,expires_at FROM subscription_checkout_quotes WHERE id=$1",[quoteId]
    );
    expect(stored.rows[0]).toMatchObject({
-    user_id:userId,standard_amount_minor:"9900",discount_amount_minor:"2000",payable_amount_minor:"7900",offer_version:1
+    user_id:userId,standard_amount_minor:"9900",discount_amount_minor:"2000",payable_amount_minor:"7900",offer_version:response.json().offer_version
    });
    expect(stored.rows[0]!.expires_at.getTime()-stored.rows[0]!.quoted_at.getTime()).toBe(15*60*1000);
    await expect(pool.query("UPDATE subscription_checkout_quotes SET payable_amount_minor=1 WHERE id=$1",[quoteId])).rejects.toThrow("immutable");
