@@ -257,7 +257,7 @@ export default function GabrooScreen(){
   }finally{setVoicePermissionBusy(false);}
  };
  const startLocalCapture=async()=>{
-  if(!voiceCaptureConsent||voiceSessionState!=="ready"||recordingOperationRef.current||recordingRef.current)return;
+  if(!voiceCaptureConsent||voiceSessionState!=="ready"||recordingOperationRef.current||recordingRef.current||transcriptionRecordingRef.current||transcriptionUriRef.current)return;
   recordingOperationRef.current=true;
   setRecordingBusy(true);setSpeechNotice("");
   try{
@@ -325,6 +325,8 @@ export default function GabrooScreen(){
   return ()=>subscription.remove();
  },[]);
  const resetVoiceConsent=()=>{
+  void discardTranscriptionAudio();
+  setTranscriptionConsent(false);
   setVoiceConsent(false);
   setVoiceCaptureConsent(false);
   setVoicePermissionStatus("not_requested");
