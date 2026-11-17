@@ -165,3 +165,8 @@ A draft-only machine-readable blueprint defines six independent evidence domains
 ## 12. Direction-aware curriculum storage — implementation status
 
 Migration `0014_direction_aware_curriculum_progress.sql` adds explicit direction/source/target metadata to courses and lesson versions, plus script mode, register, dialect scope, romanisation and educator-review metadata. Existing course and lesson-version records are safely backfilled to the established `ml_to_en` / Malayalam-source / English-target path. New course-level and lesson-version-level learner progress tables are direction-scoped. Database triggers reject progress records whose course, lesson version and selected direction do not agree. Existing legacy progress rows are left untouched. The migration creates no Malayalam lessons and does not publish draft content; educator approval remains a separate requirement.
+
+
+## 13. Malayalam beginner curriculum map — implementation status
+
+A draft curriculum map now defines three beginner-to-connected-conversation stages and fourteen lesson specifications across greetings, polite everyday language, sound/listening foundations, food and shopping, transport, workplace interactions, and context/register. Every unit is explicitly `en_to_ml`, targets Malayalam, uses English support, requires Malayalam script with optional romanisation, identifies a broad Kerala dialect scope, and remains `not_reviewed` / `draft`. The map contains learning outcomes only; it is not a set of playable lessons. Native-speaker educator review, reviewed Malayalam examples, accepted variants, audio assets and lesson exercises are still outstanding.
