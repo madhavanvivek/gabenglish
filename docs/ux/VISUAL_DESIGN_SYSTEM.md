@@ -61,3 +61,6 @@ The first reusable mobile UI layer is now present in `apps/mobile/src/theme.ts` 
 - The placement experience uses the shared brand mark and primary button rather than duplicating those controls.
 
 This is the start of UI implementation, not the final design-system release. Still required: full component coverage, typography and Malayalam shaping verification on Android, screen-by-screen layout refinement, dynamic type/accessibility audit, dark/light decisions, interaction-state coverage, visual regression and representative-device usability testing. Gabroo's canonical 3D character art remains unapproved and must not be substituted with a temporary or inconsistent character.
+
+- Applied the shared brand mark to the welcome, account, Gabroo and not-found screens; the welcome placement flow now uses the shared primary button.
+- The not-found state now uses the shared theme and provides a clear return path.
