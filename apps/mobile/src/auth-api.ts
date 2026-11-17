@@ -223,3 +223,14 @@ export type PublishedLearningCatalog={
 export async function getPublishedLearningCatalog(){
  return await authorized("/api/v1/learning/courses","GET") as PublishedLearningCatalog;
 }
+
+export type LearningLessonDetail={
+ lesson:{id:string;slug:string;title:string;version_id:string;version:number;learning_direction:"ml_to_en"|"en_to_ml";source_language:string;target_language:string;support_language:string;content:unknown;script_mode:string;register:string|null;dialect_scope:string|null;romanisation:string|null};
+ progress:null|{status:"not_started"|"in_progress"|"completed";progress_percent:number;updated_at:string};
+};
+export async function getLearningLesson(id:string){
+ return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(id),"GET") as LearningLessonDetail;
+}
+export async function saveLearningLessonProgress(id:string,progress_percent:number){
+ return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(id)+"/progress","POST",{progress_percent}) as {lesson_id:string;learning_direction:"ml_to_en"|"en_to_ml";progress:{status:string;progress_percent:number;updated_at:string};course_progress:{progress_percent:number;completed_lessons:number;total_started_lessons:number}};
+}
