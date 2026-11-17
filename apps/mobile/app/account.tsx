@@ -190,7 +190,7 @@ export default function AccountScreen(){
     </View>)}
    </View>
    {savedReport?<View style={s.savedReport}><Text style={s.reportTitle}>Your saved free analysis</Text><Text style={s.info}>Status: {savedReport.report.status} · {savedReport.report.response_count} responses</Text><Text style={s.info}>Assessment: {savedReport.assessment_mode.replace("_"," ")}</Text><Text style={s.reportText}>{savedReport.gabroo_explanation}</Text><Text style={s.freeBadgeText}>AVAILABLE WITHOUT A PAID PLAN</Text></View>:null}
-   <Pressable disabled={busy} style={[s.button,s.secondary]} onPress={signOut}>{busy?<ActivityIndicator color=colors.primaryStrong/>:<Text style={s.secondaryText}>Sign out</Text>}</Pressable>
+   <Pressable disabled={busy} style={[s.button,s.secondary]} onPress={signOut}>{busy?<ActivityIndicator color={colors.primaryStrong}/>:<Text style={s.secondaryText}>Sign out</Text>}</Pressable>
   </View>:<View style={s.card}>
    <Text style={s.sectionTop}>Register or sign in</Text>
    <Text style={s.helper}>Use an email address or mobile number you control. If it is new, we'll create your account after verification.</Text>
