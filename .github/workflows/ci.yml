@@ -48,6 +48,8 @@ jobs:
           node-version: 22
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm --filter @gabenglish/mobile typecheck
+      - name: Run mobile learner-settings tests
+        run: pnpm --filter @gabenglish/mobile test
       - name: Export Android bundle (Expo production bundle smoke test)
         working-directory: apps/mobile
         run: pnpm exec expo export --platform android
