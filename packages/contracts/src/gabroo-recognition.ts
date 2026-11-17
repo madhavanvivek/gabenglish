@@ -158,3 +158,14 @@ export async function transcribeGabrooAudio(input:{
   input.signal?.removeEventListener("abort",onAbort);
  }
 }
+
+/**
+ * The HTTP response intentionally represents an unconfirmed transcript.
+ * Callers must present it for learner review; it is never a chat message.
+ */
+export const gabrooRecognitionResponseSchema=z.object({
+ transcript:gabrooTranscriptSchema,
+ review_required:z.literal(true),
+ request_id:z.string().min(1).max(200)
+}).strict();
+export type GabrooRecognitionResponse=z.infer<typeof gabrooRecognitionResponseSchema>;
