@@ -525,3 +525,14 @@ Next implementation sequence:
 - Applied shared brand/background tokens to the root app surface and the placement, account and Gabroo learner screens.
 - Refactored the placement screen to use shared brand and primary-action primitives.
 - This is an initial UI foundation only. The final UI is not green: complete onboarding, home/dashboard, learning, progress, subscription and profile flows still need implementation/refinement; the full design system, final Gabroo art, Malayalam font/device validation, accessibility and usability QA remain open.
+
+
+## 14. Learner home and learning-path UI (2026-11-17)
+
+- Added an authenticated learner Home screen using the live learner profile, subscription entitlement and saved Gabroo conversation endpoints.
+- Added a primary Talk to Gabroo action, recent conversation list, account/profile navigation and learner-controlled saved playback speed (0.75×–1.50×, default 1.0×, reset action).
+- Added a five-stage learning-path explorer based on the approved curriculum framework. The stage descriptions are informational; no learner stage or completion progress is inferred.
+- The current seed lessons remain editorial drafts with review pending. They are intentionally not presented as published, playable lessons.
+- Connected navigation between placement, Home, Learn, Account and Gabroo.
+- Remaining UI work includes a real lesson player and reviewed/published curriculum, practice/revision, evidence-based progress, subscription checkout/management, profile polish, and the final shared navigation system.
+- Verification remains blocked by GitHub Actions jobs exiting before runner allocation (empty step lists and runner ID 0). No successful mobile typecheck or device QA is claimed. No merge or production deployment performed.
