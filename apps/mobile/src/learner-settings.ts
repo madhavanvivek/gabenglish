@@ -14,3 +14,18 @@ export function clampGabrooSpeechRate(value: number): number {
 export function adjustGabrooSpeechRate(current: number, delta: number): number {
   return clampGabrooSpeechRate(current + delta);
 }
+
+export type GabenglishLearningDirection = "ml_to_en" | "en_to_ml";
+
+/** Preserve the established English-learning default for older or incomplete profiles. */
+export function resolveLearningDirection(value: unknown): GabenglishLearningDirection {
+  return value === "en_to_ml" ? "en_to_ml" : "ml_to_en";
+}
+
+/** Never show a course authored for the other learning direction. */
+export function isCourseForLearningDirection(
+  courseDirection: unknown,
+  learnerDirection: GabenglishLearningDirection
+): boolean {
+  return courseDirection === learnerDirection;
+}
