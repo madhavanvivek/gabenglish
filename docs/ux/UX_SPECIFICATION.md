@@ -44,7 +44,7 @@ Original sentence; corrected version; natural alternative; error category; Malay
 Skill-specific history, evidence-based strengths and improvement areas, recommended next activity. No unsupported fluency or certification labels.
 
 ### Profile and subscription
-Account/preferences; support language; notification settings; voice settings when available; subscription/renewal/cancellation; privacy, recording consent and account deletion.
+Account/preferences; support language; notification settings; voice settings (including Gabroo playback speed when voice is available); subscription/renewal/cancellation; privacy, recording consent and account deletion.
 
 ## 4. Speaking states
 Idle, listening, processing, speaking, feedback, paused, permission denied, network failure and provider failure. Always show whether microphone capture is active. Prevent duplicate submissions and preserve safe retry context.
@@ -63,3 +63,24 @@ System text scaling; captions/transcripts where appropriate; adequate contrast; 
 
 ## 9. Screen acceptance
 Every screen specification must define purpose, primary action, navigation entry/exit, loading/empty/error states, validation, accessibility and analytics events.
+
+## 10. First meaningful learner experience — Gabroo placement conversation
+
+The placement assessment is a guided, adaptive conversation with Gabroo and should precede the conventional learner dashboard. Gabroo explains the purpose and process in the learner's selected support language, begins with approachable conversation, and raises or lowers prompt difficulty based on demonstrated ability. It is not a fixed multiple-choice test. Strong learners should not be made to repeat unnecessary beginner questions.
+
+After the assessment, show a detailed, revisitable learner report separately from Gabroo's personal explanation. The report contains evidence-based skill findings, strengths, improvement areas, recommended stage and assessment limitations. Gabroo then explains the findings in a personalised spoken message and transcript, using examples from the learner's responses. The learner can accept the recommendation, start from the beginning, choose another stage or continue with a harder challenge.
+
+Text-only assessment must not claim to measure pronunciation or verified speaking fluency. Voice capture requires clear explanation and consent. See `docs/learning/GABROO_CONVERSATIONAL_PLACEMENT.md` for assessment behaviour and stopping criteria.
+
+## 11. Respectful companion communication
+
+Gabroo must be friendly without being overfamiliar. Use the learner's chosen name or respectful neutral phrasing by default. Avoid “eda/edi” and similar intimate address terms unless the learner explicitly welcomes them. Age can guide an initial style but does not determine preference; offer communication-style preferences and respect changes. Apply the full policy in `docs/brand/GABROO_COMMUNICATION_POLICY.md` across all learner touchpoints.
+
+
+## 12. All-day Gabroo companion and daily plan
+
+The paid learner home must make **Talk to Gabroo** a primary action. A learner can start an open conversation on a chosen topic or simply say they want to talk; they do not need to enter a lesson first. Provide conversation modes for free-flow chat, gentle corrections and detailed corrections. Allow the learner to continue previous conversations and save useful phrases.
+
+Show a separate optional daily activity plan with suggested morning, midday, afternoon and evening activities. Learners can skip, reschedule or disable reminders without penalty. The plan must never block open conversation. See `docs/product/DAILY_ENGAGEMENT_AND_OPEN_CONVERSATION.md`.
+
+Text chat is the initial implementation target. Do not present voice chat as live until consent, STT/TTS, audio controls and representative-device QA are complete. When voice is available, include an in-player Gabroo playback-speed control (initial proposed range 0.75×–1.5×, default 1.0×), a reset-to-normal action and a saved learner preference. Preserve pitch where supported and apply the speed to Gabroo playback only, never the learner's microphone capture.

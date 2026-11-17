@@ -64,11 +64,23 @@ Feedback distinguishes grammar error, vocabulary issue, understandability, unnat
 ## 8. Progress model
 Track grammar, vocabulary, listening, sentence construction, speaking fluency, pronunciation/intelligibility and confidence/participation separately. Explain scores and their evidence. Do not represent internal estimates as formal certification.
 
-## 9. Monetisation
-Freemium direction; final prices and limits require willingness-to-pay and AI-cost validation. Potential tiers: Free (core lessons and limited AI practice), Premium (full curriculum and more speaking/feedback), Advanced (extended roleplay, interview preparation and professional English). Support regional pricing, monthly/yearly plans, trials, promotions, cancellation and entitlement enforcement.
+## 9. Monetisation — B2C freemium (current decision)
+Gabenglish is a B2C freemium-to-paid product. The free account and free analysis/placement test are the acquisition funnel. A verified learner can take the free analysis test and view its free result; the result then introduces the paid Gabroo learning companion.
+
+Only two paid plans are in the initial offer:
+- Monthly: standard ₹99; current introductory first-purchase price ₹69 (30.30% discount); exactly 30 days of access.
+- Yearly: standard ₹1,188; current introductory first-purchase price ₹799 (32.74% discount); exactly 360 days of access (12 × 30-day months).
+
+Introductory discounts apply only to a learner's first-ever successful subscription purchase. Subsequent renewals/re-purchases use the standard price. Superadmin can independently change the Monthly and Yearly discount percentages, enable/disable each offer and configure an offer window in the admin portal. The server calculates and snapshots the final price; admin changes never rewrite existing checkouts or purchases.
+
+No additional paid tiers or six-month plan. Paid entitlement unlocks Gabroo's ongoing learning companion, classes, paid practice, learner assessment/profile and progress history. The free analysis report remains available without a subscription. Basic account identity/profile settings are not the paid learner assessment/profile.
+
+Registration is mandatory before the free analysis test; anonymous/guest testing is not offered. Sign-up and login are passwordless: verify either an email OTP (any valid email provider, including Gmail) or mobile OTP. A learner can link both verified contact methods to one account. Do not treat email OTP as Google OAuth. The current password-based account implementation is a prototype and must be replaced before public beta.
+
+Paid access is granted only after server-side payment confirmation and expires at the server-recorded paid-through timestamp. Monthly = purchase/renewal start + 30 days; yearly = start + 360 days. Expiry gates paid features but does not delete account or progress. Current default assumption is manual renewal; auto-renewal is not approved. See `docs/product/B2C_FREEMIUM_SUBSCRIPTION_MODEL.md` for lifecycle, security, price, first-purchase promotion and payment requirements.
 
 ## 10. Initial Android public-release scope
 Registration/profile, placement assessment, personalised beginner-to-intermediate path, grammar, vocabulary, translation, listening, AI speaking, validated pronunciation feedback, progress dashboard, daily challenges, subscription and content administration. iOS reuses shared mobile code after Android validation.
 
 ## 11. Phase 0 exclusions
-Full lesson production, public launch, final price commitments, unvalidated fluency/accent claims, additional Indian languages before Malayalam validation, and final Gabroo physical design before concept approval.
+Full lesson production, public launch, payment provider selection and checkout activation, auto-renewal until explicitly approved, unvalidated fluency/accent claims, additional Indian languages before Malayalam validation, and final Gabroo physical design before concept approval. The initial monthly/yearly price points and 30/360-day durations are product decisions; payment and tax implementation still require review.
