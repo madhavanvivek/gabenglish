@@ -3,8 +3,8 @@ import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {AuthApiError,getLearnerMe,getSubscriptionStatus,listGabrooConversations,updateLearnerPreferences,type LearnerMe,type SubscriptionStatus,type GabrooConversation} from "../src/auth-api";
-import {BrandMark,PrimaryButton,SurfaceCard,Eyebrow} from "../src/ui";
-import {colors,radius,space,typeScale} from "../src/theme";
+import {BrandMark,SurfaceCard,Eyebrow} from "../src/ui";
+import {colors,radius,space} from "../src/theme";
 
 export default function HomeScreen(){
  const [learner,setLearner]=useState<LearnerMe|null>(null);
