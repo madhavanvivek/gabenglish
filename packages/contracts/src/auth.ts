@@ -34,6 +34,7 @@ export const learnerProfilePatchSchema=z.object({
 export type LearnerProfilePatch=z.infer<typeof learnerProfilePatchSchema>;
 
 export const learnerPreferencesPatchSchema=z.object({
+ learning_direction:z.enum(["ml_to_en","en_to_ml"]).optional(),
  support_language:z.enum(["ml","en"]).optional(),
  learning_goal:z.string().trim().max(200).nullable().optional(),
  correction_mode:z.enum(["gentle","balanced","detailed"]).optional(),
