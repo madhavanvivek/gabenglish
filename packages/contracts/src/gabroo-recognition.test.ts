@@ -4,7 +4,8 @@ import {
  GABROO_AUDIO_MAX_BYTES,
  confirmGabrooTranscript,
  gabrooReviewedTranscriptSchema,
- gabrooRecognitionResponseSchema,\n gabrooRecognitionStatusSchema,
+ gabrooRecognitionResponseSchema,
+ gabrooRecognitionStatusSchema,
  transcribeGabrooAudio,
  type GabrooSpeechRecognitionProvider
 } from "./gabroo-recognition.js";
@@ -109,7 +110,8 @@ describe("Gabroo provider-neutral speech recognition boundary",()=>{
   expect(gabrooRecognitionStatusSchema.safeParse({...status,supported_mime_types:["audio/executable"]}).success).toBe(false);
   expect(gabrooRecognitionStatusSchema.safeParse({...status,unexpected:"secret"}).success).toBe(false);
  });
-\n it("requires explicit learner confirmation for a reviewed transcript",()=>{
+
+ it("requires explicit learner confirmation for a reviewed transcript",()=>{
   const confirmed={text:"നമസ്കാരം, how are you?",languageDetected:"mixed",edited:false,confirmed:true};
   expect(gabrooReviewedTranscriptSchema.parse(confirmed)).toEqual(confirmed);
   expect(gabrooReviewedTranscriptSchema.safeParse({...confirmed,confirmed:false}).success).toBe(false);
