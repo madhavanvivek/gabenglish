@@ -86,9 +86,9 @@ export async function registerAdminRoutes(app:FastifyInstance,pool:Pool,config:A
     return reply.code(403).send({error:{code:"SUPERADMIN_REQUIRED",message:"This account is not authorised for subscription administration.",request_id:request.id}});
    }
    await client.query("UPDATE admin_accounts SET failed_login_attempts=0,locked_until=NULL WHERE id=$1",[admin.id]);
-   const rawToken=randomBytes(48).toString("base64url");
-   const session=await client.query<{id:string}>("INSERT INTO admin_sessions(admin_account_id,token_hash,expires_at) VALUES($1,$2,now()+($3||' days')::interval) RETURNING id",[admin.id,digest(rawToken),String(ADMIN_SESSION_TTL_DAYS)]);
+   const session=await client.query<{id:string}>("INSERT INTO admin_sessions(admin_account_id,token_hash,expires_at) VALUES($1,$2,now()+($3||' days')::interval) RETURNING id",[admin.id,digest(randomBytes(32).toString("base64url")),String(ADMIN_SESSION_TTL_DAYS)]);
    const accessToken=signAdminToken(admin.id,session.rows[0]!.id,secret);
+   await client.query("UPDATE admin_sessions SET token_hash=$2 WHERE id=$1",[session.rows[0]!.id,digest(accessToken)]);
    await client.query("INSERT INTO admin_audit_events(admin_account_id,action,resource_type,request_id,details_redacted) VALUES($1,'admin.login','admin_session',$2,'{}'::jsonb)",[admin.id,request.id]);
    await client.query("COMMIT");
    return {access_token:accessToken,token_type:"Bearer",expires_in:ADMIN_SESSION_TTL_DAYS*86400,admin:{id:admin.id,email:admin.email_normalized,roles:roles.rows.map(row=>row.code)}};
