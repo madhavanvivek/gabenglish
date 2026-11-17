@@ -50,3 +50,14 @@ Use short purposeful transitions. Respect reduced-motion settings. Avoid loops, 
 
 ## Status
 Initial design tokens and principles are established. Component implementation, typography selection, contrast audit and device validation remain to be completed in the design system implementation phase.
+
+
+## Mobile implementation baseline (17 November 2026)
+
+The first reusable mobile UI layer is now present in `apps/mobile/src/theme.ts` and `apps/mobile/src/ui.tsx`:
+- Semantic colour, spacing, radius and type-scale tokens.
+- Reusable brand mark, primary button, surface card and eyebrow primitives.
+- Root navigation surface and placement, account and Gabroo screens now consume shared semantic background/brand tokens.
+- The placement experience uses the shared brand mark and primary button rather than duplicating those controls.
+
+This is the start of UI implementation, not the final design-system release. Still required: full component coverage, typography and Malayalam shaping verification on Android, screen-by-screen layout refinement, dynamic type/accessibility audit, dark/light decisions, interaction-state coverage, visual regression and representative-device usability testing. Gabroo's canonical 3D character art remains unapproved and must not be substituted with a temporary or inconsistent character.
