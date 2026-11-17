@@ -43,9 +43,14 @@ async function verifyAdminPassword(password:string,encoded:string|null){
 async function authenticateAdmin(request:FastifyRequest,pool:Pool,secret:string):Promise<AdminIdentity|undefined>{
  const header=request.headers.authorization;if(!header?.startsWith("Bearer "))return;
  const claims=verifyAdminToken(header.slice(7),secret);if(!claims)return;
- const result=await pool.query<AdminIdentity>(
-  "SELECT a.id,a.email_normalized,array_agg(r.code) FILTER (WHERE r.code IS NOT NULL) AS roles FROM admin_accounts a JOIN admin_sessions s ON s.admin_account_id=a.id AND s.id=$2 AND s.token_hash=$3 AND s.revoked_at IS NULL AND s.expires_at>now() LEFT JOIN admin_account_roles ar ON ar.admin_account_id=a.id LEFT JOIN admin_roles r ON r.id=ar.admin_role_id WHERE a.id=$1 AND a.status='active' GROUP BY a.id,a.email_normalized",
+ const touched=await pool.query<{admin_account_id:string}>(
+  "UPDATE admin_sessions SET last_seen_at=now() WHERE admin_account_id=$1 AND id=$2 AND token_hash=$3 AND revoked_at IS NULL AND expires_at>now() AND last_seen_at>now()-interval '30 minutes' RETURNING admin_account_id",
   [claims.sub,claims.sid,digest(header.slice(7))]
+ );
+ if(!touched.rows[0])return;
+ const result=await pool.query<AdminIdentity>(
+  "SELECT a.id,a.email_normalized,array_agg(r.code) FILTER (WHERE r.code IS NOT NULL) AS roles FROM admin_accounts a LEFT JOIN admin_account_roles ar ON ar.admin_account_id=a.id LEFT JOIN admin_roles r ON r.id=ar.admin_role_id WHERE a.id=$1 AND a.status='active' GROUP BY a.id,a.email_normalized",
+  [claims.sub]
  );
  return result.rows[0];
 }
