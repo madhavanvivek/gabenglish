@@ -102,6 +102,38 @@ export async function registerAdminRoutes(app:FastifyInstance,pool:Pool,config:A
   await pool.query("INSERT INTO admin_audit_events(admin_account_id,action,resource_type,request_id,details_redacted) VALUES($1,'admin.logout','admin_session',$2,'{}'::jsonb)",[admin.id,request.id]);
   return reply.code(204).send();
  });
+ app.get("/api/v1/admin/sessions",async(request,reply)=>{
+  const admin=await authenticateAdmin(request,pool,secret);
+  if(!admin)return reply.code(401).send({error:{code:"ADMIN_UNAUTHENTICATED",message:"Please sign in again.",request_id:request.id}});
+  if(!admin.roles.includes("superadmin"))return reply.code(403).send({error:{code:"SUPERADMIN_REQUIRED",message:"Superadmin access is required.",request_id:request.id}});
+  const query=z.object({limit:z.coerce.number().int().min(1).max(100).default(50),offset:z.coerce.number().int().min(0).max(100000).default(0)}).strict().safeParse(request.query);
+  if(!query.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Check the session history filters.",request_id:request.id}});
+  const claims=verifyAdminToken(request.headers.authorization!.slice(7),secret)!;
+  const [sessions,total]=await Promise.all([
+   pool.query("SELECT s.id,s.admin_account_id,a.email_normalized AS admin_email,s.created_at,s.expires_at,s.revoked_at,(s.id=$3) AS is_current FROM admin_sessions s JOIN admin_accounts a ON a.id=s.admin_account_id WHERE s.revoked_at IS NULL AND s.expires_at>now() ORDER BY s.created_at DESC,s.id DESC LIMIT $1 OFFSET $2",[query.data.limit,query.data.offset,claims.sid]),
+   pool.query<{count:string}>("SELECT count(*)::text AS count FROM admin_sessions WHERE revoked_at IS NULL AND expires_at>now()")
+  ]);
+  return {sessions:sessions.rows,total:Number(total.rows[0]?.count??0),limit:query.data.limit,offset:query.data.offset};
+ });
+ app.delete("/api/v1/admin/sessions/:sessionId",async(request,reply)=>{
+  const admin=await authenticateAdmin(request,pool,secret);
+  if(!admin)return reply.code(401).send({error:{code:"ADMIN_UNAUTHENTICATED",message:"Please sign in again.",request_id:request.id}});
+  if(!admin.roles.includes("superadmin"))return reply.code(403).send({error:{code:"SUPERADMIN_REQUIRED",message:"Superadmin access is required.",request_id:request.id}});
+  const parsed=z.string().uuid().safeParse((request.params as {sessionId?:string}).sessionId);
+  if(!parsed.success)return reply.code(404).send({error:{code:"ADMIN_SESSION_NOT_FOUND",message:"The requested administrator session was not found.",request_id:request.id}});
+  const client=await pool.connect();
+  try{
+   await client.query("BEGIN");
+   const revoked=await client.query<{id:string;admin_account_id:string}>("UPDATE admin_sessions SET revoked_at=now() WHERE id=$1 AND revoked_at IS NULL AND expires_at>now() RETURNING id,admin_account_id",[parsed.data]);
+   if(!revoked.rows[0]){
+    await client.query("ROLLBACK");
+    return reply.code(404).send({error:{code:"ADMIN_SESSION_NOT_FOUND",message:"The requested administrator session was not found or is no longer active.",request_id:request.id}});
+   }
+   await client.query("INSERT INTO admin_audit_events(admin_account_id,action,resource_type,resource_id,request_id,details_redacted) VALUES($1,'admin.session.revoked','admin_session',$2,$3,$4::jsonb)",[admin.id,revoked.rows[0].id,request.id,JSON.stringify({target_admin_account_id:revoked.rows[0].admin_account_id})]);
+   await client.query("COMMIT");
+   return reply.code(204).send();
+  }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
+ });
  app.get("/api/v1/admin/subscription-offers",async(request,reply)=>{
   const admin=await authenticateAdmin(request,pool,secret);
   if(!admin)return reply.code(401).send({error:{code:"ADMIN_UNAUTHENTICATED",message:"Please sign in again.",request_id:request.id}});
