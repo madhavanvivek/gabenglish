@@ -12,6 +12,14 @@ describe("API foundation",()=>{
   expect(r.statusCode).toBe(415);
   await app.close();
  });
+ it("requires an authenticated learner to inspect Gabroo recognition availability",async()=>{
+  const pool={query:async()=>({rows:[]})} as any;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const r=await app.inject({method:"GET",url:"/api/v1/gabroo/recognition/status"});
+  expect(r.statusCode).toBe(401);
+  expect(r.json().error.code).toBe("VERIFIED_ACCOUNT_REQUIRED");
+  await app.close();
+ });
  it("requires an authenticated learner for supported Gabroo audio",async()=>{
   const pool={query:async()=>({rows:[]})} as any;
   const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
