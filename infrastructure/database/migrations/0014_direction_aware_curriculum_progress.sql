@@ -106,7 +106,7 @@ BEGIN
 END;
 $$;
 CREATE TRIGGER learner_lesson_progress_direction_guard
-  BEFORE INSERT OR UPDATE OF course_id,lesson_id,lesson_version_id,learning_direction
+  BEFORE INSERT OR UPDATE
   ON learner_lesson_progress
   FOR EACH ROW EXECUTE FUNCTION enforce_learner_lesson_progress_direction();
 
@@ -122,6 +122,6 @@ BEGIN
 END;
 $$;
 CREATE TRIGGER learner_course_progress_direction_guard
-  BEFORE INSERT OR UPDATE OF course_id,learning_direction
+  BEFORE INSERT OR UPDATE
   ON learner_course_progress
   FOR EACH ROW EXECUTE FUNCTION enforce_learner_course_progress_direction();
