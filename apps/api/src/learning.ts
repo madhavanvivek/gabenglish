@@ -139,9 +139,16 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
     [learner.id,lesson.course_id,id,lesson.version_id,lesson.direction,status,percent]
    );
    const aggregate=await client.query<{average:string;total:number;completed:number}>(
-    `SELECT COALESCE(AVG(progress_percent),0)::numeric(5,2)::text AS average,COUNT(*)::int AS total,
-      COUNT(*) FILTER(WHERE status='completed')::int AS completed
-     FROM learner_lesson_progress WHERE user_id=$1 AND course_id=$2 AND learning_direction=$3`,
+    `SELECT COALESCE(AVG(COALESCE(p.progress_percent,0)),0)::numeric(5,2)::text AS average,
+      COUNT(l.id)::int AS total,COUNT(*) FILTER(WHERE p.status='completed')::int AS completed
+     FROM lessons l JOIN modules m ON m.id=l.module_id
+     JOIN courses c ON c.id=m.course_id
+     JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id
+     LEFT JOIN learner_lesson_progress p ON p.user_id=$1 AND p.lesson_id=l.id
+       AND p.lesson_version_id=lv.id AND p.learning_direction=c.learning_direction
+     WHERE c.id=$2 AND c.learning_direction=$3 AND c.status='published'
+       AND l.status='published' AND lv.status='published'
+       AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')`,
     [learner.id,lesson.course_id,lesson.direction]
    );
    await client.query(
@@ -152,7 +159,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
       progress_percent=CASE WHEN learner_course_progress.status='completed' THEN 100 ELSE EXCLUDED.progress_percent END,
       started_at=COALESCE(learner_course_progress.started_at,EXCLUDED.started_at),
       completed_at=COALESCE(learner_course_progress.completed_at,EXCLUDED.completed_at),updated_at=now()`,
-    [learner.id,lesson.course_id,lesson.direction,aggregate.rows[0]!.total>0&&aggregate.rows[0]!.completed===aggregate.rows[0]!.total?"completed":"in_progress",Number(aggregate.rows[0]!.average)]
+    [learner.id,lesson.course_id,lesson.direction,aggregate.rows[0]!.total>0&&aggregate.rows[0]!.completed===aggregate.rows[0]!.total?"completed":aggregate.rows[0]!.completed===0&&Number(aggregate.rows[0]!.average)===0?"not_started":"in_progress",Number(aggregate.rows[0]!.average)]
    );
    await client.query("COMMIT");
    return {lesson_id:id,learning_direction:lesson.direction,progress:{status:saved.rows[0]!.status,progress_percent:Number(saved.rows[0]!.progress_percent),updated_at:saved.rows[0]!.updated_at},course_progress:{progress_percent:Number(aggregate.rows[0]!.average),completed_lessons:aggregate.rows[0]!.completed,total_started_lessons:aggregate.rows[0]!.total}};
