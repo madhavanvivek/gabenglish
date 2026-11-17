@@ -79,6 +79,12 @@ integration("PostgreSQL placement session integration",()=>{
     expect(invalid.statusCode).toBe(400);
     const audit=await pool.query<{action:string;resource_id:string}>("SELECT action,resource_id FROM admin_audit_events WHERE admin_account_id=$1 AND action='subscription.offer.updated'",[adminId]);
     expect(audit.rows).toContainEqual({action:"subscription.offer.updated",resource_id:"monthly"});
+    const auditApi=await app.inject({method:"GET",url:"/api/v1/admin/audit-events?action=subscription.offer.updated&limit=10&offset=0",headers});
+    expect(auditApi.statusCode).toBe(200);
+    expect(auditApi.json().total).toBeGreaterThanOrEqual(1);
+    expect(auditApi.json().events).toEqual(expect.arrayContaining([expect.objectContaining({action:"subscription.offer.updated",resource_id:"monthly"})]));
+    const invalidAudit=await app.inject({method:"GET",url:"/api/v1/admin/audit-events?limit=500",headers});
+    expect(invalidAudit.statusCode).toBe(400);
     const logout=await app.inject({method:"POST",url:"/api/v1/admin/auth/logout",headers});
     expect(logout.statusCode).toBe(204);
     const afterLogout=await app.inject({method:"GET",url:"/api/v1/admin/subscription-offers",headers});
