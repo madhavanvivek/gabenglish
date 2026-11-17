@@ -4,7 +4,7 @@ import {
  GABROO_AUDIO_MAX_BYTES,
  confirmGabrooTranscript,
  gabrooReviewedTranscriptSchema,
- gabrooRecognitionResponseSchema,
+ gabrooRecognitionResponseSchema,\n gabrooRecognitionStatusSchema,
  transcribeGabrooAudio,
  type GabrooSpeechRecognitionProvider
 } from "./gabroo-recognition.js";
@@ -100,7 +100,16 @@ describe("Gabroo provider-neutral speech recognition boundary",()=>{
   expect(gabrooRecognitionResponseSchema.safeParse({...response,transcript:{...transcript,confidence:2}}).success).toBe(false);
  });
 
- it("requires explicit learner confirmation for a reviewed transcript",()=>{
+
+ it("accepts only a complete safe recognition readiness response",()=>{
+  const status={available:false,max_audio_bytes:GABROO_AUDIO_MAX_BYTES,supported_mime_types:["audio/mp4","audio/webm"],supported_languages:["ml-IN","en-IN","ml-en"],transcript_review_required:true};
+  expect(gabrooRecognitionStatusSchema.parse(status)).toEqual(status);
+  expect(gabrooRecognitionStatusSchema.safeParse({...status,transcript_review_required:false}).success).toBe(false);
+  expect(gabrooRecognitionStatusSchema.safeParse({...status,max_audio_bytes:GABROO_AUDIO_MAX_BYTES+1}).success).toBe(false);
+  expect(gabrooRecognitionStatusSchema.safeParse({...status,supported_mime_types:["audio/executable"]}).success).toBe(false);
+  expect(gabrooRecognitionStatusSchema.safeParse({...status,unexpected:"secret"}).success).toBe(false);
+ });
+\n it("requires explicit learner confirmation for a reviewed transcript",()=>{
   const confirmed={text:"നമസ്കാരം, how are you?",languageDetected:"mixed",edited:false,confirmed:true};
   expect(gabrooReviewedTranscriptSchema.parse(confirmed)).toEqual(confirmed);
   expect(gabrooReviewedTranscriptSchema.safeParse({...confirmed,confirmed:false}).success).toBe(false);
