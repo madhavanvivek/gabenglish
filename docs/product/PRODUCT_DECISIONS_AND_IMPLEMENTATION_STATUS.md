@@ -506,3 +506,13 @@ Next implementation sequence:
 - Added route-level tests using a signed test learner session and a mocked entitlement lookup.
 - Covered the paid learner success response (including the full shared-contract payload), free learner denial, and the provider-injected availability flag.
 - These tests exercise authentication, subscription gating, and the status response through Fastify rather than testing only the standalone Zod schema.
+
+
+### Gabroo voice-input review flow (17 November 2026)
+- Added a separate transcription-consent checkbox; microphone permission and the local-only microphone test remain separate.
+- Voice-input capture is available only to a paid learner after the authenticated readiness endpoint reports a configured provider and microphone permission has been granted.
+- Captures are limited to 15 seconds. Stopping capture does not upload audio; the learner must explicitly choose **Review & transcribe**.
+- The unconfirmed transcript is editable. The app sends only the learner-reviewed text after **Confirm & send to Gabroo**; the shared `confirmGabrooTranscript` contract derives the edited flag and requires explicit confirmation.
+- Audio is held temporarily in the app cache and deleted after transcription, on discard, when the app backgrounds, or when the screen loses focus. This app-side cleanup does not assert provider-side retention/deletion behavior.
+- The UI remains hidden for transcription when provider readiness is unavailable. No provider credentials or service were configured as part of this change.
+- Verification limitation: GitHub Actions currently exits before job steps/logs are available, so this implementation has not yet been validated by CI or on physical devices. The voice provider remains unconfigured in the current environment.
