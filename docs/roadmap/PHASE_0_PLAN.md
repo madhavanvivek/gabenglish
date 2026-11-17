@@ -118,3 +118,21 @@ This checkpoint is a status record, not a claim that the listed gates have passe
 - Discounts are rounded to the nearest whole rupee using integer minor-unit amounts. The quote includes standard, discount and payable amounts, offer version, and evaluation timestamp so a future checkout handler can persist an immutable snapshot.
 - Added unit coverage for both launch prices, renewal/re-purchase parity, disabled and time-windowed offers, rounding, and invalid configuration.
 - This is a tested pricing-calculation foundation only. It is not yet connected to checkout, payment-provider verification, Superadmin offer management, or entitlement activation. Do not describe subscriptions as purchasable until those flows are implemented and tested.
+
+## 11. Persisted subscription quote foundation checkpoint (2026-11-17)
+
+- Added migration `0016_subscription_offer_pricing.sql`: database-backed monthly/yearly offer rules, seeded from the approved INR list prices and current launch discounts, with an automatic version bump on every update.
+- Added immutable price-snapshot columns to payment transactions. A snapshot is either entirely absent for legacy rows or fully populated and arithmetically consistent with the transaction amount.
+- Added public `GET /api/v1/subscriptions/prices`, which calculates current prices from the database offer rules rather than client-supplied amounts.
+- Updated verified entitlement activation to retain standard price, discount and paid amount from a verified transaction snapshot. Legacy transactions without a snapshot retain the existing full-price validation path.
+- Added migration `0017_subscription_checkout_quotes.sql` and authenticated `POST /api/v1/subscriptions/checkout/quote`. It stores a learner-owned, immutable quote with a 15-minute validity window and returns `access_granted: false`.
+- A quote is not a payment intent, payment confirmation, subscription or entitlement. No provider was selected; no payment was initiated; no paid access is granted by quote creation.
+- Added API and PostgreSQL integration coverage for public pricing, quote ownership/expiry, immutable quote rows, offer version changes and discounted entitlement activation.
+- CI run #995 passed the pricing/offer migration, API and Android checks. CI run #1001 is validating the subsequent checkout-quote changes; do not claim that run passed until its final result is recorded.
+
+### Remaining subscription release gates
+- Admin authentication/authorisation and Superadmin offer-management UI/API.
+- Payment provider decision, credentials, server-side payment intent creation, signed webhook verification and replay protection.
+- Converting an unexpired quote into a payment transaction while copying its immutable price snapshot.
+- End-to-end tests for successful, failed, duplicated, refunded and expired payment events.
+- Learner-facing checkout UI, subscription history and cancellation/renewal experience.
