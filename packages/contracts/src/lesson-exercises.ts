@@ -16,7 +16,7 @@ export const authoredTextExerciseSchema=z.object({
  response_type:z.literal("text"),accepted_answers:z.array(z.string().trim().min(1).max(500)).min(1).max(30),
  correct_feedback:z.string().trim().max(1000).optional(),incorrect_feedback:z.string().trim().max(1000).optional()
 });
-export const authoredExerciseSchema=z.discriminatedUnion("response_type",[authoredChoiceExerciseSchema,authoredTextExerciseSchema]);
+export const authoredExerciseSchema=z.union([authoredChoiceExerciseSchema,authoredTextExerciseSchema]);
 export type AuthoredExercise=z.infer<typeof authoredExerciseSchema>;
 
 export function evaluateAuthoredExercise(input:unknown,response:string):{correct:boolean;feedback:string}|null{
