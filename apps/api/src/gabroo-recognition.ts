@@ -2,7 +2,8 @@ import type {FastifyInstance,FastifyRequest} from "fastify";
 import type {Pool} from "pg";
 import {
  GABROO_AUDIO_MAX_BYTES,
- GABROO_AUDIO_MIME_TYPES,\n GABROO_RECOGNITION_LANGUAGES,
+ GABROO_AUDIO_MIME_TYPES,
+ GABROO_RECOGNITION_LANGUAGES,
  GabrooRecognitionError,
  gabrooRecognitionLanguageSchema,
  type GabrooSpeechRecognitionProvider
