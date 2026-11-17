@@ -6,6 +6,8 @@ import {
  GABROO_RECOGNITION_LANGUAGES,
  GabrooRecognitionError,
  gabrooRecognitionLanguageSchema,
+ gabrooRecognitionStatusSchema,
+ gabrooRecognitionResponseSchema,
  type GabrooSpeechRecognitionProvider
 } from "@gabenglish/contracts";
 import type {AppConfig} from "./config.js";
@@ -43,13 +45,13 @@ export async function registerGabrooRecognitionRoutes(
   if(!learner)return sendError(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account to check Gabroo voice availability.");
   const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);
   if(!entitlement)return sendError(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to use Gabroo voice recognition.");
-  return {
+  return gabrooRecognitionStatusSchema.parse({
    available:Boolean(provider),
    max_audio_bytes:GABROO_AUDIO_MAX_BYTES,
    supported_mime_types:GABROO_AUDIO_MIME_TYPES,
    supported_languages:GABROO_RECOGNITION_LANGUAGES,
    transcript_review_required:true
-  };
+  });
  });
 
  app.post("/api/v1/gabroo/recognition",{
@@ -83,7 +85,9 @@ export async function registerGabrooRecognitionRoutes(
 
   const controller=new AbortController();
   const onAborted=()=>controller.abort();
+  const onResponseClosed=()=>{if(!reply.raw.writableEnded)controller.abort();};
   request.raw.once("aborted",onAborted);
+  reply.raw.once("close",onResponseClosed);
   try{
    const transcript=await recognizeGabrooAudio({
     audio:new Uint8Array(body.buffer,body.byteOffset,body.byteLength),
@@ -92,7 +96,7 @@ export async function registerGabrooRecognitionRoutes(
     provider,
     signal:controller.signal
    });
-   return {transcript,review_required:true,request_id:request.id};
+   return gabrooRecognitionResponseSchema.parse({transcript,review_required:true,request_id:request.id});
   }catch(error){
    if(error instanceof GabrooRecognitionError){
     const status=error.code==="CONSENT_REQUIRED"?400:
@@ -110,6 +114,7 @@ export async function registerGabrooRecognitionRoutes(
    return sendError(reply,request.id,503,"PROVIDER_FAILED","Speech recognition is temporarily unavailable. Please try again.");
   }finally{
    request.raw.removeListener("aborted",onAborted);
+   reply.raw.removeListener("close",onResponseClosed);
   }
  });
 }
