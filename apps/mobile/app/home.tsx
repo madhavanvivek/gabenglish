@@ -39,7 +39,7 @@ export default function HomeScreen(){
   catch(reason){setSpeechRate(previous);setError(reason instanceof Error?reason.message:"Could not save the speaking speed.");}
   finally{setSavingSpeed(false);}
  };
- const firstName=learner?.user.display_name?.trim().split(/\\s+/)[0];
+ const firstName=learner?.user.display_name?.trim().split(/\s+/)[0];
  const active=subscription?.active===true;
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
   <View style={s.header}><View style={s.brandRow}><BrandMark size={42}/><View><Text style={s.brand}>Gabenglish</Text><Text style={s.tagline}>YOUR ENGLISH, YOUR PACE</Text></View></View><Link href="/account" asChild><Pressable accessibilityRole="button" style={s.profile}><Text style={s.profileText}>Profile</Text></Pressable></Link></View>
@@ -52,7 +52,7 @@ export default function HomeScreen(){
    <SurfaceCard soft><Eyebrow>MAKE IT COMFORTABLE</Eyebrow><Text style={s.cardTitle}>Gabroo speaking speed</Text><Text style={s.body}>Choose a pace that is easy to understand. Your preference is saved to your account and used when Gabroo speaks aloud.</Text><View style={s.speedRow}><Pressable accessibilityRole="button" accessibilityLabel="Slow down Gabroo" disabled={speechRate<=.75||savingSpeed} onPress={()=>void changeSpeed(-.05)} style={[s.speedButton,(speechRate<=.75||savingSpeed)&&s.disabled]}><Text style={s.speedButtonText}>−</Text></Pressable><View style={s.speedValue}><Text style={s.speedNumber}>{speechRate.toFixed(2).replace(/0$/,"")}×</Text><Text style={s.speedCaption}>PLAYBACK SPEED</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Speed up Gabroo" disabled={speechRate>=1.5||savingSpeed} onPress={()=>void changeSpeed(.05)} style={[s.speedButton,(speechRate>=1.5||savingSpeed)&&s.disabled]}><Text style={s.speedButtonText}>+</Text></Pressable></View><Pressable onPress={()=>void changeSpeed(1-speechRate)} disabled={savingSpeed||speechRate===1} style={s.reset}><Text style={s.resetText}>Reset to normal · 1.0×</Text></Pressable></SurfaceCard>
    <View style={s.bottomLinks}><Link href="/" style={s.bottomLink}>Free English analysis</Link><Link href="/account" style={s.bottomLink}>Account, report and preferences</Link></View>
   </>}
-  {!!notice&&<Text accessibilityRole="status" style={s.notice}>{notice}</Text>}{!!error&&<View style={s.error}><Text style={s.errorText}>{error}</Text><Pressable onPress={()=>setRefreshKey(value=>value+1)}><Text style={s.retry}>Try again</Text></Pressable></View>}
+  {!!notice&&<Text accessibilityLiveRegion="polite" style={s.notice}>{notice}</Text>}{!!error&&<View style={s.error}><Text style={s.errorText}>{error}</Text><Pressable onPress={()=>setRefreshKey(value=>value+1)}><Text style={s.retry}>Try again</Text></Pressable></View>}
   <Text style={s.footer}>Learn at your own pace. No pressure, just progress.</Text>
  </ScrollView></SafeAreaView>;
 }
