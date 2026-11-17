@@ -210,3 +210,16 @@ export async function updateGabrooMemory(id:string,input:{category?:GabrooMemory
 export async function deleteGabrooMemory(id:string){await authorized("/api/v1/gabroo/memory/"+encodeURIComponent(id),"DELETE");}
 
 export async function clearGabrooMemory(){return await authorized("/api/v1/gabroo/memory","DELETE") as {deleted_count:number};}
+
+export type PublishedLearningLesson={
+ id:string;slug:string|null;title:string;version_id:string;version:number|null;
+ content:unknown;script_mode:string|null;register:string|null;dialect_scope:string|null;romanisation:string|null;
+};
+export type PublishedLearningCatalog={
+ learning_direction:"ml_to_en"|"en_to_ml";target_language:"en"|"ml";
+ courses:Array<{id:string;code:string;title:string;description:string|null;direction:"ml_to_en"|"en_to_ml";source_language:string;target_language:string;support_language:string;modules:Array<{id:string;title:string;lessons:PublishedLearningLesson[]}>}>;
+ publication_policy:{drafts_hidden:boolean;malayalam_requires_educator_approval:boolean};
+};
+export async function getPublishedLearningCatalog(){
+ return await authorized("/api/v1/learning/courses","GET") as PublishedLearningCatalog;
+}
