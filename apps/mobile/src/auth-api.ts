@@ -176,6 +176,9 @@ export async function recognizeGabrooAudio(input:{
  }
 }
 
+export type GabrooRecognitionStatus={available:boolean;max_audio_bytes:number;supported_mime_types:string[];supported_languages:GabrooRecognitionLanguage[];transcript_review_required:true};
+export async function getGabrooRecognitionStatus(){return await authorized("/api/v1/gabroo/recognition/status","GET") as GabrooRecognitionStatus;}
+
 export async function getSubscriptionStatus(){return await authorized("/api/v1/subscriptions/current","GET") as SubscriptionStatus;}
 export async function listGabrooConversations(){return await authorized("/api/v1/gabroo/conversations","GET") as {conversations:GabrooConversation[]};}
 export async function getGabrooConversation(id:string){return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id),"GET") as {conversation:GabrooConversation;messages:GabrooConversationMessage[]};}
