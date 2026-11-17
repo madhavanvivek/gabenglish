@@ -43,5 +43,10 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 10.10.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm --filter @gabenglish/mobile typecheck
+      - name: Export Android bundle (Expo production bundle smoke test)
+        run: pnpm --filter @gabenglish/mobile exec expo export --platform android --output-dir ../../artifacts/android-export
