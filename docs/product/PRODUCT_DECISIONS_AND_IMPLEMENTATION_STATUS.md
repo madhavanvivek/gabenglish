@@ -482,3 +482,10 @@ Next implementation sequence:
 - Added an API test confirming the readiness endpoint rejects unauthenticated requests.
 - The app does not upload recordings or offer a transcript editor yet. That remains intentionally gated until a production provider has been selected and configured and the consent/review/discard experience is implemented. A provider being reported as available is not, by itself, a release sign-off.
 - No deployment or merge performed. CI/device validation is still required.
+
+
+### Recognition readiness contract hardening (17 November 2026)
+- Added a shared Zod response schema for the authenticated recognition readiness endpoint. The contract validates availability, the 10 MB ceiling, allowlisted audio MIME types, supported language identifiers, and the mandatory transcript-review flag.
+- Mobile now validates the readiness response before using it; malformed or unexpected server responses fail closed and keep voice uploads disabled.
+- Added shared contract tests for invalid limits, unsupported MIME types, unexpected fields, and attempts to disable transcript review.
+- The API advertises supported languages from the shared contract constant to avoid server/client drift.
