@@ -12,8 +12,7 @@ concurrency:
 
 jobs:
   validate:
-    # Register the Mac runner with this custom label.
-    # Manual-only: it never runs automatically for public pull requests.
+    # Manual-only; never schedule untrusted public pull-request code on a personal Mac.
     runs-on: [self-hosted, macOS, gabenglish-mac]
     timeout-minutes: 45
     steps:
@@ -42,21 +41,23 @@ jobs:
           export PATH="$PG_BIN:$PATH"
           brew services start postgresql@16
           for attempt in {1..30}; do
-            if pg_isready -h localhost -p 5432; then
+            if pg_isready; then
               break
             fi
             sleep 2
           done
-          pg_isready -h localhost -p 5432
+          pg_isready
 
+          # Use the local Unix socket for administration, then a local TCP URL for tests.
           DB_USER="$(whoami)"
-          if ! psql -h localhost -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$DB_USER'" | grep -q 1; then
-            createuser -h localhost "$DB_USER"
+          if ! psql -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$DB_USER'" | grep -q 1; then
+            createuser "$DB_USER"
           fi
-          if ! psql -h localhost -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'gabenglish_test'" | grep -q 1; then
-            createdb -h localhost -O "$DB_USER" gabenglish_test
+          psql -d postgres -v ON_ERROR_STOP=1 -c "ALTER ROLE \"$DB_USER\" WITH LOGIN PASSWORD 'gabenglish_ci_local'"
+          if ! psql -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'gabenglish_test'" | grep -q 1; then
+            createdb -O "$DB_USER" gabenglish_test
           fi
-          echo "DATABASE_URL=postgres://$DB_USER@localhost:5432/gabenglish_test" >> "$GITHUB_ENV"
+          echo "DATABASE_URL=postgres://$DB_USER:gabenglish_ci_local@localhost:5432/gabenglish_test" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
