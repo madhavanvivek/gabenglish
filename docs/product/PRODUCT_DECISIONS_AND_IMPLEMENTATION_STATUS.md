@@ -495,3 +495,8 @@ Next implementation sequence:
 - The recognition status endpoint now validates its outgoing payload against the shared readiness schema, and successful transcription responses are validated against the shared review-required response schema before being returned.
 - The API now aborts provider work when the incoming request is aborted or the response connection closes before completion. This avoids continuing a paid/remote recognition request after the learner has disconnected, provided the injected provider honours AbortSignal.
 - No audio is persisted by this route. Transcript output remains unconfirmed and cannot be sent to a conversation by this endpoint.
+
+
+### Mobile readiness loading correction (17 November 2026)
+- Corrected the Gabroo screen's subscription load path to actually request the authenticated recognition readiness endpoint for active subscribers. Previously the endpoint client was imported but not called, leaving the availability panel permanently in its unknown state.
+- Readiness lookup failure is isolated from conversation loading: saved conversations still load, while voice recognition remains safely unavailable in the UI. Free accounts clear the paid-only readiness state.
