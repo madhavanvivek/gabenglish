@@ -597,3 +597,14 @@ Next implementation sequence:
 - The current free conversation diagnostic is English-specific. The API now refuses to start it for a learner whose saved direction is Malayalam acquisition, returning a clear unavailable-assessment response rather than silently assessing the wrong language.
 - Latest-report retrieval is scoped to the learner's selected direction and includes the report's direction metadata. An English report will not be presented as evidence of Malayalam proficiency.
 - The Malayalam assessment is still not implemented. This is an intentional product-integrity guard, not a completed assessment flow.
+
+## 21. Persisted subscription offers and Superadmin API (2026-11-17)
+
+- Added database-backed monthly/yearly offer rules, fixed INR standard prices and current launch discounts, version increments on every update, and immutable payment price-snapshot columns.
+- Added public current-price retrieval and authenticated learner-owned 15-minute quote creation. Quote rows cannot be updated; creating a quote never creates a payment intent or grants paid access.
+- Updated verified payment entitlement activation to preserve the server-calculated standard/discount/paid amounts from a trusted payment snapshot. Provider verification remains a separate prerequisite.
+- Added a separate admin account/session boundary with the Superadmin role, distinct signed-token issuer/audience, token-digest validation against revocable DB sessions, scrypt password verification and a 15-minute lockout after repeated failed sign-ins.
+- Added Superadmin-only APIs to list and update monthly/yearly offer discounts and offer windows. Every update is transactional, increments the offer version and creates a redacted audit event.
+- Migration 0018 intentionally creates no default administrator. The first Superadmin must be provisioned out-of-band using the documented secure runbook at docs/security/ADMIN_PORTAL_BOOTSTRAP.md.
+- CI run #1010 (44136100170) passed API typecheck/tests, PostgreSQL integration tests for Superadmin authentication and offer management, shared-contract checks and Android bundle smoke test. Subsequent token-digest hardening and documentation changes require their own completed CI evidence.
+- Still outstanding: admin web UI, MFA, admin invitation/recovery lifecycle, audit-log browsing, security/penetration review, payment provider selection, checkout intent creation and signed webhook verification. No payment provider is configured and subscription purchases are not yet enabled.
