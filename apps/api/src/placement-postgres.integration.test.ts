@@ -3,7 +3,7 @@ import {Pool} from "pg";
 import {mkdtemp,rm,writeFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
-import {randomUUID} from "node:crypto";
+import {randomUUID,scryptSync} from "node:crypto";
 import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
 import {runMigrations} from "./migrate.js";
@@ -39,8 +39,57 @@ integration("PostgreSQL placement session integration",()=>{
   if(!pool||!migrationApplied)return;
   await runMigrations(pool);
   const result=await pool.query<{version:string}>("SELECT version FROM schema_migrations ORDER BY version");
-  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql","0011_learning_direction.sql","0012_gabroo_conversation_direction.sql","0013_directional_diagnostic_reports.sql","0014_direction_aware_curriculum_progress.sql","0015_learner_exercise_attempts.sql","0016_subscription_offer_pricing.sql","0017_subscription_checkout_quotes.sql"]);
+  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql","0011_learning_direction.sql","0012_gabroo_conversation_direction.sql","0013_directional_diagnostic_reports.sql","0014_direction_aware_curriculum_progress.sql","0015_learner_exercise_attempts.sql","0016_subscription_offer_pricing.sql","0017_subscription_checkout_quotes.sql","0018_admin_subscription_controls.sql"]);
  });
+
+ it("authenticates Superadmins, manages offer windows, audits changes and revokes admin sessions",async()=>{
+  if(!pool||!migrationApplied)return;
+  const email="superadmin-"+randomUUID()+"@example.test";
+  const password="SuperadminTestPassword!2026";
+  const salt=Buffer.from(randomUUID().replaceAll("-","").slice(0,32),"hex");
+  const derived=scryptSync(password,salt,64,{N:16384,r:8,p:1,maxmem:64*1024*1024});
+  const passwordHash="scrypt$16384$8$1$"+salt.toString("base64url")+"$"+derived.toString("base64url");
+  const created=await pool.query<{id:string}>("INSERT INTO admin_accounts(email_normalized,password_hash,status) VALUES($1,$2,'active') RETURNING id",[email,passwordHash]);
+  const adminId=created.rows[0]!.id;
+  try{
+   await pool.query("INSERT INTO admin_account_roles(admin_account_id,admin_role_id) SELECT $1,id FROM admin_roles WHERE code='superadmin'",[adminId]);
+   const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+   try{
+    const denied=await app.inject({method:"GET",url:"/api/v1/admin/subscription-offers"});
+    expect(denied.statusCode).toBe(401);
+    const login=await app.inject({method:"POST",url:"/api/v1/admin/auth/login",payload:{email,password}});
+    expect(login.statusCode).toBe(200);
+    expect(login.json().admin.roles).toContain("superadmin");
+    const headers={authorization:"Bearer "+login.json().access_token};
+    const listed=await app.inject({method:"GET",url:"/api/v1/admin/subscription-offers",headers});
+    expect(listed.statusCode).toBe(200);
+    expect(listed.json().offers).toHaveLength(2);
+    const changed=await app.inject({
+     method:"PUT",url:"/api/v1/admin/subscription-offers/monthly",headers,
+     payload:{discount_basis_points:1800,enabled:true,starts_at:null,ends_at:null}
+    });
+    expect(changed.statusCode).toBe(200);
+    expect(changed.json().offer).toMatchObject({plan_code:"monthly",discount_basis_points:1800,enabled:true,version:2});
+    const price=await app.inject({method:"GET",url:"/api/v1/subscriptions/prices"});
+    expect(price.json().prices[0].payable_amount_minor).toBe(8100);
+    const invalid=await app.inject({
+     method:"PUT",url:"/api/v1/admin/subscription-offers/monthly",headers,
+     payload:{discount_basis_points:1800,enabled:true,starts_at:"2026-12-10T00:00:00Z",ends_at:"2026-12-01T00:00:00Z"}
+    });
+    expect(invalid.statusCode).toBe(400);
+    const audit=await pool.query<{action:string;resource_id:string}>("SELECT action,resource_id FROM admin_audit_events WHERE admin_account_id=$1 AND action='subscription.offer.updated'",[adminId]);
+    expect(audit.rows).toContainEqual({action:"subscription.offer.updated",resource_id:"monthly"});
+    const logout=await app.inject({method:"POST",url:"/api/v1/admin/auth/logout",headers});
+    expect(logout.statusCode).toBe(204);
+    const afterLogout=await app.inject({method:"GET",url:"/api/v1/admin/subscription-offers",headers});
+    expect(afterLogout.statusCode).toBe(401);
+   }finally{await app.close();}
+  }finally{
+   await pool.query("DELETE FROM admin_accounts WHERE id=$1",[adminId]);
+   await pool.query("UPDATE subscription_offer_rules SET discount_basis_points=2020,enabled=true,starts_at=NULL,ends_at=NULL WHERE plan_code='monthly'");
+  }
+ });
+
  it("creates a fail-closed verified subscription entitlement ledger with only monthly and yearly terms",async()=>{
   if(!pool||!migrationApplied)return;
   const constraints=await pool.query<{constraint_name:string;check_clause:string}>(`
