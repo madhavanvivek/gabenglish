@@ -9,7 +9,7 @@
   "scripts": {
     "dev:api": "pnpm --filter @gabenglish/api dev",
     "dev:mobile": "pnpm --filter @gabenglish/mobile start -- --lan",
-    "dev:mobile:android": "pnpm --filter @gabenglish/mobile android",
+    "dev:mobile:android": "pnpm --filter @gabenglish/mobile exec expo run:android",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test"
