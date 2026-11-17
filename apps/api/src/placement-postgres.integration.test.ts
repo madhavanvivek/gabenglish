@@ -39,7 +39,7 @@ integration("PostgreSQL placement session integration",()=>{
   if(!pool||!migrationApplied)return;
   await runMigrations(pool);
   const result=await pool.query<{version:string}>("SELECT version FROM schema_migrations ORDER BY version");
-  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql","0011_learning_direction.sql","0012_gabroo_conversation_direction.sql","0013_directional_diagnostic_reports.sql","0014_direction_aware_curriculum_progress.sql","0015_learner_exercise_attempts.sql"]);
+  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql","0011_learning_direction.sql","0012_gabroo_conversation_direction.sql","0013_directional_diagnostic_reports.sql","0014_direction_aware_curriculum_progress.sql","0015_learner_exercise_attempts.sql","0016_subscription_offer_pricing.sql"]);
  });
  it("creates a fail-closed verified subscription entitlement ledger with only monthly and yearly terms",async()=>{
   if(!pool||!migrationApplied)return;
@@ -60,6 +60,28 @@ integration("PostgreSQL placement session integration",()=>{
   expect(columns.rows.find(row=>row.column_name==="verified_payment_at")?.is_nullable).toBe("NO");
   expect(columns.rows.find(row=>row.column_name==="provider_event_id")?.is_nullable).toBe("NO");
  });
+
+ it("serves current offers from PostgreSQL and increments the offer version on admin-side updates",async()=>{
+  if(!pool||!migrationApplied)return;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  try{
+   const response=await app.inject({method:"GET",url:"/api/v1/subscriptions/prices"});
+   expect(response.statusCode).toBe(200);
+   expect(response.json()).toMatchObject({currency:"INR",prices:[
+    {plan_code:"monthly",standard_amount_minor:9900,payable_amount_minor:7900,discount_amount_minor:2000,offer_applied:true},
+    {plan_code:"yearly",standard_amount_minor:118800,payable_amount_minor:79900,discount_amount_minor:38900,offer_applied:true}
+   ]});
+   const before=await pool.query<{version:number}>("SELECT version FROM subscription_offer_rules WHERE plan_code='monthly'");
+   await pool.query("UPDATE subscription_offer_rules SET discount_basis_points=1500 WHERE plan_code='monthly'");
+   const after=await pool.query<{version:number;discount_basis_points:number}>("SELECT version,discount_basis_points FROM subscription_offer_rules WHERE plan_code='monthly'");
+   expect(after.rows[0]?.version).toBe(before.rows[0]!.version+1);
+   expect(after.rows[0]?.discount_basis_points).toBe(1500);
+   const updated=await app.inject({method:"GET",url:"/api/v1/subscriptions/prices"});
+   expect(updated.json().prices[0].payable_amount_minor).toBe(8400);
+   await pool.query("UPDATE subscription_offer_rules SET discount_basis_points=2020 WHERE plan_code='monthly'");
+  }finally{await app.close();}
+ });
+
  it("returns free subscription access by default and requires a verified learner session",async()=>{
   if(!pool||!migrationApplied)return;
   const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
@@ -91,17 +113,19 @@ integration("PostgreSQL placement session integration",()=>{
    priceId=price.rows[0]!.id;
    const subscription=await pool.query<{id:string}>("INSERT INTO subscriptions(user_id,plan_id,regional_price_id,status) VALUES($1,$2,$3,'pending') RETURNING id",[userId,planId,priceId]);
    subscriptionId=subscription.rows[0]!.id;
-   const payment=await pool.query<{id:string}>("INSERT INTO payment_transactions(subscription_id,provider_code,provider_payment_ref,provider_event_id,amount_minor,currency,status) VALUES($1,'test-provider',$2,$3,9900,'INR','succeeded') RETURNING id",[subscriptionId,"pay-"+randomUUID(),"evt-"+randomUUID()]);
+   const payment=await pool.query<{id:string}>("INSERT INTO payment_transactions(subscription_id,provider_code,provider_payment_ref,provider_event_id,amount_minor,currency,status,price_standard_amount_minor,price_discount_amount_minor,price_discount_basis_points,price_offer_version,price_quoted_at) VALUES($1,'test-provider',$2,$3,7900,'INR','succeeded',9900,2000,2020,1,now()) RETURNING id",[subscriptionId,"pay-"+randomUUID(),"evt-"+randomUUID()]);
    paymentId=payment.rows[0]!.id;
    await expect(activateVerifiedSubscriptionPayment(pool,paymentId)).rejects.toMatchObject({code:"PAYMENT_NOT_VERIFIED"});
    await pool.query("UPDATE payment_transactions SET verified_at=now() WHERE id=$1",[paymentId]);
    const activated=await activateVerifiedSubscriptionPayment(pool,paymentId);
    expect(activated.idempotent).toBe(false);
+   const savedPrice=await pool.query<{standard_amount_minor:string;discount_amount_minor:string;paid_amount_minor:string}>("SELECT standard_amount_minor::text,discount_amount_minor::text,paid_amount_minor::text FROM subscription_entitlements WHERE id=$1",[activated.entitlement_id]);
+   expect(savedPrice.rows[0]).toEqual({standard_amount_minor:"9900",discount_amount_minor:"2000",paid_amount_minor:"7900"});
    expect(new Date(activated.period_end).getTime()-new Date(activated.period_start).getTime()).toBe(30*24*60*60*1000);
    const replay=await activateVerifiedSubscriptionPayment(pool,paymentId);
    expect(replay.idempotent).toBe(true);
    expect(replay.entitlement_id).toBe(activated.entitlement_id);
-   const renewal=await pool.query<{id:string}>("INSERT INTO payment_transactions(subscription_id,provider_code,provider_payment_ref,provider_event_id,amount_minor,currency,status,verified_at) VALUES($1,'test-provider',$2,$3,9900,'INR','succeeded',now()) RETURNING id",[subscriptionId,"pay-"+randomUUID(),"evt-"+randomUUID()]);
+   const renewal=await pool.query<{id:string}>("INSERT INTO payment_transactions(subscription_id,provider_code,provider_payment_ref,provider_event_id,amount_minor,currency,status,verified_at,price_standard_amount_minor,price_discount_amount_minor,price_discount_basis_points,price_offer_version,price_quoted_at) VALUES($1,'test-provider',$2,$3,7900,'INR','succeeded',now(),9900,2000,2020,1,now()) RETURNING id",[subscriptionId,"pay-"+randomUUID(),"evt-"+randomUUID()]);
    renewalPaymentId=renewal.rows[0]!.id;
    const renewed=await activateVerifiedSubscriptionPayment(pool,renewalPaymentId);
    expect(new Date(renewed.period_start).getTime()).toBe(new Date(activated.period_end).getTime());
