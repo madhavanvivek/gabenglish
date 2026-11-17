@@ -4,7 +4,7 @@ import {Link} from "expo-router";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
 import {BrandMark} from "../src/ui";
-import {AuthApiError,getLearnerMe,getLatestFreeDiagnosticReport,logoutLearner,requestLearnerOtp,verifyLearnerOtp,type LearnerMe,type OtpChallenge,type SavedFreeDiagnosticReport,type GabrooMemoryItem,type GabrooMemoryCategory,clearGabrooMemory,createGabrooMemory,deleteGabrooMemory,listGabrooMemory,updateGabrooMemory,updateLearnerPreferences} from "../src/auth-api";
+import {AuthApiError,getLearnerMe,getLatestFreeDiagnosticReport,logoutLearner,requestLearnerOtp,verifyLearnerOtp,type LearnerMe,type OtpChallenge,type SavedFreeDiagnosticReport,type GabrooMemoryItem,type GabrooMemoryCategory,clearGabrooMemory,createGabrooMemory,deleteGabrooMemory,listGabrooMemory,updateGabrooMemory,updateLearnerPreferences,updateLearnerProfile} from "../src/auth-api";
 
 export default function AccountScreen(){
  const [channel,setChannel]=useState<"email"|"phone">("email");
@@ -12,6 +12,8 @@ export default function AccountScreen(){
  const [code,setCode]=useState("");
  const [challenge,setChallenge]=useState<OtpChallenge|null>(null);
  const [account,setAccount]=useState<LearnerMe|null>(null);
+ const [profileName,setProfileName]=useState("");
+ const [profileBusy,setProfileBusy]=useState(false);
  const [savedReport,setSavedReport]=useState<SavedFreeDiagnosticReport|null>(null);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
@@ -25,7 +27,7 @@ export default function AccountScreen(){
  const [memoryBusy,setMemoryBusy]=useState(false);
  useEffect(()=>{
   let active=true;
-  getLearnerMe().then(async value=>{if(active)setAccount(value);try{const report=await getLatestFreeDiagnosticReport();if(active)setSavedReport(report);}catch{/* No free report has been completed yet. */}try{const saved=await listGabrooMemory();if(active)setMemories(saved.memory);}catch(reason){if(active&&(!(reason instanceof AuthApiError)||reason.status!==401))setError(reason instanceof Error?reason.message:"Could not load your saved Gabroo memory.");}}).catch(reason=>{
+  getLearnerMe().then(async value=>{if(active){setAccount(value);setProfileName(value.user.display_name??"");}try{const report=await getLatestFreeDiagnosticReport();if(active)setSavedReport(report);}catch{/* No free report has been completed yet. */}try{const saved=await listGabrooMemory();if(active)setMemories(saved.memory);}catch(reason){if(active&&(!(reason instanceof AuthApiError)||reason.status!==401))setError(reason instanceof Error?reason.message:"Could not load your saved Gabroo memory.");}}).catch(reason=>{
    if(active&&(!(reason instanceof AuthApiError)||reason.status!==401))setError(reason instanceof Error?reason.message:"Could not load your account.");
   });
   return()=>{active=false;};
@@ -45,10 +47,34 @@ export default function AccountScreen(){
   setBusy(true);setError("");setNotice("");
   try{
    await verifyLearnerOtp({challenge_id:challenge.challenge_id,code:code.trim()});
-   setAccount(await getLearnerMe());try{setSavedReport(await getLatestFreeDiagnosticReport());}catch{setSavedReport(null);}try{setMemories((await listGabrooMemory()).memory);}catch{setMemories([]);}setChallenge(null);setCode("");
+   const refreshedAccount=await getLearnerMe();setAccount(refreshedAccount);setProfileName(refreshedAccount.user.display_name??"");try{setSavedReport(await getLatestFreeDiagnosticReport());}catch{setSavedReport(null);}try{setMemories((await listGabrooMemory()).memory);}catch{setMemories([]);}setChallenge(null);setCode("");
    setNotice("Your verified Gabenglish account is ready. Your free analysis can now be saved.");
   }catch(reason){setError(reason instanceof Error?reason.message:"Could not verify the code.");}
   finally{setBusy(false);}
+ };
+ const saveProfile=async()=>{
+  if(!account||profileBusy||!profileName.trim())return;
+  setProfileBusy(true);setError("");setNotice("");
+  try{
+   const updated=await updateLearnerProfile({display_name:profileName.trim()}) as LearnerMe;
+   setAccount(updated);setProfileName(updated.user.display_name??"");
+   setNotice("Your profile name has been saved.");
+  }catch(reason){setError(reason instanceof Error?reason.message:"Could not update your profile.");}
+  finally{setProfileBusy(false);}
+ };
+ const changeSupportLanguage=async(value:"ml"|"en")=>{
+  if(!account||preferenceBusy||account.preferences?.support_language===value)return;
+  setPreferenceBusy(true);setError("");setNotice("");
+  try{await updateLearnerPreferences({support_language:value});setAccount(await getLearnerMe());setNotice("Your support language preference has been saved.");}
+  catch(reason){setError(reason instanceof Error?reason.message:"Could not update your support language.");}
+  finally{setPreferenceBusy(false);}
+ };
+ const changeCorrectionMode=async(value:"gentle"|"balanced"|"detailed")=>{
+  if(!account||preferenceBusy||account.preferences?.correction_mode===value)return;
+  setPreferenceBusy(true);setError("");setNotice("");
+  try{await updateLearnerPreferences({correction_mode:value});setAccount(await getLearnerMe());setNotice("Your correction preference has been saved.");}
+  catch(reason){setError(reason instanceof Error?reason.message:"Could not update your correction preference.");}
+  finally{setPreferenceBusy(false);}
  };
  const changeSpeechRate=async(delta:number)=>{
   if(!account||preferenceBusy)return;
@@ -105,10 +131,18 @@ export default function AccountScreen(){
    {account.user.email?<Text style={s.contact}>{account.user.email} · {account.user.email_verified?"Verified":"Not verified"}</Text>:null}
    {account.user.phone_verified?<Text style={s.contact}>Phone number verified</Text>:null}
    <View style={s.freeBadge}><Text style={s.freeBadgeText}>FREE ANALYSIS SAVES TO THIS ACCOUNT</Text></View>
+   <View style={s.profileEditor}>
+    <Text style={s.section}>Profile details</Text>
+    <Text style={s.profileLabel}>Your preferred name</Text>
+    <TextInput value={profileName} onChangeText={setProfileName} placeholder="How should Gabroo address you?" maxLength={80} style={s.profileInput} editable={!profileBusy}/>
+    <Pressable disabled={profileBusy||!profileName.trim()||profileName.trim()===(account.user.display_name??"")} onPress={saveProfile} style={[s.profileSave,(profileBusy||!profileName.trim()||profileName.trim()===(account.user.display_name??""))&&s.disabled]}>{profileBusy?<ActivityIndicator color="#fff"/>:<Text style={s.profileSaveText}>Save profile name</Text>}</Pressable>
+   </View>
    <Text style={s.section}>Learning preferences</Text>
-   <Text style={s.info}>Support language: {account.preferences?.support_language==="ml"?"Malayalam":"English"}</Text>
+   <Text style={s.profileLabel}>Explanation language</Text>
+   <View style={s.preferenceChoices}>{([{value:"ml",label:"Malayalam"},{value:"en",label:"English"}] as const).map(item=><Pressable key={item.value} disabled={preferenceBusy} onPress={()=>void changeSupportLanguage(item.value)} style={[s.preferenceChoice,account.preferences?.support_language===item.value&&s.preferenceChoiceActive]}><Text style={[s.preferenceChoiceText,account.preferences?.support_language===item.value&&s.preferenceChoiceTextActive]}>{item.label}</Text></Pressable>)}</View>
+   <Text style={s.profileLabel}>How should Gabroo correct your English?</Text>
+   <View style={s.preferenceChoices}>{([{value:"gentle",label:"Gentle"},{value:"balanced",label:"Balanced"},{value:"detailed",label:"Detailed"}] as const).map(item=><Pressable key={item.value} disabled={preferenceBusy} onPress={()=>void changeCorrectionMode(item.value)} style={[s.preferenceChoice,account.preferences?.correction_mode===item.value&&s.preferenceChoiceActive]}><Text style={[s.preferenceChoiceText,account.preferences?.correction_mode===item.value&&s.preferenceChoiceTextActive]}>{item.label}</Text></Pressable>)}</View>
    <Text style={s.info}>Daily target: {account.preferences?.daily_target_minutes??10} minutes</Text>
-   <Text style={s.info}>Correction style: {account.preferences?.correction_mode??"balanced"}</Text>
    <View style={s.speedCard}>
     <Text style={s.speedTitle}>Gabroo speaking speed</Text>
     <Text style={s.speedHint}>Choose how quickly Gabroo should speak. This preference will apply when voice conversations are available.</Text>
@@ -161,7 +195,7 @@ export default function AccountScreen(){
 const s=StyleSheet.create({
  safe:{flex:1,backgroundColor:colors.background},page:{flexGrow:1,padding:22,paddingBottom:36},
  header:{alignItems:"center",marginBottom:24},logo:{width:46,height:46,borderRadius:15,backgroundColor:colors.primary,alignItems:"center",justifyContent:"center"},logoText:{color:"#fff",fontSize:29,fontWeight:"900"},brand:{marginTop:10,color:colors.text,fontSize:22,fontWeight:"900"},subtitle:{fontSize:13,lineHeight:20,color:"#6B6278",textAlign:"center",marginTop:7},
- card:{backgroundColor:"#fff",borderRadius:20,padding:18,borderWidth:1,borderColor:"#EAE2F0"},sectionTop:{fontSize:17,fontWeight:"900",color:colors.text},helper:{fontSize:12,lineHeight:18,color:"#70677B",marginTop:7,marginBottom:15},switchRow:{flexDirection:"row",backgroundColor:"#F3EFF8",padding:4,borderRadius:12},switch:{flex:1,padding:11,alignItems:"center",borderRadius:9},switchActive:{backgroundColor:"#fff"},switchText:{fontSize:13,fontWeight:"800",color:"#81788C"},switchTextActive:{color:colors.primaryStrong},
+ card:{backgroundColor:"#fff",borderRadius:20,padding:18,borderWidth:1,borderColor:"#EAE2F0"},profileEditor:{backgroundColor:"#FAF7FF",borderRadius:14,padding:13,marginTop:15},profileLabel:{fontSize:11,fontWeight:"800",color:"#625A6D",marginTop:12,marginBottom:6},profileInput:{backgroundColor:"#FFFEFC",borderWidth:1,borderColor:colors.border,borderRadius:11,padding:11,fontSize:13,color:colors.text},profileSave:{backgroundColor:colors.primary,borderRadius:10,padding:11,alignItems:"center",marginTop:9},profileSaveText:{fontSize:11,fontWeight:"900",color:"#fff"},preferenceChoices:{flexDirection:"row",flexWrap:"wrap",gap:7,marginTop:6},preferenceChoice:{borderWidth:1,borderColor:"#DED2EF",borderRadius:18,paddingVertical:8,paddingHorizontal:12},preferenceChoiceActive:{backgroundColor:colors.primary,borderColor:colors.primary},preferenceChoiceText:{fontSize:11,fontWeight:"800",color:"#665B77"},preferenceChoiceTextActive:{color:"#fff"},sectionTop:{fontSize:17,fontWeight:"900",color:colors.text},helper:{fontSize:12,lineHeight:18,color:"#70677B",marginTop:7,marginBottom:15},switchRow:{flexDirection:"row",backgroundColor:"#F3EFF8",padding:4,borderRadius:12},switch:{flex:1,padding:11,alignItems:"center",borderRadius:9},switchActive:{backgroundColor:"#fff"},switchText:{fontSize:13,fontWeight:"800",color:"#81788C"},switchTextActive:{color:colors.primaryStrong},
  label:{fontSize:13,fontWeight:"800",color:"#403A50",marginTop:17,marginBottom:7},input:{backgroundColor:"#FFFEFC",borderWidth:1,borderColor:colors.border,borderRadius:13,padding:13,fontSize:15,color:colors.text},
  button:{backgroundColor:colors.primary,borderRadius:14,padding:15,alignItems:"center",marginTop:20},buttonText:{color:"#fff",fontSize:14,fontWeight:"900"},disabled:{opacity:.45},secondary:{backgroundColor:colors.surfaceSoft},secondaryText:{color:colors.primaryStrong,fontWeight:"900"},
  eyebrow:{fontSize:9,fontWeight:"900",letterSpacing:1.4,color:"#8A6AB6"},name:{fontSize:22,fontWeight:"900",color:colors.text,marginTop:8},contact:{fontSize:12,color:"#70677B",marginTop:7},freeBadge:{alignSelf:"flex-start",backgroundColor:"#E5F5E9",borderRadius:20,paddingVertical:7,paddingHorizontal:10,marginTop:14},freeBadgeText:{fontSize:10,fontWeight:"900",color:"#365B3A"},
