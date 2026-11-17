@@ -164,3 +164,12 @@ This checkpoint is a status record, not a claim that the listed gates have passe
 - Added PostgreSQL integration coverage for successful filtering/pagination and invalid limits; documented the endpoint in OpenAPI and the admin security runbook.
 - Hosted CI run #1022 (44136787654) passed API typecheck/tests, PostgreSQL integration tests, shared-contract checks, mobile typecheck/unit tests and Android bundle smoke test after this addition.
 - Remaining admin work is now primarily the actual web console, MFA, account invitation/recovery lifecycle, audit export, session-management UI and a focused security review.
+
+## 13. Initial Superadmin console checkpoint (2026-11-17)
+
+- Added the static responsive console at `apps/admin-console/index.html` for admin sign-in, monthly/yearly offer editing, active session listing/revocation and audit-history browsing.
+- Added bounded session-list and session-revocation APIs with current-session identification, suspended-account exclusion and transactional revocation audit records.
+- Added API contract documentation and `docs/admin/SUPERADMIN_CONSOLE.md` covering local preview, HTTPS/CORS configuration, browser-token handling, limitations and manual acceptance checks.
+- No framework or dependency was added for the initial console; it is a standalone static prototype.
+- Validation remains pending for this latest UI/API slice. Previous CI results do not certify the current head. The console has not been deployed.
+- Remaining gates: verify latest API/integration CI; perform browser QA; configure production API CORS and HTTPS hosting; add MFA, invitation/recovery, idle timeout, CSP hardening, audit export and security testing.
