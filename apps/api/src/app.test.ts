@@ -120,4 +120,34 @@ describe("API foundation",()=>{
   expect(catalogQuery?.sql).toContain("lv.educator_review_status='approved'");
   await app.close();
  });
+
+ it("serves public subscription prices from the persisted offer rules",async()=>{
+  const pool={query:async(sql:string)=>{
+   if(sql.includes("FROM subscription_offer_rules"))return {rows:[
+    {plan_code:"monthly",currency:"INR",standard_amount_minor:"9900",discount_basis_points:2020,enabled:true,starts_at:null,ends_at:null,version:3},
+    {plan_code:"yearly",currency:"INR",standard_amount_minor:"118800",discount_basis_points:3274,enabled:true,starts_at:null,ends_at:null,version:2}
+   ]};
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const response=await app.inject({method:"GET",url:"/api/v1/subscriptions/prices"});
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toMatchObject({
+   currency:"INR",
+   prices:[
+    {plan_code:"monthly",billing_days:30,standard_amount_minor:9900,discount_amount_minor:2000,payable_amount_minor:7900,offer_applied:true,offer_version:3},
+    {plan_code:"yearly",billing_days:360,standard_amount_minor:118800,discount_amount_minor:38900,payable_amount_minor:79900,offer_applied:true,offer_version:2}
+   ]
+  });
+  await app.close();
+ });
+ it("fails closed when subscription offer configuration is incomplete",async()=>{
+  const pool={query:async()=>({rows:[]})} as any;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const response=await app.inject({method:"GET",url:"/api/v1/subscriptions/prices"});
+  expect(response.statusCode).toBe(503);
+  expect(response.json().error.code).toBe("SUBSCRIPTION_PRICING_UNAVAILABLE");
+  await app.close();
+ });
+
 });
