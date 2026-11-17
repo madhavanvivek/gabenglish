@@ -608,3 +608,13 @@ Next implementation sequence:
 - Migration 0018 intentionally creates no default administrator. The first Superadmin must be provisioned out-of-band using the documented secure runbook at docs/security/ADMIN_PORTAL_BOOTSTRAP.md.
 - CI run #1010 (44136100170) passed API typecheck/tests, PostgreSQL integration tests for Superadmin authentication and offer management, shared-contract checks and Android bundle smoke test. CI run #1015 (44136368589) passed after admin session token-digest hardening. CI run #1017 (44136465606) passed the API typecheck/tests, PostgreSQL integration suite, shared-contract checks, mobile typecheck/unit tests and Android bundle smoke test. CI run #1022 (44136787654) also passed after adding audit-history pagination/filter integration coverage.
 - Still outstanding: admin web UI, MFA, admin invitation/recovery lifecycle, audit export, security/penetration review, payment provider selection, checkout intent creation and signed webhook verification. No payment provider is configured and subscription purchases are not yet enabled.
+
+
+## 22. Initial Superadmin console (2026-11-17)
+
+- Added a dependency-free responsive static console at `apps/admin-console/index.html`. It uses the separate Superadmin bearer-token API and supports provisioned-account sign-in/sign-out, monthly/yearly offer configuration, active administrator session inventory/revocation and redacted audit-history browsing with action filtering and pagination.
+- Admin access tokens are held in tab-scoped `sessionStorage`; the console does not hold database/provider credentials and does not create administrator accounts or grant learner entitlements.
+- Added `docs/admin/SUPERADMIN_CONSOLE.md` with local preview, API origin/CORS configuration, HTTPS deployment requirements, session limitations and manual acceptance checks. Updated README and the admin bootstrap/security runbook.
+- The session inventory excludes expired/revoked sessions and sessions belonging to suspended administrator accounts. Session revocation is audited.
+- This is an initial functional static console prototype, not a production security sign-off. MFA, invitations/recovery, CSP/idle-timeout hardening, audit export, hosted browser QA and penetration testing remain outstanding.
+- The latest console commits have not yet been verified by a reported CI run. Do not treat this UI as CI-validated or production-ready. The PR remains draft and unmerged; no deployment has been performed.
