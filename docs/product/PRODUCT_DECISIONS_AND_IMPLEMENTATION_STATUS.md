@@ -500,3 +500,9 @@ Next implementation sequence:
 ### Mobile readiness loading correction (17 November 2026)
 - Corrected the Gabroo screen's subscription load path to actually request the authenticated recognition readiness endpoint for active subscribers. Previously the endpoint client was imported but not called, leaving the availability panel permanently in its unknown state.
 - Readiness lookup failure is isolated from conversation loading: saved conversations still load, while voice recognition remains safely unavailable in the UI. Free accounts clear the paid-only readiness state.
+
+
+### Authenticated recognition readiness API coverage (17 November 2026)
+- Added route-level tests using a signed test learner session and a mocked entitlement lookup.
+- Covered the paid learner success response (including the full shared-contract payload), free learner denial, and the provider-injected availability flag.
+- These tests exercise authentication, subscription gating, and the status response through Fastify rather than testing only the standalone Zod schema.
