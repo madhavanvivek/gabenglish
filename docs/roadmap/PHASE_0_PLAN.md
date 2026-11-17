@@ -159,3 +159,8 @@ This checkpoint is a status record, not a claim that the listed gates have passe
 - Hosted CI run #1015 (44136368589) passed after storing and verifying the digest of the issued admin access token against its revocable database session.
 - Hosted CI run #1017 (44136465606) passed the latest API typecheck/tests, PostgreSQL integration suite, shared-contract typecheck/tests, mobile typecheck/unit tests and Expo Android production-bundle smoke test.
 - The Superadmin API foundation is therefore CI-validated. The admin web UI, MFA, invitation/recovery lifecycle, audit browser, security review and production deployment remain incomplete.
+### Audit-history API checkpoint
+- Added GET /api/v1/admin/audit-events with bounded pagination and action filtering. Only authenticated Superadmins can read redacted audit entries.
+- Added PostgreSQL integration coverage for successful filtering/pagination and invalid limits; documented the endpoint in OpenAPI and the admin security runbook.
+- Hosted CI run #1022 (44136787654) passed API typecheck/tests, PostgreSQL integration tests, shared-contract checks, mobile typecheck/unit tests and Android bundle smoke test after this addition.
+- Remaining admin work is now primarily the actual web console, MFA, account invitation/recovery lifecycle, audit export, session-management UI and a focused security review.
