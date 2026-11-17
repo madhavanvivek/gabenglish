@@ -39,7 +39,7 @@ integration("PostgreSQL placement session integration",()=>{
   if(!pool||!migrationApplied)return;
   await runMigrations(pool);
   const result=await pool.query<{version:string}>("SELECT version FROM schema_migrations ORDER BY version");
-  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql","0011_learning_direction.sql","0012_gabroo_conversation_direction.sql","0013_directional_diagnostic_reports.sql","0014_direction_aware_curriculum_progress.sql","0015_learner_exercise_attempts.sql","0016_subscription_offer_pricing.sql"]);
+  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql","0011_learning_direction.sql","0012_gabroo_conversation_direction.sql","0013_directional_diagnostic_reports.sql","0014_direction_aware_curriculum_progress.sql","0015_learner_exercise_attempts.sql","0016_subscription_offer_pricing.sql","0017_subscription_checkout_quotes.sql"]);
  });
  it("creates a fail-closed verified subscription entitlement ledger with only monthly and yearly terms",async()=>{
   if(!pool||!migrationApplied)return;
@@ -80,6 +80,40 @@ integration("PostgreSQL placement session integration",()=>{
    expect(updated.json().prices[0].payable_amount_minor).toBe(8400);
    await pool.query("UPDATE subscription_offer_rules SET discount_basis_points=2020 WHERE plan_code='monthly'");
   }finally{await app.close();}
+ });
+
+
+ it("stores a short-lived subscription quote snapshot for the authenticated learner",async()=>{
+  if(!pool||!migrationApplied)return;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const email="subscription-quote-"+randomUUID()+"@example.test";
+  let userId:string|undefined,quoteId:string|undefined;
+  try{
+   const token=await createVerifiedTestSession(app,email,pool);
+   userId=(await pool.query<{id:string}>("SELECT id FROM users WHERE email_normalized=$1",[email])).rows[0]!.id;
+   const response=await app.inject({
+    method:"POST",url:"/api/v1/subscriptions/checkout/quote",
+    headers:{authorization:"Bearer "+token},payload:{plan_code:"monthly"}
+   });
+   expect(response.statusCode).toBe(201);
+   expect(response.json()).toMatchObject({
+    plan_code:"monthly",currency:"INR",standard_amount_minor:9900,
+    discount_amount_minor:2000,payable_amount_minor:7900,
+    payment_required:true,access_granted:false
+   });
+   quoteId=response.json().quote_id;
+   const stored=await pool.query<{user_id:string;standard_amount_minor:string;discount_amount_minor:string;payable_amount_minor:string;offer_version:number;quoted_at:Date;expires_at:Date}>(
+    "SELECT user_id,standard_amount_minor::text,discount_amount_minor::text,payable_amount_minor::text,offer_version,quoted_at,expires_at FROM subscription_checkout_quotes WHERE id=$1",[quoteId]
+   );
+   expect(stored.rows[0]).toMatchObject({
+    user_id:userId,standard_amount_minor:"9900",discount_amount_minor:"2000",payable_amount_minor:"7900",offer_version:1
+   });
+   expect(stored.rows[0]!.expires_at.getTime()-stored.rows[0]!.quoted_at.getTime()).toBe(15*60*1000);
+   await expect(pool.query("UPDATE subscription_checkout_quotes SET payable_amount_minor=1 WHERE id=$1",[quoteId])).rejects.toThrow("immutable");
+  }finally{
+   if(userId)await pool.query("DELETE FROM users WHERE id=$1",[userId]);
+   await app.close();
+  }
  });
 
  it("returns free subscription access by default and requires a verified learner session",async()=>{
