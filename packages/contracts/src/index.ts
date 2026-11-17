@@ -18,3 +18,5 @@ export * from "./gabroo-recognition.js";
 export * from "./language-learning.js";
 
 export * from "./lesson-content.js";
+
+export * from "./lesson-exercises.js";
