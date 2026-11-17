@@ -7,6 +7,7 @@ import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
+import {adjustGabrooSpeechRate} from "../src/learner-settings";
 import {BrandMark} from "../src/ui";
 import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getGabrooRecognitionStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences} from "../src/auth-api";
 
@@ -343,7 +344,7 @@ export default function GabrooScreen(){
   setSpeechNotice("");
  };
  const changeSpeechRate=async(delta:number)=>{
-  const next=Math.min(1.5,Math.max(0.75,Math.round((speechRate+delta)*100)/100));
+  const next=adjustGabrooSpeechRate(speechRate,delta);
   if(next===speechRate)return;
   setSpeechRate(next);setSpeechNotice("");setSpeechSaving(true);
   try{await updateLearnerPreferences({gabroo_speech_rate:next});}
