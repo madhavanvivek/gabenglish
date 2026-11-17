@@ -22,8 +22,7 @@ CREATE INDEX subscription_checkout_quotes_user_recent_idx
   ON subscription_checkout_quotes(user_id, created_at DESC);
 
 CREATE INDEX subscription_checkout_quotes_expiry_idx
-  ON subscription_checkout_quotes(expires_at)
-  WHERE expires_at > now();
+  ON subscription_checkout_quotes(expires_at);
 
 COMMENT ON TABLE subscription_checkout_quotes IS
   'Immutable, short-lived server-side price quotes. A quote alone never creates a payment or paid entitlement.';
