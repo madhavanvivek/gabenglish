@@ -44,6 +44,7 @@ Never seed a default password, make an unauthenticated bootstrap endpoint, or ex
 - POST /api/v1/admin/auth/login
 - POST /api/v1/admin/auth/logout
 - GET /api/v1/admin/subscription-offers
+- GET /api/v1/admin/audit-events (redacted, paginated, filterable by action)
 - PUT /api/v1/admin/subscription-offers/{monthly|yearly}
 
 Send the admin access token as Authorization: Bearer <token>. The token is not a learner token and must not be stored in learner session storage.
@@ -53,5 +54,5 @@ Send the admin access token as Authorization: Bearer <token>. The token is not a
 - Admin web UI, MFA, recovery and account invitation lifecycle.
 - Role delegation and least-privilege roles beyond the initial Superadmin.
 - Security review, penetration testing, lockout monitoring and alerting.
-- Audit-log browsing/export and admin session management UI.
+- Audit-log export and admin session management UI.
 - Payment provider setup and verified webhook processing remain separate gates.
