@@ -170,3 +170,8 @@ Migration `0014_direction_aware_curriculum_progress.sql` adds explicit direction
 ## 13. Malayalam beginner curriculum map — implementation status
 
 A draft curriculum map now defines three beginner-to-connected-conversation stages and fourteen lesson specifications across greetings, polite everyday language, sound/listening foundations, food and shopping, transport, workplace interactions, and context/register. Every unit is explicitly `en_to_ml`, targets Malayalam, uses English support, requires Malayalam script with optional romanisation, identifies a broad Kerala dialect scope, and remains `not_reviewed` / `draft`. The map contains learning outcomes only; it is not a set of playable lessons. Native-speaker educator review, reviewed Malayalam examples, accepted variants, audio assets and lesson exercises are still outstanding.
+
+
+## 14. Published course catalog API and mobile integration
+
+The API now exposes `GET /api/v1/learning/courses` for the signed-in learner's selected direction. It requires a verified account and active subscription, reads direction from the persisted preference, and returns only published courses and lessons with a current published version. For `en_to_ml`, a lesson version must additionally have `educator_review_status='approved'`; draft, unreviewed and incomplete lesson versions are omitted. The mobile learning screen now requests this catalog and displays returned course/module/lesson titles, while retaining the draft curriculum notice when no approved Malayalam lessons are available. This is a catalog integration only: a lesson player, exercise submission and progress-write API are not yet implemented.
