@@ -85,6 +85,29 @@ integration("PostgreSQL placement session integration",()=>{
     expect(auditApi.json().events).toEqual(expect.arrayContaining([expect.objectContaining({action:"subscription.offer.updated",resource_id:"monthly"})]));
     const invalidAudit=await app.inject({method:"GET",url:"/api/v1/admin/audit-events?limit=500",headers});
     expect(invalidAudit.statusCode).toBe(400);
+    const secondLogin=await app.inject({method:"POST",url:"/api/v1/admin/auth/login",payload:{email,password}});
+    expect(secondLogin.statusCode).toBe(200);
+    const secondHeaders={authorization:"Bearer "+secondLogin.json().access_token};
+    const sessions=await app.inject({method:"GET",url:"/api/v1/admin/sessions?limit=10&offset=0",headers});
+    expect(sessions.statusCode).toBe(200);
+    expect(sessions.json().total).toBeGreaterThanOrEqual(2);
+    expect(sessions.json().sessions).toEqual(expect.arrayContaining([
+     expect.objectContaining({admin_account_id:adminId,is_current:true}),
+     expect.objectContaining({admin_account_id:adminId,is_current:false})
+    ]));
+    const secondSession=sessions.json().sessions.find((session:{is_current:boolean})=>!session.is_current);
+    expect(secondSession?.id).toBeTruthy();
+    const revoked=await app.inject({method:"DELETE",url:"/api/v1/admin/sessions/"+secondSession.id,headers});
+    expect(revoked.statusCode).toBe(204);
+    const revokedSessionAccess=await app.inject({method:"GET",url:"/api/v1/admin/subscription-offers",headers:secondHeaders});
+    expect(revokedSessionAccess.statusCode).toBe(401);
+    const sessionAudit=await app.inject({method:"GET",url:"/api/v1/admin/audit-events?action=admin.session.revoked&limit=10",headers});
+    expect(sessionAudit.statusCode).toBe(200);
+    expect(sessionAudit.json().events).toEqual(expect.arrayContaining([expect.objectContaining({action:"admin.session.revoked",resource_id:secondSession.id})]));
+    const missingSession=await app.inject({method:"DELETE",url:"/api/v1/admin/sessions/"+randomUUID(),headers});
+    expect(missingSession.statusCode).toBe(404);
+    const invalidSessionList=await app.inject({method:"GET",url:"/api/v1/admin/sessions?limit=500",headers});
+    expect(invalidSessionList.statusCode).toBe(400);
     const logout=await app.inject({method:"POST",url:"/api/v1/admin/auth/logout",headers});
     expect(logout.statusCode).toBe(204);
     const afterLogout=await app.inject({method:"GET",url:"/api/v1/admin/subscription-offers",headers});
