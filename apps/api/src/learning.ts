@@ -1,3 +1,4 @@
+import {evaluateAuthoredExercise} from "@gabenglish/contracts";
 import {projectLearnerLessonContent} from "@gabenglish/contracts";
 import type {FastifyInstance} from "fastify";
 import type {Pool} from "pg";
@@ -198,20 +199,15 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   const exercise=blocks.find((item):item is Record<string,unknown>=>typeof item==="object"&&item!==null&&(item as Record<string,unknown>).type==="exercise"&&(item as Record<string,unknown>).id===exerciseId);
   if(!exercise)return failure(reply,request.id,404,"EXERCISE_NOT_FOUND","This exercise is not part of the published lesson.");
   const submitted=body.response.trim();
-  let correct:boolean|null=null;
-  if(exercise.response_type==="single_choice"&&Array.isArray(exercise.options)){
-   const exists=exercise.options.some(option=>typeof option==="object"&&option!==null&&(option as Record<string,unknown>).id===submitted);
-   if(!exists)return failure(reply,request.id,400,"INVALID_EXERCISE_RESPONSE","Choose one of the available answers.");
-   if(typeof exercise.correct_option_id!=="string")return failure(reply,request.id,503,"EXERCISE_NOT_CONFIGURED","This exercise is awaiting its answer key.");
-   correct=submitted===exercise.correct_option_id;
-  }else if(exercise.response_type==="text"){
-   if(!Array.isArray(exercise.accepted_answers)||!exercise.accepted_answers.every(value=>typeof value==="string"))return failure(reply,request.id,503,"EXERCISE_NOT_CONFIGURED","This exercise is awaiting its accepted-answer rubric.");
-   const normalise=(value:string)=>value.normalize("NFKC").trim().toLocaleLowerCase().replace(/\s+/g," ");
-   correct=exercise.accepted_answers.some(value=>normalise(value as string)===normalise(submitted));
-  }else return failure(reply,request.id,503,"EXERCISE_NOT_CONFIGURED","This exercise format is not available yet.");
-  const feedback=correct
-   ?(typeof exercise.correct_feedback==="string"?exercise.correct_feedback:"Good work. Your answer is correct.")
-   :(typeof exercise.incorrect_feedback==="string"?exercise.incorrect_feedback:"Not quite. Review the lesson and try again.");
+  const evaluated=evaluateAuthoredExercise(exercise,submitted);
+  if(!evaluated){
+   if(exercise.response_type==="single_choice"&&Array.isArray(exercise.options)){
+    const exists=exercise.options.some(option=>typeof option==="object"&&option!==null&&(option as Record<string,unknown>).id===submitted);
+    if(!exists)return failure(reply,request.id,400,"INVALID_EXERCISE_RESPONSE","Choose one of the available answers.");
+   }
+   return failure(reply,request.id,503,"EXERCISE_NOT_CONFIGURED","This exercise is awaiting a valid answer key or accepted-answer rubric.");
+  }
+  const {correct,feedback}=evaluated;
   await pool.query(
    `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback)
     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
