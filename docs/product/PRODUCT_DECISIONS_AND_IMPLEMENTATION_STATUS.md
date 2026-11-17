@@ -463,3 +463,13 @@ Next implementation sequence:
 - File deletion is retried in cleanup if the first deletion attempt fails. The UI reports an error rather than claiming successful cleanup when the initial deletion fails.
 - This is a local capture and deletion validation only. Audio is not uploaded, retained in the account, transcribed, or sent to a provider. Live voice conversation remains incomplete.
 - The local microphone test is capped at 15 seconds and automatically stops and deletes its temporary recording at the limit.
+
+
+### Mobile Gabroo recognition transport foundation (2026-11-17)
+
+- Added a shared Zod response contract for the recognition HTTP endpoint. It requires a validated transcript, the literal `review_required: true`, and a non-empty request ID; unknown response fields and any response that removes the review gate are rejected.
+- Added contract tests for valid responses, review-gate enforcement, unknown fields and invalid transcript confidence.
+- Added a mobile authenticated binary-upload helper using the app's secure session token. It sends the learner's explicit consent header, selected recognition language and allowlisted audio MIME type; it retries once after a 401 session refresh and validates the response against the shared contract.
+- The helper returns only an unconfirmed transcript. It does not create a conversation message, persist audio, or bypass learner review. The local microphone test remains local-only and does not call this helper.
+- The mobile screen does not yet expose a record-and-upload action or transcript editor. Do not upload a local recording until a provider is selected/configured and the learner-facing consent, review, discard and failure states are implemented. With the current production configuration, the recognition endpoint still returns provider-unavailable after its account, subscription and consent gates.
+- CI/device verification remains pending; the current GitHub Actions runner allocation issue has prevented reliable CI execution. No production deployment or PR merge was performed.
