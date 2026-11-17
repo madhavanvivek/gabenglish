@@ -117,6 +117,10 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
   if(!learner)return reply.code(401).send({error:{code:"VERIFIED_ACCOUNT_REQUIRED",message:"Please register or sign in with a verified email or phone before starting your free analysis.",request_id:request.id}});
   const parsed=placementSessionStartSchema.safeParse(request.body??{});
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Please check your assessment preferences.",request_id:request.id}});
+  if(pool){
+   const preference=await pool.query<{learning_direction:"ml_to_en"|"en_to_ml"}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+   if(preference.rows[0]?.learning_direction==="en_to_ml")return reply.code(409).send({error:{code:"DIRECTION_ASSESSMENT_UNAVAILABLE",message:"The Malayalam-learning assessment is still being prepared. Your course preference is saved; please switch to English through Malayalam only if you want to take the currently available English analysis.",request_id:request.id}});
+  }
   pruneSessions();
   if(pool)await pool.query("DELETE FROM placement_sessions WHERE expires_at<=now()");
   const id=randomUUID();const session:Session={id,userId:learner.id,name:parsed.data.display_name,style:parsed.data.communication_style,language:parsed.data.preferred_language,turn:0,band:1,revision:0,clarificationCount:0,currentPromptId:"intro",responses:[],evidence:[],created_at:Date.now()};await saveSession(session);
