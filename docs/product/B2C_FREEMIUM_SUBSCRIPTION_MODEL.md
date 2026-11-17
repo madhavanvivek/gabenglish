@@ -44,14 +44,14 @@ All prices are in Indian rupees (INR), consumer-facing and tax-inclusive at chec
 | Monthly | ₹99 | **₹79** (20.20% discount) | 30 days |
 | Yearly | ₹1,188 | **₹799** (32.74% discount) | 360 days (12 × 30 days) |
 
-- The introductory discount applies only to the learner's first-ever successful subscription purchase. All subsequent renewals/re-purchases are charged at the then-current standard plan price unless a new, explicitly approved promotion rule is introduced.
+- The configured introductory discount may apply to initial purchases and subsequent renewals/re-purchases while the offer is enabled and within its configured offer window. The Superadmin controls the offer percentage and active window; the server evaluates eligibility at checkout for every purchase/renewal.
 - The Superadmin must be able to configure the discount percentage independently for Monthly and Yearly plans from the admin portal, enable/disable each offer, and set an optional offer start/end time. The displayed offer price is calculated from the standard price and active percentage on the server; round to the nearest whole rupee and show the final amount before checkout.
 - The initial configured percentages are 20.20% for Monthly (₹99 → ₹79) and 32.74% for Yearly (₹1,188 → ₹799). These are editable launch defaults, not hard-coded constants.
 - The Superadmin can change future offer percentages, but changes must not alter a checkout already created, a verified purchase, or its stored invoice/transaction history. Store a snapshot of standard price, discount percentage, discount amount, final amount, currency, plan term and offer/version against each transaction.
-- Do not let a learner repeatedly qualify for the first-purchase offer by cancelling, allowing expiry, or creating another checkout. Eligibility must be enforced server-side against the learner's purchase history. Define account-merger and abuse handling before launch.
+- Enforce offer status, configured dates, plan eligibility and price calculation server-side on every checkout/renewal. Prevent price manipulation through client input. Define account-merger and abuse handling before launch.
 - The yearly standard price is ₹99 × 12 = ₹1,188.
 - The stated 30-day month convention means the initial yearly entitlement is 360 days, not a calendar-year anniversary. Display the exact expiry date/time before purchase and in the learner account.
-- The discounted prices are introductory first-purchase offers, not renewal prices. Renewals and later re-purchases use the standard price unless an explicitly configured future promotion is approved. The admin-controlled offer must be time-bounded/enableable and server-authoritative.
+- The displayed ₹79 monthly and ₹799 yearly amounts are the current launch offer defaults. They can apply on renewals/re-purchases as long as the respective admin-controlled offer remains enabled and active. When the offer is disabled or expires, the then-current standard price applies. All decisions are server-authoritative and snapshotted per transaction.
 
 ## 4.1 One Gabenglish subscription — no separate Gabroo add-on
 
@@ -139,7 +139,7 @@ A cancellation action must not prematurely remove already-paid access. A refund,
 
 1. Replace learner password registration/login with OTP challenge and verification for email and phone; add verified contact linking.
 2. Keep free diagnostic access independent of paid subscription. Add authenticated ownership/persistence for free diagnostic reports.
-3. Add subscription plan/price version records for exactly monthly and yearly terms, server-side first-purchase promotion eligibility and configurable per-plan discount percentages managed by Superadmin, plus an entitlement service that gates paid routes server-side.
+3. Add subscription plan/price version records for exactly monthly and yearly terms, server-side configurable per-plan discount percentages and offer-window rules managed by Superadmin, plus an entitlement service that gates paid routes server-side.
 4. Select and integrate a payment provider only after evaluating India support, UPI/cards/netbanking/wallet options, webhook reliability, refunds, settlement, fees and subscription/one-time payment capabilities.
 5. Implement verified checkout, signed webhooks, idempotency, refunds/cancellation and subscription expiry jobs.
 6. Add mobile sign-up, OTP, free diagnostic, paywall, checkout and entitlement-aware app navigation.
