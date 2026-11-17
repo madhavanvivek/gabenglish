@@ -104,7 +104,7 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
   if(!pool)return reply.code(503).send({error:{code:"DATABASE_UNAVAILABLE",message:"Your saved report is temporarily unavailable.",request_id:request.id}});
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return reply.code(401).send({error:{code:"VERIFIED_ACCOUNT_REQUIRED",message:"Please sign in with your verified account to view your report.",request_id:request.id}});
-  const found=await pool.query<{id:string;report:Record<string,unknown>;gabroo_explanation:string;assessment_mode:string;created_at:Date}>(
+  const found=await pool.query<{id:string;report:Record<string,unknown>;gabroo_explanation:string;assessment_mode:string;learning_direction:"ml_to_en"|"en_to_ml";target_language:"en"|"ml";created_at:Date}>(
    "SELECT id,report,gabroo_explanation,assessment_mode,learning_direction,target_language,created_at FROM free_diagnostic_reports WHERE user_id=$1 AND learning_direction=COALESCE((SELECT learning_direction FROM user_preferences WHERE user_id=$1),'ml_to_en') ORDER BY created_at DESC LIMIT 1",[learner.id]
   );
   if(!found.rows[0])return reply.code(404).send({error:{code:"REPORT_NOT_FOUND",message:"You have not completed a free analysis yet.",request_id:request.id}});
