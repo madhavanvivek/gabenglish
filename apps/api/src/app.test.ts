@@ -141,6 +141,41 @@ describe("API foundation",()=>{
   });
   await app.close();
  });
+
+ it("creates an authenticated, short-lived subscription price quote without granting access",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const inserted:{sql:string;values:unknown[]|undefined}[]=[];
+  const pool={query:async(sql:string,values?:unknown[])=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("FROM subscription_offer_rules"))return {rows:[
+    {plan_code:"monthly",currency:"INR",standard_amount_minor:"9900",discount_basis_points:2020,enabled:true,starts_at:null,ends_at:null,version:4},
+    {plan_code:"yearly",currency:"INR",standard_amount_minor:"118800",discount_basis_points:3274,enabled:true,starts_at:null,ends_at:null,version:2}
+   ]};
+   inserted.push({sql,values});
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"POST",url:"/api/v1/subscriptions/checkout/quote",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{plan_code:"monthly"}});
+  expect(response.statusCode).toBe(201);
+  expect(response.json()).toMatchObject({
+   plan_code:"monthly",currency:"INR",standard_amount_minor:9900,discount_amount_minor:2000,
+   payable_amount_minor:7900,offer_version:4,payment_required:true,access_granted:false
+  });
+  expect(new Date(response.json().expires_at).getTime()-new Date(response.json().quoted_at).getTime()).toBe(15*60*1000);
+  expect(inserted).toHaveLength(1);
+  expect(inserted[0]?.sql).toContain("INSERT INTO subscription_checkout_quotes");
+  expect(inserted[0]?.values?.slice(2,9)).toEqual(["monthly","INR",9900,2000,7900,2020,4]);
+  await app.close();
+ });
+ it("requires a verified learner before creating a subscription quote",async()=>{
+  const pool={query:async()=>({rows:[]})} as any;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const response=await app.inject({method:"POST",url:"/api/v1/subscriptions/checkout/quote",payload:{plan_code:"monthly"}});
+  expect(response.statusCode).toBe(401);
+  expect(response.json().error.code).toBe("VERIFIED_ACCOUNT_REQUIRED");
+  await app.close();
+ });
+
  it("fails closed when subscription offer configuration is incomplete",async()=>{
   const pool={query:async()=>({rows:[]})} as any;
   const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
