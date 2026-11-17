@@ -1,6 +1,6 @@
 # Gabenglish B2C Freemium and Subscription Model
 
-Status: Product decision baseline — 16 November 2026
+Status: Product decision baseline — reviewed 17 November 2026
 Owner approval: Captured from product direction in the conversation; payment provider and legal terms remain open.
 
 ## 1. Commercial model
@@ -129,7 +129,7 @@ A cancellation action must not prematurely remove already-paid access. A refund,
 2. Free sign-up screen with Email OTP and Phone OTP choices.
 3. OTP entry, resend timer, change destination and verification success/error states.
 4. Free analysis test introduction, test, provisional result and clear upgrade CTA.
-5. Pricing page with only Monthly and Yearly options, standard price, first-purchase offer price, duration and savings; clearly disclose the standard renewal price.
+5. Pricing page with only Monthly and Yearly options, standard price, current offer price, duration and savings; disclose that the active offer may also apply to renewals and re-purchases, and that standard pricing applies when the offer is inactive.
 5. Payment pending, success, failure, retry and already-processing states.
 6. Paid learner home with Gabroo, classes, progress and assessments.
 7. Expired-subscription screen that preserves the account and free diagnostic but gates paid features.
