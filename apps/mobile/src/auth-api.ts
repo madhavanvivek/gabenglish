@@ -22,8 +22,9 @@ function baseUrl(){
  if(!API_BASE_URL)throw new AuthApiError("The Gabenglish API is not configured. Set EXPO_PUBLIC_API_BASE_URL.");
  try{
   const parsed=new URL(API_BASE_URL);
-  if(parsed.protocol!=="https:"&&parsed.hostname!=="localhost"&&parsed.hostname!=="127.0.0.1")throw new Error("HTTPS required");
- }catch{throw new AuthApiError("The Gabenglish API address must be a valid HTTPS URL (HTTP is allowed only for localhost).");}
+  const localDevelopmentHost=typeof __DEV__!=="undefined"&&__DEV__&&["localhost","127.0.0.1","10.0.2.2"].includes(parsed.hostname);
+  if(parsed.protocol!=="https:"&&!localDevelopmentHost)throw new Error("HTTPS required outside local development");
+ }catch{throw new AuthApiError("The Gabenglish API address must be a valid HTTPS URL (HTTP is allowed for localhost and the Android emulator host during development).");}
  return API_BASE_URL;
 }
 async function parseResponse(response:Response){
