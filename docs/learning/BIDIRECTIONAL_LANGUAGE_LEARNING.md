@@ -155,3 +155,8 @@ Before enabling the Malayalam course publicly, confirm content review capacity, 
 ## 10. Current status and boundaries
 
 This document records the approved product direction for design and architecture. It does not mean Malayalam course content, direction selection UI, direction persistence, a Malayalam placement assessment, or Malayalam-specific tutor behaviour has been implemented. Those require separate code, migrations, tests, editorial review and device validation.
+
+
+## 11. Malayalam assessment blueprint — implementation status
+
+A draft-only machine-readable blueprint defines six independent evidence domains for the en_to_ml journey: listening comprehension, functional vocabulary, phrase recall, sentence construction, contextual conversational response and optional script recognition. It is deliberately unpublished and has no scoring weights, proficiency label or automated placement. Every task records limitations; script recognition is included only when the learner opts into script learning. This is an implementation scaffold, not educator-reviewed assessment content. Recording assets, accepted variants, task validation and fluent Malayalam educator review remain required before activation.
