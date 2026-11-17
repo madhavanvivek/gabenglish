@@ -58,6 +58,8 @@ For the Android emulator, start the AVD first, then run:
 pnpm dev:mobile:android
 ```
 
+This runs Expo's native Android build/install command (rather than relying on Expo Go), so it compiles the app against the repository's pinned Expo SDK and native modules. The first build can take several minutes. Keep the terminal open while Metro is serving the app. After the first successful install, code changes can use Fast Refresh.
+
 Expo will show a QR code and development URL. On a physical Android phone, install Expo Go if the project's Expo SDK is supported by the installed Expo Go version, connect to the same Wi-Fi and scan the QR code. If Expo Go reports an SDK mismatch or a native module is unavailable, use an Expo development build instead; do not change the project's Expo SDK just to work around that mismatch.
 
 ## 5. VS Code workspace tasks
