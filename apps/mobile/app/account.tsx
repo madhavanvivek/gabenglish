@@ -56,8 +56,8 @@ export default function AccountScreen(){
   if(!account||profileBusy||!profileName.trim())return;
   setProfileBusy(true);setError("");setNotice("");
   try{
-   const updated=await updateLearnerProfile({display_name:profileName.trim()}) as LearnerMe;
-   setAccount(updated);setProfileName(updated.user.display_name??"");
+   await updateLearnerProfile({display_name:profileName.trim()});
+   const updated=await getLearnerMe();setAccount(updated);setProfileName(updated.user.display_name??"");
    setNotice("Your profile name has been saved.");
   }catch(reason){setError(reason instanceof Error?reason.message:"Could not update your profile.");}
   finally{setProfileBusy(false);}
