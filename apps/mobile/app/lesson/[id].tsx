@@ -35,7 +35,7 @@ export default function LessonScreen(){
    <SurfaceCard><Eyebrow>YOUR PROGRESS</Eyebrow><Text style={s.progress}>{progress}%</Text><View style={s.track}><View style={[s.fill,{width:progress+"%"}]}/></View><Text style={s.detail}>{data.progress?.status==="completed"?"Completed":data.progress?.status==="in_progress"?"In progress":"Not started"}</Text><Text style={s.body}>Save your place as you work through this lesson. Completion is recorded only when you mark it complete.</Text>
     <View style={s.actions}>{milestones.map(value=><Pressable key={value} accessibilityRole="button" accessibilityState={{selected:progress===value,disabled:busy}} disabled={busy} onPress={()=>void save(value)} style={[s.milestone,progress===value&&s.selected]}><Text style={[s.milestoneText,progress===value&&s.selectedText]}>{value===100?"Complete":value+"%"}</Text></Pressable>)}</View>
     {busy?<Text style={s.detail}>Saving progress…</Text>:null}{message?<Text style={s.success}>{message}</Text>:null}{error?<Text style={s.error}>{error}</Text>:null}
-    <PrimaryButton title={busy?"Saving…":"Save progress"} onPress={()=>void save(progress)} disabled={busy}/>
+    <PrimaryButton label={busy?"Saving…":"Save progress"} onPress={()=>void save(progress)} disabled={busy}/>
    </SurfaceCard>
    <SurfaceCard soft><Eyebrow>LESSON CONTENT</Eyebrow><Text style={s.body}>The lesson content player and interactive exercises are the next implementation step. This screen currently supports secure lesson access and progress tracking only; it does not invent lesson text or answer keys.</Text></SurfaceCard>
   </>:!error?<Text style={s.detail}>Loading lesson…</Text>:null}
