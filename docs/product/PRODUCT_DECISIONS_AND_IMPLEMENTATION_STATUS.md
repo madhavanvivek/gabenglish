@@ -536,3 +536,14 @@ Next implementation sequence:
 - Connected navigation between placement, Home, Learn, Account and Gabroo.
 - Remaining UI work includes a real lesson player and reviewed/published curriculum, practice/revision, evidence-based progress, subscription checkout/management, profile polish, and the final shared navigation system.
 - Verification remains blocked by GitHub Actions jobs exiting before runner allocation (empty step lists and runner ID 0). No successful mobile typecheck or device QA is claimed. No merge or production deployment performed.
+
+
+## 15. Learner profile, preferences and progress snapshot (2026-11-17)
+
+- Added editable preferred name using the authenticated profile update endpoint; the app reloads the canonical learner profile after saving.
+- Added live controls for support language (Malayalam/English), correction style (gentle/balanced/detailed), daily learning target (5/10/15/20 minutes), and the reminder preference.
+- Reminder preference is stored, but local/push notification scheduling is not yet implemented; the UI states this explicitly.
+- Added a progress snapshot backed by the saved free diagnostic report: response/sample counts, Gabroo explanation, observed patterns, next steps and report limitations.
+- The progress screen does not invent streaks, scores, stage advancement or longitudinal charts. It presents only the evidence available from the saved report.
+- Added navigation from Home to Progress. Further work: real lesson delivery, practice/revision and persisted learning activity, subscription checkout/management, final navigation and device QA.
+- CI and physical Android QA remain outstanding. No merge or production deployment performed.
