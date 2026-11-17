@@ -31,7 +31,15 @@ export default function GabrooScreen(){
  const [voiceSessionState,setVoiceSessionState]=useState<GabrooVoiceSessionState>("idle");
  const [voiceCaptureConsent,setVoiceCaptureConsent]=useState(false);
  const [recordingActive,setRecordingActive]=useState(false);
- const [recordingBusy,setRecordingBusy]=useState(false);\n const [transcriptionConsent,setTranscriptionConsent]=useState(false);\n const [transcriptionRecording,setTranscriptionRecording]=useState(false);\n const [transcriptionBusy,setTranscriptionBusy]=useState(false);\n const [transcript,setTranscript]=useState<GabrooTranscript|null>(null);\n const [reviewedTranscript,setReviewedTranscript]=useState("");\n const transcriptionRecordingRef=useRef<Audio.Recording|null>(null);\n const transcriptionUriRef=useRef<string|null>(null);\n const transcriptionOperationRef=useRef(false);
+ const [recordingBusy,setRecordingBusy]=useState(false);
+ const [transcriptionConsent,setTranscriptionConsent]=useState(false);
+ const [transcriptionRecording,setTranscriptionRecording]=useState(false);
+ const [transcriptionBusy,setTranscriptionBusy]=useState(false);
+ const [transcript,setTranscript]=useState<GabrooTranscript|null>(null);
+ const [reviewedTranscript,setReviewedTranscript]=useState("");
+ const transcriptionRecordingRef=useRef<Audio.Recording|null>(null);
+ const transcriptionUriRef=useRef<string|null>(null);
+ const transcriptionOperationRef=useRef(false);
  const recordingRef=useRef<Audio.Recording|null>(null);
  const recordingOperationRef=useRef(false);
  const appIsActiveRef=useRef(true);
@@ -207,7 +215,8 @@ export default function GabrooScreen(){
   try{
    const result=await recognizeGabrooAudio({uri,mimeType:"audio/mp4",language:"ml-en",consentGranted:true});
    setTranscript(result.transcript);setReviewedTranscript(result.transcript.text);
-   await discardTranscriptionAudio();
+   const uploadedUri=transcriptionUriRef.current;transcriptionUriRef.current=null;
+   if(uploadedUri)await FileSystem.deleteAsync(uploadedUri,{idempotent:true}).catch(()=>undefined);
    setSpeechNotice("Transcript ready. Review or edit it below. Nothing has been sent to Gabroo yet.");
   }catch(reason){
    setSpeechNotice(reason instanceof Error?reason.message:"Could not transcribe this recording. Your audio will be discarded.");
@@ -358,6 +367,25 @@ export default function GabrooScreen(){
       <Text style={s.consentText}>I agree to let Gabenglish request microphone permission for a future voice conversation with Gabroo.</Text>
      </Pressable>
      {voicePermissionStatus==="granted"?<Text style={s.permissionGranted}>Microphone permission granted. No recording has started.</Text>:voicePermissionStatus==="denied"?<Text style={s.permissionDenied}>Microphone permission was not granted. You can review it in your device settings.</Text>:null}
+     {voicePermissionStatus==="granted"&&recognitionStatus?.available?<View style={s.captureConsentPanel}>
+      <Text style={s.captureConsentTitle}>Speak to Gabroo · voice input</Text>
+      <Text style={s.captureConsentCopy}>This is separate from the local microphone test. If you agree, a recording of up to 15 seconds is temporarily kept on this device. It is uploaded to the configured speech-recognition provider only when you press Review & transcribe. The returned text is shown for your review and is never sent to Gabroo until you confirm. Provider-side retention is subject to that provider's policy.</Text>
+      <Pressable accessibilityRole="checkbox" accessibilityState={{checked:transcriptionConsent}} disabled={transcriptionRecording||transcriptionBusy||!!transcript} onPress={()=>setTranscriptionConsent(value=>!value)} style={s.consentRow}>
+       <View style={[s.consentBox,transcriptionConsent&&s.consentBoxChecked]}>{transcriptionConsent?<Text style={s.consentCheck}>✓</Text>:null}</View>
+       <Text style={s.consentText}>I consent to send this recording to the speech-recognition provider for transcription, with the transcript shown to me before it is shared with Gabroo.</Text>
+      </Pressable>
+      {transcriptionRecording?<Text style={s.permissionGranted}>Recording… it will stop automatically after 15 seconds.</Text>:null}
+      {transcriptionRecording?<Pressable disabled={transcriptionBusy} onPress={()=>void stopTranscriptionCapture()} style={s.captureButton}><Text style={s.buttonText}>Stop recording</Text></Pressable>:null}
+      {!transcriptionRecording&&!transcriptionUriRef.current&&!transcript?<Pressable disabled={!transcriptionConsent||transcriptionBusy} onPress={()=>void startTranscriptionCapture()} style={[s.permissionButton,(!transcriptionConsent||transcriptionBusy)&&s.disabled]}><Text style={s.buttonText}>Start voice recording</Text></Pressable>:null}
+      {transcriptionUriRef.current?<><Pressable disabled={transcriptionBusy} onPress={()=>void reviewAndTranscribe()} style={[s.permissionButton,transcriptionBusy&&s.disabled]}><Text style={s.buttonText}>Review & transcribe</Text></Pressable><Pressable disabled={transcriptionBusy} onPress={()=>void discardTranscriptionAudio()} style={s.permissionReset}><Text style={s.permissionResetText}>Discard recording</Text></Pressable></>:null}
+      {transcript?<View style={s.captureConsentPanel}>
+       <Text style={s.captureConsentTitle}>Review your words</Text>
+       <Text style={s.captureConsentCopy}>Edit anything that was not recognised correctly. Gabroo will receive only the text you confirm below.</Text>
+       <TextInput value={reviewedTranscript} onChangeText={setReviewedTranscript} multiline editable={!busy} style={s.input} placeholder="Your recognised words…"/>
+       <Pressable disabled={!reviewedTranscript.trim()||busy} onPress={()=>void sendReviewedTranscript()} style={[s.permissionButton,(!reviewedTranscript.trim()||busy)&&s.disabled]}><Text style={s.buttonText}>Confirm & send to Gabroo</Text></Pressable>
+       <Pressable disabled={busy} onPress={()=>{setTranscript(null);setReviewedTranscript("");setTranscriptionConsent(false);}} style={s.permissionReset}><Text style={s.permissionResetText}>Discard transcript</Text></Pressable>
+      </View>:null}
+     </View>:null}
      {voicePermissionStatus==="granted"?<View style={s.captureConsentPanel}>
       <Text style={s.captureConsentTitle}>Optional local microphone test</Text>
       <Text style={s.captureConsentCopy}>This is a separate recording consent. A short temporary recording stays on this device only and is deleted when you stop. It is not uploaded, saved to your account or sent for transcription. This test is not a voice conversation.</Text>
