@@ -19,6 +19,7 @@ jobs:
       - name: Check out selected branch
         uses: actions/checkout@v4
         with:
+          ref: foundation/app-skeleton
           persist-credentials: false
 
       - name: Verify toolchain
