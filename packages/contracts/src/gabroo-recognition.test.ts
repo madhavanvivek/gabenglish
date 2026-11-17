@@ -4,6 +4,7 @@ import {
  GABROO_AUDIO_MAX_BYTES,
  confirmGabrooTranscript,
  gabrooReviewedTranscriptSchema,
+ gabrooRecognitionResponseSchema,
  transcribeGabrooAudio,
  type GabrooSpeechRecognitionProvider
 } from "./gabroo-recognition.js";
@@ -89,6 +90,14 @@ describe("Gabroo provider-neutral speech recognition boundary",()=>{
   const transcribe=vi.fn(async()=>transcript);
   await expect(transcribeGabrooAudio({audio:"not bytes" as unknown as Uint8Array,metadata,provider:{transcribe}})).rejects.toMatchObject({code:"INVALID_AUDIO"});
   expect(transcribe).not.toHaveBeenCalled();
+ });
+
+ it("accepts only explicitly review-required recognition responses",()=>{
+  const response={transcript,review_required:true,request_id:"req_123"};
+  expect(gabrooRecognitionResponseSchema.parse(response)).toEqual(response);
+  expect(gabrooRecognitionResponseSchema.safeParse({...response,review_required:false}).success).toBe(false);
+  expect(gabrooRecognitionResponseSchema.safeParse({...response,extra:"provider data"}).success).toBe(false);
+  expect(gabrooRecognitionResponseSchema.safeParse({...response,transcript:{...transcript,confidence:2}}).success).toBe(false);
  });
 
  it("requires explicit learner confirmation for a reviewed transcript",()=>{
