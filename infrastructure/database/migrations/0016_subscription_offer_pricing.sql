@@ -46,11 +46,15 @@ ALTER TABLE payment_transactions
     )
     OR
     (
-      price_standard_amount_minor > 0
+      price_standard_amount_minor IS NOT NULL
+      AND price_standard_amount_minor > 0
+      AND price_discount_amount_minor IS NOT NULL
       AND price_discount_amount_minor >= 0
       AND price_discount_amount_minor <= price_standard_amount_minor
+      AND price_discount_basis_points IS NOT NULL
       AND price_discount_basis_points >= 0
       AND price_discount_basis_points < 10000
+      AND price_offer_version IS NOT NULL
       AND price_offer_version > 0
       AND price_quoted_at IS NOT NULL
       AND amount_minor = price_standard_amount_minor - price_discount_amount_minor
@@ -61,3 +65,16 @@ COMMENT ON TABLE subscription_offer_rules IS
   'Server-controlled current offer rules. Every change must increment version; completed payment snapshots are immutable.';
 COMMENT ON COLUMN payment_transactions.price_quoted_at IS
   'Server timestamp at which the immutable checkout price snapshot was calculated.';
+
+CREATE FUNCTION bump_subscription_offer_rule_version()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.version := OLD.version + 1;
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER subscription_offer_rules_version_guard
+  BEFORE UPDATE ON subscription_offer_rules
+  FOR EACH ROW EXECUTE FUNCTION bump_subscription_offer_rule_version();
