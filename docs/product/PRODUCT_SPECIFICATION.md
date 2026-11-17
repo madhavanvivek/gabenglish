@@ -69,9 +69,9 @@ Gabenglish is a B2C freemium-to-paid product. The free account and free analysis
 
 Only two paid plans are in the initial offer:
 - Monthly: standard ₹99; current introductory price ₹79 (20.20% discount); exactly 30 days of access.
-- Yearly: standard ₹1,188; current introductory first-purchase price ₹799 (32.74% discount); exactly 360 days of access (12 × 30-day months).
+- Yearly: standard ₹1,188; current introductory price ₹799 (32.74% discount); exactly 360 days of access (12 × 30-day months).
 
-Introductory discounts are configurable promotional offers and may apply to both initial purchases and renewals/re-purchases while the relevant offer is enabled and within its configured offer window. Superadmin can independently change the Monthly and Yearly discount percentages and enable/disable each offer in the admin portal. The server calculates and snapshots the final price for each checkout; admin changes never rewrite existing checkouts or completed purchases.
+These are configurable promotional offers and may apply to initial purchases, renewals and re-purchases while the relevant offer is enabled and within its configured offer window. Superadmin can independently change the Monthly and Yearly discount percentages and enable/disable each offer in the admin portal. The server calculates and snapshots the final price for each checkout; admin changes never rewrite existing checkouts or completed purchases.
 
 No additional paid tiers or six-month plan. Paid entitlement unlocks Gabroo's ongoing learning companion, classes, paid practice, learner assessment/profile and progress history. The free analysis report remains available without a subscription. Basic account identity/profile settings are not the paid learner assessment/profile.
 
