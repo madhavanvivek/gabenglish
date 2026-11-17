@@ -5,6 +5,7 @@ import {SafeAreaView} from "react-native-safe-area-context";
 import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
 import {getLearnerMe,getPublishedLearningCatalog,type PublishedLearningCatalog} from "../src/auth-api";
 import {colors,radius,space} from "../src/theme";
+import {resolveLearningDirection} from "../src/learner-settings";
 
 const stages=[
  {number:1,name:"Malayalam Mode",tag:"Start with what you know",summary:"Build comfort with English words, meanings and simple sentences, with clear Malayalam support.",focus:["Everyday words and meanings","Basic sentence patterns","Introductions and short exchanges"]},
@@ -18,7 +19,7 @@ export default function LearnScreen(){
  const [direction,setDirection]=useState<"ml_to_en"|"en_to_ml">("ml_to_en");
  const [catalog,setCatalog]=useState<PublishedLearningCatalog|null>(null);
  const [catalogMessage,setCatalogMessage]=useState("");
- useEffect(()=>{let active=true;void getLearnerMe().then(me=>{if(active)setDirection(me.preferences?.learning_direction??"ml_to_en");}).catch(()=>{});void getPublishedLearningCatalog().then(value=>{if(active)setCatalog(value);}).catch(error=>{if(active)setCatalogMessage(error instanceof Error?error.message:"Published lessons are temporarily unavailable.");});return()=>{active=false;};},[]);
+ useEffect(()=>{let active=true;void getLearnerMe().then(me=>{if(active)setDirection(resolveLearningDirection(me.preferences?.learning_direction));}).catch(()=>{});void getPublishedLearningCatalog().then(value=>{if(active)setCatalog(value);}).catch(error=>{if(active)setCatalogMessage(error instanceof Error?error.message:"Published lessons are temporarily unavailable.");});return()=>{active=false;};},[]);
  const stage=stages[selected-1];
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
   <View style={s.header}><Link href="/home" style={s.back}>‹ Home</Link><BrandMark size={42}/><Text style={s.brand}>Your learning path</Text><Text style={s.subtitle}>Five stages. One step at a time.</Text></View>
