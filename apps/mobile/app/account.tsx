@@ -99,7 +99,7 @@ export default function AccountScreen(){
   finally{setBusy(false);}
  };
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
-  <View style={s.header}><BrandMark size={50}/><Text style={s.brand}>Your Gabenglish account</Text><Text style={s.subtitle}>Create your free account before your English analysis. No password needed.</Text></View>
+  <View style={s.header}><BrandMark size={50}/><Text style={s.brand}>Your Gabenglish account</Text><Text style={s.subtitle}>Create your free account before your English analysis. No password needed.</Text></View><Link href="/home" style={{color:colors.primary,fontWeight:"900",alignSelf:"flex-start",marginBottom:14}}>‹ Back to learning home</Link>
   {account?<View style={s.card}>
    <Text style={s.eyebrow}>VERIFIED ACCOUNT</Text><Text style={s.name}>{account.user.display_name||"Learner"}</Text>
    {account.user.email?<Text style={s.contact}>{account.user.email} · {account.user.email_verified?"Verified":"Not verified"}</Text>:null}
