@@ -173,4 +173,51 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   }finally{client.release();}
  });
 
+ app.post("/api/v1/learning/lessons/:id/exercises/:exerciseId/attempts",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to submit an exercise.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to submit exercises.");
+  const params=request.params as {id?:string;exerciseId?:string};
+  const id=params.id??"",exerciseId=params.exerciseId??"";
+  if(!lessonIdPattern.test(id)||!/^[a-z0-9_-]{1,64}$/i.test(exerciseId))return failure(reply,request.id,400,"INVALID_EXERCISE_REFERENCE","This exercise link is invalid.");
+  const body=request.body as {response?:unknown}|null;
+  if(!body||typeof body.response!=="string"||!body.response.trim()||body.response.trim().length>2000||Object.keys(body).some(key=>key!=="response"))return failure(reply,request.id,400,"VALIDATION_ERROR","Enter an answer of up to 2,000 characters.");
+  const result=await pool.query<{course_id:string;learning_direction:Direction;version_id:string;content:unknown}>(
+   `SELECT c.id AS course_id,c.learning_direction,lv.id AS version_id,lv.content
+    FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
+    JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id
+    WHERE l.id=$1 AND l.status='published' AND c.status='published' AND lv.status='published'
+      AND c.learning_direction=COALESCE((SELECT learning_direction FROM user_preferences WHERE user_id=$2),'ml_to_en')
+      AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')`,
+   [id,learner.id]
+  );
+  const lesson=result.rows[0];
+  if(!lesson)return failure(reply,request.id,404,"LESSON_NOT_FOUND","This lesson is not published for your selected learning direction.");
+  const raw=lesson.content as {blocks?:unknown};
+  const blocks=Array.isArray(raw?.blocks)?raw.blocks:[];
+  const exercise=blocks.find((item):item is Record<string,unknown>=>typeof item==="object"&&item!==null&&(item as Record<string,unknown>).type==="exercise"&&(item as Record<string,unknown>).id===exerciseId);
+  if(!exercise)return failure(reply,request.id,404,"EXERCISE_NOT_FOUND","This exercise is not part of the published lesson.");
+  const submitted=body.response.trim();
+  let correct:boolean|null=null;
+  if(exercise.response_type==="single_choice"&&Array.isArray(exercise.options)){
+   const exists=exercise.options.some(option=>typeof option==="object"&&option!==null&&(option as Record<string,unknown>).id===submitted);
+   if(!exists)return failure(reply,request.id,400,"INVALID_EXERCISE_RESPONSE","Choose one of the available answers.");
+   if(typeof exercise.correct_option_id!=="string")return failure(reply,request.id,503,"EXERCISE_NOT_CONFIGURED","This exercise is awaiting its answer key.");
+   correct=submitted===exercise.correct_option_id;
+  }else if(exercise.response_type==="text"){
+   if(!Array.isArray(exercise.accepted_answers)||!exercise.accepted_answers.every(value=>typeof value==="string"))return failure(reply,request.id,503,"EXERCISE_NOT_CONFIGURED","This exercise is awaiting its accepted-answer rubric.");
+   const normalise=(value:string)=>value.normalize("NFKC").trim().toLocaleLowerCase().replace(/\s+/g," ");
+   correct=exercise.accepted_answers.some(value=>normalise(value as string)===normalise(submitted));
+  }else return failure(reply,request.id,503,"EXERCISE_NOT_CONFIGURED","This exercise format is not available yet.");
+  const feedback=correct
+   ?(typeof exercise.correct_feedback==="string"?exercise.correct_feedback:"Good work. Your answer is correct.")
+   :(typeof exercise.incorrect_feedback==="string"?exercise.incorrect_feedback:"Not quite. Review the lesson and try again.");
+  await pool.query(
+   `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+   [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,submitted,correct,feedback]
+  );
+  return {lesson_id:id,exercise_id:exerciseId,result:{correct,feedback}};
+ });
+
 }
