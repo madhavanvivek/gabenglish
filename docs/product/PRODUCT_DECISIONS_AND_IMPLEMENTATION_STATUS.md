@@ -489,3 +489,9 @@ Next implementation sequence:
 - Mobile now validates the readiness response before using it; malformed or unexpected server responses fail closed and keep voice uploads disabled.
 - Added shared contract tests for invalid limits, unsupported MIME types, unexpected fields, and attempts to disable transcript review.
 - The API advertises supported languages from the shared contract constant to avoid server/client drift.
+
+
+### API response and disconnect hardening (17 November 2026)
+- The recognition status endpoint now validates its outgoing payload against the shared readiness schema, and successful transcription responses are validated against the shared review-required response schema before being returned.
+- The API now aborts provider work when the incoming request is aborted or the response connection closes before completion. This avoids continuing a paid/remote recognition request after the learner has disconnected, provided the injected provider honours AbortSignal.
+- No audio is persisted by this route. Transcript output remains unconfirmed and cannot be sent to a conversation by this endpoint.
