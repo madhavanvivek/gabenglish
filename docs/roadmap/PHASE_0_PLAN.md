@@ -139,3 +139,17 @@ This checkpoint is a status record, not a claim that the listed gates have passe
 
 
 - OpenAPI contract updated to describe public subscription prices, authenticated quote creation and current entitlement lookup. The quote contract explicitly states that creating a quote does not create a payment intent or grant paid access.
+
+## 12. Superadmin subscription controls checkpoint (2026-11-17)
+
+- Added migration 0018_admin_subscription_controls.sql with a separate admin session store, failed-login counters/lockout fields and the Superadmin role. No default administrator account or password is created.
+- Added an isolated admin authentication boundary with distinct token issuer/audience, revocable database-backed sessions, password verification using the repository's scrypt format, and a 15-minute lockout after repeated failed attempts.
+- Added Superadmin-only endpoints to list and update monthly/yearly offer discounts and offer windows. Standard prices remain fixed. Every update increments the database version and is recorded in admin_audit_events in the same transaction.
+- Registered admin routes in the API, added a secure out-of-band first-Superadmin provisioning runbook and documented the endpoints in OpenAPI.
+- PostgreSQL integration coverage now exercises Superadmin login, offer read/update, price recalculation, invalid date-window rejection, audit record creation and session revocation. The latest run is pending; do not treat this new checkpoint as CI-green until verified.
+
+### Remaining admin release gates
+- Build the actual admin web UI and account invitation/recovery lifecycle.
+- Add MFA and operational monitoring/alerting for admin lockouts and audit events.
+- Perform a focused security review and penetration test before production exposure.
+- Payment provider selection, checkout intent creation and signed webhook verification remain separate blockers.
