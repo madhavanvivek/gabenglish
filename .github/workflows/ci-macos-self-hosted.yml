@@ -13,11 +13,9 @@ concurrency:
 jobs:
   validate:
     # Register the Mac runner with this custom label.
-    # This workflow is manual-only; it does not run for public pull requests.
+    # Manual-only: it never runs automatically for public pull requests.
     runs-on: [self-hosted, macOS, gabenglish-mac]
     timeout-minutes: 45
-    env:
-      DATABASE_URL: postgres://${{ runner.name }}@localhost:5432/gabenglish_test
     steps:
       - name: Check out selected branch
         uses: actions/checkout@v4
