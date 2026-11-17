@@ -41,7 +41,7 @@ Start mobile: `pnpm --filter @gabenglish/mobile start`.
 
 For the mobile app, copy `apps/mobile/.env.example` to `apps/mobile/.env` and set `EXPO_PUBLIC_API_BASE_URL` to the reachable Gabenglish API origin. Use an HTTPS URL outside localhost. A physical phone cannot reach your development computer through `localhost`; use a LAN address or a hosted development API. This variable is public app configuration—never place credentials or provider secrets in it.
 
-## Current implementation status (2026-11-16)
+## Current implementation status (2026-11-17)
 
 Implemented on `foundation/app-skeleton`:
 - pnpm workspace, Fastify API foundation and shared Zod contracts.
@@ -56,9 +56,9 @@ Implemented on `foundation/app-skeleton`:
 - PostgreSQL-backed login attempt throttling stores keyed email/IP digests rather than raw values.
 - Product, placement and Gabroo communication documentation.
 
-Latest CI verification: GitHub Actions workflow run 43863689708 passed with PostgreSQL 16 provisioned for the API job. All 27 API tests passed across five files, including migration runner, learner account lifecycle and immediate access-token revocation integration tests. API typecheck, shared-contract typecheck and mobile typecheck also passed. The mobile account screen and secure token-storage client are included in the passing mobile typecheck.
+Latest CI evidence for the current foundation code: hosted workflow run #981 (`44129311415`) passed API and mobile jobs, including API typecheck/tests, PostgreSQL-backed integration checks, shared-contract typecheck/tests, mobile typecheck/unit tests and the Expo Android production-bundle smoke test. Temporary Mac runner workflow run #7 (`44129446387`) also completed successfully on `gabenglish-mac`; API typecheck, API tests, PostgreSQL integration tests, shared-contract typecheck/tests and mobile typecheck all passed. These runs validate automated checks only, not Android device QA or production readiness.
 
-**Important limitations:** the assessment is not yet a live AI tutor; the prompt sequence is not a validated proficiency rubric; PostgreSQL session persistence is conditional on database configuration and migration 0002 being applied; no durable authenticated learner report history exists; the report is provisional and intentionally makes no skill or stage recommendation; no voice capture or personalised voice explanation is connected. Microphone capture, STT, TTS, pronunciation assessment, email verification, password reset, MFA, full account recovery/deletion processing, learner-linked assessment history, complete curriculum delivery, admin, subscriptions/payments and production deployment remain pending. Gabroo's physical character design is not final or approved for production.
+**Important limitations:** the assessment is not yet a live AI tutor; the prompt sequence is not a validated proficiency rubric; PostgreSQL session persistence depends on database configuration and migrations; the free diagnostic report is provisional and intentionally makes no validated skill or stage recommendation. The OTP API and mobile flow exist, but delivery remains unavailable until an email/SMS adapter and provider credentials are configured; the legacy password routes remain in the API and must be retired before public beta. Production AI tutor and Gabroo voice providers, validated STT/TTS and pronunciation assessment, payment checkout/webhooks and configurable offer administration, full account recovery/deletion processing, complete educator-reviewed curriculum, notification scheduling, admin, Android device QA and production deployment remain pending. Gabroo's physical character design is not final or approved for production.
 
 See the consolidated status document for the full list of completed work, limitations and next steps.
 
