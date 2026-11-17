@@ -2,7 +2,7 @@ import type {FastifyInstance,FastifyRequest} from "fastify";
 import type {Pool} from "pg";
 import {
  GABROO_AUDIO_MAX_BYTES,
- GABROO_AUDIO_MIME_TYPES,
+ GABROO_AUDIO_MIME_TYPES,\n GABROO_RECOGNITION_LANGUAGES,
  GabrooRecognitionError,
  gabrooRecognitionLanguageSchema,
  type GabrooSpeechRecognitionProvider
@@ -46,7 +46,7 @@ export async function registerGabrooRecognitionRoutes(
    available:Boolean(provider),
    max_audio_bytes:GABROO_AUDIO_MAX_BYTES,
    supported_mime_types:GABROO_AUDIO_MIME_TYPES,
-   supported_languages:["ml-IN","en-IN","ml-en"],
+   supported_languages:GABROO_RECOGNITION_LANGUAGES,
    transcript_review_required:true
   };
  });
