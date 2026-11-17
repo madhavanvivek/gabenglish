@@ -579,3 +579,14 @@ Next implementation sequence:
 - Added contract tests for supported and unsupported learning-direction values.
 - Not yet implemented: direction-aware Gabroo conversation prompting and turn metadata, separate per-direction progress records, Malayalam placement assessment, reviewed Malayalam lessons/audio, and direction-aware free diagnostic. Do not present the Malayalam course as available until these are implemented and reviewed.
 - Verification: GitHub Actions runs continue to fail before runner allocation (`runner_id=0`, `steps=0`); no code checks were executed. Android device QA remains outstanding.
+
+## 19. Direction-aware Gabroo conversation foundation (2026-11-17)
+
+- Added migration `0012_gabroo_conversation_direction.sql` to persist each conversation's learning direction and target language. Existing conversations are backfilled as English learning with Malayalam support.
+- New conversations read the learner's saved direction and support-language preference. An explicit support-language choice for a conversation remains possible; omitting it uses the saved learner preference.
+- The direction and target language are frozen on the conversation record, so changing the learner's course preference later does not silently change the teaching context of an existing conversation.
+- Passed learning direction and target language separately from support language to the Gabroo provider contract and teaching policy.
+- Added direction-specific teaching guidance. English acquisition remains Malayalam-supported; Malayalam acquisition uses English explanations and calls for Malayalam script, optional romanisation, register/politeness guidance and caution around slang.
+- Added policy tests for both directions and for avoiding invented Malayalam proficiency stages.
+- This is a direction-aware orchestration foundation, not a completed Malayalam course. The Malayalam curriculum, direction-specific placement assessment, reviewed content, per-direction progress records, and live AI provider integration remain outstanding.
+- Validation status: code changes committed to `foundation/app-skeleton`; GitHub Actions must complete its actual runner steps before this work can be called tested. No merge or production deployment performed.
