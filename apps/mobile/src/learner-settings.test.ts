@@ -4,6 +4,8 @@ import {
   clampGabrooSpeechRate,
   GABROO_SPEECH_RATE_MAX,
   GABROO_SPEECH_RATE_MIN,
+  resolveLearningDirection,
+  isCourseForLearningDirection,
 } from "./learner-settings";
 
 describe("Gabroo speech-rate preference", () => {
@@ -30,5 +32,24 @@ describe("Gabroo speech-rate preference", () => {
   it("falls back to normal speed for non-finite values", () => {
     expect(clampGabrooSpeechRate(Number.NaN)).toBe(1);
     expect(clampGabrooSpeechRate(Number.POSITIVE_INFINITY)).toBe(1);
+  });
+});
+
+describe("learner learning-direction safeguards", () => {
+  it("keeps existing and incomplete profiles on English through Malayalam", () => {
+    expect(resolveLearningDirection(undefined)).toBe("ml_to_en");
+    expect(resolveLearningDirection(null)).toBe("ml_to_en");
+    expect(resolveLearningDirection("unexpected")).toBe("ml_to_en");
+  });
+
+  it("preserves an explicit Malayalam-through-English selection", () => {
+    expect(resolveLearningDirection("en_to_ml")).toBe("en_to_ml");
+  });
+
+  it("does not expose a course from the opposite learning direction", () => {
+    expect(isCourseForLearningDirection("ml_to_en", "ml_to_en")).toBe(true);
+    expect(isCourseForLearningDirection("en_to_ml", "ml_to_en")).toBe(false);
+    expect(isCourseForLearningDirection("en_to_ml", "en_to_ml")).toBe(true);
+    expect(isCourseForLearningDirection("ml_to_en", "en_to_ml")).toBe(false);
   });
 });
