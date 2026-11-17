@@ -128,7 +128,7 @@ This checkpoint is a status record, not a claim that the listed gates have passe
 - Added migration `0017_subscription_checkout_quotes.sql` and authenticated `POST /api/v1/subscriptions/checkout/quote`. It stores a learner-owned, immutable quote with a 15-minute validity window and returns `access_granted: false`.
 - A quote is not a payment intent, payment confirmation, subscription or entitlement. No provider was selected; no payment was initiated; no paid access is granted by quote creation.
 - Added API and PostgreSQL integration coverage for public pricing, quote ownership/expiry, immutable quote rows, offer version changes and discounted entitlement activation.
-- CI run #995 passed the pricing/offer migration, API and Android checks. CI run #1001 is validating the subsequent checkout-quote changes; do not claim that run passed until its final result is recorded.
+- CI run #995 passed the pricing/offer migration, API and Android checks. The first checkout-quote integration run exposed a test-isolation assumption about the mutable offer version; the assertion was corrected to compare the stored quote with the version returned by that quote. CI run #1003 then passed API typecheck/tests, PostgreSQL integration tests, shared-contract checks and Android bundle smoke tests. CI run #1004 is validating the subsequent OpenAPI documentation update.
 
 ### Remaining subscription release gates
 - Admin authentication/authorisation and Superadmin offer-management UI/API.
@@ -136,3 +136,6 @@ This checkpoint is a status record, not a claim that the listed gates have passe
 - Converting an unexpired quote into a payment transaction while copying its immutable price snapshot.
 - End-to-end tests for successful, failed, duplicated, refunded and expired payment events.
 - Learner-facing checkout UI, subscription history and cancellation/renewal experience.
+
+
+- OpenAPI contract updated to describe public subscription prices, authenticated quote creation and current entitlement lookup. The quote contract explicitly states that creating a quote does not create a payment intent or grant paid access.
