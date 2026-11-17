@@ -37,4 +37,26 @@ describe("Gabroo teaching policy",()=>{
   const policies=modes.map(mode=>buildGabrooTeachingPolicy({mode,supportLanguage:"en"}));
   expect(new Set(policies.map(x=>x.primaryGoal)).size).toBeGreaterThanOrEqual(5);
  });
+ it("keeps English acquisition and Malayalam support as separate language roles",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"gentle_correction",supportLanguage:"ml",learningDirection:"ml_to_en",targetLanguage:"en"});
+  expect(policy.learningDirection).toBe("ml_to_en");
+  expect(policy.targetLanguage).toBe("en");
+  expect(policy.supportLanguage).toBe("ml");
+  expect(policy.responseGuidance.join(" ")).toContain("learner is learning English");
+ });
+ it("teaches Malayalam acquisition through English with script, romanisation and register safeguards",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"topic_practice",supportLanguage:"en",learningDirection:"en_to_ml",targetLanguage:"ml",stage:2});
+  expect(policy.learningDirection).toBe("en_to_ml");
+  expect(policy.targetLanguage).toBe("ml");
+  expect(policy.supportLanguage).toBe("en");
+  expect(policy.stageGuidance).toContain("Malayalam Stage 2");
+  expect(policy.responseGuidance.join(" ")).toContain("show Malayalam script");
+  expect(policy.responseGuidance.join(" ")).toContain("Never assume casual slang");
+ });
+ it("does not infer a Malayalam proficiency stage when none is supplied",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"en",learningDirection:"en_to_ml"});
+  expect(policy.stageGuidance).toContain("stage is not yet available");
+  expect(policy.stageGuidance).toContain("do not infer proficiency");
+ });
+
 });
