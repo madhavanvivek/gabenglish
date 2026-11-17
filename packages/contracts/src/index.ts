@@ -16,3 +16,5 @@ export * from "./gabroo-speech.js";
 export * from "./gabroo-recognition.js";
 
 export * from "./language-learning.js";
+
+export * from "./lesson-content.js";
