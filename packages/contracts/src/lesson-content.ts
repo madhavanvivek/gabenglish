@@ -7,7 +7,7 @@ export const lessonExerciseBlockSchema=z.object({type:z.literal("exercise"),id:z
  if(value.response_type==="single_choice"&&(!value.options||value.options.length<2))ctx.addIssue({code:z.ZodIssueCode.custom,path:["options"],message:"Choice exercises require at least two options."});
  if(value.response_type==="text"&&value.options!==undefined)ctx.addIssue({code:z.ZodIssueCode.custom,path:["options"],message:"Text exercises cannot include choice options."});
 });
-export const lessonContentBlockSchema=z.discriminatedUnion("type",[lessonTextBlockSchema,lessonVocabularyBlockSchema,lessonExampleBlockSchema,lessonExerciseBlockSchema]);
+export const lessonContentBlockSchema=z.union([lessonTextBlockSchema,lessonVocabularyBlockSchema,lessonExampleBlockSchema,lessonExerciseBlockSchema]);
 export const learnerLessonContentSchema=z.object({schema_version:z.literal(1),blocks:z.array(lessonContentBlockSchema).min(1).max(80)});
 export type LearnerLessonContent=z.infer<typeof learnerLessonContentSchema>;
 
