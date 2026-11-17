@@ -31,3 +31,13 @@ describe("learner Gabroo speech preferences",()=>{
   expect(learnerPreferencesPatchSchema.safeParse({gabroo_speech_rate:1.03}).success).toBe(false);
  });
 });
+
+describe("learner learning direction preference",()=>{
+ it("accepts both supported learning directions",()=>{
+  expect(learnerPreferencesPatchSchema.safeParse({learning_direction:"ml_to_en"}).success).toBe(true);
+  expect(learnerPreferencesPatchSchema.safeParse({learning_direction:"en_to_ml"}).success).toBe(true);
+ });
+ it("rejects unsupported learning directions",()=>{
+  expect(learnerPreferencesPatchSchema.safeParse({learning_direction:"en_to_ta"}).success).toBe(false);
+ });
+});
