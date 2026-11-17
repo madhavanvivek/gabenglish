@@ -1,0 +1,38 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Gabenglish: Start API",
+      "type": "shell",
+      "command": "pnpm dev:api",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": false
+      }
+    },
+    {
+      "label": "Gabenglish: Start mobile preview (LAN)",
+      "type": "shell",
+      "command": "pnpm dev:mobile",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": false
+      }
+    },
+    {
+      "label": "Gabenglish: Open Android app in emulator",
+      "type": "shell",
+      "command": "pnpm dev:mobile:android",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": false
+      }
+    }
+  ]
+}
