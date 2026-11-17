@@ -3,6 +3,7 @@ import {ActivityIndicator,Alert,Pressable,ScrollView,StyleSheet,Text,TextInput,V
 import {Link} from "expo-router";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
+import {BrandMark} from "../src/ui";
 import {AuthApiError,getLearnerMe,getLatestFreeDiagnosticReport,logoutLearner,requestLearnerOtp,verifyLearnerOtp,type LearnerMe,type OtpChallenge,type SavedFreeDiagnosticReport,type GabrooMemoryItem,type GabrooMemoryCategory,clearGabrooMemory,createGabrooMemory,deleteGabrooMemory,listGabrooMemory,updateGabrooMemory,updateLearnerPreferences} from "../src/auth-api";
 
 export default function AccountScreen(){
@@ -98,7 +99,7 @@ export default function AccountScreen(){
   finally{setBusy(false);}
  };
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
-  <View style={s.header}><View style={s.logo}><Text style={s.logoText}>G</Text></View><Text style={s.brand}>Your Gabenglish account</Text><Text style={s.subtitle}>Create your free account before your English analysis. No password needed.</Text></View>
+  <View style={s.header}><BrandMark size={50}/><Text style={s.brand}>Your Gabenglish account</Text><Text style={s.subtitle}>Create your free account before your English analysis. No password needed.</Text></View>
   {account?<View style={s.card}>
    <Text style={s.eyebrow}>VERIFIED ACCOUNT</Text><Text style={s.name}>{account.user.display_name||"Learner"}</Text>
    {account.user.email?<Text style={s.contact}>{account.user.email} · {account.user.email_verified?"Verified":"Not verified"}</Text>:null}
