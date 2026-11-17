@@ -337,8 +337,8 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Provide valid learning preferences.",request_id:request.id}});
   const values=parsed.data;
   const updated=await pool.query(
-   "UPDATE user_preferences SET support_language=COALESCE($2,support_language),learning_goal=CASE WHEN $3::boolean THEN $4 ELSE learning_goal END,correction_mode=COALESCE($5,correction_mode),daily_target_minutes=COALESCE($6,daily_target_minutes),reminders_enabled=COALESCE($7,reminders_enabled),gabroo_speech_rate=COALESCE($8,gabroo_speech_rate),updated_at=now() WHERE user_id=$1 RETURNING support_language,learning_goal,correction_mode,daily_target_minutes,reminders_enabled,gabroo_speech_rate",
-   [user.id,values.support_language??null,Object.hasOwn(values,"learning_goal"),values.learning_goal??null,values.correction_mode??null,values.daily_target_minutes??null,values.reminders_enabled??null,values.gabroo_speech_rate??null]
+   "UPDATE user_preferences SET learning_direction=COALESCE($2,learning_direction),support_language=COALESCE($3,support_language),learning_goal=CASE WHEN $4::boolean THEN $5 ELSE learning_goal END,correction_mode=COALESCE($6,correction_mode),daily_target_minutes=COALESCE($7,daily_target_minutes),reminders_enabled=COALESCE($8,reminders_enabled),gabroo_speech_rate=COALESCE($9,gabroo_speech_rate),updated_at=now() WHERE user_id=$1 RETURNING learning_direction,support_language,learning_goal,correction_mode,daily_target_minutes,reminders_enabled,gabroo_speech_rate",
+   [user.id,values.learning_direction??null,values.support_language??null,Object.hasOwn(values,"learning_goal"),values.learning_goal??null,values.correction_mode??null,values.daily_target_minutes??null,values.reminders_enabled??null,values.gabroo_speech_rate??null]
   );
   return {preferences:updated.rows[0]};
  });
@@ -371,8 +371,8 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
  app.get("/api/v1/auth/me",async(request,reply)=>{
   const user=await authenticate(request);
   if(!user)return unauthorized(reply,request.id);
-  const preferences=await pool.query<{support_language:string;learning_goal:string|null;correction_mode:string;daily_target_minutes:number;reminders_enabled:boolean;gabroo_speech_rate:number}>(
-   "SELECT support_language,learning_goal,correction_mode,daily_target_minutes,reminders_enabled,gabroo_speech_rate::double precision AS gabroo_speech_rate FROM user_preferences WHERE user_id=$1",[user.id]
+  const preferences=await pool.query<{learning_direction:"ml_to_en"|"en_to_ml";support_language:string;learning_goal:string|null;correction_mode:string;daily_target_minutes:number;reminders_enabled:boolean;gabroo_speech_rate:number}>(
+   "SELECT learning_direction,support_language,learning_goal,correction_mode,daily_target_minutes,reminders_enabled,gabroo_speech_rate::double precision AS gabroo_speech_rate FROM user_preferences WHERE user_id=$1",[user.id]
   );
   return {user:safeUser(user),preferences:preferences.rows[0]??null};
  });
