@@ -1,6 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system/legacy";
-import {authTokenResponseSchema,gabrooRecognitionResponseSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse} from "@gabenglish/contracts";
+import {authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
 
 const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
 const ACCESS_KEY="gabenglish.auth.access";
@@ -176,8 +176,13 @@ export async function recognizeGabrooAudio(input:{
  }
 }
 
-export type GabrooRecognitionStatus={available:boolean;max_audio_bytes:number;supported_mime_types:string[];supported_languages:GabrooRecognitionLanguage[];transcript_review_required:true};
-export async function getGabrooRecognitionStatus(){return await authorized("/api/v1/gabroo/recognition/status","GET") as GabrooRecognitionStatus;}
+export type {GabrooRecognitionStatus};
+export async function getGabrooRecognitionStatus(){
+ const payload=await authorized("/api/v1/gabroo/recognition/status","GET");
+ const parsed=gabrooRecognitionStatusSchema.safeParse(payload);
+ if(!parsed.success)throw new AuthApiError("Gabroo voice availability returned an invalid response.");
+ return parsed.data;
+}
 
 export async function getSubscriptionStatus(){return await authorized("/api/v1/subscriptions/current","GET") as SubscriptionStatus;}
 export async function listGabrooConversations(){return await authorized("/api/v1/gabroo/conversations","GET") as {conversations:GabrooConversation[]};}
