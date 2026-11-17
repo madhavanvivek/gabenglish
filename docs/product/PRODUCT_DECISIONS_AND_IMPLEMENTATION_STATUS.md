@@ -568,3 +568,14 @@ Next implementation sequence:
 - Initial product recommendation is to include both directions under the existing subscription model; no price, billing or entitlement changes are authorised.
 - Detailed architecture, learner journeys, pedagogy, content metadata, rollout and acceptance criteria are documented in `docs/learning/BIDIRECTIONAL_LANGUAGE_LEARNING.md`.
 - This is a product/architecture decision only. Direction persistence, selector UI, Malayalam curriculum, assessment, direction-aware tutor behaviour and release QA remain unimplemented. No new language direction should be shown as production-ready until its reviewed content and flows exist.
+
+
+## 18. Learning direction persistence and selector (2026-11-17)
+
+- Added migration `0011_learning_direction.sql`; existing and new accounts default to `ml_to_en` (English through Malayalam).
+- Added `learning_direction` to learner preference validation and the authenticated preference update/read APIs. The existing `support_language` remains a separate setting.
+- Added a learner-home selector for English through Malayalam and Malayalam through English. The choice is saved to the account and reloaded from the API.
+- The learning-path screen now changes its overview based on the selected direction. Malayalam shows planned learning areas and clearly states that reviewed lessons/audio/practice are not yet available.
+- Added contract tests for supported and unsupported learning-direction values.
+- Not yet implemented: direction-aware Gabroo conversation prompting and turn metadata, separate per-direction progress records, Malayalam placement assessment, reviewed Malayalam lessons/audio, and direction-aware free diagnostic. Do not present the Malayalam course as available until these are implemented and reviewed.
+- Verification: GitHub Actions runs continue to fail before runner allocation (`runner_id=0`, `steps=0`); no code checks were executed. Android device QA remains outstanding.
