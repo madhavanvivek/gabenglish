@@ -109,6 +109,22 @@ export async function registerAdminRoutes(app:FastifyInstance,pool:Pool,config:A
   const result=await pool.query("SELECT plan_code,currency,standard_amount_minor::text,discount_basis_points,enabled,starts_at,ends_at,version,updated_at FROM subscription_offer_rules ORDER BY CASE plan_code WHEN 'monthly' THEN 1 ELSE 2 END");
   return {offers:result.rows.map((row:any)=>({...row,standard_amount_minor:Number(row.standard_amount_minor),currency:String(row.currency).trim()}))};
  });
+ app.get("/api/v1/admin/audit-events",async(request,reply)=>{
+  const admin=await authenticateAdmin(request,pool,secret);
+  if(!admin)return reply.code(401).send({error:{code:"ADMIN_UNAUTHENTICATED",message:"Please sign in again.",request_id:request.id}});
+  if(!admin.roles.includes("superadmin"))return reply.code(403).send({error:{code:"SUPERADMIN_REQUIRED",message:"Superadmin access is required.",request_id:request.id}});
+  const query=z.object({
+   limit:z.coerce.number().int().min(1).max(100).default(50),
+   offset:z.coerce.number().int().min(0).max(100000).default(0),
+   action:z.string().min(1).max(100).optional()
+  }).strict().safeParse(request.query);
+  if(!query.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Check the audit history filters.",request_id:request.id}});
+  const [events,total]=await Promise.all([
+   pool.query("SELECT id,action,resource_type,resource_id,request_id,details_redacted,created_at FROM admin_audit_events WHERE ($1::text IS NULL OR action=$1) ORDER BY created_at DESC,id DESC LIMIT $2 OFFSET $3",[query.data.action??null,query.data.limit,query.data.offset]),
+   pool.query<{count:string}>("SELECT count(*)::text AS count FROM admin_audit_events WHERE ($1::text IS NULL OR action=$1)",[query.data.action??null])
+  ]);
+  return {events:events.rows,total:Number(total.rows[0]?.count??0),limit:query.data.limit,offset:query.data.offset};
+ });
  app.put("/api/v1/admin/subscription-offers/:planCode",async(request,reply)=>{
   const admin=await authenticateAdmin(request,pool,secret);
   if(!admin)return reply.code(401).send({error:{code:"ADMIN_UNAUTHENTICATED",message:"Please sign in again.",request_id:request.id}});
