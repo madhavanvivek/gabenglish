@@ -2,11 +2,11 @@ import {useCallback,useEffect,useRef,useState} from "react";
 import * as Speech from "expo-speech";
 import {Audio} from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
-import {GABROO_LOCAL_CAPTURE_MAX_MS,playGabrooSpeechSegments,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooVoiceSessionState} from "@gabenglish/contracts";
+import {confirmGabrooTranscript,GABROO_LOCAL_CAPTURE_MAX_MS,playGabrooSpeechSegments,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooVoiceSessionState,type GabrooTranscript} from "@gabenglish/contracts";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getGabrooRecognitionStatus,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences} from "../src/auth-api";
+import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getGabrooRecognitionStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences} from "../src/auth-api";
 
 const conversationModes:{value:GabrooConversationMode;label:string}[]=[{value:"free_flow",label:"Free flow"},{value:"gentle_correction",label:"Gentle correction"},{value:"detailed_correction",label:"Detailed correction"},{value:"topic_practice",label:"Topic practice"},{value:"role_play",label:"Role-play"},{value:"vocabulary_building",label:"Vocabulary"},{value:"confidence_practice",label:"Confidence"}];
 
@@ -31,7 +31,7 @@ export default function GabrooScreen(){
  const [voiceSessionState,setVoiceSessionState]=useState<GabrooVoiceSessionState>("idle");
  const [voiceCaptureConsent,setVoiceCaptureConsent]=useState(false);
  const [recordingActive,setRecordingActive]=useState(false);
- const [recordingBusy,setRecordingBusy]=useState(false);
+ const [recordingBusy,setRecordingBusy]=useState(false);\n const [transcriptionConsent,setTranscriptionConsent]=useState(false);\n const [transcriptionRecording,setTranscriptionRecording]=useState(false);\n const [transcriptionBusy,setTranscriptionBusy]=useState(false);\n const [transcript,setTranscript]=useState<GabrooTranscript|null>(null);\n const [reviewedTranscript,setReviewedTranscript]=useState("");\n const transcriptionRecordingRef=useRef<Audio.Recording|null>(null);\n const transcriptionUriRef=useRef<string|null>(null);\n const transcriptionOperationRef=useRef(false);
  const recordingRef=useRef<Audio.Recording|null>(null);
  const recordingOperationRef=useRef(false);
  const appIsActiveRef=useRef(true);
@@ -144,6 +144,86 @@ export default function GabrooScreen(){
     setSpeechNotice("Your device could not play this reply. Check its text-to-speech voice settings.");
    }
   }
+ };
+ const discardTranscriptionAudio=async()=>{
+  const recording=transcriptionRecordingRef.current;
+  transcriptionRecordingRef.current=null;
+  const uri=transcriptionUriRef.current??recording?.getURI()??null;
+  transcriptionUriRef.current=null;
+  if(recording){
+   recording.setOnRecordingStatusUpdate(null);
+   await recording.stopAndUnloadAsync().catch(()=>undefined);
+  }
+  if(uri)await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+  setTranscriptionRecording(false);
+  setTranscript(null);setReviewedTranscript("");
+ };
+ const startTranscriptionCapture=async()=>{
+  if(!transcriptionConsent||!recognitionStatus?.available||voicePermissionStatus!=="granted"||transcriptionOperationRef.current||transcriptionRecordingRef.current||recordingRef.current)return;
+  transcriptionOperationRef.current=true;setTranscriptionBusy(true);setSpeechNotice("");
+  try{
+   await Audio.setAudioModeAsync({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
+   const created=await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+   transcriptionRecordingRef.current=created.recording;
+   created.recording.setProgressUpdateInterval(250);
+   created.recording.setOnRecordingStatusUpdate(status=>{
+    if(status.isRecording&&status.durationMillis>=GABROO_LOCAL_CAPTURE_MAX_MS){
+     created.recording.setOnRecordingStatusUpdate(null);
+     void stopTranscriptionCapture();
+    }
+   });
+   setTranscriptionRecording(true);
+  }catch(reason){
+   await discardTranscriptionAudio();
+   setSpeechNotice(reason instanceof Error?reason.message:"Could not start voice recording.");
+  }finally{transcriptionOperationRef.current=false;setTranscriptionBusy(false);}
+ };
+ const stopTranscriptionCapture=async()=>{
+  const recording=transcriptionRecordingRef.current;
+  if(!recording||transcriptionOperationRef.current)return;
+  transcriptionOperationRef.current=true;setTranscriptionBusy(true);
+  const uri=recording.getURI();
+  recording.setOnRecordingStatusUpdate(null);
+  try{
+   await recording.stopAndUnloadAsync();
+   transcriptionRecordingRef.current=null;
+   const savedUri=recording.getURI()??uri;
+   if(!savedUri)throw new Error("The recording file was not created.");
+   transcriptionUriRef.current=savedUri;
+   setTranscriptionRecording(false);
+   setSpeechNotice("Recording ready. It has not been uploaded. Choose Review & transcribe when you are ready.");
+  }catch(reason){
+   await discardTranscriptionAudio();
+   setSpeechNotice(reason instanceof Error?reason.message:"Could not finish the recording.");
+  }finally{
+   await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
+   transcriptionOperationRef.current=false;setTranscriptionBusy(false);
+  }
+ };
+ const reviewAndTranscribe=async()=>{
+  const uri=transcriptionUriRef.current;
+  if(!uri||!transcriptionConsent||!recognitionStatus?.available||transcriptionBusy)return;
+  setTranscriptionBusy(true);setSpeechNotice("");
+  try{
+   const result=await recognizeGabrooAudio({uri,mimeType:"audio/mp4",language:"ml-en",consentGranted:true});
+   setTranscript(result.transcript);setReviewedTranscript(result.transcript.text);
+   await discardTranscriptionAudio();
+   setSpeechNotice("Transcript ready. Review or edit it below. Nothing has been sent to Gabroo yet.");
+  }catch(reason){
+   setSpeechNotice(reason instanceof Error?reason.message:"Could not transcribe this recording. Your audio will be discarded.");
+   await discardTranscriptionAudio();
+  }finally{setTranscriptionBusy(false);}
+ };
+ const sendReviewedTranscript=async()=>{
+  if(!active||!transcript||!reviewedTranscript.trim()||busy)return;
+  setBusy(true);setError("");
+  try{
+   const confirmed=confirmGabrooTranscript({providerTranscript:transcript,reviewedText:reviewedTranscript,confirmed:true});
+   const result=await sendGabrooMessage(active.id,confirmed.text);
+   setMessages(current=>[...current,...result.messages]);
+   setTranscript(null);setReviewedTranscript("");setTranscriptionConsent(false);
+  }catch(reason){setError(reason instanceof Error?reason.message:"Could not send the reviewed transcript.");}
+  finally{setBusy(false);}
  };
  const requestVoicePermission=async()=>{
   if(!voiceConsent||voicePermissionBusy)return;
