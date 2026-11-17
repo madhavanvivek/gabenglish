@@ -1,3 +1,4 @@
+import {projectLearnerLessonContent} from "@gabenglish/contracts";
 import type {FastifyInstance} from "fastify";
 import type {Pool} from "pg";
 import type {AppConfig} from "./config.js";
@@ -10,7 +11,7 @@ type CatalogRow={
  learning_direction:Direction;source_language:"ml"|"en";target_language:"ml"|"en";support_language:"ml"|"en";
  module_id:string|null;module_title:string|null;module_sort:number|null;
  lesson_id:string|null;lesson_slug:string|null;lesson_title:string|null;lesson_sort:number|null;
- lesson_version_id:string|null;lesson_version_number:number|null;lesson_content:unknown;
+ lesson_version_id:string|null;lesson_version_number:number|null;
  script_mode:string|null;register:string|null;dialect_scope:string|null;romanisation:string|null;
 };
 
@@ -35,7 +36,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
      c.learning_direction,c.source_language,c.target_language,c.support_language,
      m.id AS module_id,m.title AS module_title,m.sort_order AS module_sort,
      l.id AS lesson_id,l.slug AS lesson_slug,l.title AS lesson_title,l.sort_order AS lesson_sort,
-     lv.id AS lesson_version_id,lv.version_number AS lesson_version_number,lv.content AS lesson_content,
+     lv.id AS lesson_version_id,lv.version_number AS lesson_version_number,
      lv.script_mode,lv.register,lv.dialect_scope,lv.romanisation
     FROM courses c
     LEFT JOIN modules m ON m.course_id=c.id
@@ -62,7 +63,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
    module.lessons.push({
     id:row.lesson_id,slug:row.lesson_slug,title:row.lesson_title,
     version_id:row.lesson_version_id,version:row.lesson_version_number,
-    content:row.lesson_content,script_mode:row.script_mode,register:row.register,
+    script_mode:row.script_mode,register:row.register,
     dialect_scope:row.dialect_scope,romanisation:row.romanisation
    });
   }
@@ -98,7 +99,9 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   );
   const lesson=result.rows[0];
   if(!lesson)return failure(reply,request.id,404,"LESSON_NOT_FOUND","This lesson is not published for your selected learning direction.");
-  return {lesson:{id:lesson.lesson_id,slug:lesson.slug,title:lesson.title,version_id:lesson.version_id,version:lesson.version_number,learning_direction:lesson.learning_direction,source_language:lesson.source_language,target_language:lesson.target_language,support_language:lesson.support_language,content:lesson.content,script_mode:lesson.script_mode,register:lesson.register,dialect_scope:lesson.dialect_scope,romanisation:lesson.romanisation},progress:lesson.progress_status?{status:lesson.progress_status,progress_percent:Number(lesson.progress_percent),updated_at:lesson.progress_updated_at}:null};
+  const safeContent=projectLearnerLessonContent(lesson.content);
+  if(!safeContent){request.log.error({request_id:request.id,lesson_id:id},"Published lesson content does not match the learner-safe schema");return failure(reply,request.id,503,"LESSON_CONTENT_UNAVAILABLE","This lesson is being prepared and is not available yet.");}
+  return {lesson:{id:lesson.lesson_id,slug:lesson.slug,title:lesson.title,version_id:lesson.version_id,version:lesson.version_number,learning_direction:lesson.learning_direction,source_language:lesson.source_language,target_language:lesson.target_language,support_language:lesson.support_language,content:safeContent,script_mode:lesson.script_mode,register:lesson.register,dialect_scope:lesson.dialect_scope,romanisation:lesson.romanisation},progress:lesson.progress_status?{status:lesson.progress_status,progress_percent:Number(lesson.progress_percent),updated_at:lesson.progress_updated_at}:null};
  });
  app.post("/api/v1/learning/lessons/:id/progress",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
