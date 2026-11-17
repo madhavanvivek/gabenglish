@@ -473,3 +473,12 @@ Next implementation sequence:
 - The helper returns only an unconfirmed transcript. It does not create a conversation message, persist audio, or bypass learner review. The local microphone test remains local-only and does not call this helper.
 - The mobile screen does not yet expose a record-and-upload action or transcript editor. Do not upload a local recording until a provider is selected/configured and the learner-facing consent, review, discard and failure states are implemented. With the current production configuration, the recognition endpoint still returns provider-unavailable after its account, subscription and consent gates.
 - CI/device verification remains pending; the current GitHub Actions runner allocation issue has prevented reliable CI execution. No production deployment or PR merge was performed.
+
+
+### Gabroo recognition readiness and mobile gating (2026-11-17)
+
+- Added authenticated `GET /api/v1/gabroo/recognition/status`. It requires a verified learner and active paid entitlement, then reports whether a recognition provider is injected, accepted audio types, language options, the 10 MB request limit and the mandatory transcript-review requirement. It exposes no provider secrets or configuration details.
+- Added the mobile status client and a readiness panel in the Gabroo voice-preparation UI. The screen now distinguishes local microphone permission/capture testing from actual speech recognition and clearly reports when the provider is unavailable.
+- Added an API test confirming the readiness endpoint rejects unauthenticated requests.
+- The app does not upload recordings or offer a transcript editor yet. That remains intentionally gated until a production provider has been selected and configured and the consent/review/discard experience is implemented. A provider being reported as available is not, by itself, a release sign-off.
+- No deployment or merge performed. CI/device validation is still required.
