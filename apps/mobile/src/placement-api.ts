@@ -15,11 +15,13 @@ function requireBaseUrl(): string {
   }
   try {
     const parsed = new URL(API_BASE_URL);
-    if (parsed.protocol !== "https:" && parsed.hostname !== "localhost" && parsed.hostname !== "127.0.0.1") {
-      throw new Error("Use HTTPS for non-local API servers.");
+    const localDevelopmentHost = typeof __DEV__ !== "undefined" && __DEV__
+      && ["localhost", "127.0.0.1", "10.0.2.2"].includes(parsed.hostname);
+    if (parsed.protocol !== "https:" && !localDevelopmentHost) {
+      throw new Error("Use HTTPS outside the local development environment.");
     }
   } catch {
-    throw new PlacementApiError("EXPO_PUBLIC_API_BASE_URL must be a valid HTTPS URL (HTTP is allowed only for localhost).");
+    throw new PlacementApiError("EXPO_PUBLIC_API_BASE_URL must be a valid HTTPS URL (HTTP is allowed for localhost and the Android emulator host during development).");
   }
   return API_BASE_URL;
 }
