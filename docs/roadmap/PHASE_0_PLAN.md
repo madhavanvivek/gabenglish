@@ -63,7 +63,7 @@ Track work in issues; use PRs; require lint/typecheck/tests; keep main deployabl
 - Placement conversation start/respond prototype routes with session/turn validation.
 - Local text-only mobile conversation prototype.
 
-Latest confirmed CI run `43848505407` passed the API and mobile jobs. This confirms the configured checks only; it does not certify production readiness.
+Latest scaffold hosted CI run `44129311415` passed API and mobile jobs, including the Android production-bundle smoke test. The subsequent temporary-Mac run `44129446387` also passed all executed validation steps. These confirm configured checks only; they do not certify production readiness.
 
 ### Still required before Phase 0 can be declared complete
 - Full OpenAPI and reviewed assessment contracts; ERD, database migrations and retention model.
@@ -85,7 +85,7 @@ Do not mark Phase 0 complete merely because the scaffold or prototype CI passes.
 - Application foundation is maintained on `foundation/app-skeleton`; PR #1 targets review and remains a draft. Do not merge or deploy it without owner approval.
 - The application scaffold includes the pnpm workspace, Fastify API, shared Zod contracts and Expo mobile application. The PR description records the current implemented workflows and their limitations.
 - The manual temporary-Mac CI workflow checks out `foundation/app-skeleton` and validates API typecheck/tests, PostgreSQL integration tests, shared-contract checks and mobile typecheck.
-- The latest reported workflow attempt (run number 886 in the PR notes) exited before runner allocation: runner ID 0 and no executed steps. Treat this as an infrastructure/runner availability blocker, not a passing or failing code test. Do not claim fresh CI validation until jobs actually execute.
+- The temporary self-hosted Mac runner has since been reconnected and verified by a completed run (workflow run #7, ID `44129446387`, commit `c6b92b27731d955615a0001932793cf8ab9632`). The `gabenglish-mac` runner executed toolchain verification, PostgreSQL 16 startup, dependency installation, API typecheck/tests and PostgreSQL integration tests, shared-contract typecheck/tests, and mobile typecheck; all steps passed. The earlier runner-allocation failure is resolved for this run.
 
 ### Product decision reconciliation
 - Monthly launch price is ₹79 against ₹99 standard; yearly launch price is ₹799 against ₹1,188 standard.
@@ -94,10 +94,17 @@ Do not mark Phase 0 complete merely because the scaffold or prototype CI passes.
 - Gabroo speaking-speed preference remains a learner-controlled setting; validate end-to-end playback-rate behavior on physical Android devices before claiming voice playback is complete.
 
 ### Immediate next gates
-1. Restore/attach the temporary self-hosted Mac runner and obtain an executed CI result; if that runner is not dependable, move the validation workflow to a supported hosted runner with PostgreSQL service.
+1. Keep the self-hosted Mac runner healthy and retain the passing validation run as evidence; add any missing test coverage as workflows mature.
 2. Review PR #1 and reconcile its remaining implementation checklist against the current product decisions.
 3. Verify the subscription offer calculation in API tests for first purchase, renewal, disabled/expired offers, and price snapshot immutability.
 4. Complete Android end-to-end QA for account lifecycle, free placement, paid entitlement, open Gabroo conversation, saved speaking speed and navigation/accessibility.
 5. Keep production deployment blocked until secrets, OTP delivery, payment verification, speech-provider decisions and release checks are complete.
 
 This checkpoint is a status record, not a claim that the listed gates have passed.
+
+
+## 9. CI runner recovery checkpoint (2026-11-17)
+
+- Temporary Mac workflow run #7 (`44129446387`) completed successfully on the `gabenglish-mac` self-hosted runner. API typecheck, API tests, PostgreSQL integration tests, shared-contract typecheck/tests and mobile typecheck all passed.
+- Hosted CI run #981 (`44129311415`) also passed API and mobile jobs, including the Expo Android production-bundle smoke test.
+- The PR description and this plan should treat the earlier runner-allocation issue as resolved for these runs. Continue monitoring runner availability; do not infer device QA or production readiness from CI alone.
