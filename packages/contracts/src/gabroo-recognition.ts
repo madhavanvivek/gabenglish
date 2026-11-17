@@ -169,3 +169,15 @@ export const gabrooRecognitionResponseSchema=z.object({
  request_id:z.string().min(1).max(200)
 }).strict();
 export type GabrooRecognitionResponse=z.infer<typeof gabrooRecognitionResponseSchema>;
+
+
+/** Shared contract for the authenticated voice-recognition readiness check. */
+export const GABROO_RECOGNITION_LANGUAGES=["ml-IN","en-IN","ml-en"] as const;
+export const gabrooRecognitionStatusSchema=z.object({
+ available:z.boolean(),
+ max_audio_bytes:z.number().int().positive().max(GABROO_AUDIO_MAX_BYTES),
+ supported_mime_types:z.array(z.enum(GABROO_AUDIO_MIME_TYPES)).min(1),
+ supported_languages:z.array(gabrooRecognitionLanguageSchema).min(1),
+ transcript_review_required:z.literal(true)
+}).strict();
+export type GabrooRecognitionStatus=z.infer<typeof gabrooRecognitionStatusSchema>;
