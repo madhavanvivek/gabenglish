@@ -36,6 +36,21 @@ export async function registerGabrooRecognitionRoutes(
   done(null,body);
  });
 
+
+ app.get("/api/v1/gabroo/recognition/status",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return sendError(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account to check Gabroo voice availability.");
+  const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);
+  if(!entitlement)return sendError(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to use Gabroo voice recognition.");
+  return {
+   available:Boolean(provider),
+   max_audio_bytes:GABROO_AUDIO_MAX_BYTES,
+   supported_mime_types:GABROO_AUDIO_MIME_TYPES,
+   supported_languages:["ml-IN","en-IN","ml-en"],
+   transcript_review_required:true
+  };
+ });
+
  app.post("/api/v1/gabroo/recognition",{
   bodyLimit:GABROO_AUDIO_MAX_BYTES
  },async(request,reply)=>{
