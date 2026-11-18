@@ -55,6 +55,7 @@ export default function GabrooScreen(){
  const speechRunRef=useRef(0);
  const turnSequenceRef=useRef(0);
  const turnAbortRef=useRef<AbortController|null>(null);
+ const speechPreferenceSequenceRef=useRef(0);
  const playbackStateRef=useRef<GabrooPlaybackState>(initialGabrooPlaybackState);
  const load=useCallback(async(sequence:number)=>{
   setLoading(true);setError("");
@@ -482,11 +483,20 @@ export default function GabrooScreen(){
  };
  const changeSpeechRate=async(delta:number)=>{
   const next=adjustGabrooSpeechRate(speechRate,delta);
-  if(next===speechRate)return;
+  if(next===speechRate||speechSaving)return;
+  const previous=speechRate;
+  const requestId=++speechPreferenceSequenceRef.current;
   setSpeechRate(next);setSpeechNotice("");setSpeechSaving(true);
-  try{await updateLearnerPreferences({gabroo_speech_rate:next});}
-  catch(reason){setSpeechRate(speechRate);setSpeechNotice(reason instanceof Error?reason.message:"Could not save your speaking speed.");}
-  finally{setSpeechSaving(false);}
+  try{
+   await updateLearnerPreferences({gabroo_speech_rate:next});
+  }catch(reason){
+   if(requestId===speechPreferenceSequenceRef.current){
+    setSpeechRate(previous);
+    setSpeechNotice(reason instanceof Error?reason.message:"Could not save your speaking speed.");
+   }
+  }finally{
+   if(requestId===speechPreferenceSequenceRef.current)setSpeechSaving(false);
+  }
  };
  const remove=async()=>{
   if(!active||busy)return;
