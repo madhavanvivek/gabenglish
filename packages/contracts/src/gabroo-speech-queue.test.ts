@@ -24,22 +24,15 @@ describe("Gabroo sequential speech queue",()=>{
    "en:How are you!:0.9"
   ]);
  });
- it("checks cancellation between completed segments",async()=>{
+ it("does not count a segment interrupted before its playback promise resolves",async()=>{
   const played:string[]=[];
   let stopped=false;
   const playback:GabrooSegmentPlayback={speak:async(segment)=>{
    played.push(segment.text);
    if(played.length===1)stopped=true;
   }};
-  await expect(playGabrooSpeechSegments(segments,playback,1,()=>stopped)).resolves.toBe(1);
-  expect(played).toEqual(["Hello, "]);
- });
- it("does not count a segment whose playback is interrupted before its promise resolves",async()=>{
-  let stopped=false;
-  const playback:GabrooSegmentPlayback={speak:async()=>{
-   stopped=true;
-  }};
   await expect(playGabrooSpeechSegments(segments,playback,1,()=>stopped)).resolves.toBe(0);
+  expect(played).toEqual(["Hello, "]);
  });
  it("does not start playback for an already cancelled queue",async()=>{
   const speak=vi.fn(async()=>undefined);
