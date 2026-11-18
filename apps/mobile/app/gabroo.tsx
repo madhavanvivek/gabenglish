@@ -329,6 +329,11 @@ export default function GabrooScreen(){
     if(recordingRef.current&&!recordingOperationRef.current){
      void stopAndDiscardLocalCapture();
     }
+    // Voice-input captures are also temporary: leaving the app must not
+    // leave an unreviewed microphone recording on disk.
+    if(transcriptionRecordingRef.current&&!transcriptionOperationRef.current){
+     void discardTranscriptionAudio();
+    }
    }
   });
   return ()=>subscription.remove();
