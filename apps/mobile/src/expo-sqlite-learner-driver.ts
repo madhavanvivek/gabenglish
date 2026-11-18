@@ -32,7 +32,7 @@ export class ExpoSqliteLearnerDriver implements LocalKeyValueDriver {
       "CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " (" +
         "record_key TEXT PRIMARY KEY NOT NULL, " +
         "record_value TEXT NOT NULL, " +
-        "updated_at TEXT NOT NULL"
+        "updated_at TEXT NOT NULL" +
       ");"
     );
     return db;
