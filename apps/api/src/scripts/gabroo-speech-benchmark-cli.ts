@@ -52,16 +52,16 @@ export async function validateGabrooBenchmarkFiles(manifestPath:string,audioRoot
 async function main():Promise<void>{
  const args=process.argv.slice(2);
  if(args.length!==2||args.includes("--help")||args.includes("-h")){
-  process.stdout.write("Usage: pnpm --filter @gabenglish/api benchmark:validate -- <manifest.jsonl> <audio-root>\\n");
+  process.stdout.write("Usage: pnpm --filter @gabenglish/api benchmark:validate -- <manifest.jsonl> <audio-root>\n");
   process.exitCode=args.length===0||args.includes("--help")||args.includes("-h")?0:2;
   return;
  }
  try{
   const summary=await validateGabrooBenchmarkFiles(args[0],args[1]);
-  process.stdout.write(JSON.stringify(summary,null,2)+"\\n");
+  process.stdout.write(JSON.stringify(summary,null,2)+"\n");
   if(summary.issues.length>0)process.exitCode=1;
  }catch{
-  process.stderr.write("Benchmark validation failed. Check the manifest and approved audio-root paths.\\n");
+  process.stderr.write("Benchmark validation failed. Check the manifest and approved audio-root paths.\n");
   process.exitCode=1;
  }
 }
