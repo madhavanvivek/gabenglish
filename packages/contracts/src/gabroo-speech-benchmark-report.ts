@@ -30,7 +30,14 @@ export interface SpeechBenchmarkGroupReport {
  estimatedCost:number|null;
 }
 
-function median(values:number[]):number|null{\n if(values.length===0)return null;\n const sorted=[...values].sort((a,b)=>a-b);\n const middle=Math.floor(sorted.length/2);\n return sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])/2;\n}\n\nfunction percentile(values:number[],p:number):number|null{
+function median(values:number[]):number|null{
+ if(values.length===0)return null;
+ const sorted=[...values].sort((a,b)=>a-b);
+ const middle=Math.floor(sorted.length/2);
+ return sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])/2;
+}
+
+function percentile(values:number[],p:number):number|null{
  if(values.length===0)return null;
  const sorted=[...values].sort((a,b)=>a-b);
  return sorted[Math.max(0,Math.ceil(p*sorted.length)-1)];
