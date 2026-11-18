@@ -52,6 +52,7 @@ export default function GabrooScreen(){
  const recordingRef=useRef<Audio.Recording|null>(null);
  const recordingOperationRef=useRef(false);
  const appIsActiveRef=useRef(true);
+ const tutorScreenFocusedRef=useRef(false);
  const speechRunRef=useRef(0);
  const turnSequenceRef=useRef(0);
  const turnAbortRef=useRef<AbortController|null>(null);
@@ -89,9 +90,11 @@ export default function GabrooScreen(){
   }
  },[]);
  useFocusEffect(useCallback(()=>{
+  tutorScreenFocusedRef.current=true;
   const sequence=++loadSequenceRef.current;
   void load(sequence);
   return ()=>{
+   tutorScreenFocusedRef.current=false;
    loadSequenceRef.current+=1;
    conversationOpenSequenceRef.current+=1;
    conversationMutationSequenceRef.current+=1;
@@ -296,7 +299,7 @@ export default function GabrooScreen(){
    await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
    // If the app backgrounded while native recording creation was pending,
    // discard the capture as soon as the native handle becomes available.
-   if(!appIsActiveRef.current&&(transcriptionRecordingRef.current||transcriptionUriRef.current)){
+   if((!appIsActiveRef.current||!tutorScreenFocusedRef.current)&&(transcriptionRecordingRef.current||transcriptionUriRef.current)){
     await discardTranscriptionAudio();
    }
   }
@@ -322,7 +325,7 @@ export default function GabrooScreen(){
    await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
    transcriptionOperationRef.current=false;setTranscriptionBusy(false);
    // A recording stopped while backgrounded is still unreviewed local audio.
-   if(!appIsActiveRef.current&&(transcriptionRecordingRef.current||transcriptionUriRef.current)){
+   if((!appIsActiveRef.current||!tutorScreenFocusedRef.current)&&(transcriptionRecordingRef.current||transcriptionUriRef.current)){
     await discardTranscriptionAudio();
    }
   }
