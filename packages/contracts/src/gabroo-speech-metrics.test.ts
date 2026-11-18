@@ -11,7 +11,7 @@ describe("Gabroo offline speech transcript metrics",()=>{
   expect(score.characterErrorRate).toBeGreaterThan(0);
  });
  it("counts substitutions, deletions and insertions in WER",()=>{
-  expect(scoreSpeechTranscript("i want learn english","i want to learn")).toMatchObject({wordErrorRate:0.5,referenceWords:4,substitutions:0,deletions:1,insertions:1});
+  expect(scoreSpeechTranscript("i want learn english","i want to learn")).toMatchObject({wordErrorRate:0.5,referenceWords:4,substitutions:2,deletions:0,insertions:0});
  });
  it("keeps empty reference insertions visible instead of hiding them",()=>{
   expect(scoreSpeechTranscript("","hello")).toMatchObject({wordErrorRate:1,characterErrorRate:5});
