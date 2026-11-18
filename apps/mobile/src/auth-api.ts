@@ -192,8 +192,8 @@ export async function getGabrooConversation(id:string){return await authorized("
 export async function createGabrooConversation(input:{mode?:GabrooConversationMode;support_language?:"ml"|"en";title?:string}={}){
  return await authorized("/api/v1/gabroo/conversations","POST",input) as {conversation:GabrooConversation};
 }
-export async function sendGabrooMessage(id:string,message:string){
- return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id)+"/messages","POST",{message}) as {messages:GabrooConversationMessage[]};
+export async function sendGabrooMessage(id:string,message:string,signal?:AbortSignal){
+ return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id)+"/messages","POST",{message},signal) as {messages:GabrooConversationMessage[]};
 }
 export async function deleteGabrooConversation(id:string){
  await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id),"DELETE");
