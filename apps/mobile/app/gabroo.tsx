@@ -2,7 +2,7 @@ import {useCallback,useEffect,useRef,useState} from "react";
 import * as Speech from "expo-speech";
 import {Audio} from "expo-av";
 import * as FileSystem from "expo-file-system";
-import {confirmGabrooTranscript,GABROO_LOCAL_CAPTURE_MAX_MS,initialGabrooPlaybackState,initialGabrooTurnState,playGabrooSpeechSegments,reduceGabrooPlayback,reduceGabrooTurn,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooPlaybackState,type GabrooTurnState,type GabrooVoiceSessionState,type GabrooTranscript} from "@gabenglish/contracts";
+import {confirmGabrooTranscript,GABROO_LOCAL_CAPTURE_MAX_MS,initialGabrooPlaybackState,initialGabrooTurnState,playGabrooSpeechSegments,reduceGabrooPlayback,reduceGabrooTurn,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooPlaybackState,type GabrooTurnState,type GabrooVoiceSessionState,type GabrooTranscript,type GabrooRecognitionLanguage} from "@gabenglish/contracts";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
@@ -42,6 +42,7 @@ export default function GabrooScreen(){
  const [recordingActive,setRecordingActive]=useState(false);
  const [recordingBusy,setRecordingBusy]=useState(false);
  const [transcriptionConsent,setTranscriptionConsent]=useState(false);
+ const [recognitionLanguage,setRecognitionLanguage]=useState<GabrooRecognitionLanguage>("ml-en");
  const [transcriptionRecording,setTranscriptionRecording]=useState(false);
  const [transcriptionBusy,setTranscriptionBusy]=useState(false);
  const [transcript,setTranscript]=useState<GabrooTranscript|null>(null);
@@ -352,7 +353,7 @@ export default function GabrooScreen(){
   const operation=++transcriptionSequenceRef.current;
   setTranscriptionBusy(true);setSpeechNotice("");
   try{
-   const result=await recognizeGabrooAudio({uri,mimeType:"audio/mp4",language:"ml-en",consentGranted:true});
+   const result=await recognizeGabrooAudio({uri,mimeType:"audio/mp4",language:recognitionLanguage,consentGranted:true});
    if(operation!==transcriptionSequenceRef.current)return;
    setTranscript(result.transcript);setReviewedTranscript(result.transcript.text);
    if(transcriptionUriRef.current===uri){
@@ -563,6 +564,10 @@ export default function GabrooScreen(){
      {voicePermissionStatus==="granted"&&recognitionStatus?.available?<View style={s.captureConsentPanel}>
       <Text style={s.captureConsentTitle}>Speak to Gabroo · voice input</Text>
       <Text style={s.captureConsentCopy}>This is separate from the local microphone test. If you agree, a recording of up to 15 seconds is temporarily kept on this device. It is uploaded to the configured speech-recognition provider only when you press Review & transcribe. The returned text is shown for your review and is never sent to Gabroo until you confirm. Provider-side retention is subject to that provider's policy.</Text>
+      <Text style={s.captureConsentTitle}>What language will you speak?</Text>
+      <View style={s.modeGrid}>
+       {[{value:"ml-en" as const,label:"Malayalam + English"},{value:"ml-IN" as const,label:"Malayalam"},{value:"en-IN" as const,label:"English"}].map(item=><Pressable key={item.value} accessibilityRole="radio" accessibilityState={{selected:recognitionLanguage===item.value}} disabled={transcriptionRecording||transcriptionBusy||!!transcript} onPress={()=>setRecognitionLanguage(item.value)} style={[s.modeChip,recognitionLanguage===item.value&&s.modeSelected]}><Text style={[s.modeText,recognitionLanguage===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}
+      </View>
       <Pressable accessibilityRole="checkbox" accessibilityState={{checked:transcriptionConsent}} disabled={transcriptionRecording||transcriptionBusy||!!transcript} onPress={()=>setTranscriptionConsent(value=>!value)} style={s.consentRow}>
        <View style={[s.consentBox,transcriptionConsent&&s.consentBoxChecked]}>{transcriptionConsent?<Text style={s.consentCheck}>✓</Text>:null}</View>
        <Text style={s.consentText}>I consent to send this recording to the speech-recognition provider for transcription, with the transcript shown to me before it is shared with Gabroo.</Text>
@@ -573,7 +578,7 @@ export default function GabrooScreen(){
       {transcriptionUriRef.current?<><Pressable disabled={transcriptionBusy} onPress={()=>void reviewAndTranscribe()} style={[s.permissionButton,transcriptionBusy&&s.disabled]}><Text style={s.buttonText}>Review & transcribe</Text></Pressable><Pressable disabled={transcriptionBusy} onPress={()=>void discardTranscriptionAudio()} style={s.permissionReset}><Text style={s.permissionResetText}>Discard recording</Text></Pressable></>:null}
       {transcript?<View style={s.captureConsentPanel}>
        <Text style={s.captureConsentTitle}>Review your words</Text>
-       <Text style={s.captureConsentCopy}>Edit anything that was not recognised correctly. Gabroo will receive only the text you confirm below.</Text>
+       <Text style={s.captureConsentCopy}>Recognition language: {transcript.languageDetected==="ml"?"Malayalam":transcript.languageDetected==="en"?"English":transcript.languageDetected==="mixed"?"Malayalam + English":"Not identified"}. Edit anything that was not recognised correctly. Gabroo will receive only the text you confirm below.</Text>
        <TextInput value={reviewedTranscript} onChangeText={setReviewedTranscript} multiline editable={!busy} style={s.input} placeholder="Your recognised words…"/>
        <Pressable disabled={!reviewedTranscript.trim()||busy} onPress={()=>void sendReviewedTranscript()} style={[s.permissionButton,(!reviewedTranscript.trim()||busy)&&s.disabled]}><Text style={s.buttonText}>Confirm & send to Gabroo</Text></Pressable>
        <Pressable disabled={busy} onPress={()=>{setTranscript(null);setReviewedTranscript("");setTranscriptionConsent(false);}} style={s.permissionReset}><Text style={s.permissionResetText}>Discard transcript</Text></Pressable>
