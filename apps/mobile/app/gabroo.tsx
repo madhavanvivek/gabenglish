@@ -25,7 +25,8 @@ export default function GabrooScreen(){
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const [speechRate,setSpeechRate]=useState(1);
- const [speakingMessageId,setSpeakingMessageId]=useState<string|null>(null);\n const [turnState,setTurnState]=useState<GabrooTurnState>(initialGabrooTurnState);
+ const [speakingMessageId,setSpeakingMessageId]=useState<string|null>(null);
+ const [turnState,setTurnState]=useState<GabrooTurnState>(initialGabrooTurnState);
  const [speechNotice,setSpeechNotice]=useState("");
  const [speechSaving,setSpeechSaving]=useState(false);
  const [voiceConsent,setVoiceConsent]=useState(false);
@@ -46,7 +47,8 @@ export default function GabrooScreen(){
  const recordingRef=useRef<Audio.Recording|null>(null);
  const recordingOperationRef=useRef(false);
  const appIsActiveRef=useRef(true);
- const speechRunRef=useRef(0);\n const turnSequenceRef=useRef(0);
+ const speechRunRef=useRef(0);
+ const turnSequenceRef=useRef(0);
  const playbackStateRef=useRef<GabrooPlaybackState>(initialGabrooPlaybackState);
  const load=useCallback(async()=>{
   setLoading(true);setError("");
@@ -110,9 +112,17 @@ export default function GabrooScreen(){
  const send=async()=>{
   const text=draft.trim();if(!text||!active||busy)return;
   setBusy(true);setError("");
-  try{const result=await sendGabrooMessage(active.id,text);setMessages(current=>[...current,...result.messages]);setDraft("");}
-  catch(reason){setError(reason instanceof AuthApiError&&reason.status===503?"Gabroo could not reply just now. Your message was not saved. Please try again.":reason instanceof Error?reason.message:"Could not send your message.");}
-  finally{setBusy(false);}
+  const turnId=`${active.id}:${++turnSequenceRef.current}`;
+  setTurnState(current=>reduceGabrooTurn(current,{type:"submitted",turn_id:turnId}));
+  try{
+   const result=await sendGabrooMessage(active.id,text);
+   setMessages(current=>[...current,...result.messages]);
+   setTurnState(current=>reduceGabrooTurn(current,{type:"response_received",turn_id:turnId}));
+   setDraft("");
+  }catch(reason){
+   setTurnState(current=>reduceGabrooTurn(current,{type:"failed",turn_id:turnId,reason:reason instanceof Error?reason.message:"Could not send your message."}));
+   setError(reason instanceof AuthApiError&&reason.status===503?"Gabroo could not reply just now. Your message was not saved. Please try again.":reason instanceof Error?reason.message:"Could not send your message.");
+  }finally{setBusy(false);}
  };
  const stopSpeech=async()=>{
   speechRunRef.current+=1;
@@ -265,13 +275,18 @@ export default function GabrooScreen(){
  const sendReviewedTranscript=async()=>{
   if(!active||!transcript||!reviewedTranscript.trim()||busy)return;
   setBusy(true);setError("");
+  const turnId=`${active.id}:${++turnSequenceRef.current}`;
+  setTurnState(current=>reduceGabrooTurn(current,{type:"submitted",turn_id:turnId}));
   try{
    const confirmed=confirmGabrooTranscript({providerTranscript:transcript,reviewedText:reviewedTranscript,confirmed:true});
    const result=await sendGabrooMessage(active.id,confirmed.text);
    setMessages(current=>[...current,...result.messages]);
+   setTurnState(current=>reduceGabrooTurn(current,{type:"response_received",turn_id:turnId}));
    setTranscript(null);setReviewedTranscript("");setTranscriptionConsent(false);
-  }catch(reason){setError(reason instanceof Error?reason.message:"Could not send the reviewed transcript.");}
-  finally{setBusy(false);}
+  }catch(reason){
+   setTurnState(current=>reduceGabrooTurn(current,{type:"failed",turn_id:turnId,reason:reason instanceof Error?reason.message:"Could not send the reviewed transcript."}));
+   setError(reason instanceof Error?reason.message:"Could not send the reviewed transcript.");
+  }finally{setBusy(false);}
  };
  const requestVoicePermission=async()=>{
   if(!voiceConsent||voicePermissionBusy)return;
@@ -464,7 +479,8 @@ export default function GabrooScreen(){
      </View>
     </View>
     <Text style={s.modeLabel}>Conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>void changeMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View>{messages.length===0?<View style={s.emptyPanel}><Text style={s.title}>Hi! I'm Gabroo.</Text><Text style={s.copy}>Let's have a natural conversation. What's on your mind today?</Text></View>:messages.map(message=><View key={message.id} style={[s.bubble,message.role==="user"?s.userBubble:s.gabrooBubble]}><Text style={s.speaker}>{message.role==="user"?"YOU":"GABROO"}</Text><Text style={s.message}>{message.content}</Text>{message.role==="assistant"?<Pressable accessibilityRole="button" onPress={()=>void speakMessage(message)} style={s.listenButton}><Text style={s.listenButtonText}>{speakingMessageId===message.id?"Stop speaking":"Listen · device voice"}</Text></Pressable>:null}</View>)}
-    {turnState.phase==="thinking"?<Text accessibilityLiveRegion="polite" style={s.turnStatus}>Gabroo is thinking…</Text>:null}\n    <TextInput value={draft} onChangeText={setDraft} placeholder="Write your message…" multiline style={s.input} editable={!busy}/>
+    {turnState.phase==="thinking"?<Text accessibilityLiveRegion="polite" style={s.turnStatus}>Gabroo is thinking…</Text>:null}
+    <TextInput value={draft} onChangeText={setDraft} placeholder="Write your message…" multiline style={s.input} editable={!busy}/>
     <Pressable disabled={!draft.trim()||busy} onPress={send} style={[s.button,(!draft.trim()||busy)&&s.disabled]}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Send message</Text>}</Pressable>
     <Text style={s.hint}>You can ask for gentle corrections, detailed explanations or just a natural chat. Listen uses the voice installed on your device; Gabroo’s final character voice and live voice conversations are still being developed.</Text>{speechNotice?<Text style={s.speechNotice}>{speechNotice}</Text>:null}
    </>}
