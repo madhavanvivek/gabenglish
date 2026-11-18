@@ -30,7 +30,7 @@ export interface SpeechBenchmarkGroupReport {
  estimatedCost:number|null;
 }
 
-function percentile(values:number[],p:number):number|null{
+function median(values:number[]):number|null{\n if(values.length===0)return null;\n const sorted=[...values].sort((a,b)=>a-b);\n const middle=Math.floor(sorted.length/2);\n return sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])/2;\n}\n\nfunction percentile(values:number[],p:number):number|null{
  if(values.length===0)return null;
  const sorted=[...values].sort((a,b)=>a-b);
  return sorted[Math.max(0,Math.ceil(p*sorted.length)-1)];
@@ -92,7 +92,7 @@ export function buildSpeechBenchmarkReport(results:SpeechBenchmarkResult[]):Spee
    successRate:successful.length/bucket.length,
    wordErrorRate:wordReference?wordErrors/wordReference:0,
    characterErrorRate:charReference?charErrors/charReference:0,
-   medianLatencyMs:percentile(latencies,0.5),p95LatencyMs:percentile(latencies,0.95),
+   medianLatencyMs:median(latencies),p95LatencyMs:percentile(latencies,0.95),
    totalAudioSeconds:bucket.reduce((sum,x)=>sum+x.audioSeconds,0),
    estimatedCost:costs.length===bucket.length?costs.reduce((sum,x)=>sum+x,0):null
   };
