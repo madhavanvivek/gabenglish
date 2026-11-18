@@ -1,6 +1,6 @@
 # AI and Speech Evaluation Plan
 
-Version 1.0 — provider-neutral benchmark.
+Version 1.1 — provider-neutral benchmark.
 
 ## 1. Objective
 Select AI and speech services using measured performance for Malayalam-speaking English learners, not marketing claims alone.
@@ -15,26 +15,54 @@ Malayalam, mixed Malayalam-English, Malayalam-accented English, hesitant beginne
 ### Speech synthesis
 Male voice direction; friendly, energetic expressive delivery; clear Malayalam and English; speed control; conversational latency; suitable commercial terms/licensing.
 
-## 3. Benchmark corpus
+## 3. Learner-facing recognition workflow
+The learner explicitly chooses the recognition mode before recording:
+- Malayalam + English (mixed/code-switching; API language code `ml-en`).
+- Malayalam only (`ml-IN`).
+- English only (`en-IN`).
+
+The selected mode is sent with the audio request; it is not merely a display preference. The recognition result may report detected language as Malayalam, English, mixed, or unknown. Detection is informative and must not silently overwrite the learner's selected mode.
+
+The workflow requires separate microphone permission and transcription consent. The learner initiates recording and transcription, then sees an editable transcript and detected-language label. The transcript is not sent to Gabroo until the learner explicitly confirms it. If the learner edits the text, the confirmed request must preserve the edited text and the server must determine whether it differs from the original transcript. Audio should be deleted from the app's temporary local location after the transcription attempt and cleanup must also run on cancellation, navigation away, and failures.
+
+Provider availability is distinct from local recording capability. If no server-side recognition provider is configured, the UI must clearly report that transcription is unavailable; it must not imply that local/device speech recognition is the production recognition service.
+
+## 4. Benchmark corpus
 Build a consented or appropriately licensed set with at least 100 Malayalam utterances, 100 mixed-language utterances, 100 Malayalam-accented English utterances, beginner/intermediate attempts, common grammar errors, multiple valid translations and varied device/noise/speed conditions. Document consent, collection source, variety, device and annotation rules.
 
-## 4. Metrics
+Split the corpus by speaker, not randomly by utterance, so a speaker's voice does not appear in both tuning and evaluation sets. Keep a held-out test set untouched until candidate settings are frozen. Include short phrases, longer turns, hesitation, self-correction, proper nouns, numbers, borrowed English terms and realistic conversational interruptions. Annotate reference transcripts with language spans for code-switched utterances.
+
+## 5. Metrics
 STT: word error rate where suitable, Malayalam character error rate, semantic preservation, code-switch recognition, subgroup failure rate.
 Tutor: grammar accuracy, Malayalam explanation quality, naturalness, alternative acceptance, level fit, personality consistency, safe humour and structured-output validity.
 TTS: human-rated naturalness, clarity, Malayalam pronunciation, English intelligibility, prosody, speed control, latency and reliability.
 Operations: median/p95 latency, availability, cost per speaking minute/session, streaming support, mobile integration and data-processing terms.
 
-## 5. Suggested weighted comparison
+For mixed-language samples, report both whole-utterance error and language-span error. A low aggregate error score must not hide a provider that drops English words embedded in Malayalam or transliterates Malayalam inconsistently. Report results separately for all three learner-selected modes and for noisy/quiet conditions.
+
+## 6. Suggested weighted comparison
 Malayalam/code-switch recognition 25%; English learner speech recognition 15%; tutor accuracy/explanation 20%; TTS quality 15%; latency/reliability 10%; cost 10%; integration/privacy fit 5%. Apply minimum quality, safety, privacy and licensing gates; price cannot compensate for failure. Review weights after pilot scoring. Kerala Malayalam-fluent evaluators must review samples.
 
-## 6. Voice selection
+## 7. Provider decision gates
+Before connecting a provider to the learner-facing API, record:
+1. Exact model/service name, version and region.
+2. Commercial-use rights and any voice/audio licensing restrictions.
+3. Data-processing agreement, subprocessors, processing region, retention/deletion controls and whether customer audio can be used for provider training.
+4. Supported MIME types, maximum payload, duration limits, language hints, code-switch behaviour and confidence semantics.
+5. Streaming/batch support, cancellation behaviour, timeout limits, rate limits and documented service availability.
+6. Measured cost per minute at expected usage, including retries and any minimum charges.
+7. Benchmark results on the same held-out corpus, with examples of material failures.
+
+Reject a candidate if it fails privacy, security, commercial-rights or minimum intelligibility gates, regardless of weighted score. Do not enable provider-side model training on learner audio. Do not send raw learner audio to a candidate until the applicable consent and provider terms have been reviewed.
+
+## 8. Voice selection
 Benchmark several male candidates using actual samples. Assess warmth, energy, clarity, Malayalam quality, English pronunciation and long-session comfort. The male/funny/energetic/friendly direction is locked; exact provider and voice identity are not.
 
-## 7. Tutor scenario tests
+## 9. Tutor scenario tests
 Stage 1 Malayalam-first; Stage 2 mixed; Stage 3 English-first with support; Stage 4/5 advanced; Malayalam help on demand; correction modes; frustrated learner; insult/stereotype bait; multiple valid answers; context retention and session recovery.
 
-## 8. Process
+## 10. Process
 Freeze examples and reference annotations; run candidates with equivalent settings; blind-review where practical; record metrics/cost/failures; repeat regression tests; select with documented trade-offs; retain provider adapters.
 
-## 9. Privacy
-Obtain recording consent; use synthetic/consented data; minimise raw audio retention; do not permit provider training without separate explicit authorisation; review processing/retention terms; do not infer sensitive traits from voice; never treat accent similarity as intelligence or learner worth.
+## 11. Privacy
+Obtain recording consent; use synthetic/consented data; minimise raw audio retention; do not permit provider training without separate explicit authorisation; review processing/retention terms; do not infer sensitive traits from voice; never treat accent similarity as intelligence or learner worth. Do not create speaker embeddings or voiceprints for learner identification.
