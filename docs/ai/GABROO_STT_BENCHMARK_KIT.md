@@ -103,3 +103,16 @@ The executor copies audio bytes for each adapter so one adapter cannot mutate th
 ## Execution status
 
 Manifest validation and the provider-neutral executor are code-level capabilities. They have not yet run against a real audio corpus or a real speech provider. The executor must only be invoked with approved, consented, licensed local samples and an explicitly enabled candidate configuration after the decision gates above are satisfied.
+
+
+### Local manifest validation command
+
+The API workspace provides a validation-only CLI:
+
+```bash
+pnpm --filter @gabenglish/api benchmark:validate -- ./benchmark/manifest.jsonl ./benchmark/audio
+```
+
+The manifest's `audioFile` values are resolved relative to the supplied audio root. The validator resolves real paths, rejects symlinks that escape that root, requires regular non-empty files and enforces the 10 MB per-file limit. It prints a JSON summary and exits non-zero if any manifest or file validation issue is found.
+
+This command does not open audio contents, run recognition, contact providers or create benchmark results. The actual execution engine remains an injected library API; the CLI intentionally does not invent or silently enable a provider.
