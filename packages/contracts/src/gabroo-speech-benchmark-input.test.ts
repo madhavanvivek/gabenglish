@@ -39,4 +39,9 @@ describe("Gabroo benchmark JSONL input parser",()=>{
   expect(parsed.results).toHaveLength(1);
   expect(parsed.issues).toEqual([]);
  });
+ it("rejects duplicate candidate/sample records without discarding valid neighbors",()=>{
+  const parsed=parseSpeechBenchmarkJsonl([JSON.stringify(good),JSON.stringify(good),JSON.stringify({...good,sampleId:"sample-3"})].join("\n"));
+  expect(parsed.results).toHaveLength(2);
+  expect(parsed.issues).toEqual([{line:2,message:"Duplicate candidate/sample result."}]);
+ });
 });
