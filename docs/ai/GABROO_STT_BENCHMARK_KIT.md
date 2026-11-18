@@ -116,3 +116,14 @@ pnpm --filter @gabenglish/api benchmark:validate -- ./benchmark/manifest.jsonl .
 The manifest's `audioFile` values are resolved relative to the supplied audio root. The validator resolves real paths, rejects symlinks that escape that root, requires regular non-empty files and enforces the 10 MB per-file limit. It prints a JSON summary and exits non-zero if any manifest or file validation issue is found.
 
 This command does not open audio contents, run recognition, contact providers or create benchmark results. The actual execution engine remains an injected library API; the CLI intentionally does not invent or silently enable a provider.
+
+
+### Local aggregate report command
+
+After a benchmark adapter has produced the documented JSONL result format, generate the aggregate report locally:
+
+```bash
+pnpm --filter @gabenglish/api benchmark:report -- ./benchmark/results.jsonl ./benchmark/report.md
+```
+
+The report includes aggregate success rate, WER, CER, latency, audio duration and cost where available. It does not include raw transcripts. Malformed lines are reported by line number and cause a non-zero exit status. This command does not invoke recognition or contact a provider.
