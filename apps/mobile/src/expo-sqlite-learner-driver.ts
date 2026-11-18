@@ -1,1 +1,65 @@
-import * as SQLite from "expo-sqlite";\nimport type { LocalKeyValueDriver } from "./learner-local-store";\n\nconst DATABASE_NAME = "gabenglish-learner.db";\nconst TABLE_NAME = "learner_records";\n\n/**\n * SQLite-backed device-local key/value driver.\n *\n * The caller supplies account-scoped opaque keys. SQLite is app-private, but\n * this adapter does not claim SQLCipher encryption; encrypted-at-rest\n * configuration remains a separate release-build security milestone.\n */\nexport class ExpoSqliteLearnerDriver implements LocalKeyValueDriver {\n  private databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;\n\n  private database(): Promise<SQLite.SQLiteDatabase> {\n    if (!this.databasePromise) {\n      this.databasePromise = this.openDatabase().catch((error) => {\n        this.databasePromise = null;\n        throw error;\n      });\n    }\n    return this.databasePromise;\n  }\n\n  private async openDatabase(): Promise<SQLite.SQLiteDatabase> {\n    const db = await SQLite.openDatabaseAsync(DATABASE_NAME);\n    await db.execAsync("PRAGMA journal_mode = WAL;");\n    await db.execAsync("PRAGMA busy_timeout = 5000;");\n    await db.execAsync(\n      "CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " (" +\n        "record_key TEXT PRIMARY KEY NOT NULL, " +\n        "record_value TEXT NOT NULL, " +\n        "updated_at TEXT NOT NULL"\n      ");"\n    );\n    return db;\n  }\n\n  async get(key: string): Promise<string | null> {\n    const db = await this.database();\n    const row = await db.getFirstAsync<{ record_value: string }>(\n      "SELECT record_value FROM " + TABLE_NAME + " WHERE record_key = ?",\n      key\n    );\n    return row?.record_value ?? null;\n  }\n\n  async set(key: string, value: string): Promise<void> {\n    const db = await this.database();\n    await db.runAsync(\n      "INSERT INTO " + TABLE_NAME + " (record_key, record_value, updated_at) VALUES (?, ?, ?) " +\n        "ON CONFLICT(record_key) DO UPDATE SET record_value = excluded.record_value, updated_at = excluded.updated_at",\n      key,\n      value,\n      new Date().toISOString()\n    );\n  }\n\n  async remove(key: string): Promise<void> {\n    const db = await this.database();\n    await db.runAsync("DELETE FROM " + TABLE_NAME + " WHERE record_key = ?", key);\n  }\n}\n
+import * as SQLite from "expo-sqlite";
+import type { LocalKeyValueDriver } from "./learner-local-store";
+
+const DATABASE_NAME = "gabenglish-learner.db";
+const TABLE_NAME = "learner_records";
+
+/**
+ * SQLite-backed device-local key/value driver.
+ *
+ * The caller supplies account-scoped opaque keys. SQLite is app-private, but
+ * this adapter does not claim SQLCipher encryption; encrypted-at-rest
+ * configuration remains a separate release-build security milestone.
+ */
+export class ExpoSqliteLearnerDriver implements LocalKeyValueDriver {
+  private databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
+
+  private database(): Promise<SQLite.SQLiteDatabase> {
+    if (!this.databasePromise) {
+      this.databasePromise = this.openDatabase().catch((error) => {
+        this.databasePromise = null;
+        throw error;
+      });
+    }
+    return this.databasePromise;
+  }
+
+  private async openDatabase(): Promise<SQLite.SQLiteDatabase> {
+    const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
+    await db.execAsync("PRAGMA journal_mode = WAL;");
+    await db.execAsync("PRAGMA busy_timeout = 5000;");
+    await db.execAsync(
+      "CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " (" +
+        "record_key TEXT PRIMARY KEY NOT NULL, " +
+        "record_value TEXT NOT NULL, " +
+        "updated_at TEXT NOT NULL"
+      ");"
+    );
+    return db;
+  }
+
+  async get(key: string): Promise<string | null> {
+    const db = await this.database();
+    const row = await db.getFirstAsync<{ record_value: string }>(
+      "SELECT record_value FROM " + TABLE_NAME + " WHERE record_key = ?",
+      key
+    );
+    return row?.record_value ?? null;
+  }
+
+  async set(key: string, value: string): Promise<void> {
+    const db = await this.database();
+    await db.runAsync(
+      "INSERT INTO " + TABLE_NAME + " (record_key, record_value, updated_at) VALUES (?, ?, ?) " +
+        "ON CONFLICT(record_key) DO UPDATE SET record_value = excluded.record_value, updated_at = excluded.updated_at",
+      key,
+      value,
+      new Date().toISOString()
+    );
+  }
+
+  async remove(key: string): Promise<void> {
+    const db = await this.database();
+    await db.runAsync("DELETE FROM " + TABLE_NAME + " WHERE record_key = ?", key);
+  }
+}
