@@ -108,13 +108,17 @@ export default function GabrooScreen(){
   }
  };
  const start=async()=>{
-  conversationOpenSequenceRef.current+=1;
+  const requestId=++conversationOpenSequenceRef.current;
   setBusy(true);setError("");
   try{
    const result=await createGabrooConversation({mode,support_language:"ml"});
+   if(requestId!==conversationOpenSequenceRef.current)return;
    activeConversationIdRef.current=result.conversation.id;setTurnState(initialGabrooTurnState);setActive(result.conversation);setMode(result.conversation.mode);setMessages([]);setConversations(current=>[result.conversation,...current]);
-  }catch(reason){setError(reason instanceof AuthApiError&&reason.status===503? "Gabroo's conversation service is not connected yet. Your subscription and account are unchanged.":reason instanceof Error?reason.message:"Could not start a conversation.");}
-  finally{setBusy(false);}
+  }catch(reason){
+   if(requestId===conversationOpenSequenceRef.current)setError(reason instanceof AuthApiError&&reason.status===503? "Gabroo's conversation service is not connected yet. Your subscription and account are unchanged.":reason instanceof Error?reason.message:"Could not start a conversation.");
+  }finally{
+   if(requestId===conversationOpenSequenceRef.current)setBusy(false);
+  }
  };
  const changeMode=async(next:GabrooConversationMode)=>{
   setMode(next);
