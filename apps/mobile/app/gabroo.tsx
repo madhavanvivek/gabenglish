@@ -8,6 +8,7 @@ import {ActivityIndicator,AppState,Pressable,ScrollView,StyleSheet,Text,TextInpu
 import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
 import {adjustGabrooSpeechRate} from "../src/learner-settings";
+import {cacheGabrooSpeechRate} from "../src/learner-preference-cache";
 import {BrandMark} from "../src/ui";
 import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getGabrooRecognitionStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences} from "../src/auth-api";
 
@@ -67,6 +68,7 @@ export default function GabrooScreen(){
    const learner=await getLearnerMe();
    if(sequence!==loadSequenceRef.current)return;
    setSpeechRate(learner.preferences?.gabroo_speech_rate??1);
+   void cacheGabrooSpeechRate(learner.user.id,learner.preferences?.gabroo_speech_rate??1).catch(()=>{});
    if(status.active){
     const result=await listGabrooConversations();
     if(sequence!==loadSequenceRef.current)return;
@@ -517,6 +519,8 @@ export default function GabrooScreen(){
   setSpeechRate(next);setSpeechNotice("");setSpeechSaving(true);
   try{
    await updateLearnerPreferences({gabroo_speech_rate:next});
+   const learner=await getLearnerMe();
+   await cacheGabrooSpeechRate(learner.user.id,next);
   }catch(reason){
    if(requestId===speechPreferenceSequenceRef.current){
     setSpeechRate(previous);
