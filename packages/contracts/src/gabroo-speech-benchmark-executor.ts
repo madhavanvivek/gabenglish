@@ -68,24 +68,32 @@ export async function executeGabrooSpeechBenchmark(options:GabrooBenchmarkExecut
    attempted++;
    const controller=new AbortController();
    const abort=()=>controller.abort();
+   const onCancel=()=>{controller.abort();};
    options.signal?.addEventListener("abort",abort,{once:true});
    let timeout:ReturnType<typeof setTimeout>|undefined;
    const started=Date.now();
    try{
+    const cancellation=options.signal?new Promise<never>((_,reject)=>{
+     if(options.signal?.aborted){reject(new Error("cancelled"));return;}
+     onCancel=()=>{controller.abort();reject(new Error("cancelled"));};
+     options.signal?.addEventListener("abort",onCancel,{once:true});
+    }):new Promise<never>(()=>{});
     const response=await Promise.race([
-     candidate.adapter.transcribe({audio,mimeType:sample.mimeType,mode:sample.mode,signal:controller.signal}),
+     candidate.adapter.transcribe({audio:new Uint8Array(audio),mimeType:sample.mimeType,mode:sample.mode,signal:controller.signal}),
      new Promise<never>((_,reject)=>{timeout=setTimeout(()=>{controller.abort();reject(new Error("timeout"));},timeoutMs);}),
-     ...(options.signal?[new Promise<never>((_,reject)=>options.signal?.addEventListener("abort",()=>reject(new Error("cancelled")),{once:true}))]:[])
+     cancellation
     ]);
     const latencyMs=Date.now()-started;
     if(typeof response?.text!=="string"||response.text.trim().length===0)throw new Error("empty transcript");
     const cost=candidate.estimateCost?.(sample.durationMs/1000);
+    if(cost!==undefined&&(!Number.isFinite(cost)||cost<0))throw new Error("invalid cost estimate");
     results.push({candidateId:candidate.candidateId,sampleId:sample.sampleId,mode:sample.mode,environment:sample.environment,status:"success",referenceText:sample.referenceText,transcript:response.text,latencyMs,audioSeconds:sample.durationMs/1000,...(cost===undefined?{}:{estimatedCost:cost})});
    }catch{
     results.push({candidateId:candidate.candidateId,sampleId:sample.sampleId,mode:sample.mode,environment:sample.environment,status:"failure",referenceText:sample.referenceText,audioSeconds:sample.durationMs/1000});
    }finally{
     if(timeout)clearTimeout(timeout);
     options.signal?.removeEventListener("abort",abort);
+    options.signal?.removeEventListener("abort",onCancel);
    }
   }
  }
