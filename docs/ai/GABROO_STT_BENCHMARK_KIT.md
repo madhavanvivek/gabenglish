@@ -38,25 +38,24 @@ The example is a schema illustration, not a real learner sample. Keep the audio 
 - Use speaker-disjoint train/tuning and held-out evaluation splits. Do not tune prompts/settings against the held-out split.
 
 ## Candidate result format
-Record one JSONL result per candidate and sample:
+The executable JSONL parser in `packages/contracts/src/gabroo-speech-benchmark-input.ts` accepts one record per candidate/sample using this exact shape:
 
 ```json
 {
-  "candidate_id": "candidate_a",
-  "service_version": "exact-version",
-  "region": "documented-region",
-  "sample_id": "ml_0001",
+  "candidateId": "candidate_a",
+  "sampleId": "ml_0001",
+  "mode": "ml-IN",
+  "environment": "quiet",
+  "status": "success",
+  "referenceText": "എനിക്ക് ഇംഗ്ലീഷ് പഠിക്കണം",
   "transcript": "എനിക്ക് ഇംഗ്ലീഷ് പഠിക്കണം",
-  "detected_language": "ml",
-  "latency_ms": 1840,
-  "audio_seconds": 4.2,
-  "request_status": "success",
-  "error_class": null,
-  "estimated_cost": null
+  "latencyMs": 1840,
+  "audioSeconds": 4.2,
+  "estimatedCost": 0.0
 }
 ```
 
-Do not store provider request/response headers that may contain credentials, tokens, project identifiers or personal data. Never write API keys to result files.
+For failed requests, set `status` to `failure` and omit `transcript` and `latencyMs`. `estimatedCost` may be omitted when unavailable. Keep provider version, region, request IDs and configuration in a separate non-secret experiment manifest; never include API keys, auth headers or personal identifiers in result files. The parser rejects unknown fields and reports malformed lines without discarding valid neighbouring records.
 
 ## Scoring
 Calculate results separately for each learner-selected mode and each environment:
@@ -88,4 +87,4 @@ Normalise Unicode consistently before calculating CER. Do not transliterate Mala
 - [ ] Provider owner approval and production rollout plan recorded
 
 ## Current status
-The application has a provider-neutral recognition contract and a learner-facing language selector. This benchmark kit does not connect a provider, upload any audio, or claim that recognition is production-ready. The configured API remains unavailable until a provider is deliberately selected and wired through the server configuration.
+The application has a provider-neutral recognition contract, learner-facing language selector, offline WER/CER scoring, JSONL validation and report aggregation. The parser and report builder operate on text records only: they do not read audio, upload files or contact a provider. The configured API remains unavailable until a provider is deliberately selected and wired through the server configuration.
