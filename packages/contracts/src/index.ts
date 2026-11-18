@@ -26,3 +26,5 @@ export * from "./language-learning.js";
 export * from "./lesson-content.js";
 
 export * from "./lesson-exercises.js";
+
+export * from "./gabroo-speech-metrics.js";
