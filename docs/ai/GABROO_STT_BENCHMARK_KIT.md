@@ -27,7 +27,7 @@ Store one JSON object per utterance in a local, access-controlled JSONL file. Do
 }
 ```
 
-The example is a schema illustration, not a real learner sample. Keep the audio outside the repository. Speaker IDs must be random pseudonyms, not account IDs, phone numbers or names. Keep the identity/consent key separately with restricted access.
+The example matches the executable manifest schema and is not a real learner sample. Keep audio outside the repository. If speaker pseudonyms, consent records or language-span annotations are needed for research, maintain them in a separate restricted metadata file; they are not accepted manifest fields. Speaker IDs must be random pseudonyms, not account IDs, phone numbers or names. Keep the identity/consent key separately with restricted access.
 
 ## Required corpus coverage
 - At least 100 Malayalam utterances, 100 Malayalam-English code-switched utterances and 100 Malayalam-accented English utterances before making a selection.
