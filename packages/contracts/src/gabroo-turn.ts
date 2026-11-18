@@ -16,7 +16,7 @@ export type GabrooTurnEvent =
   | { type: "submitted"; turn_id: string }
   | { type: "response_received"; turn_id: string }
   | { type: "failed"; turn_id: string; reason: string }
-  | { type: "dismissed" }
+  | { type: "dismissed"; turn_id: string }
   | { type: "reset" };
 
 export const initialGabrooTurnState: GabrooTurnState = {
@@ -33,8 +33,10 @@ export function reduceGabrooTurn(
   state: GabrooTurnState,
   event: GabrooTurnEvent
 ): GabrooTurnState {
-  if (event.type === "reset" || event.type === "dismissed") {
-    return initialGabrooTurnState;
+  if (event.type === "reset") return initialGabrooTurnState;
+
+  if (event.type === "dismissed") {
+    return state.turn_id === event.turn_id ? initialGabrooTurnState : state;
   }
 
   if (event.type === "submitted") {
