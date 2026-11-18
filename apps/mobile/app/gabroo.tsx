@@ -309,26 +309,35 @@ export default function GabrooScreen(){
  const stopTranscriptionCapture=async()=>{
   const recording=transcriptionRecordingRef.current;
   if(!recording||transcriptionOperationRef.current)return;
+  const operation=++transcriptionSequenceRef.current;
   transcriptionOperationRef.current=true;setTranscriptionBusy(true);
   const uri=recording.getURI();
   recording.setOnRecordingStatusUpdate(null);
   try{
    await recording.stopAndUnloadAsync();
-   transcriptionRecordingRef.current=null;
    const savedUri=recording.getURI()??uri;
+   if(operation!==transcriptionSequenceRef.current||transcriptionRecordingRef.current!==recording){
+    if(savedUri)await FileSystem.deleteAsync(savedUri,{idempotent:true}).catch(()=>undefined);
+    return;
+   }
+   transcriptionRecordingRef.current=null;
    if(!savedUri)throw new Error("The recording file was not created.");
    transcriptionUriRef.current=savedUri;
    setTranscriptionRecording(false);
    setSpeechNotice("Recording ready. It has not been uploaded. Choose Review & transcribe when you are ready.");
   }catch(reason){
-   await discardTranscriptionAudio();
-   setSpeechNotice(reason instanceof Error?reason.message:"Could not finish the recording.");
+   if(operation===transcriptionSequenceRef.current&&transcriptionRecordingRef.current===recording){
+    await discardTranscriptionAudio();
+    setSpeechNotice(reason instanceof Error?reason.message:"Could not finish the recording.");
+   }
   }finally{
    await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
-   transcriptionOperationRef.current=false;setTranscriptionBusy(false);
-   // A recording stopped while backgrounded is still unreviewed local audio.
-   if((!appIsActiveRef.current||!tutorScreenFocusedRef.current)&&(transcriptionRecordingRef.current||transcriptionUriRef.current)){
-    await discardTranscriptionAudio();
+   if(operation===transcriptionSequenceRef.current){
+    transcriptionOperationRef.current=false;setTranscriptionBusy(false);
+    // A recording stopped while backgrounded or after navigation is unreviewed local audio.
+    if((!appIsActiveRef.current||!tutorScreenFocusedRef.current)&&(transcriptionRecordingRef.current||transcriptionUriRef.current)){
+     await discardTranscriptionAudio();
+    }
    }
   }
  };
