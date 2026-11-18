@@ -1,6 +1,7 @@
 import {describe,expect,it} from "vitest";
 import {
  gabrooSpeechTimelineSchema,
+ gabrooVisemeEventSchema,
  sampleGabrooAvatarFrame
 } from "./gabroo-avatar.js";
 
@@ -64,8 +65,45 @@ describe("Gabroo canonical avatar animation contract",()=>{
   expect(sampleGabrooAvatarFrame(data,200,0).viseme.shape).toBe("open_round");
  });
 
+ it("rejects zero-length and reversed viseme events",()=>{
+  expect(gabrooVisemeEventSchema.safeParse({
+   start_ms:200,end_ms:200,shape:"open_wide"
+  }).success).toBe(false);
+  expect(gabrooVisemeEventSchema.safeParse({
+   start_ms:300,end_ms:200,shape:"open_wide"
+  }).success).toBe(false);
+ });
+
+ it("rejects negative event times and weights outside the rig range",()=>{
+  expect(gabrooVisemeEventSchema.safeParse({
+   start_ms:-1,end_ms:200,shape:"open_wide"
+  }).success).toBe(false);
+  expect(gabrooVisemeEventSchema.safeParse({
+   start_ms:0,end_ms:200,shape:"open_wide",weight:1.1
+  }).success).toBe(false);
+ });
+
+ it("rejects expression and gesture events beyond the audio duration",()=>{
+  expect(gabrooSpeechTimelineSchema.safeParse({
+   audio_id:"invalid-expression",duration_ms:200,
+   expressions:[{start_ms:10,end_ms:201,expression:"warm_smile"}]
+  }).success).toBe(false);
+  expect(gabrooSpeechTimelineSchema.safeParse({
+   audio_id:"invalid-gesture",duration_ms:200,
+   gestures:[{start_ms:10,end_ms:201,gesture:"gentle_nod"}]
+  }).success).toBe(false);
+ });
+
+ it("clamps playback outside the audio range to neutral mouth controls",()=>{
+  expect(sampleGabrooAvatarFrame(timeline(),-50).viseme)
+   .toEqual({shape:"neutral",weight:0});
+  expect(sampleGabrooAvatarFrame(timeline(),1200).viseme)
+   .toEqual({shape:"neutral",weight:0});
+ });
+
  it("rejects invalid fade and playback values",()=>{
   expect(()=>sampleGabrooAvatarFrame(timeline(),100,Number.NaN)).toThrow();
   expect(()=>sampleGabrooAvatarFrame(timeline(),Number.POSITIVE_INFINITY)).toThrow();
+  expect(()=>sampleGabrooAvatarFrame(timeline(),100,-1)).toThrow();
  });
 });
