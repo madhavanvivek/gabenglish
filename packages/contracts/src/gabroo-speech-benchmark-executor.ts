@@ -1,5 +1,5 @@
 import type {GabrooSpeechBenchmarkSample} from "./gabroo-speech-benchmark-manifest.js";
-import {validateGabrooBenchmarkAudio} from "./gabroo-speech-benchmark-manifest.js";
+import {gabrooSpeechBenchmarkSampleSchema,validateGabrooBenchmarkAudio} from "./gabroo-speech-benchmark-manifest.js";
 import type {SpeechBenchmarkResult} from "./gabroo-speech-benchmark-report.js";
 
 export interface GabrooBenchmarkAdapter {
@@ -39,11 +39,14 @@ export async function executeGabrooSpeechBenchmark(options:GabrooBenchmarkExecut
  const candidateIds=new Set<string>();
  for(const candidate of options.candidates){
   if(candidate.enabled!==true)throw new Error("Every benchmark candidate must be explicitly enabled.");
-  if(!candidate.candidateId.trim()||candidateIds.has(candidate.candidateId))throw new Error("Candidate IDs must be non-empty and unique.");
+  if(typeof candidate.candidateId!=="string"||!candidate.candidateId.trim()||candidate.candidateId.length>120||candidateIds.has(candidate.candidateId))throw new Error("Candidate IDs must be non-empty, at most 120 characters, and unique.");
+  if(!candidate.adapter||typeof candidate.adapter.transcribe!=="function")throw new Error("Every benchmark candidate must provide a transcription adapter.");
   candidateIds.add(candidate.candidateId);
  }
  const sampleIds=new Set<string>();
  for(const sample of options.samples){
+  const parsedSample=gabrooSpeechBenchmarkSampleSchema.safeParse(sample);
+  if(!parsedSample.success)throw new Error("Every benchmark sample must match the validated manifest schema.");
   if(sampleIds.has(sample.sampleId))throw new Error("Benchmark sample IDs must be unique.");
   sampleIds.add(sample.sampleId);
  }
