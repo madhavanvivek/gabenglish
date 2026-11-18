@@ -90,10 +90,10 @@ export async function loginLearner(input:{email:string;password:string}){
  const tokens=await saveTokens(payload);
  return {tokens,email_verified:Boolean(payload.email_verified)};
 }
-async function authorized(path:string,method:"GET"|"POST"|"PATCH"|"DELETE",body?:unknown):Promise<unknown>{
+async function authorized(path:string,method:"GET"|"POST"|"PATCH"|"DELETE",body?:unknown,signal?:AbortSignal):Promise<unknown>{
  let access=await SecureStore.getItemAsync(ACCESS_KEY);
  if(!access){await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);}
- const send=()=>fetch(baseUrl()+path,{method,headers:{"content-type":"application/json",accept:"application/json",authorization:"Bearer "+access},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ const send=()=>fetch(baseUrl()+path,{method,headers:{"content-type":"application/json",accept:"application/json",authorization:"Bearer "+access},...(body===undefined?{}:{body:JSON.stringify(body)}),...(signal?{signal}:{})});
  let response=await send();
  if(response.status===401){
   await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);response=await send();
