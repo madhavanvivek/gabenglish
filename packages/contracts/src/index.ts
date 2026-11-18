@@ -13,6 +13,7 @@ export * from "./auth.js";
 
 export * from "./gabroo-speech.js";
 export * from "./gabroo-playback.js";
+export * from "./gabroo-turn.js";
 
 export * from "./gabroo-avatar.js";
 export * from "./gabroo-conversation.js";
