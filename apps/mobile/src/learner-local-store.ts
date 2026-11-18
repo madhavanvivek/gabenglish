@@ -79,7 +79,7 @@ export class LearnerLocalStore {
     const key = storageKey(accountId, collection, recordId);
     const previous = this.writes.get(key) ?? Promise.resolve();
     let result!: LocalRecord<T>;
-    const operation = previous.then(async () => {
+    const operation = previous.catch(() => undefined).then(async () => {
       const raw = await this.driver.get(key);
       const current = raw === null
         ? null
@@ -107,7 +107,7 @@ export class LearnerLocalStore {
   async remove(accountId: string, collection: string, recordId: string): Promise<void> {
     const key = storageKey(accountId, collection, recordId);
     const previous = this.writes.get(key) ?? Promise.resolve();
-    const operation = previous.then(() => this.driver.remove(key));
+    const operation = previous.catch(() => undefined).then(() => this.driver.remove(key));
     this.writes.set(key, operation);
     try {
       await operation;
