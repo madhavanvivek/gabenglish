@@ -30,3 +30,5 @@ export * from "./lesson-exercises.js";
 export * from "./gabroo-speech-metrics.js";
 
 export * from "./gabroo-speech-benchmark-report.js";
+
+export * from "./gabroo-speech-benchmark-input.js";
