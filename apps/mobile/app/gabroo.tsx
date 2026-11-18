@@ -187,7 +187,14 @@ export default function GabrooScreen(){
   }catch(reason){
    await discardTranscriptionAudio();
    setSpeechNotice(reason instanceof Error?reason.message:"Could not start voice recording.");
-  }finally{transcriptionOperationRef.current=false;setTranscriptionBusy(false);}
+  }finally{
+   transcriptionOperationRef.current=false;setTranscriptionBusy(false);
+   // If the app backgrounded while native recording creation was pending,
+   // discard the capture as soon as the native handle becomes available.
+   if(!appIsActiveRef.current&&(transcriptionRecordingRef.current||transcriptionUriRef.current)){
+    await discardTranscriptionAudio();
+   }
+  }
  };
  const stopTranscriptionCapture=async()=>{
   const recording=transcriptionRecordingRef.current;
@@ -209,6 +216,10 @@ export default function GabrooScreen(){
   }finally{
    await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
    transcriptionOperationRef.current=false;setTranscriptionBusy(false);
+   // A recording stopped while backgrounded is still unreviewed local audio.
+   if(!appIsActiveRef.current&&(transcriptionRecordingRef.current||transcriptionUriRef.current)){
+    await discardTranscriptionAudio();
+   }
   }
  };
  const reviewAndTranscribe=async()=>{
@@ -331,7 +342,9 @@ export default function GabrooScreen(){
     }
     // Voice-input captures are also temporary: leaving the app must not
     // leave an unreviewed microphone recording on disk.
-    if(transcriptionRecordingRef.current&&!transcriptionOperationRef.current){
+    if((transcriptionRecordingRef.current||transcriptionUriRef.current)&&!transcriptionOperationRef.current){
+     // Also remove a stopped-but-not-yet-uploaded recording, not only an
+     // actively recording microphone session.
      void discardTranscriptionAudio();
     }
    }
