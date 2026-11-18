@@ -1,9 +1,11 @@
 # Gabroo Character Guide
 
-Version 1.1 — Concept C selected; canonical visual direction locked.
+Version 1.2 — Concept C selected; exact approved Branding Kit V2 identity locked.
+
+**Binding source of truth:** `docs/brand/GABROO_LIVE_CHARACTER_IDENTITY_LOCK.md`. The owner-approved Concept C — Signature Gabroo artwork in Gabenglish Branding Kit Version 2 is the only canonical character reference. This guide describes that character; it does not authorise reinterpretation or replacement.
 
 ## Character identity
-Gabroo is Gabenglish's single signature AI English buddy. Selected direction: **Concept C — Signature Gabroo**. Present Gabroo as youthful and age-neutral (teen/young-adult appeal), welcoming to younger and adult learners; never depict as a small child or mature adult.
+Gabroo is Gabenglish's single signature AI English buddy. Selected direction: **Concept C — Signature Gabroo**, exactly as approved in Branding Kit Version 2. Preserve the supplied master artwork's identity; do not redesign, regenerate, approximate, blend with other concepts or substitute another character. Present the approved character as-is; any production 3D reconstruction requires owner review against the master before animation.
 
 ## Fixed appearance
 - Warm medium-brown skin; large expressive brown eyes; rounded friendly features.
@@ -42,10 +44,10 @@ The concept sheet's A/AA, E/EE, I, O, U and M are starter visual references only
 Original owned/licensed model; clean deformation topology; reusable body and facial rig; consistent materials, lighting and proportions; mobile-ready geometry/textures/clips; lower-end Android fallback; source project and exports versioned. Validate avatar readability at small sizes and performance on representative Android devices. Do not call assets production-complete until model, rig, animation and device tests pass.
 
 ## Consistency and change control
-This guide and the selected Concept C sheet are the canonical references. Do not regenerate a different face or outfit per screen. Changes to face, hair, silhouette, outfit or core palette require an explicit brand revision.
+The owner-approved Concept C artwork in Branding Kit V2 is the canonical visual reference. This guide is subordinate to the live identity lock at `docs/brand/GABROO_LIVE_CHARACTER_IDENTITY_LOCK.md`. Do not regenerate a different face or outfit per screen. Changes to face, hair, silhouette, outfit or core palette are prohibited unless the product owner explicitly approves a new brand revision.
 
 ## Status
-- Concept C: **Selected**.
+- Branding Kit V2 Concept C: **Owner-approved and identity-locked**.
 - Visual identity: **Locked v1.1**.
 - Concept sheet: reference artwork, **not** a production 3D model.
 - Production model, rig, animation, export validation and speech integration: **Pending implementation**.
