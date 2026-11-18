@@ -12,6 +12,8 @@ This is an identity-preservation requirement, not a request to create a characte
 
 The canonical source must be imported into the repository as a versioned, access-controlled master asset before production avatar implementation. Until that happens, the supplied approved artwork remains the only valid visual reference; no generated image is an acceptable substitute.
 
+The exact approved reference sheet has now been located and checksum-verified. Its source details are recorded in `docs/brand/GABROO_APPROVED_ASSET_MANIFEST.md`. The PNG itself has not yet been committed to the repository; the manifest explicitly distinguishes source verification from repository import.
+
 ## 2. What must remain identical
 
 Preserve the approved character's:
@@ -52,15 +54,15 @@ These are animation/rendering states of one character, not new character variant
 ## 5. Asset provenance and release gate
 
 Before implementation can be marked production-ready:
-1. Import the owner-approved Branding Kit V2 master artwork without alteration.
-2. Record its original filename, source, dimensions, checksum and approval/version in an asset manifest.
+1. Import the owner-approved Branding Kit V2 reference artwork byte-for-byte.
+2. Record its original filename, source, dimensions, checksum and approval/version in `docs/brand/GABROO_APPROVED_ASSET_MANIFEST.md`.
 3. Store the master as read-only source material; derived model, textures, rig and exports must reference that source/version.
 4. Produce a model-sheet comparison (front, three-quarter, profile and full-body) for owner review.
 5. Obtain explicit owner approval of the 3D model before animation production.
 6. Run visual regression checks against the approved master for all app surfaces and avatar states.
 7. Verify no vendor fallback or loading state swaps in a different character.
 
-Do not invent or hardcode an asset checksum. Record it only after the exact approved source file is imported and hashed.
+The manifest checksum is calculated from the exact owner-provided PNG bytes. After repository upload, recompute SHA-256 from the committed bytes and require an exact match before marking the repository-import gate complete.
 
 ## 6. Animation and live conversation quality
 
@@ -83,12 +85,12 @@ The voice must be benchmarked and approved independently. The chosen voice direc
 ## 8. Implementation status
 
 - Approved visual source: **selected and owner-approved in Branding Kit V2**.
-- Identity lock: **defined by this document**.
-- Approved master asset committed to repository with manifest/checksum: **pending**.
+- Exact approved reference sheet: **located, inspected and SHA-256 verified; manifest recorded**.
+- Reference PNG committed byte-for-byte to repository: **pending**.
 - Production 3D model and owner visual sign-off: **pending**.
 - Facial/body rig and animation states: **pending**.
-- Audio-timestamp-driven lip-sync: **pending**.
+- Audio-timestamp-driven lip-sync: **contract added; renderer integration pending**.
 - Live interruptible tutor conversation: **pending**.
 - Production voice selection: **pending benchmark and owner approval**.
 
-Documentation does not imply that any pending production capability is already implemented.
+Documentation and contracts do not imply that any pending production capability is already implemented.
