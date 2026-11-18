@@ -21,9 +21,11 @@ describe("Gabroo learner text-turn lifecycle",()=>{
   expect(failed.phase).toBe("failed");
   expect(failed.error).toHaveLength(300);
  });
- it("requires a non-empty turn ID and supports dismissal",()=>{
+ it("requires a non-empty turn ID and ignores stale dismissal",()=>{
   expect(()=>reduceGabrooTurn(initialGabrooTurnState,{type:"submitted",turn_id:"  "})).toThrow();
   const thinking=reduceGabrooTurn(initialGabrooTurnState,{type:"submitted",turn_id:"turn-1"});
-  expect(reduceGabrooTurn(thinking,{type:"dismissed"})).toEqual(initialGabrooTurnState);
+  const newer=reduceGabrooTurn(thinking,{type:"submitted",turn_id:"turn-2"});
+  expect(reduceGabrooTurn(newer,{type:"dismissed",turn_id:"turn-1"})).toEqual(newer);
+  expect(reduceGabrooTurn(newer,{type:"dismissed",turn_id:"turn-2"})).toEqual(initialGabrooTurnState);
  });
 });
