@@ -274,7 +274,7 @@ export default function GabrooScreen(){
   try{
    await Audio.setAudioModeAsync({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
    const created=await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-   if(operation!==transcriptionSequenceRef.current||!appIsActiveRef.current){
+   if(operation!==transcriptionSequenceRef.current||!appIsActiveRef.current||!tutorScreenFocusedRef.current){
     created.recording.setOnRecordingStatusUpdate(null);
     const abandonedUri=created.recording.getURI();
     await created.recording.stopAndUnloadAsync().catch(()=>undefined);
@@ -291,8 +291,10 @@ export default function GabrooScreen(){
    });
    setTranscriptionRecording(true);
   }catch(reason){
-   await discardTranscriptionAudio();
-   setSpeechNotice(reason instanceof Error?reason.message:"Could not start voice recording.");
+   if(operation===transcriptionSequenceRef.current&&appIsActiveRef.current&&tutorScreenFocusedRef.current){
+    await discardTranscriptionAudio();
+    setSpeechNotice(reason instanceof Error?reason.message:"Could not start voice recording.");
+   }
   }finally{
    transcriptionOperationRef.current=false;
    if(operation===transcriptionSequenceRef.current)setTranscriptionBusy(false);
