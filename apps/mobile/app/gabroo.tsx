@@ -321,8 +321,14 @@ export default function GabrooScreen(){
  useEffect(()=>{
   const subscription=AppState.addEventListener("change",state=>{
    appIsActiveRef.current=state==="active";
-   if(state!=="active"&&recordingRef.current&&!recordingOperationRef.current){
-    void stopAndDiscardLocalCapture();
+   if(state!=="active"){
+    // Do not let device TTS continue after Gabroo leaves the foreground.
+    speechRunRef.current+=1;
+    void Speech.stop();
+    setSpeakingMessageId(null);
+    if(recordingRef.current&&!recordingOperationRef.current){
+     void stopAndDiscardLocalCapture();
+    }
    }
   });
   return ()=>subscription.remove();
