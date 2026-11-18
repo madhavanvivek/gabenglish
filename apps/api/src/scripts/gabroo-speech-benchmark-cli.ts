@@ -1,5 +1,6 @@
 import {readFile,realpath,stat} from "node:fs/promises";
 import {isAbsolute,relative,resolve,sep} from "node:path";
+import {pathToFileURL} from "node:url";
 import {parseGabrooSpeechBenchmarkManifest,GABROO_BENCHMARK_MAX_AUDIO_BYTES} from "@gabenglish/contracts";
 
 export interface GabrooBenchmarkValidationSummary {
@@ -64,4 +65,4 @@ async function main():Promise<void>{
   process.exitCode=1;
  }
 }
-if(process.argv[1]&&import.meta.url===new URL("file://"+process.argv[1]).href)void main();
+if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)void main();
