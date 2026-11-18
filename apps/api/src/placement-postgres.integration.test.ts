@@ -495,6 +495,27 @@ integration("PostgreSQL placement session integration",()=>{
    await app.close();
   }
  });
+ it("uses the fixed 123456 OTP only in development and keeps production fail-closed",async()=>{
+  if(!pool||!migrationApplied)return;
+  const email="dev-otp-"+randomUUID()+"@example.test";
+  const development=await buildApp(loadConfig({NODE_ENV:"development"}),async()=>true,pool,{send:async()=>true});
+  const production=await buildApp(loadConfig({NODE_ENV:"production",AUTH_TOKEN_SECRET:"production-test-secret-at-least-32-characters"}),async()=>true,pool);
+  try{
+   const requested=await development.inject({method:"POST",url:"/api/v1/auth/otp/request",payload:{channel:"email",destination:email}});
+   expect(requested.statusCode).toBe(202);
+   const rejected=await development.inject({method:"POST",url:"/api/v1/auth/otp/verify",payload:{challenge_id:requested.json().challenge_id,code:"654321"}});
+   expect(rejected.statusCode).toBe(400);
+   const verified=await development.inject({method:"POST",url:"/api/v1/auth/otp/verify",payload:{challenge_id:requested.json().challenge_id,code:"123456"}});
+   expect(verified.statusCode).toBe(200);
+   expect(verified.json().user.verified_channel).toBe("email");
+   const productionRequest=await production.inject({method:"POST",url:"/api/v1/auth/otp/request",payload:{channel:"email",destination:"prod-"+email}});
+   expect(productionRequest.statusCode).toBe(503);
+  }finally{
+   await pool.query("DELETE FROM users WHERE email_normalized=$1",[email]);
+   await development.close();
+   await production.close();
+  }
+ });
  it("verifies an email OTP once and issues a learner session only after verification",async()=>{
   if(!pool||!migrationApplied)return;
   let deliveredCode="";
