@@ -1,0 +1,91 @@
+# Gabroo Speech Recognition Benchmark Kit
+
+Version 1.0 — evaluation design only; no provider is configured by this document.
+
+## Purpose
+Provide one repeatable, privacy-conscious test set and scoring procedure for comparing speech-to-text adapters before any provider is enabled for learners.
+
+## Dataset record format
+Store one JSON object per utterance in a local, access-controlled JSONL file. Do not commit raw learner audio or personal data to Git.
+
+```json
+{
+  "sample_id": "ml_0001",
+  "split": "held_out",
+  "mode": "ml-IN",
+  "audio_file": "restricted-audio/ml_0001.wav",
+  "mime_type": "audio/wav",
+  "duration_ms": 4200,
+  "speaker_id": "speaker_anon_001",
+  "speech_profile": "adult_beginner",
+  "environment": "quiet",
+  "reference_text": "എനിക്ക് ഇംഗ്ലീഷ് പഠിക്കണം",
+  "reference_language_spans": [
+    {"start_char": 0, "end_char": 26, "language": "ml"}
+  ],
+  "notes": "Consent recorded; no direct identifiers"
+}
+```
+
+The example is a schema illustration, not a real learner sample. Keep the audio outside the repository. Speaker IDs must be random pseudonyms, not account IDs, phone numbers or names. Keep the identity/consent key separately with restricted access.
+
+## Required corpus coverage
+- At least 100 Malayalam utterances, 100 Malayalam-English code-switched utterances and 100 Malayalam-accented English utterances before making a selection.
+- Include beginner and intermediate speakers, varied speaking rates, hesitation, pauses, self-correction, numbers, names, borrowed English words and realistic mobile-microphone conditions.
+- Capture quiet and moderate-noise conditions. Record device/microphone class without collecting unnecessary device identifiers.
+- Obtain informed consent and document permitted evaluation use, retention period, deletion contact and access controls.
+- Do not collect minors' voice data in the initial benchmark.
+- Use speaker-disjoint train/tuning and held-out evaluation splits. Do not tune prompts/settings against the held-out split.
+
+## Candidate result format
+Record one JSONL result per candidate and sample:
+
+```json
+{
+  "candidate_id": "candidate_a",
+  "service_version": "exact-version",
+  "region": "documented-region",
+  "sample_id": "ml_0001",
+  "transcript": "എനിക്ക് ഇംഗ്ലീഷ് പഠിക്കണം",
+  "detected_language": "ml",
+  "latency_ms": 1840,
+  "audio_seconds": 4.2,
+  "request_status": "success",
+  "error_class": null,
+  "estimated_cost": null
+}
+```
+
+Do not store provider request/response headers that may contain credentials, tokens, project identifiers or personal data. Never write API keys to result files.
+
+## Scoring
+Calculate results separately for each learner-selected mode and each environment:
+1. Malayalam: character error rate (CER), plus human-rated meaning preservation.
+2. English: word error rate (WER), plus intelligibility of learner intent.
+3. Mixed speech: WER and CER overall, plus language-span error and code-switch preservation.
+4. Operations: success rate, median and p95 latency, timeout rate and measured cost per audio minute.
+5. Human review: two Malayalam-fluent reviewers independently rate transcript meaning preservation and code-switch handling; adjudicate material disagreements.
+
+Normalise Unicode consistently before calculating CER. Do not transliterate Malayalam into Latin script to make scoring easier. Document tokenisation rules for Malayalam and English separately. Report empty outputs and failed requests as failures; do not silently omit them from accuracy denominators.
+
+## Decision gates
+- No candidate passes on language-table support alone.
+- A candidate must pass legal/commercial-use, security, data-processing, retention/deletion and region review before real learner audio is submitted.
+- A candidate must meet a pre-agreed minimum quality threshold in every required speech mode; strong English results cannot hide poor Malayalam results.
+- Blind-review held-out examples before selecting a default.
+- Keep a provider-neutral adapter and allow provider/model replacement without changing mobile API contracts.
+- Record limitations explicitly. If no candidate meets the mixed-language bar, keep mixed recognition unavailable or use a separately benchmarked strategy; never mislabel single-language recognition as code-switch capable.
+
+## Release checklist
+- [ ] Consent and collection protocol approved
+- [ ] 300+ consented/appropriately licensed samples collected
+- [ ] Speaker-disjoint split verified
+- [ ] Reference transcripts and language spans double-reviewed
+- [ ] Candidate versions, regions and settings frozen
+- [ ] Held-out tests run with equivalent audio and settings
+- [ ] CER/WER, code-switch, human review, latency and cost results published
+- [ ] Privacy, security, retention and commercial terms approved
+- [ ] Provider owner approval and production rollout plan recorded
+
+## Current status
+The application has a provider-neutral recognition contract and a learner-facing language selector. This benchmark kit does not connect a provider, upload any audio, or claim that recognition is production-ready. The configured API remains unavailable until a provider is deliberately selected and wired through the server configuration.
