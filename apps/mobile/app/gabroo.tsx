@@ -327,7 +327,10 @@ export default function GabrooScreen(){
    setSpeechNotice("Recording ready. It has not been uploaded. Choose Review & transcribe when you are ready.");
   }catch(reason){
    if(operation===transcriptionSequenceRef.current&&transcriptionRecordingRef.current===recording){
-    await discardTranscriptionAudio();
+    transcriptionRecordingRef.current=null;
+    const failedUri=recording.getURI()??uri;
+    if(failedUri)await FileSystem.deleteAsync(failedUri,{idempotent:true}).catch(()=>undefined);
+    setTranscriptionRecording(false);
     setSpeechNotice(reason instanceof Error?reason.message:"Could not finish the recording.");
    }
   }finally{
