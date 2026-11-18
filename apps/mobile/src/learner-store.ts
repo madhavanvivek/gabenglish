@@ -1,0 +1,1 @@
+import { LearnerLocalStore } from "./learner-local-store";\nimport { ExpoSqliteLearnerDriver } from "./expo-sqlite-learner-driver";\n\n/** Shared device-local learner store for the mobile application. */\nexport const learnerLocalStore = new LearnerLocalStore(new ExpoSqliteLearnerDriver());\n
