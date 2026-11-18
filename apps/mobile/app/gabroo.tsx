@@ -20,6 +20,7 @@ export default function GabrooScreen(){
  const [active,setActive]=useState<GabrooConversation|null>(null);
  const activeConversationIdRef=useRef<string|null>(null);
  const conversationOpenSequenceRef=useRef(0);
+ const loadSequenceRef=useRef(0);
  const [messages,setMessages]=useState<GabrooConversationMessage[]>([]);
  const [draft,setDraft]=useState("");
  const [mode,setMode]=useState<GabrooConversationMode>("gentle_correction");
@@ -53,26 +54,42 @@ export default function GabrooScreen(){
  const turnSequenceRef=useRef(0);
  const turnAbortRef=useRef<AbortController|null>(null);
  const playbackStateRef=useRef<GabrooPlaybackState>(initialGabrooPlaybackState);
- const load=useCallback(async()=>{
+ const load=useCallback(async(sequence:number)=>{
   setLoading(true);setError("");
   try{
-   const status=await getSubscriptionStatus();setSubscription(status);
-   const learner=await getLearnerMe();setSpeechRate(learner.preferences?.gabroo_speech_rate??1);
+   const status=await getSubscriptionStatus();
+   if(sequence!==loadSequenceRef.current)return;
+   setSubscription(status);
+   const learner=await getLearnerMe();
+   if(sequence!==loadSequenceRef.current)return;
+   setSpeechRate(learner.preferences?.gabroo_speech_rate??1);
    if(status.active){
     const result=await listGabrooConversations();
+    if(sequence!==loadSequenceRef.current)return;
     setConversations(result.conversations);
-    try{setRecognitionStatus(await getGabrooRecognitionStatus());}
-    catch{setRecognitionStatus(null);}
+    try{
+     const recognition=await getGabrooRecognitionStatus();
+     if(sequence!==loadSequenceRef.current)return;
+     setRecognitionStatus(recognition);
+    }catch{
+     if(sequence===loadSequenceRef.current)setRecognitionStatus(null);
+    }
    }else{
+    if(sequence!==loadSequenceRef.current)return;
     setRecognitionStatus(null);
     setConversations([]);activeConversationIdRef.current=null;setTurnState(initialGabrooTurnState);setActive(null);setMessages([]);
    }
-  }catch(reason){setError(reason instanceof Error?reason.message:"Could not load Gabroo.");}
-  finally{setLoading(false);}
+  }catch(reason){
+   if(sequence===loadSequenceRef.current)setError(reason instanceof Error?reason.message:"Could not load Gabroo.");
+  }finally{
+   if(sequence===loadSequenceRef.current)setLoading(false);
+  }
  },[]);
  useFocusEffect(useCallback(()=>{
-  void load();
+  const sequence=++loadSequenceRef.current;
+  void load(sequence);
   return ()=>{
+   loadSequenceRef.current+=1;
    conversationOpenSequenceRef.current+=1;
    activeConversationIdRef.current=null;
    turnAbortRef.current?.abort();turnAbortRef.current=null;
