@@ -167,6 +167,9 @@ export async function playGabrooSpeechSegments(
  for(const segment of segments){
   if(shouldStop())break;
   await playback.speak(segment,rate);
+  // A provider may resolve its promise when stop() interrupts playback.
+  // Re-check cancellation before counting the segment as fully played.
+  if(shouldStop())break;
   completed+=1;
  }
  return completed;
