@@ -88,3 +88,18 @@ Normalise Unicode consistently before calculating CER. Do not transliterate Mala
 
 ## Current status
 The application has a provider-neutral recognition contract, learner-facing language selector, offline WER/CER scoring, JSONL validation and report aggregation. The parser and report builder operate on text records only: they do not read audio, upload files or contact a provider. The configured API remains unavailable until a provider is deliberately selected and wired through the server configuration.
+
+
+## Local execution boundary
+
+The local execution contracts are implemented in:
+- `packages/contracts/src/gabroo-speech-benchmark-manifest.ts`: strict JSONL manifest validation, unique sample IDs, relative audio paths, MIME/duration checks and 10 MB audio-buffer limit.
+- `packages/contracts/src/gabroo-speech-benchmark-executor.ts`: sequential execution of explicitly enabled adapters, caller-supplied local audio loading, held-out-only default, per-request timeout/cancellation and JSONL result output.
+
+The executor has no filesystem or network access. The caller supplies `loadAudio`; audio paths are validated as relative paths without traversal, but the application that resolves those paths must still enforce an approved benchmark root and must not follow symlinks outside it. Adapter implementations are injected by the caller. A mock adapter is used in automated tests; no production provider is configured.
+
+The executor copies audio bytes for each adapter so one adapter cannot mutate the buffer observed by another. Adapter errors are reduced to failure records and are not copied into benchmark output. Do not place secrets, request headers or raw audio in logs. Cost estimates must be finite and non-negative. Tuning samples are excluded unless the caller explicitly opts in.
+
+## Execution status
+
+Manifest validation and the provider-neutral executor are code-level capabilities. They have not yet run against a real audio corpus or a real speech provider. The executor must only be invoked with approved, consented, licensed local samples and an explicitly enabled candidate configuration after the decision gates above are satisfied.
