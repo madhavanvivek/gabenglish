@@ -162,7 +162,7 @@ export default function GabrooScreen(){
    if(activeConversationIdRef.current!==conversationId)return;
    setTurnState(current=>reduceGabrooTurn(current,{type:"failed",turn_id:turnId,reason:reason instanceof Error?reason.message:"Could not send your message."}));
    setError(reason instanceof AuthApiError&&reason.status===503?"Gabroo could not reply just now. Your message was not saved. Please try again.":reason instanceof Error?reason.message:"Could not send your message.");
-  }finally{if(turnAbortRef.current===controller)turnAbortRef.current=null;setBusy(false);}
+  }finally{if(turnAbortRef.current===controller){turnAbortRef.current=null;setBusy(false);}}
  };
  const stopSpeech=async()=>{
   speechRunRef.current+=1;
@@ -330,7 +330,7 @@ export default function GabrooScreen(){
    if(activeConversationIdRef.current!==conversationId)return;
    setTurnState(current=>reduceGabrooTurn(current,{type:"failed",turn_id:turnId,reason:reason instanceof Error?reason.message:"Could not send the reviewed transcript."}));
    setError(reason instanceof Error?reason.message:"Could not send the reviewed transcript.");
-  }finally{if(turnAbortRef.current===controller)turnAbortRef.current=null;setBusy(false);}
+  }finally{if(turnAbortRef.current===controller){turnAbortRef.current=null;setBusy(false);}}
  };
  const requestVoicePermission=async()=>{
   if(!voiceConsent||voicePermissionBusy)return;
