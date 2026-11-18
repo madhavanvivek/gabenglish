@@ -48,6 +48,7 @@ export default function GabrooScreen(){
  const transcriptionRecordingRef=useRef<Audio.Recording|null>(null);
  const transcriptionUriRef=useRef<string|null>(null);
  const transcriptionOperationRef=useRef(false);
+ const transcriptionSequenceRef=useRef(0);
  const recordingRef=useRef<Audio.Recording|null>(null);
  const recordingOperationRef=useRef(false);
  const appIsActiveRef=useRef(true);
@@ -93,6 +94,7 @@ export default function GabrooScreen(){
    loadSequenceRef.current+=1;
    conversationOpenSequenceRef.current+=1;
    conversationMutationSequenceRef.current+=1;
+   transcriptionSequenceRef.current+=1;
    activeConversationIdRef.current=null;
    turnAbortRef.current?.abort();turnAbortRef.current=null;
    setTurnState(initialGabrooTurnState);
@@ -247,6 +249,7 @@ export default function GabrooScreen(){
   }
  };
  const discardTranscriptionAudio=async()=>{
+  transcriptionSequenceRef.current+=1;
   const recording=transcriptionRecordingRef.current;
   transcriptionRecordingRef.current=null;
   const uri=transcriptionUriRef.current??recording?.getURI()??null;
@@ -315,17 +318,24 @@ export default function GabrooScreen(){
  const reviewAndTranscribe=async()=>{
   const uri=transcriptionUriRef.current;
   if(!uri||!transcriptionConsent||!recognitionStatus?.available||transcriptionBusy)return;
+  const operation=++transcriptionSequenceRef.current;
   setTranscriptionBusy(true);setSpeechNotice("");
   try{
    const result=await recognizeGabrooAudio({uri,mimeType:"audio/mp4",language:"ml-en",consentGranted:true});
+   if(operation!==transcriptionSequenceRef.current)return;
    setTranscript(result.transcript);setReviewedTranscript(result.transcript.text);
-   const uploadedUri=transcriptionUriRef.current;transcriptionUriRef.current=null;
-   if(uploadedUri)await FileSystem.deleteAsync(uploadedUri,{idempotent:true}).catch(()=>undefined);
-   setSpeechNotice("Transcript ready. Review or edit it below. Nothing has been sent to Gabroo yet.");
+   if(transcriptionUriRef.current===uri){
+    transcriptionUriRef.current=null;
+    await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+   }
+   if(operation===transcriptionSequenceRef.current)setSpeechNotice("Transcript ready. Review or edit it below. Nothing has been sent to Gabroo yet.");
   }catch(reason){
+   if(operation!==transcriptionSequenceRef.current)return;
    setSpeechNotice(reason instanceof Error?reason.message:"Could not transcribe this recording. Your audio will be discarded.");
    await discardTranscriptionAudio();
-  }finally{setTranscriptionBusy(false);}
+  }finally{
+   if(operation===transcriptionSequenceRef.current)setTranscriptionBusy(false);
+  }
  };
  const sendReviewedTranscript=async()=>{
   if(!active||!transcript||!reviewedTranscript.trim()||busy)return;
