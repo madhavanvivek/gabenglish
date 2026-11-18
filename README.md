@@ -5,57 +5,51 @@
 Gabenglish is an AI-assisted spoken-English learning product initially designed for Malayalam-speaking learners in Kerala and India. Gabroo is its friendly, funny, energetic AI tutor.
 
 ## Status
-Phase 0: documentation and foundation. This repository is the canonical home for product, UX, technical, AI, curriculum, security and delivery specifications. Application implementation follows review of this foundation.
+Product and architecture foundation with active implementation planning. See the roadmap and live tutor specification for delivery status. Do not interpret a specification as proof that a feature is implemented.
 
 ## Locked decisions
 - Product: Gabenglish
-- Tutor: Gabroo
-- Voice direction: male, funny, energetic and friendly
-- Malayalam style: natural Kerala Malayalam with casual slang
-- Humour: funny and gently teasing; never insulting, humiliating or discouraging
+- Tutor: Gabroo — the single approved **Concept C — Signature Gabroo** character. Character identity is locked; no alternate designs or substitute avatars.
+- Voice direction: male, funny, energetic, friendly and patient; natural Kerala Malayalam with casual, understandable slang.
+- Exact production voice identity: pending blind benchmark and owner approval; the earlier basic synthesized demo is not final.
 - Hosting: dedicated Render environment
 - Mobile: React Native + Expo + TypeScript; Android first, iOS-ready shared architecture
 - Backend: Node.js + TypeScript
 - Database: PostgreSQL
 - Admin: React + TypeScript
-- Character rendering: 3D
+- Character rendering: 3D using the approved Gabroo identity
 - Voice provider: selected only after benchmark
-
-**Open character decision:** Explore a kid-style Gabroo and a bigger/adult-style Gabroo (plus an ageless stylised option) before approval. Personality is locked; physical appearance is not. No concept image is canonical until explicitly approved.
 
 ## Documentation
 - Product: docs/product/PRODUCT_SPECIFICATION.md
 - UX: docs/ux/UX_SPECIFICATION.md
-- Character: docs/brand/GABROO_CHARACTER_GUIDE.md
+- Character identity: docs/brand/GABROO_CHARACTER_GUIDE.md
+- Character production: docs/brand/GABROO_PRODUCTION_SPECIFICATION.md
+- Live tutor and onboarding: docs/ai/GABROO_LIVE_CONVERSATION_SPEC.md
+- AI and speech evaluation: docs/ai/AI_SPEECH_EVALUATION.md
 - Architecture: docs/architecture/TECHNICAL_ARCHITECTURE.md
 - Data model: docs/architecture/DATA_MODEL.md
 - API: docs/architecture/API_SPECIFICATION.md
-- AI and speech: docs/ai/AI_SPEECH_EVALUATION.md
 - Curriculum: docs/learning/CURRICULUM_FRAMEWORK.md
 - Security: docs/security/SECURITY_PRIVACY.md
 - Phase 0: docs/roadmap/PHASE_0_PLAN.md
 
-## Principles
-1. Keep Gabenglish independent of all other products and repositories.
-2. Document decisions before implementation.
-3. Keep AI and speech vendors replaceable behind backend adapters.
-4. Prioritise learning accuracy, confidence, privacy and accessibility.
-5. Do not claim fluency or certification based on unvalidated internal scores.
-6. Do not copy proprietary code, artwork or curriculum from other products.
-7. Never commit credentials, private recordings or production data.
+## Product principles
+1. Gabroo is a live, responsive tutor—not a prerecorded welcome clip or slideshow.
+2. Use only the exact approved Gabroo character identity across every surface.
+3. Finalize the Gabroo voice only after Kerala Malayalam quality benchmarking and owner approval.
+4. Keep speech, recognition, conversation and animation vendors replaceable behind adapters.
+5. Prioritise learning accuracy, confidence, privacy and accessibility.
+6. Do not claim fluency or certification based on unvalidated internal scores.
+7. Do not copy proprietary code, artwork or curriculum from other products.
+8. Never commit credentials, private recordings or production data.
 
-## Planned repository layout
+## Repository structure
 - apps/mobile
-- apps/admin
-- services/api
-- services/worker
-- packages/contracts
-- packages/design-system
-- packages/shared
-- infrastructure/render
+- apps/api
 - docs/
+- infrastructure/
 
-These are planned boundaries, not completed applications.
+## Current implementation note
+The mobile app directory currently contains only a not-found route; a runnable registration-to-Gabroo onboarding flow and production avatar runtime are not yet present. The live tutor specification is the implementation contract. Production 3D assets and final voice selection are also pending; use the approved static artwork/placeholder until approved production assets are supplied.
 
-## Phase 0 exit
-Product/UX scope, character direction, architecture, data model, API contracts, AI/speech evaluation, security approach, Render topology and a prioritised Phase 1 backlog are reviewed and approved.
