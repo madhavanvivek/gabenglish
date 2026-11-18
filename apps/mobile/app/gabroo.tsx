@@ -2,7 +2,7 @@ import {useCallback,useEffect,useRef,useState} from "react";
 import * as Speech from "expo-speech";
 import {Audio} from "expo-av";
 import * as FileSystem from "expo-file-system";
-import {confirmGabrooTranscript,GABROO_LOCAL_CAPTURE_MAX_MS,playGabrooSpeechSegments,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooVoiceSessionState,type GabrooTranscript} from "@gabenglish/contracts";
+import {confirmGabrooTranscript,GABROO_LOCAL_CAPTURE_MAX_MS,initialGabrooPlaybackState,playGabrooSpeechSegments,reduceGabrooPlayback,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooPlaybackState,type GabrooVoiceSessionState,type GabrooTranscript} from "@gabenglish/contracts";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
@@ -47,6 +47,7 @@ export default function GabrooScreen(){
  const recordingOperationRef=useRef(false);
  const appIsActiveRef=useRef(true);
  const speechRunRef=useRef(0);
+ const playbackStateRef=useRef<GabrooPlaybackState>(initialGabrooPlaybackState);
  const load=useCallback(async()=>{
   setLoading(true);setError("");
   try{
@@ -111,6 +112,10 @@ export default function GabrooScreen(){
  };
  const stopSpeech=async()=>{
   speechRunRef.current+=1;
+  const activePlayback=playbackStateRef.current;
+  if(activePlayback.phase==="speaking"&&activePlayback.playback_id){
+   playbackStateRef.current=reduceGabrooPlayback(activePlayback,{type:"interrupted",playback_id:activePlayback.playback_id});
+  }
   await Speech.stop();
   setSpeakingMessageId(null);
  };
@@ -125,6 +130,11 @@ export default function GabrooScreen(){
  const speakMessage=async(message:GabrooConversationMessage)=>{
   if(speakingMessageId===message.id){await stopSpeech();return;}
   const run=++speechRunRef.current;
+  const playbackId=`${message.id}:${run}`;
+  const previousPlayback=playbackStateRef.current;
+  if(previousPlayback.phase==="speaking"&&previousPlayback.playback_id){
+   playbackStateRef.current=reduceGabrooPlayback(previousPlayback,{type:"interrupted",playback_id:previousPlayback.playback_id});
+  }
   await Speech.stop();setSpeakingMessageId(null);setSpeechNotice("");
   try{
    const segments=splitGabrooSpeechText(message.content);
@@ -137,8 +147,9 @@ export default function GabrooScreen(){
     setSpeechNotice("A Malayalam device voice is not installed. Install a Malayalam text-to-speech voice in your device settings to listen to this reply.");
     return;
    }
+   playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"started",playback_id:playbackId});
    setSpeakingMessageId(message.id);
-   await playGabrooSpeechSegments(segments,{
+   const completed=await playGabrooSpeechSegments(segments,{
     speak:async(segment,rate)=>{
      const voice=segment.language==="ml"?malayalamVoice:englishVoice;
      await speakSegment(segment.text,{
@@ -146,11 +157,21 @@ export default function GabrooScreen(){
       language:voice?.language??(segment.language==="ml"?"ml-IN":"en-IN"),
       ...(voice?{voice:voice.identifier}:{})
      });
+     if(run===speechRunRef.current){
+      playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"segment_completed",playback_id:playbackId});
+     }
     }
    },speechRate,()=>run!==speechRunRef.current);
-   if(run===speechRunRef.current)setSpeakingMessageId(null);
-  }catch{
    if(run===speechRunRef.current){
+    playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"finished",playback_id:playbackId});
+    setSpeakingMessageId(null);
+   }
+  }catch(reason){
+   if(run===speechRunRef.current){
+    const current=playbackStateRef.current;
+    if(current.phase==="speaking"&&current.playback_id===playbackId){
+     playbackStateRef.current=reduceGabrooPlayback(current,{type:"failed",playback_id:playbackId,reason:reason instanceof Error?reason.message:"Speech playback failed."});
+    }
     setSpeakingMessageId(null);
     setSpeechNotice("Your device could not play this reply. Check its text-to-speech voice settings.");
    }
