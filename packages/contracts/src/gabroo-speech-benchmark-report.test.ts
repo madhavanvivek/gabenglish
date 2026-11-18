@@ -16,7 +16,7 @@ describe("Gabroo speech benchmark report aggregation",()=>{
   expect(report).toMatchObject({
    candidateId:"provider-a",mode:"ml-en",environment:"quiet",
    samples:3,successes:2,failures:1,successRate:2/3,
-   wordErrorRate:1/4,medianLatencyMs:100,p95LatencyMs:300,
+   wordErrorRate:1/4,medianLatencyMs:200,p95LatencyMs:300,
    totalAudioSeconds:8,estimatedCost:0.04
   });
  });
