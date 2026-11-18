@@ -68,7 +68,7 @@ export async function executeGabrooSpeechBenchmark(options:GabrooBenchmarkExecut
    attempted++;
    const controller=new AbortController();
    const abort=()=>controller.abort();
-   const onCancel=()=>{controller.abort();};
+   let onCancel=()=>{controller.abort();};
    options.signal?.addEventListener("abort",abort,{once:true});
    let timeout:ReturnType<typeof setTimeout>|undefined;
    const started=Date.now();
