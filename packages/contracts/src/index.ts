@@ -15,6 +15,7 @@ export * from "./gabroo-speech.js";
 
 export * from "./gabroo-avatar.js";
 export * from "./gabroo-conversation.js";
+export * from "./gabroo-avatar-runtime.js";
 
 export * from "./gabroo-recognition.js";
 
