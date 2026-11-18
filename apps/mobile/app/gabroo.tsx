@@ -62,7 +62,7 @@ export default function GabrooScreen(){
     catch{setRecognitionStatus(null);}
    }else{
     setRecognitionStatus(null);
-    setConversations([]);setActive(null);setMessages([]);
+    setConversations([]);setTurnState(initialGabrooTurnState);setActive(null);setMessages([]);
    }
   }catch(reason){setError(reason instanceof Error?reason.message:"Could not load Gabroo.");}
   finally{setLoading(false);}
@@ -89,7 +89,7 @@ export default function GabrooScreen(){
  },[load]));
  const openConversation=async(item:GabrooConversation)=>{
   setBusy(true);setError("");
-  try{const result=await getGabrooConversation(item.id);setActive(result.conversation);setMode(result.conversation.mode);setMessages(result.messages);}
+  try{const result=await getGabrooConversation(item.id);setTurnState(initialGabrooTurnState);setActive(result.conversation);setMode(result.conversation.mode);setMessages(result.messages);}
   catch(reason){setError(reason instanceof Error?reason.message:"Could not open this conversation.");}
   finally{setBusy(false);}
  };
@@ -97,7 +97,7 @@ export default function GabrooScreen(){
   setBusy(true);setError("");
   try{
    const result=await createGabrooConversation({mode,support_language:"ml"});
-   setActive(result.conversation);setMode(result.conversation.mode);setMessages([]);setConversations(current=>[result.conversation,...current]);
+   setTurnState(initialGabrooTurnState);setActive(result.conversation);setMode(result.conversation.mode);setMessages([]);setConversations(current=>[result.conversation,...current]);
   }catch(reason){setError(reason instanceof AuthApiError&&reason.status===503? "Gabroo's conversation service is not connected yet. Your subscription and account are unchanged.":reason instanceof Error?reason.message:"Could not start a conversation.");}
   finally{setBusy(false);}
  };
