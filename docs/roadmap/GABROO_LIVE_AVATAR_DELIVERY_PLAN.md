@@ -17,11 +17,12 @@ The sole character is **Concept C — Signature Gabroo** from Gabenglish Brandin
 
 ### A. Master asset and provenance
 1. Use the exact approved PNG recorded in `docs/brand/GABROO_APPROVED_ASSET_MANIFEST.md`; its original bytes have been inspected and SHA-256 verified.
-2. Import the PNG byte-for-byte into the repository. After upload, recompute SHA-256 from the committed bytes and compare with the manifest.
-3. Keep the master read-only; all derived files must reference its checksum and version.
-4. Treat the sheet as a composite character reference, not as a transparent mascot export, layered source project, mesh, rig or animation package.
-5. Produce front, side, back and three-quarter production-model comparisons against the approved reference.
-6. Obtain owner approval of the production model before rigging/animation is accepted.
+2. Keep the asset manifest and identity lock in sync whenever the approved source changes.
+3. Import the PNG byte-for-byte into the repository. After upload, recompute SHA-256 from the committed bytes and compare with the manifest.
+4. Keep the master read-only; all derived files must reference its checksum and version.
+5. Treat the sheet as a composite character reference, not as a transparent mascot export, layered source project, mesh, rig or animation package.
+6. Produce front, side, back and three-quarter production-model comparisons against the approved reference.
+7. Obtain owner approval of the production model before rigging/animation is accepted.
 
 **Gate A:** byte-identical repository import, provenance recorded and model visually approved. No alternate character assets.
 
@@ -82,21 +83,24 @@ No gate is passed without recorded test evidence. A storyboard/static image is n
 ## 5. Immediate execution order
 1. Import the exact approved reference PNG byte-for-byte and verify its checksum in Git.
 2. Create the production model comparison directly from that source and obtain owner sign-off.
-3. Create the audition script, candidate scorecard and owner-review packet.
+3. Use `docs/ai/GABROO_VOICE_AUDITION_PROTOCOL.md` to run the identical audition script and blind scorecard for at least three candidates.
 4. Run contract typecheck/tests and integrate the renderer against the approved rig.
-5. Build registration-to-Meet-Gabroo state flow using approved artwork only.
-6. Integrate the voice only after owner approval.
-7. Connect streaming audio timing and interruptible live conversation.
-8. Run identity, conversation, lip-sync, accessibility and Android performance tests.
+5. Connect the conversation state machine to the actual tutor/audio runtime and test barge-in, stale completion events and reconnect recovery.
+6. Build registration-to-Meet-Gabroo state flow using approved artwork only.
+7. Integrate the voice only after owner approval.
+8. Connect streaming audio timing and interruptible live conversation.
+9. Run identity, conversation, lip-sync, accessibility and Android performance tests.
 
 ## 6. Verified implementation status
 - Concept C identity and personality direction: approved and locked.
 - Binding identity-lock document: present.
-- Exact approved reference sheet: located, inspected and SHA-256 verified; manifest recorded.
-- Reference PNG committed byte-for-byte to repository: pending.
+- Exact approved reference sheet: located, inspected and SHA-256 verified; manifest recorded in `docs/brand/GABROO_APPROVED_ASSET_MANIFEST.md`.
+- Reference PNG committed byte-for-byte to repository: pending; binary upload path required.
 - Voice direction: approved; exact voice: pending benchmark and owner approval.
 - Production 3D model, rig and animation: not verified as present.
-- Provider-neutral audio-timed viseme/expression/gesture contract and expanded unit tests: added in this delivery branch; CI and renderer integration pending.
+- Provider-neutral audio-timed viseme/expression/gesture contract and expanded timeline validation tests: added in this delivery branch; CI and renderer integration pending.
+- Provider-neutral live conversation state machine and interruption/recovery tests: added in this delivery branch; connection to the actual tutor/audio runtime pending.
+- Standard male Kerala Malayalam voice audition script and blind scorecard: documented; candidate testing and owner approval pending.
 - Streaming Malayalam voice, precise lip-sync and live interruptible avatar: not verified as implemented.
 - Registration-to-live-Gabroo onboarding: specified; end-to-end implementation and QA pending.
 
