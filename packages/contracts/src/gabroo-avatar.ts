@@ -5,66 +5,43 @@ import {z} from "zod";
  * rig. These are rig controls, not character variants or generated avatars.
  */
 export const gabrooVisemeShapeSchema=z.enum([
- "neutral",
- "closed_lips",
- "lip_teeth",
- "tongue_teeth",
- "open_wide",
- "open_mid",
- "open_round",
- "narrow_round",
- "spread"
+ "neutral","closed_lips","lip_teeth","tongue_teeth","open_wide",
+ "open_mid","open_round","narrow_round","spread"
 ]);
 export type GabrooVisemeShape=z.infer<typeof gabrooVisemeShapeSchema>;
 
 export const gabrooExpressionSchema=z.enum([
- "neutral",
- "warm_smile",
- "encouraging",
- "playful",
- "thinking",
- "surprised",
- "concerned",
- "laughing"
+ "neutral","warm_smile","encouraging","playful","thinking",
+ "surprised","concerned","laughing"
 ]);
 export type GabrooExpression=z.infer<typeof gabrooExpressionSchema>;
 
 export const gabrooGestureSchema=z.enum([
- "small_wave",
- "gentle_nod",
- "head_tilt",
- "open_palm",
- "thumbs_up",
- "subtle_shrug"
+ "small_wave","gentle_nod","head_tilt","open_palm","thumbs_up","subtle_shrug"
 ]);
 export type GabrooGesture=z.infer<typeof gabrooGestureSchema>;
 
 export const gabrooAvatarStateSchema=z.enum([
- "idle",
- "greeting",
- "listening",
- "thinking",
- "speaking",
- "interrupted",
- "recovering"
+ "idle","greeting","listening","thinking","speaking","interrupted","recovering"
 ]);
 export type GabrooAvatarState=z.infer<typeof gabrooAvatarStateSchema>;
 
-const timedEvent=z.object({
+const timedEventBase=z.object({
  start_ms:z.number().finite().nonnegative(),
  end_ms:z.number().finite().positive(),
  weight:z.number().min(0).max(1).default(1)
-}).refine(event=>event.end_ms>event.start_ms,{message:"Animation event end_ms must be after start_ms."});
+});
+const timedEvent=(event: z.infer<typeof timedEventBase>)=>event.end_ms>event.start_ms;
 
-export const gabrooVisemeEventSchema=timedEvent.extend({
+export const gabrooVisemeEventSchema=timedEventBase.extend({
  shape:gabrooVisemeShapeSchema
-});
-export const gabrooExpressionEventSchema=timedEvent.extend({
+}).refine(timedEvent,{message:"Animation event end_ms must be after start_ms."});
+export const gabrooExpressionEventSchema=timedEventBase.extend({
  expression:gabrooExpressionSchema
-});
-export const gabrooGestureEventSchema=timedEvent.extend({
+}).refine(timedEvent,{message:"Animation event end_ms must be after start_ms."});
+export const gabrooGestureEventSchema=timedEventBase.extend({
  gesture:gabrooGestureSchema
-});
+}).refine(timedEvent,{message:"Animation event end_ms must be after start_ms."});
 
 export const gabrooSpeechTimelineSchema=z.object({
  audio_id:z.string().trim().min(1).max(160),
@@ -87,6 +64,7 @@ export const gabrooSpeechTimelineSchema=z.object({
     });
    }
   });
+ }
 });
 export type GabrooSpeechTimeline=z.infer<typeof gabrooSpeechTimelineSchema>;
 
