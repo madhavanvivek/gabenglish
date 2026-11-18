@@ -69,6 +69,10 @@ export default function GabrooScreen(){
   void load();
   return ()=>{
    speechRunRef.current+=1;
+   const playback=playbackStateRef.current;
+   if(playback.phase==="speaking"&&playback.playback_id){
+    playbackStateRef.current=reduceGabrooPlayback(playback,{type:"interrupted",playback_id:playback.playback_id});
+   }
    void Speech.stop();
    const recording=recordingRef.current;
    recordingRef.current=null;
@@ -356,6 +360,10 @@ export default function GabrooScreen(){
    if(state!=="active"){
     // Do not let device TTS continue after Gabroo leaves the foreground.
     speechRunRef.current+=1;
+    const playback=playbackStateRef.current;
+    if(playback.phase==="speaking"&&playback.playback_id){
+     playbackStateRef.current=reduceGabrooPlayback(playback,{type:"interrupted",playback_id:playback.playback_id});
+    }
     void Speech.stop();
     setSpeakingMessageId(null);
     if(recordingRef.current&&!recordingOperationRef.current){
