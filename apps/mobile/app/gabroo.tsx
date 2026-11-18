@@ -96,6 +96,7 @@ export default function GabrooScreen(){
    conversationOpenSequenceRef.current+=1;
    conversationMutationSequenceRef.current+=1;
    transcriptionSequenceRef.current+=1;
+   void discardTranscriptionAudio();
    activeConversationIdRef.current=null;
    turnAbortRef.current?.abort();turnAbortRef.current=null;
    setTurnState(initialGabrooTurnState);
@@ -265,10 +266,18 @@ export default function GabrooScreen(){
  };
  const startTranscriptionCapture=async()=>{
   if(!transcriptionConsent||!recognitionStatus?.available||voicePermissionStatus!=="granted"||transcriptionOperationRef.current||transcriptionRecordingRef.current||recordingRef.current)return;
+  const operation=++transcriptionSequenceRef.current;
   transcriptionOperationRef.current=true;setTranscriptionBusy(true);setSpeechNotice("");
   try{
    await Audio.setAudioModeAsync({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
    const created=await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+   if(operation!==transcriptionSequenceRef.current||!appIsActiveRef.current){
+    created.recording.setOnRecordingStatusUpdate(null);
+    const abandonedUri=created.recording.getURI();
+    await created.recording.stopAndUnloadAsync().catch(()=>undefined);
+    if(abandonedUri)await FileSystem.deleteAsync(abandonedUri,{idempotent:true}).catch(()=>undefined);
+    return;
+   }
    transcriptionRecordingRef.current=created.recording;
    created.recording.setProgressUpdateInterval(250);
    created.recording.setOnRecordingStatusUpdate(status=>{
@@ -282,7 +291,9 @@ export default function GabrooScreen(){
    await discardTranscriptionAudio();
    setSpeechNotice(reason instanceof Error?reason.message:"Could not start voice recording.");
   }finally{
-   transcriptionOperationRef.current=false;setTranscriptionBusy(false);
+   transcriptionOperationRef.current=false;
+   if(operation===transcriptionSequenceRef.current)setTranscriptionBusy(false);
+   await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
    // If the app backgrounded while native recording creation was pending,
    // discard the capture as soon as the native handle becomes available.
    if(!appIsActiveRef.current&&(transcriptionRecordingRef.current||transcriptionUriRef.current)){
