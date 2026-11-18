@@ -49,7 +49,7 @@ export function reduceGabrooConversation(
 ):GabrooConversationState{
  switch(event.type){
   case "begin_greeting":
-   if(state.phase!=="idle"&&state.phase!=="recovering")return invalidTransition(state,event);
+   if(state.phase!=="idle")return invalidTransition(state,event);
    return {phase:"greeting",activeSpeech:null,lastError:null};
   case "greeting_finished":
    if(state.phase!=="greeting")return invalidTransition(state,event);
