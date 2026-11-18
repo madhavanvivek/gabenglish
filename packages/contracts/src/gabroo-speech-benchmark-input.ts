@@ -52,7 +52,7 @@ export function parseSpeechBenchmarkJsonl(source:string):{
    issues.push({line:index+1,message:result.error.issues.map(issue=>issue.path.join(".")+": "+issue.message).join("; ")});
    continue;
   }
-  const identity=result.data.candidateId+"\\u0000"+result.data.sampleId;
+  const identity=JSON.stringify([result.data.candidateId,result.data.sampleId]);
   if(seen.has(identity)){
    issues.push({line:index+1,message:"Duplicate candidate/sample result."});
    continue;
