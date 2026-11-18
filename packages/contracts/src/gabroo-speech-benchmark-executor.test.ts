@@ -18,6 +18,10 @@ describe("Gabroo local benchmark executor",()=>{
   const result=await executeGabrooSpeechBenchmark({samples:[{...sample,split:"tuning"}],candidates:[{candidateId:"mock",enabled:true,adapter:{transcribe:async()=>({text:"ok"})}}],loadAudio});
   expect(result.attempted).toBe(0);expect(result.skipped).toBe(0);
  });
+ it("rejects malformed candidate IDs and adapters before loading audio",async()=>{
+  await expect(executeGabrooSpeechBenchmark({samples:[sample],candidates:[{candidateId:undefined,enabled:true,adapter:{transcribe:async()=>({text:"ok"})}} as never],loadAudio})).rejects.toThrow("Candidate IDs");
+  await expect(executeGabrooSpeechBenchmark({samples:[sample],candidates:[{candidateId:"broken",enabled:true,adapter:{} as never}],loadAudio})).rejects.toThrow("transcription adapter");
+ });
  it("rejects candidates that are not explicitly enabled",async()=>{
   await expect(executeGabrooSpeechBenchmark({samples:[sample],candidates:[{candidateId:"mock",enabled:false,adapter:{transcribe:async()=>({text:"ok"})}} as never],loadAudio})).rejects.toThrow("explicitly enabled");
  });
