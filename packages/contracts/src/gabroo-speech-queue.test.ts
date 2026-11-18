@@ -34,6 +34,13 @@ describe("Gabroo sequential speech queue",()=>{
   await expect(playGabrooSpeechSegments(segments,playback,1,()=>stopped)).resolves.toBe(1);
   expect(played).toEqual(["Hello, "]);
  });
+ it("does not count a segment whose playback is interrupted before its promise resolves",async()=>{
+  let stopped=false;
+  const playback:GabrooSegmentPlayback={speak:async()=>{
+   stopped=true;
+  }};
+  await expect(playGabrooSpeechSegments(segments,playback,1,()=>stopped)).resolves.toBe(0);
+ });
  it("does not start playback for an already cancelled queue",async()=>{
   const speak=vi.fn(async()=>undefined);
   await expect(playGabrooSpeechSegments(segments,{speak},1,()=>true)).resolves.toBe(0);
