@@ -76,6 +76,27 @@ describe("Gabroo live conversation state machine",()=>{
    .toBe("listening");
  });
 
+ it("does not restart a greeting while the connection is recovering",()=>{
+  const recovering=reduceGabrooConversation(
+   {phase:"listening",activeSpeech:null,lastError:null},
+   {type:"connection_lost",reason:"network disconnected"}
+  );
+  expect(recovering.phase).toBe("recovering");
+  expect(()=>reduceGabrooConversation(recovering,{type:"begin_greeting"}))
+   .toThrow(/Invalid Gabroo conversation transition/);
+ });
+
+ it("requires reconnection before a fresh greeting can begin",()=>{
+  const recovering=reduceGabrooConversation(
+   {phase:"listening",activeSpeech:null,lastError:null},
+   {type:"connection_lost",reason:"network disconnected"}
+  );
+  const restored=reduceGabrooConversation(recovering,{type:"connection_restored"});
+  expect(restored.phase).toBe("listening");
+  expect(()=>reduceGabrooConversation(restored,{type:"begin_greeting"}))
+   .toThrow(/Invalid Gabroo conversation transition/);
+ });
+
  it("rejects out-of-order tutor events",()=>{
   expect(()=>reduceGabrooConversation(initialGabrooConversationState,{
    type:"learner_turn_started"
