@@ -26,7 +26,7 @@ export function parseGabrooSpeechBenchmarkManifest(source:string):{
  const samples:GabrooSpeechBenchmarkSample[]=[];
  const issues:{line:number;message:string}[]=[];
  const seen=new Set<string>();
- for(const [index,raw] of source.split(/\\r?\\n/u).entries()){
+ for(const [index,raw] of source.split(/\r?\n/u).entries()){
   const line=raw.trim();if(!line)continue;
   let value:unknown;
   try{value=JSON.parse(line);}catch{issues.push({line:index+1,message:"Invalid JSON."});continue;}
