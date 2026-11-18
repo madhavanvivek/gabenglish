@@ -1,7 +1,7 @@
 # Gabenglish Product Decisions, Requirements and Delivery Status
 
 Version 1.0 — consolidated product and implementation reference
-Last reviewed: 2026-11-17
+Last reviewed: 2026-11-18
 
 This document consolidates the important product decisions and delivery boundaries established for Gabenglish. It complements the detailed specifications linked below. If implementation and documentation differ, record the difference here and update the relevant detailed specification; do not silently treat a prototype as a production capability.
 
@@ -88,6 +88,12 @@ Correction modes:
 Distinguish grammatical errors, unnatural-but-valid phrasing, vocabulary/word-choice issues, comprehensibility and register. Accept valid alternative answers. Explain the difference between a grammatically correct sentence and a more natural expression. Do not interrupt every sentence by default or treat a valid regional expression as wrong without evidence. Encourage retry and practice without shame.
 
 Malayalam learner-facing content must be reviewed by a fluent Kerala Malayalam educator/editor. English content must be checked for grammar, naturalness, register and accepted alternatives. Audio, cultural appropriateness and age suitability must be reviewed before publication.
+
+## 6A. Approved Gabroo identity lock (binding)
+
+Gabroo must remain exactly the owner-approved **Concept C — Signature Gabroo** from **Gabenglish Branding Kit Version 2**. The approved artwork is the single canonical visual source across registration, onboarding, placement, lessons, live conversations, progress, notifications and marketing. No redesign, regeneration, substitution, character mixing, alternate face/outfit or vendor-provided avatar is permitted. Only faithful technical extensions of the same approved character (3D reconstruction, rigging, expressions, visemes and gestures) are allowed, with owner review of the 3D model against the master before animation production.
+
+The binding source of truth is `docs/brand/GABROO_LIVE_CHARACTER_IDENTITY_LOCK.md`; the detailed appearance guide is `docs/brand/GABROO_CHARACTER_GUIDE.md`. The approved master artwork still needs to be imported into the repository with a provenance manifest and checksum. Do not invent a checksum or treat a storyboard/render as the approved source asset. Production model, rig, animation and visual regression remain pending.
 
 ## 6. Speech, AI and character technology
 
