@@ -114,4 +114,4 @@ A local write failure must be visible; do not report progress as saved when it w
 
 ## 12. Current implementation boundary
 
-The mobile app currently has learner settings helpers and a secure-storage dependency, but this document does not claim that a SQLite database, encrypted storage, offline-first lesson workflow, sync engine, export or deletion controls are already implemented. Those remain explicit implementation milestones.
+The mobile app now has an account-scoped learner storage interface, an Expo SQLite key/value driver, and a shared store instance. The driver creates an app-private SQLite database with WAL mode and a learner-record table. This is an initial persistence foundation only: the store is not yet wired into learner preferences, lesson progress or conversation screens. SQLCipher/encryption-at-rest, key lifecycle, offline workflows, sync engine, export and deletion controls are not implemented or verified. Do not describe app-private SQLite as encrypted storage. Those remain explicit implementation milestones.
