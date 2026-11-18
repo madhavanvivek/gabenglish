@@ -100,6 +100,7 @@ No gate is passed without recorded test evidence. A storyboard/static image is n
 - Production 3D model, rig and animation: not verified as present.
 - Provider-neutral audio-timed viseme/expression/gesture contract and expanded timeline validation tests: added in this delivery branch; CI and renderer integration pending.
 - Provider-neutral live conversation state machine and interruption/recovery tests: added in this delivery branch; connection to the actual tutor/audio runtime pending.
+- Conversation-to-renderer bridge and regression tests: added; samples canonical rig controls only while the conversation owns the current speaking audio ID, uses the caller's real playback clock, and returns a neutral mouth during silence, interruption and recovery.
 - Standard male Kerala Malayalam voice audition script and blind scorecard: documented; candidate testing and owner approval pending.
 - Streaming Malayalam voice, precise lip-sync and live interruptible avatar: not verified as implemented.
 - Registration-to-live-Gabroo onboarding: specified; end-to-end implementation and QA pending.
