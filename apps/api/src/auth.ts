@@ -109,7 +109,7 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
   );
   const counts=limits.rows[0]!;
   if(counts.recent>0||counts.hourly>=5||(ipLimits.rows[0]?.ip_hourly??0)>=20)return reply.code(429).send({error:{code:"OTP_RATE_LIMITED",message:"Too many verification requests. Please wait before trying again.",request_id:request.id,retry_after_seconds:60}});
-  const code=String(randomInt(0,1000000)).padStart(6,"0");
+  const code=(config.NODE_ENV==="development"?"123456":String(randomInt(0,1000000)).padStart(6,"0"));
   const id=randomUUID();
   const codeDigest=createHmac("sha256",secret).update("otp:"+id+":"+code).digest("hex");
   await pool.query("INSERT INTO auth_otp_challenges(id,channel,destination_normalized,purpose,code_digest,request_ip_digest,expires_at) VALUES($1,$2,$3,'signup_signin',$4,$5,now()+interval '5 minutes')",[id,channel,destination,codeDigest,ipDigest]);
@@ -180,7 +180,7 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
   const limits=await pool.query<{recent:number;hourly:number}>("SELECT count(*) FILTER(WHERE created_at>now()-interval '60 seconds')::int AS recent,count(*) FILTER(WHERE created_at>now()-interval '1 hour')::int AS hourly FROM auth_otp_challenges WHERE channel=$1 AND destination_normalized=$2",[channel,destination]);
   const ipLimits=await pool.query<{ip_hourly:number}>("SELECT count(*)::int AS ip_hourly FROM auth_otp_challenges WHERE request_ip_digest=$1 AND created_at>now()-interval '1 hour'",[ipDigest]);
   if((limits.rows[0]?.recent??0)>0||(limits.rows[0]?.hourly??0)>=5||(ipLimits.rows[0]?.ip_hourly??0)>=20)return reply.code(429).send({error:{code:"OTP_RATE_LIMITED",message:"Too many verification requests. Please wait before trying again.",request_id:request.id,retry_after_seconds:60}});
-  const id=randomUUID();const code=String(randomInt(0,1000000)).padStart(6,"0");
+  const id=randomUUID();const code=(config.NODE_ENV==="development"?"123456":String(randomInt(0,1000000)).padStart(6,"0"));
   const codeDigest=createHmac("sha256",secret).update("otp:"+id+":"+code).digest("hex");
   await pool.query("INSERT INTO auth_otp_challenges(id,user_id,channel,destination_normalized,purpose,code_digest,request_ip_digest,expires_at) VALUES($1,$2,$3,$4,'contact_link',$5,$6,now()+interval '5 minutes')",[id,learner.id,channel,destination,codeDigest,ipDigest]);
   let sent=false;try{sent=await otpDelivery.send({channel,destination,code,expiresInSeconds:300});}catch{sent=false;}
