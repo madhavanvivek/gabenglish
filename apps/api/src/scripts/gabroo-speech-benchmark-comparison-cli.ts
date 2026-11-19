@@ -5,7 +5,8 @@ import {
  parseSpeechBenchmarkJsonl,
  parseGabrooSpeechBenchmarkExperiment,
  renderGabrooSpeechBenchmarkComparison,
- gabrooSpeechHumanReviewSchema
+ gabrooSpeechHumanReviewSchema,
+ type GabrooSpeechHumanReview
 } from "@gabenglish/contracts";
 
 /** Build a comparison report from local result JSONL and experiment metadata. */
@@ -20,7 +21,7 @@ export async function writeGabrooBenchmarkComparisonReport(
  if(parsed.issues.length>0)throw new Error("Benchmark results contain invalid JSONL lines: "+parsed.issues.map(x=>x.line).join(", "));
  if(parsed.results.length===0)throw new Error("Benchmark results contain no accepted records.");
  const experiment=parseGabrooSpeechBenchmarkExperiment(experimentSource);
- let humanReviews=[];
+ let humanReviews:GabrooSpeechHumanReview[]=[];
  if(humanSource!==undefined){
   const decoded:unknown=JSON.parse(humanSource);
   if(!Array.isArray(decoded))throw new Error("Human review file must contain a JSON array.");
