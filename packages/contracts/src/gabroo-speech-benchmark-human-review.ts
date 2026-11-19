@@ -33,7 +33,7 @@ export type GabrooSpeechHumanReview=z.infer<typeof gabrooSpeechHumanReviewSchema
 export interface GabrooSpeechHumanReviewSummary{
  candidateId:string;mode:"ml-IN"|"en-IN"|"ml-en";environment:"quiet"|"moderate_noise";
  reviewedSamples:number;reviewCount:number;reviewerCount:number;
- reviewerPairs:number;meanAbsoluteRatingDifference:number|null;exactRatingAgreementPercent:number|null;
+ reviewerPairs:number;pairedRatings:number;meanAbsoluteRatingDifference:number|null;exactRatingAgreementPercent:number|null;
  meanMeaningPreservation:number;meanContentCompleteness:number;meanLanguageFidelity:number;meanCodeSwitchHandling:number|null;
  meanReadability:number;meanIntelligibility:number;
  samplesNeedingAdjudication:string[];
@@ -58,12 +58,13 @@ export function summarizeGabrooSpeechHumanReviews(reviews:GabrooSpeechHumanRevie
   const bySample=new Map<string,GabrooSpeechHumanReview[]>();
   for(const review of bucket){const list=bySample.get(review.sampleId)??[];list.push(review);bySample.set(review.sampleId,list);}
   const mean=(values:number[])=>values.reduce((sum,value)=>sum+value,0)/values.length;
-  let reviewerPairs=0,totalAbsoluteDifference=0,exactMatches=0;
+  let reviewerPairs=0,pairedRatings=0,totalAbsoluteDifference=0,exactMatches=0;
   const dimensionsForAgreement=(review:GabrooSpeechHumanReview)=>(review.mode==="ml-en"?[review.meaningPreservation,review.contentCompleteness,review.languageFidelity,review.codeSwitchHandling!,review.readability,review.intelligibility]:[review.meaningPreservation,review.contentCompleteness,review.languageFidelity,review.readability,review.intelligibility]);
   for(const items of bySample.values()){
    for(let i=0;i<items.length;i++)for(let j=i+1;j<items.length;j++){
     const left=dimensionsForAgreement(items[i]),right=dimensionsForAgreement(items[j]);
-    for(let k=0;k<left.length;k++){const difference=Math.abs(left[k]-right[k]);reviewerPairs++;totalAbsoluteDifference+=difference;if(difference===0)exactMatches++;}
+    reviewerPairs++;
+    for(let k=0;k<left.length;k++){const difference=Math.abs(left[k]-right[k]);pairedRatings++;totalAbsoluteDifference+=difference;if(difference===0)exactMatches++;}
    }
   }
   const samplesNeedingAdjudication=[...bySample.entries()]
@@ -79,9 +80,9 @@ export function summarizeGabrooSpeechHumanReviews(reviews:GabrooSpeechHumanRevie
    candidateId:first.candidateId,mode:first.mode,environment:first.environment,
    reviewedSamples:bySample.size,reviewCount:bucket.length,
    reviewerCount:new Set(bucket.map(x=>x.reviewerLabel)).size,
-   reviewerPairs,
-   meanAbsoluteRatingDifference:reviewerPairs?Number((totalAbsoluteDifference/reviewerPairs).toFixed(2)):null,
-   exactRatingAgreementPercent:reviewerPairs?Number((exactMatches/reviewerPairs*100).toFixed(2)):null,
+   reviewerPairs,pairedRatings,
+   meanAbsoluteRatingDifference:pairedRatings?Number((totalAbsoluteDifference/pairedRatings).toFixed(2)):null,
+   exactRatingAgreementPercent:pairedRatings?Number((exactMatches/pairedRatings*100).toFixed(2)):null,
    meanMeaningPreservation:Number(mean(bucket.map(x=>x.meaningPreservation)).toFixed(2)),
    meanContentCompleteness:Number(mean(bucket.map(x=>x.contentCompleteness)).toFixed(2)),
    meanLanguageFidelity:Number(mean(bucket.map(x=>x.languageFidelity)).toFixed(2)),
