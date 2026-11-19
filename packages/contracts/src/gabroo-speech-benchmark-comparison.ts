@@ -1,7 +1,7 @@
 import {buildSpeechBenchmarkReport,type SpeechBenchmarkResult} from "./gabroo-speech-benchmark-report.js";
 import {assertComparableSpeechBenchmarkResults,type GabrooSpeechBenchmarkExperiment} from "./gabroo-speech-benchmark-experiment.js";
 
-const cell=(value:string)=>value.replace(/\\|/gu,"\\\\|").replace(/[\\r\\n]+/gu," ");
+const cell=(value:string)=>value.replace(/[|]/gu,"\\|").replace(/[\r\n]+/gu," ");
 const pct=(value:number)=>(value*100).toFixed(2)+"%";
 
 /**
