@@ -127,3 +127,17 @@ pnpm --filter @gabenglish/api benchmark:report -- ./benchmark/results.jsonl ./be
 ```
 
 The report includes aggregate success rate, WER, CER, latency, audio duration and cost where available. It does not include raw transcripts. Malformed lines are reported by line number and cause a non-zero exit status. This command does not invoke recognition or contact a provider.
+
+
+### End-to-end local orchestration API
+
+`apps/api/src/scripts/gabroo-speech-benchmark-local-run.ts` now joins the approved-root file loader, manifest parser, explicitly supplied adapters, execution engine and aggregate report builder.
+
+A local harness can call `runGabrooSpeechBenchmarkFromFiles` with:
+- `manifestPath` and `audioRoot` for the local, consented corpus
+- `candidates` containing adapters explicitly marked `enabled: true`
+- Optional timeout, cancellation signal and explicit tuning-sample opt-in
+
+Before any adapter is called, the harness preflights every manifest audio path, resolves real paths, rejects symlinks outside the approved root, requires regular non-empty files and enforces the 10 MB limit. It then returns aggregate Markdown and JSONL. JSONL contains transcripts and must be stored only in an approved local location with appropriate access controls.
+
+This is a local orchestration API, not a provider CLI or production endpoint. No adapter is supplied by default. The automated tests use a mock adapter. A real adapter must not be configured until legal, commercial, privacy and security review is complete and the user approves the selected candidate.
