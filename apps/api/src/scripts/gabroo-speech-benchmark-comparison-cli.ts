@@ -4,32 +4,44 @@ import {pathToFileURL} from "node:url";
 import {
  parseSpeechBenchmarkJsonl,
  parseGabrooSpeechBenchmarkExperiment,
- renderGabrooSpeechBenchmarkComparison
+ renderGabrooSpeechBenchmarkComparison,
+ gabrooSpeechHumanReviewSchema
 } from "@gabenglish/contracts";
 
 /** Build a comparison report from local result JSONL and experiment metadata. */
 export async function writeGabrooBenchmarkComparisonReport(
- resultsPath:string,experimentPath:string,outputPath:string
-):Promise<{acceptedRecords:number;experimentId:string}>{
- const [resultsSource,experimentSource]=await Promise.all([
-  readFile(resolve(resultsPath),"utf8"),readFile(resolve(experimentPath),"utf8")
+ resultsPath:string,experimentPath:string,outputPath:string,humanReviewsPath?:string
+):Promise<{acceptedRecords:number;experimentId:string;humanReviewRecords:number}>{
+ const [resultsSource,experimentSource,humanSource]=await Promise.all([
+  readFile(resolve(resultsPath),"utf8"),readFile(resolve(experimentPath),"utf8"),
+  humanReviewsPath?readFile(resolve(humanReviewsPath),"utf8"):Promise.resolve(undefined)
  ]);
  const parsed=parseSpeechBenchmarkJsonl(resultsSource);
  if(parsed.issues.length>0)throw new Error("Benchmark results contain invalid JSONL lines: "+parsed.issues.map(x=>x.line).join(", "));
  if(parsed.results.length===0)throw new Error("Benchmark results contain no accepted records.");
  const experiment=parseGabrooSpeechBenchmarkExperiment(experimentSource);
- const markdown=renderGabrooSpeechBenchmarkComparison(experiment,parsed.results);
+ let humanReviews=[];
+ if(humanSource!==undefined){
+  const decoded:unknown=JSON.parse(humanSource);
+  if(!Array.isArray(decoded))throw new Error("Human review file must contain a JSON array.");
+  humanReviews=decoded.map((entry,index)=>{
+   const checked=gabrooSpeechHumanReviewSchema.safeParse(entry);
+   if(!checked.success)throw new Error("Invalid human review record at index "+index+".");
+   return checked.data;
+  });
+ }
+ const markdown=renderGabrooSpeechBenchmarkComparison(experiment,parsed.results,humanReviews);
  await writeFile(resolve(outputPath),markdown,{encoding:"utf8",flag:"w"});
- return {acceptedRecords:parsed.results.length,experimentId:experiment.experimentId};
+ return {acceptedRecords:parsed.results.length,experimentId:experiment.experimentId,humanReviewRecords:humanReviews.length};
 }
 async function main():Promise<void>{
  const args=process.argv.slice(2);
- if(args.length!==3||args.includes("--help")||args.includes("-h")){
-  process.stdout.write("Usage: pnpm --filter @gabenglish/api benchmark:compare -- <results.jsonl> <experiment.json> <comparison.md>\\n");
+ if((args.length!==3&&args.length!==4)||args.includes("--help")||args.includes("-h")){
+  process.stdout.write("Usage: pnpm --filter @gabenglish/api benchmark:compare -- <results.jsonl> <experiment.json> <comparison.md> [human-reviews.json]\\n");
   process.exitCode=args.length===0||args.includes("--help")||args.includes("-h")?0:2;return;
  }
  try{
-  const result=await writeGabrooBenchmarkComparisonReport(args[0],args[1],args[2]);
+  const result=await writeGabrooBenchmarkComparisonReport(args[0],args[1],args[2],args[3]);
   process.stdout.write(JSON.stringify(result,null,2)+"\\n");
  }catch{
   process.stderr.write("Benchmark comparison generation failed. Check result/experiment files and comparability.\\n");
