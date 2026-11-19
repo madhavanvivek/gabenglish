@@ -35,6 +35,8 @@ export function createGabrooSpeechRecognitionProvider(config:RecognitionConfig,f
    const blob=new Blob([Buffer.from(input.audio)],{type:input.mimeType});
    form.append("file",blob,fileNames[input.mimeType]);
    form.append("model",model);
+   // verbose_json includes the provider language metadata used by the learner review UI.
+   form.append("response_format","verbose_json");
    if(input.language==="ml-IN")form.append("language","ml");
    if(input.language==="en-IN")form.append("language","en");
    const response=await fetcher(base+"/audio/transcriptions",{
