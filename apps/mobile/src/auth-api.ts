@@ -187,7 +187,7 @@ export async function recognizeGabrooAudio(input:{
  */
 export async function synthesizeGabrooSpeech(input:{text:string;speed:number;signal?:AbortSignal}):Promise<string>{
  const text=input.text.trim();
-  if(!text||text.length>4_000)throw new AuthApiError("Gabroo speech must contain between 1 and 4000 characters.");
+ if(!text||text.length>4_000)throw new AuthApiError("Gabroo speech must contain between 1 and 4000 characters.");
  if(!Number.isFinite(input.speed)||input.speed<0.75||input.speed>1.5)throw new AuthApiError("Gabroo speaking speed must be between 0.75× and 1.5×.");
  const request=async(accessToken:string)=>{
   if(input.signal?.aborted)throw new AuthApiError("Gabroo speech request was cancelled.");
