@@ -1,7 +1,7 @@
 import {describe,expect,it} from "vitest";
 import {buildGabrooVoiceAuditionComparison,gabrooVoiceOwnerDecisionSchema} from "./gabroo-voice-audition-comparison.js";
 import type {GabrooVoiceAuditionReview} from "./gabroo-voice-audition.js";
-import type {GabrooVoiceTechnicalEvidence} from "./gabroo-voice-technical-evidence.js";
+import type {GabrooVoiceTechnicalEvidence} from "./gabroo-voice-technical-evidence.js";\nimport type {GabrooPlaybackRateTrial} from "./gabroo-playback-rate-benchmark.js";
 const review=(blindCode:"VOICE-01"|"VOICE-02"|"VOICE-03",reviewerLabel:string):GabrooVoiceAuditionReview=>({blindCode,reviewerLabel,ratings:{keralaMalayalamAuthenticity:5,malayalamPronunciation:5,codeSwitching:5,englishTeachingClarity:5,warmthRespect:5,energyPersonality:5,gentleHumour:5,emotionalRange:5,longSessionComfort:5,slowSpeedIntelligibility:5},rejectionGates:[]});
 const technical=(blindCode:"VOICE-01"|"VOICE-02"|"VOICE-03"):GabrooVoiceTechnicalEvidence=>({blindCode,providerName:"Provider",voiceId:"voice",modelVersion:"v1",locale:"ml-IN",processingRegion:"ap-south",commercialRights:"verified",dataRetentionTerms:"verified",modelTrainingTerms:"verified",evidenceReferences:["terms-reviewed"],estimatedCostPerAudioMinuteInr:1,estimatedDailyAudioMinutes:20,recordedAt:"2026-11-19T10:00:00+05:30",trials:Array.from({length:5},(_,i)=>({trialId:"trial-"+i,device:"Android",networkProfile:"wifi",firstAudioLatencyMs:100+i*10,fullResponseLatencyMs:700+i*10,interruptedPlaybackRecovered:true,streamingStable:true,playbackRate:0.75,slowPlaybackNaturalness:4,failed:false}))});
 describe("Gabroo unified voice audition packet",()=>{
