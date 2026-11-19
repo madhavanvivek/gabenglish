@@ -1,4 +1,5 @@
-import {readFile,realpath,stat} from "node:fs/promises";
+import {open,readFile,realpath} from "node:fs/promises";
+import {constants} from "node:fs";
 import {isAbsolute,relative,resolve,sep} from "node:path";
 import {
  executeGabrooSpeechBenchmark,
@@ -36,21 +37,27 @@ export async function runGabrooSpeechBenchmarkFromFiles(input:{
  if(parsed.issues.length>0)throw new Error("Benchmark manifest contains invalid records: "+parsed.issues.map(x=>"line "+x.line).join(", "));
  if(parsed.samples.length===0)throw new Error("Benchmark manifest contains no valid samples.");
  const audioCache=new Map<string,Uint8Array>();
- const loadAudio=async(sample:typeof parsed.samples[number]):Promise<Uint8Array>=>{
+ const loadAudio=async(sample:typeof parsed.samples[number],signal?:AbortSignal):Promise<Uint8Array>=>{
+  if(signal?.aborted)throw new Error("Benchmark cancelled.");
   const candidatePath=resolve(rootReal,sample.audioFile);
   if(!isWithin(rootReal,candidatePath))throw new Error("Audio path escapes the approved audio root.");
   const fileReal=await realpath(candidatePath);
   if(!isWithin(rootReal,fileReal))throw new Error("Audio symlink escapes the approved audio root.");
-  const info=await stat(fileReal);
-  if(!info.isFile())throw new Error("Audio path is not a regular file.");
-  if(info.size===0||info.size>GABROO_BENCHMARK_MAX_AUDIO_BYTES)throw new Error("Audio file must be between 1 byte and 10 MB.");
   const cached=audioCache.get(fileReal);
   if(cached)return new Uint8Array(cached);
-  const bytes=await readFile(fileReal);
-  if(bytes.byteLength!==info.size||bytes.byteLength>GABROO_BENCHMARK_MAX_AUDIO_BYTES)throw new Error("Audio file changed during validation.");
-  const audio=new Uint8Array(bytes);
-  audioCache.set(fileReal,audio);
-  return new Uint8Array(audio);
+  // O_NOFOLLOW closes the final-component symlink race between realpath and open.
+  const handle=await open(fileReal,constants.O_RDONLY|constants.O_NOFOLLOW);
+  try{
+   const info=await handle.stat();
+   if(!info.isFile())throw new Error("Audio path is not a regular file.");
+   if(info.size===0||info.size>GABROO_BENCHMARK_MAX_AUDIO_BYTES)throw new Error("Audio file must be between 1 byte and 10 MB.");
+   if(signal?.aborted)throw new Error("Benchmark cancelled.");
+   const bytes=await handle.readFile();
+   if(bytes.byteLength!==info.size||bytes.byteLength>GABROO_BENCHMARK_MAX_AUDIO_BYTES)throw new Error("Audio file changed during validation.");
+   const audio=new Uint8Array(bytes);
+   audioCache.set(fileReal,audio);
+   return new Uint8Array(audio);
+  }finally{await handle.close();}
  };
  // Preflight every sample before the first adapter is invoked.
  for(const sample of parsed.samples)await loadAudio(sample);
