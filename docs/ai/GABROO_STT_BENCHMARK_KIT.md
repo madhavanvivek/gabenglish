@@ -156,3 +156,12 @@ The metadata parser rejects unknown fields, duplicate candidate IDs/settings, cr
 `assertComparableSpeechBenchmarkResults` checks that candidates being compared within the same language mode and noise environment were evaluated on exactly the same sample IDs. A mismatch blocks comparison instead of producing misleading rankings. It does not assert that a corpus is consented or that candidate settings are semantically equivalent; those remain human-reviewed decision gates.
 
 Example metadata is deliberately not committed with real provider details or learner data. Generate a corpus SHA-256 from the approved local manifest/corpus package and record the exact model/version and region returned by the provider at execution time.
+
+
+## Candidate comparison report
+
+`packages/contracts/src/gabroo-speech-benchmark-comparison.ts` renders a candidate-by-candidate Markdown report from validated experiment metadata and benchmark results. It includes provider/model and region labels, sample count, success rate, WER, CER, median/P95 latency and cost per audio minute where complete cost data is available.
+
+The comparison renderer requires the result candidate IDs to exactly match the experiment candidate list. Within each language mode and environment, it requires every candidate to have the same sample IDs. A mismatch blocks the report rather than silently comparing unlike corpora.
+
+The report deliberately does not rank candidates or declare a winner. It calls out that blind Malayalam-fluent human review, meaning preservation, code-switch adjudication, and legal/security/privacy/commercial approval remain separate release gates. Use held-out results for final evaluation; do not tune against them.
