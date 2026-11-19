@@ -30,6 +30,11 @@ describe("Gabroo speech recognition provider",()=>{
   expect(form?.get("language")).toBeNull();
   expect(result.languageDetected).toBe("unknown");
  });
+ it("prefers the provider's detected language when available",async()=>{
+  const provider=createGabrooSpeechRecognitionProvider({GABROO_LLM_API_KEY:"key",GABROO_LLM_BASE_URL:"https://llm.example/v1"},async()=>new Response(JSON.stringify({text:"Good morning",language:"english"}),{status:200}))!;
+  const result=await provider.transcribe({audio:new Uint8Array([1]),mimeType:"audio/wav",language:"ml-IN",signal:new AbortController().signal});
+  expect(result.languageDetected).toBe("en");
+ });
  it("rejects failed and empty transcription responses",async()=>{
   const failed=createGabrooSpeechRecognitionProvider({GABROO_LLM_API_KEY:"key",GABROO_LLM_BASE_URL:"https://llm.example/v1"},async()=>new Response("failed",{status:503}))!;
   const input={audio:new Uint8Array([1]),mimeType:"audio/ogg" as const,language:"en-IN" as const,signal:new AbortController().signal};
