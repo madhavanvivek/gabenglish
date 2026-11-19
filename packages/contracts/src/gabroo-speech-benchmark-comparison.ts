@@ -65,8 +65,8 @@ export function renderGabrooSpeechBenchmarkComparison(
   "- Do not select or enable a provider from these metrics alone. Complete held-out human review and the legal, security, privacy and commercial decision gates first.",
   "",
   "## Human review (separate from automated WER/CER)","",
-  "| Candidate | Mode | Environment | Reviewed samples | Reviewers | Meaning | Completeness | Language fidelity | Code-switch | Readability | Learner comprehension | Adjudication required |",
-  "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|"
+  "| Candidate | Mode | Environment | Reviewed samples | Reviewers | Meaning | Completeness | Language fidelity | Code-switch | Readability | Learner comprehension | Reviewer pairs | Exact agreement | Mean absolute difference | Adjudication count |",
+  "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
  );
  for(const summary of humanSummaries){
   lines.push("| "+[
@@ -78,7 +78,7 @@ export function renderGabrooSpeechBenchmarkComparison(
    summary.samplesNeedingAdjudication.length?summary.samplesNeedingAdjudication.map(cell).join(", "):"No flagged samples"
   ].join(" | ")+" |");
  }
- lines.push("","Human review scores are descriptive averages, not a provider ranking. Samples with fewer than two independent reviews or material reviewer disagreement require adjudication.","","No provider is ranked or declared the winner by this report.",""
+ lines.push("","Human review scores are descriptive averages, not a provider ranking. Exact agreement is the percentage of paired dimension ratings that match; mean absolute difference is the average absolute 1–5 rating gap. Samples with fewer than two independent reviews, material reviewer disagreement or critical error flags require adjudication.","","No provider is ranked or declared the winner by this report.",""
  );
  return lines.join("\n");
 }
