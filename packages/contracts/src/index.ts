@@ -45,3 +45,5 @@ export * from "./gabroo-speech-benchmark-experiment.js";
 export * from "./gabroo-speech-benchmark-comparison.js";
 
 export * from "./gabroo-speech-benchmark-human-review.js";
+
+export * from "./gabroo-voice-audition.js";
