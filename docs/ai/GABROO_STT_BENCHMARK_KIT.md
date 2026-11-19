@@ -217,3 +217,49 @@ pnpm --filter @gabenglish/api benchmark:compare -- ./benchmark/results.jsonl ./b
 ```
 
 When supplied, each record is validated against the human-review schema and the report adds a separate human-review summary table. Automated WER/CER and human ratings remain distinct. The summary flags samples requiring adjudication; it never ranks providers. The optional file contains reviewer annotations and must be stored in access-controlled local storage. Use pseudonymous reviewer labels and do not include learner or reviewer identifiers.
+
+
+## Corpus fingerprint generation
+
+Use the local fingerprint command after manifest validation:
+
+```bash
+pnpm --filter @gabenglish/api benchmark:fingerprint -- ./benchmark/manifest.jsonl ./benchmark/audio
+```
+
+The command reads each referenced audio file locally and prints a SHA-256 corpus fingerprint plus sample counts and total bytes. It rejects malformed manifests, missing files, path traversal, symlinks escaping the approved root, non-regular files, empty files and files above 10 MB. It opens final files with `O_NOFOLLOW`.
+
+Fingerprint format `gabroo-corpus-fingerprint-v1` is deterministic: samples are sorted by sample ID; the digest covers each sample's ID, mode, environment, MIME type, duration, reference text, split, audio byte length and per-audio SHA-256 digest. Manifest row order and local audio paths do not affect the fingerprint. Any change to referenced audio bytes or included sample metadata changes it. Record this value in the experiment metadata's `corpusSha256`. The fingerprint is an integrity identifier, not proof of consent, licensing, annotation quality or speaker-disjointness.
+
+Do not upload audio or commit fingerprints alongside identifying metadata. Keep manifest, audio and transcript-bearing result files in approved restricted local storage.
+
+## Reviewer agreement and adjudication
+
+Human review reports now include pairwise reviewer agreement metrics calculated within each candidate, mode and environment:
+- **Reviewer pairs:** all independent reviewer pairs for the same sample, multiplied by the applicable scored dimensions.
+- **Exact rating agreement:** percentage of paired dimension ratings that are identical.
+- **Mean absolute rating difference:** average absolute point difference across paired dimension ratings on the 1–5 scale.
+
+These are descriptive agreement indicators, not a reliability coefficient and not proof of reviewer validity. Do not compare agreement percentages across groups with different dimension coverage without noting the difference. Samples are flagged for adjudication when fewer than two reviews exist, any core dimension differs by two or more points, or a reviewer records a critical meaning/content error. Adjudication must be completed by a designated Malayalam-fluent adjudicator; preserve the original independent ratings and record the adjudicated decision separately rather than overwriting them.
+
+## Complete local workflow
+
+1. Approve collection, consent, licensing, retention and access controls. Keep raw audio and identity keys outside Git.
+2. Prepare a speaker-disjoint corpus and a strict manifest. Use only appropriately consented/licensed adult voices for the initial benchmark.
+3. Validate manifest and audio files:
+   `pnpm --filter @gabenglish/api benchmark:validate -- ./benchmark/manifest.jsonl ./benchmark/audio`
+4. Fingerprint the exact corpus:
+   `pnpm --filter @gabenglish/api benchmark:fingerprint -- ./benchmark/manifest.jsonl ./benchmark/audio`
+5. Copy the returned SHA-256 into the experiment metadata. Freeze candidate/model/region/settings metadata before evaluation.
+6. Execute only explicitly approved adapters through the local orchestration API. Held-out remains the default; tuning requires explicit opt-in. The repository does not supply a real provider adapter.
+7. Validate and aggregate results:
+   `pnpm --filter @gabenglish/api benchmark:report -- ./benchmark/results.jsonl ./benchmark/report.md`
+8. Obtain blind independent human reviews using the anchored rubric and structured JSON review schema. Keep reviewer labels pseudonymous and review files access-controlled.
+9. Generate the candidate comparison, including human review:
+   `pnpm --filter @gabenglish/api benchmark:compare -- ./benchmark/results.jsonl ./benchmark/experiment.json ./benchmark/comparison.md ./benchmark/human-reviews.json`
+10. Resolve every adjudication flag. Review per-language and per-environment results, corpus fingerprint, failures, WER/CER, human ratings, agreement, latency, cost and legal/privacy/security gates. Do not average away a weak language mode.
+11. Present the blind-review packet and technical/legal evidence to the product owner. Provider selection and any external audio processing require explicit approval.
+
+### Workflow validation boundaries
+
+The validation and fingerprint commands operate on local files only. Reporting commands operate on local text/JSONL only. The orchestration API invokes only caller-injected adapters and has no default provider. No real learner audio is submitted by these commands, and no provider credentials are configured by this documentation.
