@@ -14,7 +14,7 @@ const schema=z.object({
  if(value.NODE_ENV==="production"&&value.AUTH_TOKEN_SECRET==="gabenglish-local-development-secret-change-before-deploy"){
   ctx.addIssue({code:"custom",path:["AUTH_TOKEN_SECRET"],message:"AUTH_TOKEN_SECRET must be replaced before production."});
  }
- if(Boolean(value.GABROO_LLM_API_KEY)!==Boolean(value.GABROO_LLM_MODEL)){
+ if(value.NODE_ENV==="production"&&new URL(value.GABROO_LLM_BASE_URL).protocol!=="https:"){\n  ctx.addIssue({code:"custom",path:["GABROO_LLM_BASE_URL"],message:"Gabroo provider endpoints must use HTTPS in production."});\n }\n if(Boolean(value.GABROO_LLM_API_KEY)!==Boolean(value.GABROO_LLM_MODEL)){
   ctx.addIssue({code:"custom",path:["GABROO_LLM_MODEL"],message:"GABROO_LLM_API_KEY and GABROO_LLM_MODEL must be configured together."});
  }
 });
