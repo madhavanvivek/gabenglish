@@ -224,3 +224,23 @@ Latency percentiles are computed from recorded trial values; keep the original t
 Technical evidence is marked complete only when at least five trials exist, supporting evidence references are supplied, commercial rights, data-retention terms and model-training terms are verified, and every recorded slow-playback naturalness rating is at least 3/5. This is a minimum evidence gate, not a claim that a candidate meets a latency target or is suitable for production. The owner must still inspect the actual measurements, licensing documents, privacy terms and blind listener scorecards.
 
 No latency threshold is silently treated as an approved product requirement. Compare observed values and make an explicit owner decision before selecting a provider.
+
+
+## 11. Unified candidate comparison and owner decision record
+
+The shared contract `@gabenglish/contracts` exports `buildGabrooVoiceAuditionComparison` and `gabrooVoiceOwnerDecisionSchema`. The comparison packet always contains VOICE-01, VOICE-02 and VOICE-03, including candidates for which evidence has not yet been collected. Missing values remain explicitly empty; they are never treated as zero scores or successful tests.
+
+The combined report places side by side:
+- Independent reviewer count, mean weighted score, reviewer score range and human rejection gates.
+- Technical trial count, median/P95 first-audio and full-response latency, failure rate, streaming stability and slow-playback score.
+- Estimated cost per audio minute.
+- Commercial rights, data-retention and model-training evidence status.
+- Separate human and technical evidence-completeness flags.
+
+A candidate is eligible for owner review only when it has at least three independent blind reviews with no recorded rejection gates and complete technical/commercial evidence. This is not a ranking, recommendation or production enablement.
+
+### Owner decision record
+
+The owner decision schema supports `pending`, `approved` and `rejected`. An approved or rejected decision must identify one blind candidate, the decision owner, a rationale of at least 20 characters, reviewed evidence references and an offset-aware decision timestamp. A pending decision cannot carry a decision timestamp.
+
+Do not create an approved decision until the owner has personally reviewed the audition packet and explicitly chosen a candidate. The application must not infer consent or convert eligibility into approval. Keep the mapping from blind code to provider/voice identity restricted until the blind evaluation is complete.
