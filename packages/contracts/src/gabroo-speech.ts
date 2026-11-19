@@ -172,6 +172,7 @@ export function chunkGabrooSpeechSegments(
    }
   }
   if(current.trim())chunks.push({text:current,language:segment.language});
+  else if(current&&chunks.length&&chunks[chunks.length-1].language===segment.language)chunks[chunks.length-1].text+=current;
  }
  return chunks;
 }
