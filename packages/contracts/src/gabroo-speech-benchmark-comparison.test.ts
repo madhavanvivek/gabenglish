@@ -48,6 +48,8 @@ describe("Gabroo speech benchmark comparison report",()=>{
   ];
   const report=renderGabrooSpeechBenchmarkComparison(experiment,results,reviews);
   expect(report).toContain("Human review (separate from automated WER/CER)");
+  expect(report).toContain("Exact agreement");
+  expect(report).toContain("Mean absolute difference");
   expect(report).toContain("3.50");
   expect(report).toContain("one");
  });
