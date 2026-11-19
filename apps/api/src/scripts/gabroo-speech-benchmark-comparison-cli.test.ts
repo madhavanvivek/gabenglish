@@ -39,8 +39,8 @@ describe("Gabroo benchmark comparison CLI",()=>{
   await writeFile(results,[row("a"),row("b")].map(x=>JSON.stringify(x)).join("\n")+"\n");
   await writeFile(metadata,JSON.stringify(experiment));
   await writeFile(reviewsPath,JSON.stringify([
-   {candidateId:"a",sampleId:"s1",mode:"ml-IN",environment:"quiet",reviewerLabel:"r1",meaningPreservation:5,readability:4,intelligibility:5,issueTags:[]},
-   {candidateId:"a",sampleId:"s1",mode:"ml-IN",environment:"quiet",reviewerLabel:"r2",meaningPreservation:4,readability:4,intelligibility:5,issueTags:[]}
+   {candidateId:"a",sampleId:"s1",mode:"ml-IN",environment:"quiet",reviewerLabel:"r1",meaningPreservation:5,contentCompleteness:5,languageFidelity:5,readability:4,intelligibility:5,issueTags:[]},
+   {candidateId:"a",sampleId:"s1",mode:"ml-IN",environment:"quiet",reviewerLabel:"r2",meaningPreservation:4,contentCompleteness:4,languageFidelity:5,readability:4,intelligibility:5,issueTags:[]}
   ]));
   const summary=await writeGabrooBenchmarkComparisonReport(results,metadata,output,reviewsPath);
   const report=await readFile(output,"utf8");
