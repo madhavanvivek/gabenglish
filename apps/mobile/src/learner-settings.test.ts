@@ -40,7 +40,7 @@ describe("Gabroo speech-rate preference", () => {
     let rate = 0.75;
     for (let index = 0; index < 15; index += 1) {
       rate = adjustGabrooSpeechRate(rate, 0.05);
-      expect(Number.isInteger((rate - GABROO_SPEECH_RATE_MIN) / 0.05)).toBe(true);
+      expect(rate).toBeCloseTo(GABROO_SPEECH_RATE_MIN + Math.round((rate - GABROO_SPEECH_RATE_MIN) / 0.05) * 0.05, 8);
     }
     expect(rate).toBe(1.5);
   });
