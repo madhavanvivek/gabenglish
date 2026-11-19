@@ -11,7 +11,8 @@ const pct=(value:number)=>(value*100).toFixed(2)+"%";
  */
 export function renderGabrooSpeechBenchmarkComparison(
  experiment:GabrooSpeechBenchmarkExperiment,
- results:SpeechBenchmarkResult[]
+ results:SpeechBenchmarkResult[],
+ humanReviews:GabrooSpeechHumanReview[]=[]
 ):string{
  if(!Array.isArray(results)||results.length===0)throw new Error("Benchmark results are required.");
  const expected=new Set(experiment.candidates.map(candidate=>candidate.candidateId));
@@ -21,6 +22,8 @@ export function renderGabrooSpeechBenchmarkComparison(
  }
  assertComparableSpeechBenchmarkResults(results);
  const reports=buildSpeechBenchmarkReport(results);
+ const humanSummaries=humanReviews.length?summarizeGabrooSpeechHumanReviews(humanReviews):[];
+ 
  const dimensions=new Set(reports.map(report=>JSON.stringify([report.mode,report.environment])));
  for(const dimension of dimensions){
   const present=new Set(reports.filter(report=>JSON.stringify([report.mode,report.environment])===dimension).map(report=>report.candidateId));
@@ -61,7 +64,20 @@ export function renderGabrooSpeechBenchmarkComparison(
   "- This report does not include blind Malayalam-fluent human ratings, meaning preservation, code-switch handling adjudication, or commercial/privacy approval.",
   "- Do not select or enable a provider from these metrics alone. Complete held-out human review and the legal, security, privacy and commercial decision gates first.",
   "",
-  "No provider is ranked or declared the winner by this report.",""
+  "## Human review (separate from automated WER/CER)","",
+  "| Candidate | Mode | Environment | Reviewed samples | Reviewers | Meaning | Code-switch | Readability | Intelligibility | Adjudication required |",
+  "|---|---|---|---:|---:|---:|---:|---:|---:|---|"
+ );
+ for(const summary of humanSummaries){
+  lines.push("| "+[
+   cell(summary.candidateId),summary.mode,summary.environment,String(summary.reviewedSamples),
+   String(summary.reviewerCount),summary.meanMeaningPreservation.toFixed(2),
+   summary.meanCodeSwitchHandling===null?"—":summary.meanCodeSwitchHandling.toFixed(2),
+   summary.meanReadability.toFixed(2),summary.meanIntelligibility.toFixed(2),
+   summary.samplesNeedingAdjudication.length?summary.samplesNeedingAdjudication.map(cell).join(", "):"No flagged samples"
+  ].join(" | ")+" |");
+ }
+ lines.push("","Human review scores are descriptive averages, not a provider ranking. Samples with fewer than two independent reviews or material reviewer disagreement require adjudication.","","No provider is ranked or declared the winner by this report.",""
  );
  return lines.join("\\n");
 }
