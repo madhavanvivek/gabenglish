@@ -32,6 +32,7 @@ export default function GabrooScreen(){
  const [speechRate,setSpeechRate]=useState(1);
  const [speakingMessageId,setSpeakingMessageId]=useState<string|null>(null);
  const speechSoundRef=useRef<Audio.Sound|null>(null);
+ const speechRequestAbortRef=useRef<AbortController|null>(null);
  const speechAudioUriRef=useRef<string|null>(null);
  const [turnState,setTurnState]=useState<GabrooTurnState>(initialGabrooTurnState);
  const [speechNotice,setSpeechNotice]=useState("");
@@ -208,6 +209,7 @@ export default function GabrooScreen(){
  };
  const stopSpeech=async()=>{
   speechRunRef.current+=1;
+  speechRequestAbortRef.current?.abort();speechRequestAbortRef.current=null;
   const activePlayback=playbackStateRef.current;
   if(activePlayback.phase==="speaking"&&activePlayback.playback_id){
    playbackStateRef.current=reduceGabrooPlayback(activePlayback,{type:"interrupted",playback_id:activePlayback.playback_id});
@@ -228,6 +230,8 @@ export default function GabrooScreen(){
  };
  const speakMessage=async(message:GabrooConversationMessage)=>{
   if(speakingMessageId===message.id){await stopSpeech();return;}
+  speechRequestAbortRef.current?.abort();
+  const requestController=new AbortController();speechRequestAbortRef.current=requestController;
   const run=++speechRunRef.current;
   const playbackId=`${message.id}:${run}`;
   const previousPlayback=playbackStateRef.current;
@@ -241,7 +245,7 @@ export default function GabrooScreen(){
    const text=message.content.trim();
    if(!text)return;
    setSpeechNotice("Preparing Gabroo's voice…");
-   const uri=await synthesizeGabrooSpeech({text,speed:speechRate});
+   const uri=await synthesizeGabrooSpeech({text,speed:speechRate,signal:requestController.signal});
    if(run!==speechRunRef.current){
     await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
     return;
@@ -284,6 +288,7 @@ export default function GabrooScreen(){
      reason instanceof Error?reason.message:"Gabroo could not play this reply. Please try again.");
    }
   }finally{
+   if(speechRequestAbortRef.current===requestController)speechRequestAbortRef.current=null;
    if(run===speechRunRef.current)await releaseSpeechAudio();
   }
  };
