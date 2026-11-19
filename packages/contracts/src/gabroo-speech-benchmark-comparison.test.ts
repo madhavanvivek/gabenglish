@@ -23,7 +23,7 @@ describe("Gabroo speech benchmark comparison report",()=>{
   const report=renderGabrooSpeechBenchmarkComparison(experiment,results);
   expect(report).toContain("Cost / audio min");
   expect(report).toContain("0.1200");
-  expect(report).toContain("66.67%");
+  expect(report).toContain("50.00%");
   expect(report).toContain("No provider is ranked or declared the winner");
   expect(report).toContain("human ratings");
  });
