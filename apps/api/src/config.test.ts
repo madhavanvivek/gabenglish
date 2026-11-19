@@ -7,11 +7,23 @@ describe("Gabenglish runtime configuration",()=>{
   expect(config.GABROO_LLM_API_KEY).toBeUndefined();
   expect(config.GABROO_LLM_MODEL).toBeUndefined();
   expect(config.GABROO_STT_MODEL).toBe("whisper-1");
+  expect(config.GABROO_TTS_MODEL).toBeUndefined();
+  expect(config.GABROO_TTS_VOICE).toBeUndefined();
   expect(config.GABROO_LLM_BASE_URL).toBe("https://api.openai.com/v1");
  });
  it("requires the API key and model to be configured together",()=>{
   expect(()=>loadConfig({NODE_ENV:"test",GABROO_LLM_API_KEY:"secret"})).toThrow("Invalid environment configuration");
   expect(()=>loadConfig({NODE_ENV:"test",GABROO_LLM_MODEL:"model"})).toThrow("Invalid environment configuration");
+ });
+ it("requires TTS model and voice to be configured together",()=>{
+  expect(()=>loadConfig({NODE_ENV:"test",GABROO_TTS_MODEL:"tts-model"})).toThrow("Invalid environment configuration");
+  expect(()=>loadConfig({NODE_ENV:"test",GABROO_TTS_VOICE:"voice-id"})).toThrow("Invalid environment configuration");
+  expect(()=>loadConfig({NODE_ENV:"test",GABROO_LLM_API_KEY:"key",GABROO_TTS_MODEL:"tts-model",GABROO_TTS_VOICE:"voice-id"})).toThrow("Invalid environment configuration");
+ });
+ it("accepts explicit TTS model and voice with provider credentials",()=>{
+  const config=loadConfig({NODE_ENV:"test",GABROO_LLM_API_KEY:"secret",GABROO_LLM_MODEL:"chat-model",GABROO_TTS_MODEL:"speech-model",GABROO_TTS_VOICE:"approved-voice"});
+  expect(config.GABROO_TTS_MODEL).toBe("speech-model");
+  expect(config.GABROO_TTS_VOICE).toBe("approved-voice");
  });
  it("accepts a complete OpenAI-compatible provider configuration",()=>{
   const config=loadConfig({NODE_ENV:"test",GABROO_LLM_API_KEY:"secret",GABROO_LLM_MODEL:"model",GABROO_LLM_BASE_URL:"https://llm.example/v1"});
