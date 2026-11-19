@@ -38,14 +38,14 @@ export async function writeGabrooBenchmarkComparisonReport(
 async function main():Promise<void>{
  const args=process.argv.slice(2);
  if((args.length!==3&&args.length!==4)||args.includes("--help")||args.includes("-h")){
-  process.stdout.write("Usage: pnpm --filter @gabenglish/api benchmark:compare -- <results.jsonl> <experiment.json> <comparison.md> [human-reviews.json]\\n");
+  process.stdout.write("Usage: pnpm --filter @gabenglish/api benchmark:compare -- <results.jsonl> <experiment.json> <comparison.md> [human-reviews.json]\n");
   process.exitCode=args.length===0||args.includes("--help")||args.includes("-h")?0:2;return;
  }
  try{
   const result=await writeGabrooBenchmarkComparisonReport(args[0],args[1],args[2],args[3]);
-  process.stdout.write(JSON.stringify(result,null,2)+"\\n");
+  process.stdout.write(JSON.stringify(result,null,2)+"\n");
  }catch{
-  process.stderr.write("Benchmark comparison generation failed. Check result/experiment files and comparability.\\n");
+  process.stderr.write("Benchmark comparison generation failed. Check result/experiment files and comparability.\n");
   process.exitCode=1;
  }
 }
