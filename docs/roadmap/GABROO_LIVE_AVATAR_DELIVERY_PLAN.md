@@ -106,3 +106,7 @@ No gate is passed without recorded test evidence. A storyboard/static image is n
 - Registration-to-live-Gabroo onboarding: specified; end-to-end implementation and QA pending.
 
 Documentation and contracts do not imply production rendering or voice capabilities are complete.
+
+## 7. Android device verification
+
+Execute `docs/roadmap/GABROO_ANDROID_DEVICE_QA_CHECKLIST.md` on physical Android devices before public beta. Record build SHA, device/OS, environment and evidence for every test. CI and Expo bundle export are automated checks only; they do not substitute for physical-device authentication, microphone, playback, lifecycle, entitlement, accessibility, privacy or performance QA. All manual cases remain pending until a tester records results.
