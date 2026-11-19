@@ -10,7 +10,7 @@ import {colors} from "../src/theme";
 import {adjustGabrooSpeechRate} from "../src/learner-settings";
 import {cacheGabrooSpeechRate} from "../src/learner-preference-cache";
 import {BrandMark} from "../src/ui";
-import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getGabrooRecognitionStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences} from "../src/auth-api";
+import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getGabrooRecognitionStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences,synthesizeGabrooSpeech} from "../src/auth-api";
 
 const conversationModes:{value:GabrooConversationMode;label:string}[]=[{value:"free_flow",label:"Free flow"},{value:"gentle_correction",label:"Gentle correction"},{value:"detailed_correction",label:"Detailed correction"},{value:"topic_practice",label:"Topic practice"},{value:"role_play",label:"Role-play"},{value:"vocabulary_building",label:"Vocabulary"},{value:"confidence_practice",label:"Confidence"}];
 
@@ -31,6 +31,8 @@ export default function GabrooScreen(){
  const [error,setError]=useState("");
  const [speechRate,setSpeechRate]=useState(1);
  const [speakingMessageId,setSpeakingMessageId]=useState<string|null>(null);
+ const speechSoundRef=useRef<Audio.Sound|null>(null);
+ const speechAudioUriRef=useRef<string|null>(null);
  const [turnState,setTurnState]=useState<GabrooTurnState>(initialGabrooTurnState);
  const [speechNotice,setSpeechNotice]=useState("");
  const [speechSaving,setSpeechSaving]=useState(false);
@@ -209,16 +211,19 @@ export default function GabrooScreen(){
    playbackStateRef.current=reduceGabrooPlayback(activePlayback,{type:"interrupted",playback_id:activePlayback.playback_id});
   }
   await Speech.stop();
+  await releaseSpeechAudio();
   setSpeakingMessageId(null);
  };
- const speakSegment=(text:string,options:{rate:number;language:string;voice?:string})=>new Promise<void>((resolve,reject)=>{
-  Speech.speak(text,{
-   ...options,
-   onDone:resolve,
-   onStopped:resolve,
-   onError:error=>reject(new Error(error.message??"Speech playback failed."))
-  });
- });
+ const releaseSpeechAudio=async()=>{
+  const sound=speechSoundRef.current;speechSoundRef.current=null;
+  const uri=speechAudioUriRef.current;speechAudioUriRef.current=null;
+  if(sound){
+   sound.setOnPlaybackStatusUpdate(null);
+   await sound.stopAsync().catch(()=>undefined);
+   await sound.unloadAsync().catch(()=>undefined);
+  }
+  if(uri)await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+ };
  const speakMessage=async(message:GabrooConversationMessage)=>{
   if(speakingMessageId===message.id){await stopSpeech();return;}
   const run=++speechRunRef.current;
@@ -227,33 +232,40 @@ export default function GabrooScreen(){
   if(previousPlayback.phase==="speaking"&&previousPlayback.playback_id){
    playbackStateRef.current=reduceGabrooPlayback(previousPlayback,{type:"interrupted",playback_id:previousPlayback.playback_id});
   }
-  await Speech.stop();setSpeakingMessageId(null);setSpeechNotice("");
+  await Speech.stop();
+  await releaseSpeechAudio();
+  setSpeakingMessageId(null);setSpeechNotice("");
   try{
-   const segments=splitGabrooSpeechText(message.content);
-   if(segments.length===0)return;
-   const voices=await Speech.getAvailableVoicesAsync();
-   if(run!==speechRunRef.current)return;
-   const malayalamVoice=voices.find(voice=>voice.language.toLowerCase().startsWith("ml-in"));
-   const englishVoice=voices.find(voice=>voice.language.toLowerCase().startsWith("en-in"));
-   if(segments.some(segment=>segment.language==="ml")&&!malayalamVoice){
-    setSpeechNotice("A Malayalam device voice is not installed. Install a Malayalam text-to-speech voice in your device settings to listen to this reply.");
+   const text=message.content.trim();
+   if(!text)return;
+   setSpeechNotice("Preparing Gabroo's voice…");
+   const uri=await synthesizeGabrooSpeech({text,speed:speechRate});
+   if(run!==speechRunRef.current){
+    await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
     return;
    }
+   speechAudioUriRef.current=uri;
+   const created=await Audio.Sound.createAsync({uri},{shouldPlay:false,rate:speechRate,shouldCorrectPitch:true});
+   if(run!==speechRunRef.current){
+    await created.sound.unloadAsync().catch(()=>undefined);
+    await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+    if(speechAudioUriRef.current===uri)speechAudioUriRef.current=null;
+    return;
+   }
+   speechSoundRef.current=created.sound;
    playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"started",playback_id:playbackId});
-   setSpeakingMessageId(message.id);
-   const completed=await playGabrooSpeechSegments(segments,{
-    speak:async(segment,rate)=>{
-     const voice=segment.language==="ml"?malayalamVoice:englishVoice;
-     await speakSegment(segment.text,{
-      rate,
-      language:voice?.language??(segment.language==="ml"?"ml-IN":"en-IN"),
-      ...(voice?{voice:voice.identifier}:{})
-     });
-     if(run===speechRunRef.current){
-      playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"segment_completed",playback_id:playbackId});
-     }
-    }
-   },speechRate,()=>run!==speechRunRef.current);
+   setSpeakingMessageId(message.id);setSpeechNotice("");
+   await created.sound.setRateAsync(speechRate,true);
+   await new Promise<void>((resolve,reject)=>{
+    let settled=false;
+    created.sound.setOnPlaybackStatusUpdate(status=>{
+     if(!status.isLoaded||settled)return;
+     if(status.didJustFinish){settled=true;resolve();}
+    });
+    void created.sound.playAsync().catch(error=>{
+     if(!settled){settled=true;reject(error);}
+    });
+   });
    if(run===speechRunRef.current){
     playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"finished",playback_id:playbackId});
     setSpeakingMessageId(null);
@@ -265,8 +277,12 @@ export default function GabrooScreen(){
      playbackStateRef.current=reduceGabrooPlayback(current,{type:"failed",playback_id:playbackId,reason:reason instanceof Error?reason.message:"Speech playback failed."});
     }
     setSpeakingMessageId(null);
-    setSpeechNotice("Your device could not play this reply. Check its text-to-speech voice settings.");
+    setSpeechNotice(reason instanceof AuthApiError&&reason.status===503?
+     "Gabroo's approved voice is not configured on the server yet. Device text-to-speech has not been substituted.":
+     reason instanceof Error?reason.message:"Gabroo could not play this reply. Please try again.");
    }
+  }finally{
+   if(run===speechRunRef.current)await releaseSpeechAudio();
   }
  };
  const discardTranscriptionAudio=async()=>{
