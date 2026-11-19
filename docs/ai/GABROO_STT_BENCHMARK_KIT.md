@@ -141,3 +141,18 @@ A local harness can call `runGabrooSpeechBenchmarkFromFiles` with:
 Before any adapter is called, the harness preflights every manifest audio path, resolves real paths, rejects symlinks outside the approved root, requires regular non-empty files and enforces the 10 MB limit. It opens the resolved final file with `O_NOFOLLOW` and validates the opened file handle before reading, reducing final-component symlink swap risk. This does not make a concurrently writable corpus root safe against hostile replacement of parent directories; keep the approved root and its parent directories writable only by trusted operators during a run. It then returns aggregate Markdown and JSONL. JSONL contains transcripts and must be stored only in an approved local location with appropriate access controls.
 
 This is a local orchestration API, not a provider CLI or production endpoint. No adapter is supplied by default. The automated tests use a mock adapter. A real adapter must not be configured until legal, commercial, privacy and security review is complete and the user approves the selected candidate.
+
+
+## Experiment metadata and fair comparison
+
+`packages/contracts/src/gabroo-speech-benchmark-experiment.ts` defines a strict experiment record. It captures:
+- experiment ID and offset-aware start timestamp
+- corpus version, SHA-256 corpus identity, sample count and tuning/held-out split
+- non-identifying operator label
+- each candidate's provider name, model version, region and allow-listed non-secret settings
+
+The metadata parser rejects unknown fields, duplicate candidate IDs/settings, credential-like setting names and common credential patterns in string values. Do not use this as a substitute for secret scanning or privacy review. Keep provider request IDs, learner identities, consent keys and raw audio outside the experiment metadata.
+
+`assertComparableSpeechBenchmarkResults` checks that candidates being compared within the same language mode and noise environment were evaluated on exactly the same sample IDs. A mismatch blocks comparison instead of producing misleading rankings. It does not assert that a corpus is consented or that candidate settings are semantically equivalent; those remain human-reviewed decision gates.
+
+Example metadata is deliberately not committed with real provider details or learner data. Generate a corpus SHA-256 from the approved local manifest/corpus package and record the exact model/version and region returned by the provider at execution time.
