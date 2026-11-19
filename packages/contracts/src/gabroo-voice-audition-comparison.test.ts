@@ -22,4 +22,14 @@ describe("Gabroo unified voice audition packet",()=>{
   expect(gabrooVoiceOwnerDecisionSchema.safeParse({status:"approved",decisionOwner:"Owner",rationale:"Reviewed all audition evidence and approve this voice.",reviewedEvidenceReferences:["packet-v1"],decidedAt:"2026-11-19T10:00:00+05:30",blindCode:"VOICE-01"}).success).toBe(true);
   expect(gabrooVoiceOwnerDecisionSchema.safeParse({status:"approved",decisionOwner:"Owner",rationale:"Reviewed all audition evidence and approve this voice.",reviewedEvidenceReferences:["packet-v1"]}).success).toBe(false);
  });
+
+ it("requires client-side trials at every standard speed for playback evidence completeness",()=>{
+  const trials:GabrooPlaybackRateTrial[]=[0.75,0.85,1,1.15,1.3,1.5].map((rate,index)=>({trialId:"rate-"+index,blindCode:"VOICE-01",device:"Android",networkProfile:"wifi",requestedRate:rate,appliedRate:rate,playbackMethod:"client_rate_adjustment",intelligibility:4,naturalness:4,audibleArtifacts:[],completed:true}));
+  const row=buildGabrooVoiceAuditionComparison([],[],trials)[0];
+  expect(row.playbackRateEvidenceComplete).toBe(true);expect(row.playbackRateSummaries).toHaveLength(6);
+  const partial=buildGabrooVoiceAuditionComparison([],[],trials.slice(1))[0];
+  expect(partial.playbackRateEvidenceComplete).toBe(false);
+  const resynthesized=trials.map(x=>({...x,playbackMethod:"provider_resynthesis" as const}));
+  expect(buildGabrooVoiceAuditionComparison([],[],resynthesized)[0].playbackRateEvidenceComplete).toBe(false);
+ });
 });
