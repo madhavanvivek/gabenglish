@@ -191,3 +191,12 @@ Suggested rubric:
 - **Intelligibility:** 1 = learner intent cannot be understood; 3 = intent mostly recoverable; 5 = intent clear and unambiguous.
 
 Ratings are structured evidence, not an objective measure of accent quality. Do not penalize a learner for a regional accent when their intended meaning is intelligible.
+
+
+The local comparison command accepts an optional fourth input, a JSON array of structured human-review records:
+
+```bash
+pnpm --filter @gabenglish/api benchmark:compare -- ./benchmark/results.jsonl ./benchmark/experiment.json ./benchmark/comparison.md ./benchmark/human-reviews.json
+```
+
+When supplied, each record is validated against the human-review schema and the report adds a separate human-review summary table. Automated WER/CER and human ratings remain distinct. The summary flags samples requiring adjudication; it never ranks providers. The optional file contains reviewer annotations and must be stored in access-controlled local storage. Use pseudonymous reviewer labels and do not include learner or reviewer identifiers.
