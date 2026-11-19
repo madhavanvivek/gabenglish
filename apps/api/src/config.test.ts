@@ -18,6 +18,11 @@ describe("Gabenglish runtime configuration",()=>{
   expect(config.GABROO_LLM_MODEL).toBe("model");
   expect(config.GABROO_LLM_BASE_URL).toBe("https://llm.example/v1");
  });
+ it("requires HTTPS for configured provider endpoints in production",()=>{
+  const production={NODE_ENV:"production",AUTH_TOKEN_SECRET:"p".repeat(48),GABROO_LLM_API_KEY:"secret",GABROO_LLM_MODEL:"model"};
+  expect(()=>loadConfig({...production,GABROO_LLM_BASE_URL:"http://llm.example/v1"})).toThrow("Invalid environment configuration");
+  expect(loadConfig({...production,GABROO_LLM_BASE_URL:"https://llm.example/v1"}).GABROO_LLM_BASE_URL).toBe("https://llm.example/v1");
+ });
  it("rejects malformed provider endpoints",()=>{
   expect(()=>loadConfig({NODE_ENV:"test",GABROO_LLM_BASE_URL:"not-a-url"})).toThrow("Invalid environment configuration");
  });
