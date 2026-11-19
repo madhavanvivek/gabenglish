@@ -11,7 +11,8 @@
     "test": "vitest run",
     "db:migrate": "tsx src/migrate.ts",
     "benchmark:validate": "tsx src/scripts/gabroo-speech-benchmark-cli.ts",
-    "benchmark:report": "tsx src/scripts/gabroo-speech-benchmark-report-cli.ts"
+    "benchmark:report": "tsx src/scripts/gabroo-speech-benchmark-report-cli.ts",
+    "benchmark:compare": "tsx src/scripts/gabroo-speech-benchmark-comparison-cli.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.0.1",
