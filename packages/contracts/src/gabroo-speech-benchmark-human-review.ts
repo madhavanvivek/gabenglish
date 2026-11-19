@@ -14,9 +14,10 @@ export const gabrooSpeechHumanReviewSchema=z.object({
  readability:ratingSchema,
  intelligibility:ratingSchema,
  issueTags:z.array(z.enum([
-  "meaning_changed","key_content_omitted","hallucinated_words",
-  "malayalam_script_error","english_span_error","code_switch_lost",
-  "number_or_name_error","unintelligible","other"
+  "meaning_changed","key_content_omitted","function_word_omitted","hallucinated_words",
+  "malayalam_script_error","english_span_error","unnecessary_transliteration","code_switch_lost",
+  "language_boundary_error","number_or_name_error","punctuation_or_segmentation_error",
+  "unintelligible","other"
  ])).max(12),
  notes:z.string().max(500).optional()
 }).strict().superRefine((review,ctx)=>{
