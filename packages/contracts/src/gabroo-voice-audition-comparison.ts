@@ -15,29 +15,31 @@ export interface GabrooVoiceAuditionComparisonRow {
  commercialRights:"verified"|"pending"|"rejected"|"not_submitted";
  dataRetentionTerms:"verified"|"pending"|"rejected"|"not_submitted";
  modelTrainingTerms:"verified"|"pending"|"rejected"|"not_submitted";
- playbackRateEvidenceComplete:boolean;playbackRateSummaries:GabrooPlaybackRateSummary[];\n reviewerEvidenceComplete:boolean;technicalEvidenceComplete:boolean;eligibleForOwnerReview:boolean;
+ playbackRateEvidenceComplete:boolean;playbackRateSummaries:GabrooPlaybackRateSummary[];
+ reviewerEvidenceComplete:boolean;technicalEvidenceComplete:boolean;eligibleForOwnerReview:boolean;
 }
-
 
 /** Playback evidence is complete only when every standard speed has a client-side trial. */
 function summarizePlaybackEvidence(trials:GabrooPlaybackRateTrial[]):GabrooPlaybackRateSummary[]{
  if(trials.length===0)return [];
  return summarizeGabrooPlaybackRateTrials(trials);
 }
-\n/** Combines blind listener, technical and playback-rate evidence without ranking or selecting a voice. */
+
+/** Combines blind listener, technical and playback-rate evidence without ranking or selecting a voice. */
 export function buildGabrooVoiceAuditionComparison(
- reviews:GabrooVoiceAuditionReview[],technicalEvidence:GabrooVoiceTechnicalEvidence[]
+ reviews:GabrooVoiceAuditionReview[],technicalEvidence:GabrooVoiceTechnicalEvidence[],playbackRateTrials:GabrooPlaybackRateTrial[]=[]
 ):GabrooVoiceAuditionComparisonRow[]{
- if(!Array.isArray(reviews)||!Array.isArray(technicalEvidence))throw new Error("Voice audition evidence must be supplied as arrays.");
+ if(!Array.isArray(reviews)||!Array.isArray(technicalEvidence)||!Array.isArray(playbackRateTrials))throw new Error("Voice audition evidence must be supplied as arrays.");
  const human=reviews.length?summarizeGabrooVoiceAuditions(reviews):[];
- const technical=technicalEvidence.map(item=>summarizeGabrooVoiceTechnicalEvidence(item));\n const playback=summarizePlaybackEvidence(playbackRateTrials);
+ const technical=technicalEvidence.map(item=>summarizeGabrooVoiceTechnicalEvidence(item));
+ const playback=summarizePlaybackEvidence(playbackRateTrials);
  const seen=new Set<string>();
  for(const item of technical){if(seen.has(item.blindCode))throw new Error("Duplicate technical evidence for blind candidate.");seen.add(item.blindCode);}
  const humanByCode=new Map(human.map(x=>[x.blindCode,x]));
  const technicalByCode=new Map(technical.map(x=>[x.blindCode,x]));
  return GABROO_VOICE_AUDITION_BLIND_CODES.map(blindCode=>{
-  const h=humanByCode.get(blindCode),t=technicalByCode.get(blindCode),playbackRows=playback.filter(x=>x.blindCode===blindCode),
-   rights=t?.commercialRights??"not_submitted",retention=t?.dataRetentionTerms??"not_submitted",training=t?.modelTrainingTerms??"not_submitted";
+  const h=humanByCode.get(blindCode),t=technicalByCode.get(blindCode),playbackRows=playback.filter(x=>x.blindCode===blindCode);
+  const rights=t?.commercialRights??"not_submitted",retention=t?.dataRetentionTerms??"not_submitted",training=t?.modelTrainingTerms??"not_submitted";
   const reviewerEvidenceComplete=Boolean(h&&h.reviewerCount>=3&&h.rejectionGates.length===0);
   const technicalEvidenceComplete=Boolean(t?.eligibleForOwnerReview);
   return {blindCode,reviewerCount:h?.reviewerCount??0,meanWeightedScore:h?.meanWeightedScore??null,
@@ -48,7 +50,8 @@ export function buildGabrooVoiceAuditionComparison(
    streamingStabilityRatePercent:t?.streamingStabilityRatePercent??null,slowPlaybackMeanRating:t?.slowPlaybackMeanRating??null,
    estimatedCostPerAudioMinuteInr:t?.estimatedCostPerAudioMinuteInr??null,
    commercialRights:rights,dataRetentionTerms:retention,modelTrainingTerms:training,
-   playbackRateEvidenceComplete:GABROO_PLAYBACK_RATE_TEST_POINTS.every(rate=>playbackRows.some(x=>x.rate===rate&&x.clientRateTrials>0)),\n   playbackRateSummaries:playbackRows,reviewerEvidenceComplete,technicalEvidenceComplete,eligibleForOwnerReview:reviewerEvidenceComplete&&technicalEvidenceComplete
+   playbackRateEvidenceComplete:GABROO_PLAYBACK_RATE_TEST_POINTS.every(rate=>playbackRows.some(x=>x.rate===rate&&x.clientRateTrials>0)),
+   playbackRateSummaries:playbackRows,reviewerEvidenceComplete,technicalEvidenceComplete,eligibleForOwnerReview:reviewerEvidenceComplete&&technicalEvidenceComplete
   };
  });
 }
