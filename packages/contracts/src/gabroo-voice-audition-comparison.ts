@@ -22,7 +22,7 @@ export function buildGabrooVoiceAuditionComparison(
  reviews:GabrooVoiceAuditionReview[],technicalEvidence:GabrooVoiceTechnicalEvidence[]
 ):GabrooVoiceAuditionComparisonRow[]{
  if(!Array.isArray(reviews)||!Array.isArray(technicalEvidence))throw new Error("Voice audition evidence must be supplied as arrays.");
- const human=summarizeGabrooVoiceAuditions(reviews);
+ const human=reviews.length?summarizeGabrooVoiceAuditions(reviews):[];
  const technical=technicalEvidence.map(item=>summarizeGabrooVoiceTechnicalEvidence(item));
  const seen=new Set<string>();
  for(const item of technical){if(seen.has(item.blindCode))throw new Error("Duplicate technical evidence for blind candidate.");seen.add(item.blindCode);}
