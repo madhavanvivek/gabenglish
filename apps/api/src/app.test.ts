@@ -72,6 +72,30 @@ describe("API foundation",()=>{
   expect(calls).toBe(0);
   await app.close();
  });
+ it("allows only one concurrent Gabroo speech synthesis request per learner",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let begin!:()=>void;let finish!:()=>void;
+  const started=new Promise<void>(resolve=>{begin=resolve;});
+  const gate=new Promise<void>(resolve=>{finish=resolve;});
+  const provider={synthesize:async()=>{
+   begin();
+   await gate;
+   return {audio:new Uint8Array([1,2,3]),contentType:"audio/mpeg" as const};
+  }};
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,provider);
+  const headers={authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)};
+  const first=app.inject({method:"POST",url:"/api/v1/gabroo/speech",headers,payload:{text:"First reply",speed:1}});
+  await started;
+  const second=await app.inject({method:"POST",url:"/api/v1/gabroo/speech",headers,payload:{text:"Overlapping reply",speed:1}});
+  expect(second.statusCode).toBe(429);
+  expect(second.json().error.code).toBe("SPEECH_REQUEST_IN_PROGRESS");
+  finish();
+  const firstResponse=await first;
+  expect(firstResponse.statusCode).toBe(200);
+  const retry=await app.inject({method:"POST",url:"/api/v1/gabroo/speech",headers,payload:{text:"Next reply",speed:1}});
+  expect(retry.statusCode).toBe(200);
+  await app.close();
+ });
  it("reports Gabroo speech capability only when a synthesis provider is injected",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   const provider={synthesize:async()=>({audio:new Uint8Array([1]),contentType:"audio/mpeg" as const})};
