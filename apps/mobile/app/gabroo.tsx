@@ -138,7 +138,7 @@ export default function GabrooScreen(){
  };
  const openConversation=async(item:GabrooConversation)=>{
   cancelActiveTurn();
-  speechRunRef.current+=1;speechRequestAbortRef.current?.abort();speechRequestAbortRef.current=null;void Speech.stop();void releaseSpeechAudio();setSpeakingMessageId(null);
+  speechRunRef.current+=1;speechRequestAbortRef.current?.abort();speechRequestAbortRef.current=null;speechSegmentResolveRef.current?.();speechSegmentResolveRef.current=null;void Speech.stop();void releaseSpeechAudio();setSpeakingMessageId(null);
   conversationMutationSequenceRef.current+=1;
   const requestId=++conversationOpenSequenceRef.current;
   setBusy(true);setError("");
