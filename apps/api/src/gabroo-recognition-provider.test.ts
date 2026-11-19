@@ -20,6 +20,7 @@ describe("Gabroo speech recognition provider",()=>{
   expect(captured?.init.signal).toBe(controller.signal);
   const form=captured?.init.body as FormData;
   expect(form.get("model")).toBe("whisper-test");
+  expect(form.get("response_format")).toBe("verbose_json");
   expect(form.get("language")).toBe("ml");
   expect(form.get("file")).toBeInstanceOf(Blob);
  });
