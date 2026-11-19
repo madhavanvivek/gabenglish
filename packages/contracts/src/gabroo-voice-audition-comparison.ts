@@ -1,3 +1,4 @@
+import {z} from "zod";
 import {summarizeGabrooVoiceAuditions,type GabrooVoiceAuditionReview} from "./gabroo-voice-audition.js";
 import {summarizeGabrooVoiceTechnicalEvidence,type GabrooVoiceTechnicalEvidence} from "./gabroo-voice-technical-evidence.js";
 
@@ -45,15 +46,15 @@ export function buildGabrooVoiceAuditionComparison(
  });
 }
 
-export const gabrooVoiceOwnerDecisionSchema=(await import("zod")).z.object({
- status:(await import("zod")).z.enum(["pending","approved","rejected"]),
+export const gabrooVoiceOwnerDecisionSchema=z.object({
+ status:z.enum(["pending","approved","rejected"]),
  blindCode:(await import("zod")).z.enum(GABROO_VOICE_AUDITION_BLIND_CODES).optional(),
- decisionOwner:(await import("zod")).z.string().trim().min(1).max(120),
+ decisionOwner:z.string().trim().min(1).max(120),
  rationale:(await import("zod")).z.string().trim().min(20).max(2000),
- reviewedEvidenceReferences:(await import("zod")).z.array((await import("zod")).z.string().trim().min(1).max(300)).min(1).max(30),
- decidedAt:(await import("zod")).z.string().datetime({offset:true}).optional()
+ reviewedEvidenceReferences:z.array(z.string().trim().min(1).max(300)).min(1).max(30),
+ decidedAt:z.string().datetime({offset:true}).optional()
 }).strict().superRefine((decision,ctx)=>{
  if(decision.status==="pending"&&decision.decidedAt!==undefined)ctx.addIssue({code:"custom",path:["decidedAt"],message:"Pending decisions cannot have a decision timestamp."});
  if(decision.status!=="pending"&&(!decision.blindCode||!decision.decidedAt))ctx.addIssue({code:"custom",path:["blindCode"],message:"Approved or rejected decisions require a candidate and decision timestamp."});
 });
-export type GabrooVoiceOwnerDecision=typeof gabrooVoiceOwnerDecisionSchema extends { _output: infer T } ? T : never;
+export type GabrooVoiceOwnerDecision=z.infer<typeof gabrooVoiceOwnerDecisionSchema>;
