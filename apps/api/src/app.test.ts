@@ -78,6 +78,40 @@ describe("API foundation",()=>{
   await app.close();
  });
 
+ it("transcribes a consented recording and returns it only for learner review",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let received:{mimeType:string;language:string;bytes:number}|undefined;
+  const provider={transcribe:async(input:{audio:Uint8Array;mimeType:string;language:string;signal:AbortSignal})=>{
+   received={mimeType:input.mimeType,language:input.language,bytes:input.audio.byteLength};
+   return {text:"എനിക്ക് ഇംഗ്ലീഷ് പഠിക്കണം",languageDetected:"ml" as const};
+  }};
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,provider);
+  const response=await app.inject({method:"POST",url:"/api/v1/gabroo/recognition",headers:{
+   authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET),
+   "content-type":"audio/mp4",
+   "x-gabroo-consent":"true",
+   "x-gabroo-language":"ml-IN"
+  },payload:Buffer.from([1,2,3,4])});
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toMatchObject({transcript:{text:"എനിക്ക് ഇംഗ്ലീഷ് പഠിക്കണം",languageDetected:"ml"},review_required:true});
+  expect(response.json().request_id).toBeTruthy();
+  expect(received).toEqual({mimeType:"audio/mp4",language:"ml-IN",bytes:4});
+  await app.close();
+ });
+ it("does not send a recording to the provider without explicit consent",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let calls=0;
+  const provider={transcribe:async()=>{calls++;return {text:"hello",languageDetected:"en" as const};}};
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,provider);
+  const response=await app.inject({method:"POST",url:"/api/v1/gabroo/recognition",headers:{
+   authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET),
+   "content-type":"audio/mp4"
+  },payload:Buffer.from([1,2,3])});
+  expect(response.statusCode).toBe(400);
+  expect(response.json().error.code).toBe("CONSENT_REQUIRED");
+  expect(calls).toBe(0);
+  await app.close();
+ });
  it("requires an authenticated learner for supported Gabroo audio",async()=>{
   const pool={query:async()=>({rows:[]})} as any;
   const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
