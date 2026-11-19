@@ -1,4 +1,4 @@
-import {mkdtemp,mkdir,readFile,rm,writeFile} from "node:fs/promises";
+import {mkdtemp,mkdir,rm,writeFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {afterEach,describe,expect,it} from "vitest";
@@ -21,7 +21,7 @@ async function setup(){
 }
 describe("Gabroo corpus fingerprint",()=>{
  it("is deterministic and independent of manifest row order",async()=>{
-  const {root,audio,manifest}=await setup();
+  const {audio,manifest}=await setup();
   const first=await fingerprintGabrooBenchmarkCorpus(manifest,audio);
   await writeFile(manifest,[sample("b","b.wav"),sample("a","a.wav")].map(x=>JSON.stringify(x)).join("\n")+"\n");
   const second=await fingerprintGabrooBenchmarkCorpus(manifest,audio);
