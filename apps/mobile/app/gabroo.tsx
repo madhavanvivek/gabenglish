@@ -540,7 +540,7 @@ export default function GabrooScreen(){
    appIsActiveRef.current=state==="active";
    if(state!=="active"){
     // Do not let device TTS continue after Gabroo leaves the foreground.
-    speechRunRef.current+=1;speechRequestAbortRef.current?.abort();speechRequestAbortRef.current=null;
+    speechRunRef.current+=1;speechRequestAbortRef.current?.abort();speechRequestAbortRef.current=null;speechSegmentResolveRef.current?.();speechSegmentResolveRef.current=null;
     const playback=playbackStateRef.current;
     if(playback.phase==="speaking"&&playback.playback_id){
      playbackStateRef.current=reduceGabrooPlayback(playback,{type:"interrupted",playback_id:playback.playback_id});
