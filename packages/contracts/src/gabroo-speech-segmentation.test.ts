@@ -1,10 +1,29 @@
 import {describe,expect,it} from "vitest";
-import {splitGabrooSpeechText} from "./gabroo-speech.js";
+import {chunkGabrooSpeechSegments,splitGabrooSpeechText} from "./gabroo-speech.js";
 
 describe("Gabroo Malayalam-English speech segmentation",()=>{
  it("keeps a Malayalam-only reply in one Malayalam run",()=>{
   expect(splitGabrooSpeechText("നമസ്കാരം")).toEqual([{text:"നമസ്കാരം",language:"ml"}]);
+ 
+ it("chunks long mixed-language replies at sentence boundaries without losing text",()=>{
+  const source="Hello there. This is a longer explanation! നമസ്കാരം. സുഖമാണോ?";
+  const segments=splitGabrooSpeechText(source);
+  const chunks=chunkGabrooSpeechSegments(segments,18);
+  expect(chunks.map(chunk=>chunk.text).join("")).toBe(source);
+  expect(chunks.every(chunk=>chunk.text.length<=18)).toBe(true);
+  expect(chunks.map(chunk=>chunk.language)).toEqual(["en","en","ml","ml"]);
  });
+ it("hard-splits a long sentence at the configured safe request size",()=>{
+  const source="a".repeat(41);
+  const chunks=chunkGabrooSpeechSegments([{text:source,language:"en"}],16);
+  expect(chunks.map(chunk=>chunk.text).join("")).toBe(source);
+  expect(chunks.map(chunk=>chunk.text.length)).toEqual([16,16,9]);
+ });
+ it("rejects unsafe chunk limits",()=>{
+  expect(()=>chunkGabrooSpeechSegments([],0)).toThrow(/between 1 and 4000/);
+  expect(()=>chunkGabrooSpeechSegments([],4001)).toThrow(/between 1 and 4000/);
+ });
+});
  it("splits code-switched speech in order and preserves separators",()=>{
   expect(splitGabrooSpeechText("Hello, സുഖമാണോ? How are you!")).toEqual([
    {text:"Hello, ",language:"en"},
