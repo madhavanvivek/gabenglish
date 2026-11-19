@@ -15,3 +15,42 @@ export function validateGabrooAudioBytes(bytes:Uint8Array):void{
   throw new Error("Gabroo returned an invalid audio response.");
  }
 }
+
+
+/**
+ * Read MP3 bytes with an incremental cap when the runtime exposes a readable
+ * response stream. This prevents an unexpectedly large chunked response from
+ * being fully buffered before validation. Older React Native fetch adapters
+ * without body readers retain the bounded-header + post-read fallback.
+ */
+export async function readGabrooAudioBytes(response:Pick<Response,"headers"|"body"|"arrayBuffer">):Promise<Uint8Array>{
+ validateGabrooAudioHeaders(response.headers.get("content-type"),response.headers.get("content-length"));
+ const reader=response.body?.getReader();
+ if(!reader){
+  const bytes=new Uint8Array(await response.arrayBuffer());
+  validateGabrooAudioBytes(bytes);
+  return bytes;
+ }
+ const chunks:Uint8Array[]=[];
+ let total=0;
+ try{
+  while(true){
+   const result=await reader.read();
+   if(result.done)break;
+   total+=result.value.byteLength;
+   if(total>MAX_GABROO_AUDIO_BYTES){
+    await reader.cancel().catch(()=>undefined);
+    throw new Error("Gabroo audio exceeded the permitted size.");
+   }
+   chunks.push(result.value);
+  }
+ }catch(error){
+  await reader.cancel().catch(()=>undefined);
+  throw error;
+ }
+ const bytes=new Uint8Array(total);
+ let offset=0;
+ for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+ validateGabrooAudioBytes(bytes);
+ return bytes;
+}
