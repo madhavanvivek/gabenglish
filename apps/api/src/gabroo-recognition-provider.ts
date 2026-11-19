@@ -1,7 +1,6 @@
 import {
  type GabrooSpeechRecognitionProvider,
  type GabrooTranscript,
- type GabrooRecognitionLanguage
 } from "@gabenglish/contracts";
 
 type RecognitionConfig={GABROO_LLM_API_KEY?:string;GABROO_LLM_BASE_URL:string;GABROO_STT_MODEL?:string};
