@@ -253,7 +253,7 @@ export default function GabrooScreen(){
    let playbackStarted=false;
    setSpeechNotice("Preparing Gabroo's voice…");
    const completed=await playGabrooSpeechSegments(segments,{
-    speak:async(segment,rate)=>{
+    speak:async(segment)=>{
      if(run!==speechRunRef.current||requestController.signal.aborted)return;
      const synthesisRate=speechRateRef.current;
      const uri=await synthesizeGabrooSpeech({text:segment.text,speed:synthesisRate,signal:requestController.signal});
