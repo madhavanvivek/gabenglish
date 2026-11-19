@@ -30,6 +30,57 @@ describe("API foundation",()=>{
  it("serves liveness",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);const r=await app.inject({method:"GET",url:"/api/v1/health"});expect(r.statusCode).toBe(200);expect(r.json().status).toBe("ok");expect(r.json().capabilities).toBeUndefined();await app.close();});
  it("reports ready when database check passes",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true);const r=await app.inject({method:"GET",url:"/api/v1/ready"});expect(r.statusCode).toBe(200);expect(r.json().capabilities).toEqual({gabroo_conversation:"unconfigured",gabroo_recognition:"unconfigured",gabroo_speech:"unconfigured"});await app.close();});
  it("returns 503 when database is unavailable",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);const r=await app.inject({method:"GET",url:"/api/v1/ready"});expect(r.statusCode).toBe(503);await app.close();});
+ it("requires an authenticated learner to inspect Gabroo speech availability",async()=>{
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,recognitionPool(true));
+  const response=await app.inject({method:"GET",url:"/api/v1/gabroo/speech/status"});
+  expect(response.statusCode).toBe(401);
+  expect(response.json().error.code).toBe("VERIFIED_ACCOUNT_REQUIRED");
+  await app.close();
+ });
+ it("does not expose Gabroo speech to a free learner",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const app=await buildApp(config,async()=>true,recognitionPool(false));
+  const response=await app.inject({method:"GET",url:"/api/v1/gabroo/speech/status",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(403);
+  expect(response.json().error.code).toBe("PAID_SUBSCRIPTION_REQUIRED");
+  await app.close();
+ });
+ it("synthesizes speech for a paid learner using the requested speed",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let captured:{text:string;speed:number}|undefined;
+  const provider={synthesize:async(input:{text:string;speed:number;signal:AbortSignal})=>{
+   captured={text:input.text,speed:input.speed};
+   return {audio:new Uint8Array([1,2,3]),contentType:"audio/mpeg" as const};
+  }};
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,provider);
+  const response=await app.inject({method:"POST",url:"/api/v1/gabroo/speech",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{text:"നമസ്കാരം! Let's practise.",speed:0.9}});
+  expect(response.statusCode).toBe(200);
+  expect(response.headers["content-type"]).toContain("audio/mpeg");
+  expect(response.headers["cache-control"]).toBe("private, no-store");
+  expect(response.rawPayload).toEqual(Buffer.from([1,2,3]));
+  expect(captured).toEqual({text:"നമസ്കാരം! Let's practise.",speed:0.9});
+  await app.close();
+ });
+ it("rejects unsupported Gabroo speech speed and does not call the provider",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let calls=0;
+  const provider={synthesize:async()=>{calls++;return {audio:new Uint8Array([1]),contentType:"audio/mpeg" as const};}};
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,provider);
+  const response=await app.inject({method:"POST",url:"/api/v1/gabroo/speech",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{text:"hello",speed:2}});
+  expect(response.statusCode).toBe(400);
+  expect(response.json().error.code).toBe("VALIDATION_ERROR");
+  expect(calls).toBe(0);
+  await app.close();
+ });
+ it("reports Gabroo speech capability only when a synthesis provider is injected",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const provider={synthesize:async()=>({audio:new Uint8Array([1]),contentType:"audio/mpeg" as const})};
+  const app=await buildApp(config,async()=>true,undefined,undefined,undefined,undefined,provider);
+  const response=await app.inject({method:"GET",url:"/api/v1/ready"});
+  expect(response.json().capabilities.gabroo_speech).toBe("configured");
+  await app.close();
+ });
+
  it("rejects unsupported Gabroo audio media types",async()=>{
   const pool={query:async()=>({rows:[]})} as any;
   const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
