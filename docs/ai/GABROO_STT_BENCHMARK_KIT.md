@@ -236,11 +236,12 @@ Do not upload audio or commit fingerprints alongside identifying metadata. Keep 
 ## Reviewer agreement and adjudication
 
 Human review reports now include pairwise reviewer agreement metrics calculated within each candidate, mode and environment:
-- **Reviewer pairs:** all independent reviewer pairs for the same sample, multiplied by the applicable scored dimensions.
+- **Reviewer pairs:** independent reviewer-to-reviewer comparisons for the same sample. This count is separate from paired dimension ratings.
+- **Paired ratings:** the number of dimension-level rating comparisons across reviewer pairs.
 - **Exact rating agreement:** percentage of paired dimension ratings that are identical.
 - **Mean absolute rating difference:** average absolute point difference across paired dimension ratings on the 1–5 scale.
 
-These are descriptive agreement indicators, not a reliability coefficient and not proof of reviewer validity. Do not compare agreement percentages across groups with different dimension coverage without noting the difference. Samples are flagged for adjudication when fewer than two reviews exist, any core dimension differs by two or more points, or a reviewer records a critical meaning/content error. Adjudication must be completed by a designated Malayalam-fluent adjudicator; preserve the original independent ratings and record the adjudicated decision separately rather than overwriting them.
+These are descriptive agreement indicators, not a reliability coefficient and not proof of reviewer validity. Do not compare agreement percentages across groups with different dimension coverage without noting the difference. The report lists the exact sample IDs flagged for adjudication, not only the count. Samples are flagged when fewer than two reviews exist, any core dimension differs by two or more points, or a reviewer records a critical meaning/content error. Adjudication must be completed by a designated Malayalam-fluent adjudicator; preserve the original independent ratings and record the adjudicated decision separately rather than overwriting them.
 
 ## Complete local workflow
 
