@@ -29,6 +29,8 @@ describe("Gabroo unified voice audition packet",()=>{
   expect(row.playbackRateEvidenceComplete).toBe(true);expect(row.playbackRateSummaries).toHaveLength(6);
   const partial=buildGabrooVoiceAuditionComparison([],[],trials.slice(1))[0];
   expect(partial.playbackRateEvidenceComplete).toBe(false);
+  const incomplete=trials.map(x=>({...x,completed:false}));
+  expect(buildGabrooVoiceAuditionComparison([],[],incomplete)[0].playbackRateEvidenceComplete).toBe(false);
   const resynthesized=trials.map(x=>({...x,playbackMethod:"provider_resynthesis" as const}));
   expect(buildGabrooVoiceAuditionComparison([],[],resynthesized)[0].playbackRateEvidenceComplete).toBe(false);
  });
