@@ -23,7 +23,7 @@ describe("Gabroo benchmark comparison CLI",()=>{
   await writeFile(metadata,JSON.stringify(experiment));
   const summary=await writeGabrooBenchmarkComparisonReport(results,metadata,output);
   const report=await readFile(output,"utf8");
-  expect(summary).toEqual({acceptedRecords:2,experimentId:"cli-compare"});
+  expect(summary).toEqual({acceptedRecords:2,experimentId:"cli-compare",humanReviewRecords:0});
   expect(report).toContain("Mock A");expect(report).toContain("No provider is ranked");
   expect(report).not.toContain("നമസ്കാരം");
  });
