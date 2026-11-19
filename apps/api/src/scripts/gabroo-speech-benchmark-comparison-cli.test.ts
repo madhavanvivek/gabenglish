@@ -19,7 +19,7 @@ describe("Gabroo benchmark comparison CLI",()=>{
  it("writes a fair comparison report without raw transcripts",async()=>{
   const root=await mkdtemp(join(tmpdir(),"gabroo-compare-"));roots.push(root);
   const results=join(root,"results.jsonl"),metadata=join(root,"experiment.json"),output=join(root,"comparison.md");
-  await writeFile(results,[row("a"),row("b")].map(x=>JSON.stringify(x)).join("\\n")+"\\n");
+  await writeFile(results,[row("a"),row("b")].map(x=>JSON.stringify(x)).join("\n")+"\n");
   await writeFile(metadata,JSON.stringify(experiment));
   const summary=await writeGabrooBenchmarkComparisonReport(results,metadata,output);
   const report=await readFile(output,"utf8");
@@ -30,7 +30,7 @@ describe("Gabroo benchmark comparison CLI",()=>{
  it("rejects malformed records before writing a report",async()=>{
   const root=await mkdtemp(join(tmpdir(),"gabroo-compare-"));roots.push(root);
   const results=join(root,"results.jsonl"),metadata=join(root,"experiment.json"),output=join(root,"comparison.md");
-  await writeFile(results,"invalid-json\\n");await writeFile(metadata,JSON.stringify(experiment));
+  await writeFile(results,"invalid-json\n");await writeFile(metadata,JSON.stringify(experiment));
   await expect(writeGabrooBenchmarkComparisonReport(results,metadata,output)).rejects.toThrow("invalid JSONL");
  });
 });
