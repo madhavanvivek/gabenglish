@@ -61,7 +61,7 @@ export function renderGabrooSpeechBenchmarkComparison(
   "- Success rate includes failed requests. WER/CER are calculated over successful transcripts only.",
   "- Cost per audio minute is unavailable when any request in a candidate group lacks a cost measurement.",
   "- CER is based on NFC-normalised Unicode code points, not grapheme clusters.",
-  "- This report does not include blind Malayalam-fluent human ratings, meaning preservation, code-switch handling adjudication, or commercial/privacy approval.",
+  "- Human review is included only when a validated review file is supplied; absence of review data is not a pass. Commercial/privacy approval remains a separate gate.",
   "- Do not select or enable a provider from these metrics alone. Complete held-out human review and the legal, security, privacy and commercial decision gates first.",
   "",
   "## Human review (separate from automated WER/CER)","",
@@ -75,7 +75,9 @@ export function renderGabrooSpeechBenchmarkComparison(
    summary.meanContentCompleteness.toFixed(2),summary.meanLanguageFidelity.toFixed(2),
    summary.meanCodeSwitchHandling===null?"—":summary.meanCodeSwitchHandling.toFixed(2),
    summary.meanReadability.toFixed(2),summary.meanIntelligibility.toFixed(2),
-   summary.samplesNeedingAdjudication.length?summary.samplesNeedingAdjudication.map(cell).join(", "):"No flagged samples"
+   String(summary.reviewerPairs),summary.exactRatingAgreementPercent===null?"—":summary.exactRatingAgreementPercent.toFixed(2)+"%",
+   summary.meanAbsoluteRatingDifference===null?"—":summary.meanAbsoluteRatingDifference.toFixed(2),
+   String(summary.samplesNeedingAdjudication.length)
   ].join(" | ")+" |");
  }
  lines.push("","Human review scores are descriptive averages, not a provider ranking. Exact agreement is the percentage of paired dimension ratings that match; mean absolute difference is the average absolute 1–5 rating gap. Samples with fewer than two independent reviews, material reviewer disagreement or critical error flags require adjudication.","","No provider is ranked or declared the winner by this report.",""
