@@ -48,9 +48,9 @@ export function buildGabrooVoiceAuditionComparison(
 
 export const gabrooVoiceOwnerDecisionSchema=z.object({
  status:z.enum(["pending","approved","rejected"]),
- blindCode:(await import("zod")).z.enum(GABROO_VOICE_AUDITION_BLIND_CODES).optional(),
+ blindCode:z.enum(GABROO_VOICE_AUDITION_BLIND_CODES).optional(),
  decisionOwner:z.string().trim().min(1).max(120),
- rationale:(await import("zod")).z.string().trim().min(20).max(2000),
+ rationale:z.string().trim().min(20).max(2000),
  reviewedEvidenceReferences:z.array(z.string().trim().min(1).max(300)).min(1).max(30),
  decidedAt:z.string().datetime({offset:true}).optional()
 }).strict().superRefine((decision,ctx)=>{
