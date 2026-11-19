@@ -58,6 +58,7 @@ export default function GabrooScreen(){
  const speechRunRef=useRef(0);
  const turnSequenceRef=useRef(0);
  const turnAbortRef=useRef<AbortController|null>(null);
+ const sendInFlightRef=useRef(false);
  const speechPreferenceSequenceRef=useRef(0);
  const playbackStateRef=useRef<GabrooPlaybackState>(initialGabrooPlaybackState);
  const load=useCallback(async(sequence:number)=>{
@@ -171,7 +172,8 @@ export default function GabrooScreen(){
   }
  };
  const send=async()=>{
-  const text=draft.trim();if(!text||!active||busy)return;
+  const text=draft.trim();if(!text||!active||busy||sendInFlightRef.current)return;
+  sendInFlightRef.current=true;
   setBusy(true);setError("");
   const conversationId=active.id;
   const turnId=`${conversationId}:${++turnSequenceRef.current}`;
@@ -187,7 +189,7 @@ export default function GabrooScreen(){
    if(activeConversationIdRef.current!==conversationId)return;
    setTurnState(current=>reduceGabrooTurn(current,{type:"failed",turn_id:turnId,reason:reason instanceof Error?reason.message:"Could not send your message."}));
    setError(reason instanceof AuthApiError&&reason.status===503?"Gabroo could not reply just now. Your message was not saved. Please try again.":reason instanceof Error?reason.message:"Could not send your message.");
-  }finally{if(turnAbortRef.current===controller){turnAbortRef.current=null;setBusy(false);}}
+  }finally{sendInFlightRef.current=false;if(turnAbortRef.current===controller){turnAbortRef.current=null;setBusy(false);}}
  };
  const stopSpeech=async()=>{
   speechRunRef.current+=1;
