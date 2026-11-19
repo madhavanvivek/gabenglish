@@ -61,10 +61,10 @@ export async function fingerprintGabrooBenchmarkCorpus(manifestPath:string,audio
 async function main():Promise<void>{
  const args=process.argv.slice(2);
  if(args.length!==2||args.includes("--help")||args.includes("-h")){
-  process.stdout.write("Usage: pnpm --filter @gabenglish/api benchmark:fingerprint -- <manifest.jsonl> <audio-root>\\n");
+  process.stdout.write("Usage: pnpm --filter @gabenglish/api benchmark:fingerprint -- <manifest.jsonl> <audio-root>\n");
   process.exitCode=args.length===0||args.includes("--help")||args.includes("-h")?0:2;return;
  }
- try{process.stdout.write(JSON.stringify(await fingerprintGabrooBenchmarkCorpus(args[0],args[1]),null,2)+"\\n");}
- catch{process.stderr.write("Corpus fingerprint failed. Check manifest and approved audio-root files.\\n");process.exitCode=1;}
+ try{process.stdout.write(JSON.stringify(await fingerprintGabrooBenchmarkCorpus(args[0],args[1]),null,2)+"\n");}
+ catch{process.stderr.write("Corpus fingerprint failed. Check manifest and approved audio-root files.\n");process.exitCode=1;}
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)void main();
