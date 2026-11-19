@@ -50,7 +50,7 @@ export function buildGabrooVoiceAuditionComparison(
    streamingStabilityRatePercent:t?.streamingStabilityRatePercent??null,slowPlaybackMeanRating:t?.slowPlaybackMeanRating??null,
    estimatedCostPerAudioMinuteInr:t?.estimatedCostPerAudioMinuteInr??null,
    commercialRights:rights,dataRetentionTerms:retention,modelTrainingTerms:training,
-   playbackRateEvidenceComplete:GABROO_PLAYBACK_RATE_TEST_POINTS.every(rate=>playbackRows.some(x=>x.rate===rate&&x.clientRateTrials>0)),
+   playbackRateEvidenceComplete:GABROO_PLAYBACK_RATE_TEST_POINTS.every(rate=>playbackRows.some(x=>x.rate===rate&&x.completedCount>0&&x.clientRateTrials>0)),
    playbackRateSummaries:playbackRows,reviewerEvidenceComplete,technicalEvidenceComplete,eligibleForOwnerReview:reviewerEvidenceComplete&&technicalEvidenceComplete
   };
  });
