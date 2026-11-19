@@ -79,5 +79,5 @@ export function renderGabrooSpeechBenchmarkComparison(
  }
  lines.push("","Human review scores are descriptive averages, not a provider ranking. Samples with fewer than two independent reviews or material reviewer disagreement require adjudication.","","No provider is ranked or declared the winner by this report.",""
  );
- return lines.join("\\n");
+ return lines.join("\n");
 }
