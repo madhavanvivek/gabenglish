@@ -30,6 +30,7 @@ export default function GabrooScreen(){
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const [speechRate,setSpeechRate]=useState(1);
+ const speechRateRef=useRef(1);
  const [speakingMessageId,setSpeakingMessageId]=useState<string|null>(null);
  const speechSoundRef=useRef<Audio.Sound|null>(null);
  const speechRequestAbortRef=useRef<AbortController|null>(null);
@@ -73,8 +74,9 @@ export default function GabrooScreen(){
    setSubscription(status);
    const learner=await getLearnerMe();
    if(sequence!==loadSequenceRef.current)return;
-   setSpeechRate(learner.preferences?.gabroo_speech_rate??1);
-   void cacheGabrooSpeechRate(learner.user.id,learner.preferences?.gabroo_speech_rate??1).catch(()=>{});
+   const savedSpeechRate=learner.preferences?.gabroo_speech_rate??1;
+   speechRateRef.current=savedSpeechRate;setSpeechRate(savedSpeechRate);
+   void cacheGabrooSpeechRate(learner.user.id,savedSpeechRate).catch(()=>{});
    if(status.active){
     const result=await listGabrooConversations();
     if(sequence!==loadSequenceRef.current)return;
@@ -253,7 +255,8 @@ export default function GabrooScreen(){
    const completed=await playGabrooSpeechSegments(segments,{
     speak:async(segment,rate)=>{
      if(run!==speechRunRef.current||requestController.signal.aborted)return;
-     const uri=await synthesizeGabrooSpeech({text:segment.text,speed:rate,signal:requestController.signal});
+     const synthesisRate=speechRateRef.current;
+     const uri=await synthesizeGabrooSpeech({text:segment.text,speed:synthesisRate,signal:requestController.signal});
      if(run!==speechRunRef.current||requestController.signal.aborted){
       await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
       return;
@@ -265,6 +268,8 @@ export default function GabrooScreen(){
       sound=created.sound;
       if(run!==speechRunRef.current||requestController.signal.aborted)return;
       speechSoundRef.current=sound;
+      await sound.setRateAsync(speechRateRef.current,true);
+      if(run!==speechRunRef.current||requestController.signal.aborted)return;
       if(!playbackStarted){
        playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"started",playback_id:playbackId});
        setSpeakingMessageId(message.id);setSpeechNotice("");
@@ -583,7 +588,7 @@ export default function GabrooScreen(){
   if(next===speechRate||speechSaving)return;
   const previous=speechRate;
   const requestId=++speechPreferenceSequenceRef.current;
-  setSpeechRate(next);setSpeechNotice("");setSpeechSaving(true);
+  speechRateRef.current=next;setSpeechRate(next);setSpeechNotice("");setSpeechSaving(true);
   // Apply the learner's new rate to speech already in progress, not only the next reply.
   void speechSoundRef.current?.setRateAsync(next,true).catch(()=>undefined);
   try{
@@ -592,7 +597,8 @@ export default function GabrooScreen(){
    await cacheGabrooSpeechRate(learner.user.id,next);
   }catch(reason){
    if(requestId===speechPreferenceSequenceRef.current){
-    setSpeechRate(previous);
+    speechRateRef.current=previous;setSpeechRate(previous);
+    void speechSoundRef.current?.setRateAsync(previous,true).catch(()=>undefined);
     setSpeechNotice(reason instanceof Error?reason.message:"Could not save your speaking speed.");
    }
   }finally{
