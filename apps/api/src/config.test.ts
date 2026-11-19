@@ -6,6 +6,7 @@ describe("Gabenglish runtime configuration",()=>{
   const config=loadConfig({NODE_ENV:"test"});
   expect(config.GABROO_LLM_API_KEY).toBeUndefined();
   expect(config.GABROO_LLM_MODEL).toBeUndefined();
+  expect(config.GABROO_STT_MODEL).toBe("whisper-1");
   expect(config.GABROO_LLM_BASE_URL).toBe("https://api.openai.com/v1");
  });
  it("requires the API key and model to be configured together",()=>{
