@@ -6,7 +6,7 @@ import {
 type RecognitionConfig={GABROO_LLM_API_KEY?:string;GABROO_LLM_BASE_URL:string;GABROO_STT_MODEL?:string};
 type FetchLike=(input:string|URL|Request,init?:RequestInit)=>Promise<Response>;
 
-const fileNames:Record<string,string>={
+function detectedLanguage(value:unknown,fallback:GabrooTranscript["languageDetected"]):GabrooTranscript["languageDetected"]{\n if(typeof value!=="string")return fallback;\n const normalized=value.trim().toLowerCase();\n if(["ml","malayalam","mal"].includes(normalized))return "ml";\n if(["en","english","eng"].includes(normalized))return "en";\n return "unknown";\n}\n\nconst fileNames:Record<string,string>={
  "audio/mp4":"gabroo-recording.m4a",
  "audio/m4a":"gabroo-recording.m4a",
  "audio/wav":"gabroo-recording.wav",
@@ -38,7 +38,7 @@ export function createGabrooSpeechRecognitionProvider(config:RecognitionConfig,f
    if(!response.ok)throw new Error("Gabroo speech recognition request failed with status "+response.status);
    const payload=await response.json() as {text?:unknown;language?:unknown};
    if(typeof payload.text!=="string"||!payload.text.trim())throw new Error("Gabroo speech recognition returned no transcript");
-   const languageDetected:GabrooTranscript["languageDetected"]=input.language==="ml-IN"?"ml":input.language==="en-IN"?"en":"unknown";
+   const fallback:GabrooTranscript["languageDetected"]=input.language==="ml-IN"?"ml":input.language==="en-IN"?"en":"unknown";\n   const languageDetected=detectedLanguage(payload.language,fallback);
    return {text:payload.text.trim(),languageDetected};
   }
  };
