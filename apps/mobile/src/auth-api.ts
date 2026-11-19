@@ -184,7 +184,7 @@ export async function recognizeGabrooAudio(input:{
  * voice provider. Audio is written to the app cache, never persisted as learner
  * content, and callers must delete it after playback or interruption.
  */
-export async function synthesizeGabrooSpeech(input:{text:string;speed:number}):Promise<string>{
+export async function synthesizeGabrooSpeech(input:{text:string;speed:number;signal?:AbortSignal}):Promise<string>{
  const text=input.text.trim();
  if(!text||text.length>4_000)throw new AuthApiError("Gabroo speech must contain between 1 and 4000 characters.");
  if(!Number.isFinite(input.speed)||input.speed<0.75||input.speed>1.5)throw new AuthApiError("Gabroo speaking speed must be between 0.75× and 1.5×.");
@@ -192,7 +192,8 @@ export async function synthesizeGabrooSpeech(input:{text:string;speed:number}):P
   const response=await fetch(baseUrl()+"/api/v1/gabroo/speech",{
    method:"POST",
    headers:{authorization:"Bearer "+accessToken,"content-type":"application/json",accept:"audio/mpeg"},
-   body:JSON.stringify({text,speed:input.speed})
+   body:JSON.stringify({text,speed:input.speed}),
+   ...(input.signal?{signal:input.signal}:{})
   });
   if(!response.ok){
    const payload=await response.json().catch(()=>null) as unknown;
