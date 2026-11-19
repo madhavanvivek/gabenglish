@@ -152,7 +152,7 @@ export default function GabrooScreen(){
  };
  const start=async()=>{
   cancelActiveTurn();
-  speechRunRef.current+=1;void Speech.stop();setSpeakingMessageId(null);
+  void stopSpeech();
   conversationMutationSequenceRef.current+=1;
   const requestId=++conversationOpenSequenceRef.current;
   setBusy(true);setError("");
@@ -187,6 +187,7 @@ export default function GabrooScreen(){
  };
  const send=async()=>{
   const text=draft.trim();if(!text||!active||busy||sendInFlightRef.current)return;
+  void stopSpeech();
   sendInFlightRef.current=true;
   setBusy(true);setError("");
   const conversationId=active.id;
@@ -511,6 +512,7 @@ export default function GabrooScreen(){
      playbackStateRef.current=reduceGabrooPlayback(playback,{type:"interrupted",playback_id:playback.playback_id});
     }
     void Speech.stop();
+    void releaseSpeechAudio();
     setSpeakingMessageId(null);
     if(recordingRef.current&&!recordingOperationRef.current){
      void stopAndDiscardLocalCapture();
@@ -548,6 +550,8 @@ export default function GabrooScreen(){
   const previous=speechRate;
   const requestId=++speechPreferenceSequenceRef.current;
   setSpeechRate(next);setSpeechNotice("");setSpeechSaving(true);
+  // Apply the learner's new rate to speech already in progress, not only the next reply.
+  void speechSoundRef.current?.setRateAsync(next,true).catch(()=>undefined);
   try{
    await updateLearnerPreferences({gabroo_speech_rate:next});
    const learner=await getLearnerMe();
