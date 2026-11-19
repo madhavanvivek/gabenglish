@@ -27,4 +27,12 @@ describe("Gabroo language-model provider",()=>{
   const empty=createGabrooConversationProvider({GABROO_LLM_API_KEY:"key",GABROO_LLM_MODEL:"model",GABROO_LLM_BASE_URL:"https://llm.example/v1"},async()=>new Response(JSON.stringify({choices:[{message:{content:" "}}]}),{status:200}))!;
   await expect(empty.reply(input)).rejects.toThrow("returned no text");
  });
+ it("passes cancellation through to the upstream request and rejects oversized replies",async()=>{
+  let requestInit:RequestInit|undefined;
+  const provider=createGabrooConversationProvider({GABROO_LLM_API_KEY:"key",GABROO_LLM_MODEL:"model",GABROO_LLM_BASE_URL:"https://llm.example/v1"},async(_url,init)=>{requestInit=init;return new Response(JSON.stringify({choices:[{message:{content:"x".repeat(12001)}}]}),{status:200});})!;
+  const controller=new AbortController();
+  const input={mode:"free_flow" as const,supportLanguage:"ml" as const,learningDirection:"ml_to_en" as const,targetLanguage:"en" as const,history:[],signal:controller.signal,teachingPolicy:{} as never};
+  await expect(provider.reply(input)).rejects.toThrow("exceeded the permitted length");
+  expect(requestInit?.signal).toBe(controller.signal);
+ });
 });
