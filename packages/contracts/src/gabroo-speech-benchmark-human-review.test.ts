@@ -12,6 +12,9 @@ describe("Gabroo speech human review scoring",()=>{
   ])[0];
   expect(summary.reviewedSamples).toBe(1);
   expect(summary.reviewerCount).toBe(2);
+  expect(summary.reviewerPairs).toBe(6);
+  expect(summary.meanAbsoluteRatingDifference).toBe(1.33);
+  expect(summary.exactRatingAgreementPercent).toBe(66.67);
   expect(summary.meanMeaningPreservation).toBe(3.5);
   expect(summary.meanContentCompleteness).toBe(5);
   expect(summary.meanLanguageFidelity).toBe(5);
