@@ -176,3 +176,18 @@ pnpm --filter @gabenglish/api benchmark:compare -- ./benchmark/results.jsonl ./b
 ```
 
 The command rejects malformed result lines, invalid experiment metadata, candidate mismatches and non-comparable sample sets. It writes a metrics comparison without raw transcripts and does not call any provider. Keep both input files and the generated report in approved local storage; benchmark result JSONL contains transcripts.
+
+
+## Human transcript review scoring
+
+`packages/contracts/src/gabroo-speech-benchmark-human-review.ts` defines structured blind-review ratings separate from automated WER/CER. Each review records a non-identifying reviewer label, candidate/sample, language mode, environment, meaning preservation, readability and intelligibility on a 1–5 scale. Mixed Malayalam-English samples additionally require a code-switch handling rating. Code-switch ratings are rejected for single-language samples.
+
+The aggregator reports mean ratings and flags a sample for adjudication when fewer than two independent reviews exist or reviewers differ by at least two points on a core rating. It does not select a provider, infer a winner or replace human adjudication. Reviewer labels must be pseudonymous and must not contain names, email addresses or account identifiers. Keep blind-review candidate identities hidden from reviewers until scoring is complete.
+
+Suggested rubric:
+- **Meaning preservation:** 1 = meaning materially changed or unusable; 3 = gist retained but important content lost; 5 = meaning faithfully preserved.
+- **Code-switch handling:** 1 = language switches substantially lost or misrepresented; 3 = partial preservation with notable errors; 5 = natural and accurate preservation of both language spans.
+- **Readability:** 1 = difficult to interpret; 3 = understandable with effort; 5 = clear and easy to read.
+- **Intelligibility:** 1 = learner intent cannot be understood; 3 = intent mostly recoverable; 5 = intent clear and unambiguous.
+
+Ratings are structured evidence, not an objective measure of accent quality. Do not penalize a learner for a regional accent when their intended meaning is intelligible.
