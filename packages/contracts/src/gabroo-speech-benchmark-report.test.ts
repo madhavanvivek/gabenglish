@@ -36,8 +36,8 @@ describe("Gabroo speech benchmark report aggregation",()=>{
  });
  it("does not confuse distinct candidate/sample pairs containing separators",()=>{
   const report=buildSpeechBenchmarkReport([
-   {...base,candidateId:"a\\u0000b",sampleId:"c",referenceText:"hi",transcript:"hi",latencyMs:20},
-   {...base,candidateId:"a",sampleId:"b\\u0000c",referenceText:"hi",transcript:"hi",latencyMs:30}
+   {...base,candidateId:"a\u0000b",sampleId:"c",referenceText:"hi",transcript:"hi",latencyMs:20},
+   {...base,candidateId:"a",sampleId:"b\u0000c",referenceText:"hi",transcript:"hi",latencyMs:30}
   ]);
   expect(report).toHaveLength(2);
   expect(report.every(group=>group.samples===1)).toBe(true);
