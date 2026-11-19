@@ -13,7 +13,8 @@
     "benchmark:validate": "tsx src/scripts/gabroo-speech-benchmark-cli.ts",
     "benchmark:report": "tsx src/scripts/gabroo-speech-benchmark-report-cli.ts",
     "benchmark:compare": "tsx src/scripts/gabroo-speech-benchmark-comparison-cli.ts",
-    "benchmark:fingerprint": "tsx src/scripts/gabroo-speech-benchmark-fingerprint.ts"
+    "benchmark:fingerprint": "tsx src/scripts/gabroo-speech-benchmark-fingerprint.ts",
+    "benchmark:playback-rate": "tsx src/scripts/gabroo-playback-rate-report-cli.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.0.1",
