@@ -29,6 +29,12 @@ describe("Gabroo local benchmark orchestration",()=>{
   await expect(runGabrooSpeechBenchmarkFromFiles({manifestPath:f.manifest,audioRoot:f.audio,candidates:[{candidateId:"mock",enabled:true,adapter:{transcribe}}]})).rejects.toThrow("symlink escapes");
   expect(transcribe).not.toHaveBeenCalled();
  });
+ it("accepts only regular files opened without following a final symlink",async()=>{
+  const f=await fixture();
+  const transcribe=vi.fn(async()=>({text:"നമസ്കാരം"}));
+  const result=await runGabrooSpeechBenchmarkFromFiles({manifestPath:f.manifest,audioRoot:f.audio,candidates:[{candidateId:"mock",enabled:true,adapter:{transcribe}}]});
+  expect(result.results[0].status).toBe("success");
+ });
  it("rejects malformed manifest records before invoking adapters",async()=>{
   const f=await fixture();await writeFile(f.manifest,"not-json\n");
   const transcribe=vi.fn(async()=>({text:"ok"}));
