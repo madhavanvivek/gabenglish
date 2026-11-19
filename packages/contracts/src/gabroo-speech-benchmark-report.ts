@@ -73,7 +73,7 @@ export function buildSpeechBenchmarkReport(results:SpeechBenchmarkResult[]):Spee
    throw new Error("Failed results must not contain a transcript.");
   }
   if(result.estimatedCost!==undefined&&(!Number.isFinite(result.estimatedCost)||result.estimatedCost<0))throw new Error("estimatedCost must be non-negative.");
-  const identity=result.candidateId+"\u0000"+result.sampleId;
+  const identity=JSON.stringify([result.candidateId,result.sampleId]);
   if(seen.has(identity))throw new Error("Duplicate candidate/sample result: "+result.candidateId+"/"+result.sampleId);
   seen.add(identity);
   const key=[result.candidateId,result.mode,result.environment].join("\u0000");
