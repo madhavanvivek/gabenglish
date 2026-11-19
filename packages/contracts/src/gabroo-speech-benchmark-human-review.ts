@@ -8,6 +8,8 @@ export const gabrooSpeechHumanReviewSchema=z.object({
  environment:z.enum(["quiet","moderate_noise"]),
  reviewerLabel:z.string().trim().min(1).max(80),
  meaningPreservation:ratingSchema,
+ contentCompleteness:ratingSchema,
+ languageFidelity:ratingSchema,
  codeSwitchHandling:ratingSchema.optional(),
  readability:ratingSchema,
  intelligibility:ratingSchema,
@@ -30,7 +32,7 @@ export type GabrooSpeechHumanReview=z.infer<typeof gabrooSpeechHumanReviewSchema
 export interface GabrooSpeechHumanReviewSummary{
  candidateId:string;mode:"ml-IN"|"en-IN"|"ml-en";environment:"quiet"|"moderate_noise";
  reviewedSamples:number;reviewCount:number;reviewerCount:number;
- meanMeaningPreservation:number;meanCodeSwitchHandling:number|null;
+ meanMeaningPreservation:number;meanContentCompleteness:number;meanLanguageFidelity:number;meanCodeSwitchHandling:number|null;
  meanReadability:number;meanIntelligibility:number;
  samplesNeedingAdjudication:string[];
 }
@@ -56,6 +58,8 @@ export function summarizeGabrooSpeechHumanReviews(reviews:GabrooSpeechHumanRevie
   const mean=(values:number[])=>values.reduce((sum,value)=>sum+value,0)/values.length;
   const samplesNeedingAdjudication=[...bySample.entries()]
    .filter(([,items])=>items.length<2||Math.max(...items.map(x=>x.meaningPreservation))-Math.min(...items.map(x=>x.meaningPreservation))>=2||
+    Math.max(...items.map(x=>x.contentCompleteness))-Math.min(...items.map(x=>x.contentCompleteness))>=2||
+    Math.max(...items.map(x=>x.languageFidelity))-Math.min(...items.map(x=>x.languageFidelity))>=2||
     Math.max(...items.map(x=>x.readability))-Math.min(...items.map(x=>x.readability))>=2||
     Math.max(...items.map(x=>x.intelligibility))-Math.min(...items.map(x=>x.intelligibility))>=2||
     (first.mode==="ml-en"&&Math.max(...items.map(x=>x.codeSwitchHandling??0))-Math.min(...items.map(x=>x.codeSwitchHandling??0))>=2))
@@ -66,6 +70,8 @@ export function summarizeGabrooSpeechHumanReviews(reviews:GabrooSpeechHumanRevie
    reviewedSamples:bySample.size,reviewCount:bucket.length,
    reviewerCount:new Set(bucket.map(x=>x.reviewerLabel)).size,
    meanMeaningPreservation:Number(mean(bucket.map(x=>x.meaningPreservation)).toFixed(2)),
+   meanContentCompleteness:Number(mean(bucket.map(x=>x.contentCompleteness)).toFixed(2)),
+   meanLanguageFidelity:Number(mean(bucket.map(x=>x.languageFidelity)).toFixed(2)),
    meanCodeSwitchHandling:codeSwitch.length?Number(mean(codeSwitch).toFixed(2)):null,
    meanReadability:Number(mean(bucket.map(x=>x.readability)).toFixed(2)),
    meanIntelligibility:Number(mean(bucket.map(x=>x.intelligibility)).toFixed(2)),
