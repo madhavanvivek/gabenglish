@@ -1,6 +1,6 @@
 export const GABROO_SPEECH_RATE_MIN = 0.75;
 export const GABROO_SPEECH_RATE_MAX = 1.5;
-export const GABROO_SPEECH_RATE_STEP = 0.05;
+export const GABROO_SPEECH_RATE_STEP = 0.05;\nexport const GABROO_SPEECH_RATE_DEFAULT = 1;
 
 export function clampGabrooSpeechRate(value: number): number {
   if (!Number.isFinite(value)) return 1;
