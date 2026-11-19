@@ -2,7 +2,7 @@ import {describe,expect,it} from "vitest";
 import {summarizeGabrooSpeechHumanReviews,type GabrooSpeechHumanReview} from "./gabroo-speech-benchmark-human-review.js";
 const review=(overrides:Partial<GabrooSpeechHumanReview>={}):GabrooSpeechHumanReview=>({
  candidateId:"candidate-a",sampleId:"ml-01",mode:"ml-en",environment:"quiet",
- reviewerLabel:"reviewer-1",meaningPreservation:5,codeSwitchHandling:4,
+ reviewerLabel:"reviewer-1",meaningPreservation:5,contentCompleteness:5,languageFidelity:5,codeSwitchHandling:4,
  readability:4,intelligibility:5,issueTags:[],...overrides
 });
 describe("Gabroo speech human review scoring",()=>{
@@ -13,6 +13,8 @@ describe("Gabroo speech human review scoring",()=>{
   expect(summary.reviewedSamples).toBe(1);
   expect(summary.reviewerCount).toBe(2);
   expect(summary.meanMeaningPreservation).toBe(3.5);
+  expect(summary.meanContentCompleteness).toBe(5);
+  expect(summary.meanLanguageFidelity).toBe(5);
   expect(summary.meanCodeSwitchHandling).toBe(3);
   expect(summary.samplesNeedingAdjudication).toEqual(["ml-01"]);
  });
