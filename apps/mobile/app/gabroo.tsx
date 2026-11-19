@@ -208,7 +208,7 @@ export default function GabrooScreen(){
   }finally{sendInFlightRef.current=false;if(turnAbortRef.current===controller){turnAbortRef.current=null;setBusy(false);}}
  };
  const stopSpeech=async()=>{
-  speechRunRef.current+=1;speechRequestAbortRef.current?.abort();speechRequestAbortRef.current=null;
+  speechRunRef.current+=1;
   speechRequestAbortRef.current?.abort();speechRequestAbortRef.current=null;
   const activePlayback=playbackStateRef.current;
   if(activePlayback.phase==="speaking"&&activePlayback.playback_id){
