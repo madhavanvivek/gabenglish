@@ -244,3 +244,16 @@ A candidate is eligible for owner review only when it has at least three indepen
 The owner decision schema supports `pending`, `approved` and `rejected`. An approved or rejected decision must identify one blind candidate, the decision owner, a rationale of at least 20 characters, reviewed evidence references and an offset-aware decision timestamp. A pending decision cannot carry a decision timestamp.
 
 Do not create an approved decision until the owner has personally reviewed the audition packet and explicitly chosen a candidate. The application must not infer consent or convert eligibility into approval. Keep the mapping from blind code to provider/voice identity restricted until the blind evaluation is complete.
+
+
+## 12. Learner-controlled playback-speed quality benchmark
+
+The shared contract `@gabenglish/contracts` exports `gabrooPlaybackRateTrialSchema` and `summarizeGabrooPlaybackRateTrials`. The learner playback range is 0.75×–1.50× in 0.05× increments, matching the existing Gabroo speech preference contract. The benchmark includes representative checkpoints at 0.75×, 0.85×, 1.00×, 1.15×, 1.30× and 1.50×.
+
+For each blind candidate, record repeated trials with the device, network profile, requested and actually applied rate, playback method, learner intelligibility (1–5), naturalness (1–5), audible artifacts and completion status. Record artifacts such as pitch distortion, robotic artifacts, choppy/clipped audio and volume pumping.
+
+**Important distinction:** a client-side rate adjustment applied to the same audio is the evidence for learner-controlled playback speed. A separately re-synthesized slower recording is a different test and must be reported separately; it does not prove the in-player speed control works.
+
+The schema rejects requested/applied rate mismatches, unsupported speeds and duplicate trial IDs. Reports keep intelligibility, naturalness, artifact count and completion count separate rather than collapsing them into one score. Use the same source audio, device and network profile when comparing playback methods. Do not infer that all speeds sound acceptable from a single successful rate.
+
+No production speed-quality threshold has been invented. Review the observed results and set an explicit product acceptance threshold before release.
