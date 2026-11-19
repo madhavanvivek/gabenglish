@@ -32,7 +32,9 @@ export function createGabrooConversationProvider(config:ProviderConfig,fetcher:F
    const payload=await response.json() as {choices?:Array<{message?:{content?:unknown}}>};
    const content=payload.choices?.[0]?.message?.content;
    if(typeof content!=="string"||!content.trim())throw new Error("Gabroo language model returned no text");
-   return {content:content.trim()};
+   const normalized=content.trim();
+   if(normalized.length>12000)throw new Error("Gabroo language model response exceeded the permitted length");
+   return {content:normalized};
   }
  };
 }
