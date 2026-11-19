@@ -7,7 +7,17 @@ describe("Gabroo speech synthesis provider",()=>{
   expect(createGabrooSpeechSynthesisProvider({...config,GABROO_TTS_VOICE:undefined})).toBeUndefined();
   expect(createGabrooSpeechSynthesisProvider({...config,GABROO_TTS_MODEL:undefined})).toBeUndefined();
   expect(createGabrooSpeechSynthesisProvider({...config,GABROO_LLM_API_KEY:undefined})).toBeUndefined();
+ 
+ it("rejects an unexpected provider audio format and invalid declared lengths",async()=>{
+  const input={text:"hello",speed:1,signal:new AbortController().signal};
+  const wrongType=createGabrooSpeechSynthesisProvider(config,async()=>new Response("{}",{status:200,headers:{"content-type":"application/json"}}))!;
+  await expect(wrongType.synthesize(input)).rejects.toThrow(/unsupported audio format/i);
+  const malformed=createGabrooSpeechSynthesisProvider(config,async()=>new Response(new Uint8Array([1]),{status:200,headers:{"content-length":"unknown"}}))!;
+  await expect(malformed.synthesize(input)).rejects.toThrow(/invalid audio length/i);
+  const oversized=createGabrooSpeechSynthesisProvider(config,async()=>new Response(new Uint8Array([1]),{status:200,headers:{"content-length":String(12*1024*1024+1)}}))!;
+  await expect(oversized.synthesize(input)).rejects.toThrow(/size limit/i);
  });
+});
  it("requests MP3 audio using the configured voice and learner speed",async()=>{
   let captured:{url:string;init:RequestInit}|undefined;
   const fetcher=vi.fn(async(url:string|URL|Request,init?:RequestInit)=>{
