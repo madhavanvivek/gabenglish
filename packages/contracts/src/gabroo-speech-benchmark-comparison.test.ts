@@ -25,7 +25,7 @@ describe("Gabroo speech benchmark comparison report",()=>{
   expect(report).toContain("0.1200");
   expect(report).toContain("50.00%");
   expect(report).toContain("No provider is ranked or declared the winner");
-  expect(report).toContain("human ratings");
+  expect(report).toContain("Human review (separate from automated WER/CER)");
  });
  it("rejects candidates missing from the experiment or a comparison dimension",()=>{
   expect(()=>renderGabrooSpeechBenchmarkComparison(experiment,results.filter(x=>x.candidateId==="a"))).toThrow("exactly match");
