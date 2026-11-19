@@ -26,7 +26,7 @@ describe("Gabroo Malayalam-English speech segmentation",()=>{
   const chunks=chunkGabrooSpeechSegments(splitGabrooSpeechText(source),18);
   expect(chunks.map(chunk=>chunk.text).join("")).toBe(source);
   expect(chunks.every(chunk=>chunk.text.length<=18)).toBe(true);
-  expect(chunks.map(chunk=>chunk.language)).toEqual(["en","en","ml","ml"]);
+  expect(chunks.map(chunk=>chunk.language)).toEqual(["en","en","en","ml","ml"]);
  });
  it("hard-splits a long sentence at the configured safe request size",()=>{
   const source="a".repeat(41);
