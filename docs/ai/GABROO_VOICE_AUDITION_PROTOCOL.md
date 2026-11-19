@@ -112,3 +112,81 @@ A provider or model migration must be re-auditioned if it changes voice identity
 - Production speech integration: pending selection and implementation.
 
 This protocol is an evaluation plan, not evidence that any voice has passed or been selected.
+
+
+## 8. Ready-to-run audition packet
+
+### Candidate intake (complete before recording)
+
+Create one restricted record per candidate. Keep provider identity in a separate evaluator-only key so reviewers receive only a random blind code.
+
+| Field | Candidate A | Candidate B | Candidate C |
+|---|---|---|---|
+| Blind code | VOICE-01 | VOICE-02 | VOICE-03 |
+| Provider / service | Pending | Pending | Pending |
+| Voice ID / locale | Pending | Pending | Pending |
+| Model and version | Pending | Pending | Pending |
+| Commercial-use evidence | Pending | Pending | Pending |
+| Data retention / training terms | Pending | Pending | Pending |
+| Region / processing location | Pending | Pending | Pending |
+| Synthesis settings hash | Pending | Pending | Pending |
+| Sample reference | Pending | Pending | Pending |
+
+Do not fill candidate identities by assumption. A candidate is eligible only after commercial rights, permitted use, retention, training opt-out/terms and processing region are documented.
+
+### Recording protocol
+
+- Use the exact seven-part script in Section 3, with the same test name, punctuation and text for all candidates.
+- Use identical language/locale, sample rate, output format, speaking style controls and comparable synthesis settings wherever supported.
+- Capture one normal-speed take and one slow-speed take for every section. Record actual playback-rate support separately from re-synthesizing at a slower speaking rate.
+- Capture a continuous multi-turn sample to judge conversational consistency and a longer listening sample for fatigue.
+- Keep raw audition files in restricted storage. Do not commit audio, provider credentials or provider-specific request payloads to Git.
+- Assign blind codes only after all files are generated; randomise playback order for each reviewer.
+- Do not normalize pitch, time-stretch, denoise or loudness-match in a way that conceals voice quality. If technical level matching is required, apply the same documented process to every candidate and preserve originals.
+
+### Blind reviewer scorecard
+
+Three Kerala Malayalam-fluent reviewers should independently score every candidate. Use integer ratings 1–5 and add a short evidence note for any rating of 1, 2 or 5.
+
+| Dimension | Weight | Candidate score |
+|---|---:|---|
+| Kerala Malayalam authenticity | 15% | Pending |
+| Malayalam pronunciation and naturalness | 15% | Pending |
+| Malayalam-English code-switching | 12% | Pending |
+| English teaching clarity | 10% | Pending |
+| Warmth, respect and friendliness | 10% | Pending |
+| Energy and personality | 8% | Pending |
+| Gentle humour without teasing harm | 6% | Pending |
+| Emotional range and patience | 6% | Pending |
+| Long-session comfort | 10% | Pending |
+| Slow-speed intelligibility | 8% | Pending |
+| **Total** | **100%** | **Pending** |
+
+Weighted score formula: `sum((rating / 5) * weight)`. Calculate per reviewer first; show the individual scorecards and score spread, not only the mean. These weights support comparison but do not override rejection gates.
+
+### Non-compensable rejection gates
+
+Reject a candidate regardless of weighted score if any of these occurs:
+- disrespectful, insulting, patronising or age-inappropriate address/delivery;
+- “eda/edi” or similarly over-familiar address inserted into the standard script;
+- caricatured or unnatural Kerala Malayalam;
+- a critical Malayalam pronunciation or code-switch failure that changes meaning;
+- tiring, harsh, childish or aggressive delivery;
+- materially unintelligible output at the intended learner-controlled slow speed;
+- unacceptable commercial rights, privacy, retention, training or regional processing terms.
+
+### Technical and cost test record
+
+For each blind code, capture repeated trials for first-audio latency, full response latency, interruption/cancellation, streaming stability, slow-speed quality, failure rate, rate limits and estimated monthly cost at realistic usage. Distinguish client playback-rate control from provider re-synthesis. Record exact device, network conditions, date, sample settings and measurement method. Do not infer technical pass from a marketing feature list.
+
+### Owner decision record
+
+No candidate is selected by the weighted score alone. The final owner packet must contain:
+1. Three candidate audio sets with blind codes and identical script coverage.
+2. Three independent scorecards per candidate and reviewer evidence notes.
+3. Any critical rejection flags and adjudication notes.
+4. Technical latency, stability, speed and cost results.
+5. Commercial rights, privacy, retention, model-training and region evidence.
+6. Recommended candidate and explicit unresolved risks.
+
+**Decision status:** Pending audition samples and evidence. No canonical voice, provider or model is approved until the product owner explicitly selects one after reviewing the packet.
