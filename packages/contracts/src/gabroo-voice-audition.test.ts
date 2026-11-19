@@ -1,0 +1,26 @@
+import {describe,expect,it} from "vitest";
+import {summarizeGabrooVoiceAuditions,type GabrooVoiceAuditionReview} from "./gabroo-voice-audition.js";
+const review=(overrides:Partial<GabrooVoiceAuditionReview>={}):GabrooVoiceAuditionReview=>({
+ blindCode:"VOICE-01",reviewerLabel:"reviewer-1",
+ ratings:{keralaMalayalamAuthenticity:5,malayalamPronunciation:5,codeSwitching:5,englishTeachingClarity:5,warmthRespect:5,energyPersonality:5,gentleHumour:5,emotionalRange:5,longSessionComfort:5,slowSpeedIntelligibility:5},
+ rejectionGates:[],...overrides
+});
+describe("Gabroo blind voice audition scorecards",()=>{
+ it("scores each reviewer independently and requires three reviewers for owner review",()=>{
+  const result=summarizeGabrooVoiceAuditions([review(),review({reviewerLabel:"reviewer-2"}),review({reviewerLabel:"reviewer-3"})])[0];
+  expect(result.reviewerCount).toBe(3);expect(result.meanWeightedScore).toBe(100);
+  expect(result.scoreRange).toEqual({min:100,max:100});expect(result.eligibleForOwnerReview).toBe(true);
+ });
+ it("does not allow a high score to compensate for a rejection gate",()=>{
+  const result=summarizeGabrooVoiceAuditions([review({rejectionGates:["overfamiliar_address"]}),review({reviewerLabel:"reviewer-2"}),review({reviewerLabel:"reviewer-3"})])[0];
+  expect(result.meanWeightedScore).toBe(100);expect(result.eligibleForOwnerReview).toBe(false);
+  expect(result.rejectionGates).toEqual(["overfamiliar_address"]);
+ });
+ it("keeps incomplete review sets ineligible and rejects duplicate reviewers",()=>{
+  expect(summarizeGabrooVoiceAuditions([review()])[0].eligibleForOwnerReview).toBe(false);
+  expect(()=>summarizeGabrooVoiceAuditions([review(),review()])).toThrow("Duplicate reviewer");
+ });
+ it("validates the fixed 1-to-5 rubric",()=>{
+  expect(()=>summarizeGabrooVoiceAuditions([review({ratings:{...review().ratings,slowSpeedIntelligibility:6}})])).toThrow("Invalid voice audition review");
+ });
+});
