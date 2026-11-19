@@ -1,4 +1,4 @@
-import {useCallback,useState} from "react";
+import {useCallback,useRef,useState} from "react";
 import {Link,useFocusEffect} from "expo-router";
 import {Pressable,ScrollView,StyleSheet,Text,TextInput,View,ActivityIndicator} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
@@ -17,6 +17,7 @@ export default function WelcomeScreen(){
  useFocusEffect(useCallback(()=>{let active=true;setAccountChecked(false);getLearnerMe().then(value=>{if(active)setAccountReady(Boolean(value.user.email_verified||value.user.phone_verified));}).catch(()=>{if(active)setAccountReady(false);}).finally(()=>{if(active)setAccountChecked(true);});return()=>{active=false;};},[]));
  const [turn,setTurn]=useState(0),[report,setReport]=useState<PlacementReport|null>(null),[explanation,setExplanation]=useState("");
  const [error,setError]=useState(""),[sessionExpired,setSessionExpired]=useState(false);
+ const requestInFlight=useRef(false);
  const complete=report!==null;
  const handleError=(reason:unknown)=>{
   if(reason instanceof PlacementApiError&&(reason.status===410||(reason.status===404&&reason.message.toLowerCase().includes("session")))){
@@ -25,22 +26,25 @@ export default function WelcomeScreen(){
   setError(reason instanceof PlacementApiError?reason.message:"Something went wrong. Please try again.");
  };
  const begin=async()=>{
+  if(requestInFlight.current)return;
+  requestInFlight.current=true;
   setBusy(true);setError("");setSessionExpired(false);
   try{
    const result=await startPlacement({preferred_language:"ml",communication_style:"friendly_respectful",...(name.trim()?{display_name:name.trim()}:{})});
    setSessionId(result.session_id);setPromptId(result.prompt_id);setTurn(result.turn_number);
    setMessages([{role:"gabroo",text:result.gabroo_message}]);setStarted(true);
-  }catch(reason){handleError(reason);}finally{setBusy(false);}
+  }catch(reason){handleError(reason);}finally{requestInFlight.current=false;setBusy(false);}
  };
  const send=async()=>{
-  const value=answer.trim();if(!value||!sessionId||!promptId||busy)return;
+  const value=answer.trim();if(!value||!sessionId||!promptId||busy||requestInFlight.current)return;
+  requestInFlight.current=true;
   setBusy(true);setError("");
   try{
    const result:PlacementConversationResponse=await respondToPlacement({session_id:sessionId,turn:{prompt_id:promptId,response:value,response_mode:"text"}});
    setMessages(current=>[...current,{role:"learner",text:value},{role:"gabroo",text:result.gabroo_message}]);
    setAnswer("");setPromptId(result.is_complete?null:result.prompt_id);setTurn(result.turn_number);
    if(result.is_complete&&result.report){setReport(result.report);setExplanation(result.gabroo_explanation??"");}
-  }catch(reason){handleError(reason);}finally{setBusy(false);}
+  }catch(reason){handleError(reason);}finally{requestInFlight.current=false;setBusy(false);}
  };
  const restart=()=>{setStarted(false);setBusy(false);setAnswer("");setMessages([]);setName("");setSessionId(null);setPromptId(null);setTurn(0);setReport(null);setExplanation("");setError("");setSessionExpired(false);};
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
