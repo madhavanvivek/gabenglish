@@ -39,3 +39,5 @@ export * from "./gabroo-speech-benchmark-runner.js";
 
 export * from "./gabroo-speech-benchmark-manifest.js";
 export * from "./gabroo-speech-benchmark-executor.js";
+
+export * from "./gabroo-speech-benchmark-experiment.js";
