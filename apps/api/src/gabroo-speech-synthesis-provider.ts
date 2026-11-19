@@ -43,6 +43,10 @@ export function createGabrooSpeechSynthesisProvider(
     signal:input.signal
    });
    if(!response.ok)throw new Error("Gabroo speech synthesis request failed with status "+response.status);
+   const contentType=response.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
+   if(contentType&&contentType!=="audio/mpeg")throw new Error("Gabroo speech provider returned an unsupported audio format.");
+   const declaredLength=Number(response.headers.get("content-length"));
+   if(Number.isFinite(declaredLength)&&declaredLength>MAX_AUDIO_BYTES)throw new Error("Gabroo speech synthesis response exceeded the audio size limit.");
    const audio=new Uint8Array(await response.arrayBuffer());
    if(audio.byteLength===0)throw new Error("Gabroo speech synthesis returned empty audio.");
    if(audio.byteLength>MAX_AUDIO_BYTES)throw new Error("Gabroo speech synthesis response exceeded the audio size limit.");
