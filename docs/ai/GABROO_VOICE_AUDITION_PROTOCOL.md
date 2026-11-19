@@ -257,3 +257,10 @@ For each blind candidate, record repeated trials with the device, network profil
 The schema rejects requested/applied rate mismatches, unsupported speeds and duplicate trial IDs. Reports keep intelligibility, naturalness, artifact count and completion count separate rather than collapsing them into one score. Use the same source audio, device and network profile when comparing playback methods. Do not infer that all speeds sound acceptable from a single successful rate.
 
 No production speed-quality threshold has been invented. Review the observed results and set an explicit product acceptance threshold before release.
+
+
+## 13. Playback-rate evidence in the owner packet
+
+The unified contract `buildGabrooVoiceAuditionComparison(reviews, technicalEvidence, playbackRateTrials)` can now include the learner playback-rate benchmark. For each blind candidate it reports grouped summaries at each applied speed and marks playback-rate evidence complete only when every standard test point (0.75×, 0.85×, 1.00×, 1.15×, 1.30× and 1.50×) has at least one completed or recorded client-side rate-adjustment trial. Provider re-synthesis alone does not satisfy this gate.
+
+This is an evidence-coverage check, not a quality pass threshold. The packet preserves intelligibility, naturalness, artifact and completion observations for human interpretation. It does not rank candidates or automatically approve a voice. The product owner must review the underlying samples and evidence before making an explicit decision.
