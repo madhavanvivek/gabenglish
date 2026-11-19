@@ -4,14 +4,11 @@ export const GABROO_SPEECH_RATE_STEP = 0.05;
 export const GABROO_SPEECH_RATE_DEFAULT = 1;
 
 export function clampGabrooSpeechRate(value: number): number {
-  if (!Number.isFinite(value)) return 1;
-  const rounded = Math.round(value * 100) / 100;
-  return Math.min(
-    GABROO_SPEECH_RATE_MAX,
-    Math.max(GABROO_SPEECH_RATE_MIN, rounded)
-  );
+  if (!Number.isFinite(value)) return GABROO_SPEECH_RATE_DEFAULT;
+  const bounded = Math.min(GABROO_SPEECH_RATE_MAX, Math.max(GABROO_SPEECH_RATE_MIN, value));
+  const steps = Math.round((bounded - GABROO_SPEECH_RATE_MIN) / GABROO_SPEECH_RATE_STEP);
+  return Number((GABROO_SPEECH_RATE_MIN + steps * GABROO_SPEECH_RATE_STEP).toFixed(2));
 }
-
 export function adjustGabrooSpeechRate(current: number, delta: number): number {
   return clampGabrooSpeechRate(current + delta);
 }
