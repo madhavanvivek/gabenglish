@@ -32,7 +32,7 @@ export type GabrooSpeechHumanReview=z.infer<typeof gabrooSpeechHumanReviewSchema
 
 export interface GabrooSpeechHumanReviewSummary{
  candidateId:string;mode:"ml-IN"|"en-IN"|"ml-en";environment:"quiet"|"moderate_noise";
- reviewedSamples:number;reviewCount:number;reviewerCount:number;
+ reviewedSamples:number;reviewCount:number;reviewerCount:number;\n reviewerPairs:number;meanAbsoluteRatingDifference:number|null;exactRatingAgreementPercent:number|null;
  meanMeaningPreservation:number;meanContentCompleteness:number;meanLanguageFidelity:number;meanCodeSwitchHandling:number|null;
  meanReadability:number;meanIntelligibility:number;
  samplesNeedingAdjudication:string[];
@@ -57,7 +57,7 @@ export function summarizeGabrooSpeechHumanReviews(reviews:GabrooSpeechHumanRevie
   const bySample=new Map<string,GabrooSpeechHumanReview[]>();
   for(const review of bucket){const list=bySample.get(review.sampleId)??[];list.push(review);bySample.set(review.sampleId,list);}
   const mean=(values:number[])=>values.reduce((sum,value)=>sum+value,0)/values.length;
-  const samplesNeedingAdjudication=[...bySample.entries()]
+  let reviewerPairs=0,totalAbsoluteDifference=0,exactMatches=0;\n  const dimensionsForAgreement=(review:GabrooSpeechHumanReview)=>(review.mode==="ml-en"?[review.meaningPreservation,review.contentCompleteness,review.languageFidelity,review.codeSwitchHandling!,review.readability,review.intelligibility]:[review.meaningPreservation,review.contentCompleteness,review.languageFidelity,review.readability,review.intelligibility]);\n  for(const items of bySample.values()){\n   for(let i=0;i<items.length;i++)for(let j=i+1;j<items.length;j++){\n    const left=dimensionsForAgreement(items[i]),right=dimensionsForAgreement(items[j]);\n    for(let k=0;k<left.length;k++){const difference=Math.abs(left[k]-right[k]);reviewerPairs++;totalAbsoluteDifference+=difference;if(difference===0)exactMatches++;}\n   }\n  }\n  const samplesNeedingAdjudication=[...bySample.entries()]
    .filter(([,items])=>items.length<2||items.some(x=>x.issueTags.some(tag=>["meaning_changed","key_content_omitted","function_word_omitted","hallucinated_words","number_or_name_error"].includes(tag)))||Math.max(...items.map(x=>x.meaningPreservation))-Math.min(...items.map(x=>x.meaningPreservation))>=2||
     Math.max(...items.map(x=>x.contentCompleteness))-Math.min(...items.map(x=>x.contentCompleteness))>=2||
     Math.max(...items.map(x=>x.languageFidelity))-Math.min(...items.map(x=>x.languageFidelity))>=2||
@@ -69,7 +69,7 @@ export function summarizeGabrooSpeechHumanReviews(reviews:GabrooSpeechHumanRevie
   return {
    candidateId:first.candidateId,mode:first.mode,environment:first.environment,
    reviewedSamples:bySample.size,reviewCount:bucket.length,
-   reviewerCount:new Set(bucket.map(x=>x.reviewerLabel)).size,
+   reviewerCount:new Set(bucket.map(x=>x.reviewerLabel)).size,\n   reviewerPairs,\n   meanAbsoluteRatingDifference:reviewerPairs?Number((totalAbsoluteDifference/reviewerPairs).toFixed(2)):null,\n   exactRatingAgreementPercent:reviewerPairs?Number((exactMatches/reviewerPairs*100).toFixed(2)):null,
    meanMeaningPreservation:Number(mean(bucket.map(x=>x.meaningPreservation)).toFixed(2)),
    meanContentCompleteness:Number(mean(bucket.map(x=>x.contentCompleteness)).toFixed(2)),
    meanLanguageFidelity:Number(mean(bucket.map(x=>x.languageFidelity)).toFixed(2)),
