@@ -6,6 +6,8 @@ import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
 import type {GabrooSpeechSynthesisProvider} from "./gabroo-speech-synthesis-provider.js";
 
+const activeSpeechLearners=new Set<string>();
+
 const speechRequestSchema=z.object({
  text:z.string().trim().min(1).max(4_000),
  speed:z.number().min(0.75).max(1.5)
@@ -37,6 +39,8 @@ export async function registerGabrooSpeechRoutes(
   const parsed=speechRequestSchema.safeParse(request.body);
   if(!parsed.success)return sendError(reply,request.id,400,"VALIDATION_ERROR","Please provide text and a speaking speed between 0.75× and 1.5×.");
   if(!provider)return sendError(reply,request.id,503,"PROVIDER_UNAVAILABLE","Gabroo's approved speech voice is not configured yet.");
+  if(activeSpeechLearners.has(learner.id))return sendError(reply,request.id,429,"SPEECH_REQUEST_IN_PROGRESS","Please wait for Gabroo to finish preparing the current reply.");
+  activeSpeechLearners.add(learner.id);
   const controller=new AbortController();
   const onAborted=()=>controller.abort();
   const onResponseClosed=()=>{if(!reply.raw.writableEnded)controller.abort();};
@@ -57,6 +61,7 @@ export async function registerGabrooSpeechRoutes(
   }finally{
    request.raw.removeListener("aborted",onAborted);
    reply.raw.removeListener("close",onResponseClosed);
+   activeSpeechLearners.delete(learner.id);
   }
  });
 }
