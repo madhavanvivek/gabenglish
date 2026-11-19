@@ -607,6 +607,7 @@ export default function GabrooScreen(){
  };
  const remove=async()=>{
   if(!active||busy)return;
+  await stopSpeech();
   const conversationId=active.id;
   const requestId=++conversationMutationSequenceRef.current;
   setBusy(true);setError("");
