@@ -1,6 +1,7 @@
 import {z} from "zod";
 import {summarizeGabrooVoiceAuditions,type GabrooVoiceAuditionReview} from "./gabroo-voice-audition.js";
 import {summarizeGabrooVoiceTechnicalEvidence,type GabrooVoiceTechnicalEvidence} from "./gabroo-voice-technical-evidence.js";
+import {GABROO_PLAYBACK_RATE_TEST_POINTS,summarizeGabrooPlaybackRateTrials,type GabrooPlaybackRateTrial,type GabrooPlaybackRateSummary} from "./gabroo-playback-rate-benchmark.js";
 
 export const GABROO_VOICE_AUDITION_BLIND_CODES=["VOICE-01","VOICE-02","VOICE-03"] as const;
 export interface GabrooVoiceAuditionComparisonRow {
@@ -14,22 +15,28 @@ export interface GabrooVoiceAuditionComparisonRow {
  commercialRights:"verified"|"pending"|"rejected"|"not_submitted";
  dataRetentionTerms:"verified"|"pending"|"rejected"|"not_submitted";
  modelTrainingTerms:"verified"|"pending"|"rejected"|"not_submitted";
- reviewerEvidenceComplete:boolean;technicalEvidenceComplete:boolean;eligibleForOwnerReview:boolean;
+ playbackRateEvidenceComplete:boolean;playbackRateSummaries:GabrooPlaybackRateSummary[];\n reviewerEvidenceComplete:boolean;technicalEvidenceComplete:boolean;eligibleForOwnerReview:boolean;
 }
 
-/** Combines blind listener and technical evidence without ranking or selecting a voice. */
+
+/** Playback evidence is complete only when every standard speed has a client-side trial. */
+function summarizePlaybackEvidence(trials:GabrooPlaybackRateTrial[]):GabrooPlaybackRateSummary[]{
+ if(trials.length===0)return [];
+ return summarizeGabrooPlaybackRateTrials(trials);
+}
+\n/** Combines blind listener, technical and playback-rate evidence without ranking or selecting a voice. */
 export function buildGabrooVoiceAuditionComparison(
  reviews:GabrooVoiceAuditionReview[],technicalEvidence:GabrooVoiceTechnicalEvidence[]
 ):GabrooVoiceAuditionComparisonRow[]{
  if(!Array.isArray(reviews)||!Array.isArray(technicalEvidence))throw new Error("Voice audition evidence must be supplied as arrays.");
  const human=reviews.length?summarizeGabrooVoiceAuditions(reviews):[];
- const technical=technicalEvidence.map(item=>summarizeGabrooVoiceTechnicalEvidence(item));
+ const technical=technicalEvidence.map(item=>summarizeGabrooVoiceTechnicalEvidence(item));\n const playback=summarizePlaybackEvidence(playbackRateTrials);
  const seen=new Set<string>();
  for(const item of technical){if(seen.has(item.blindCode))throw new Error("Duplicate technical evidence for blind candidate.");seen.add(item.blindCode);}
  const humanByCode=new Map(human.map(x=>[x.blindCode,x]));
  const technicalByCode=new Map(technical.map(x=>[x.blindCode,x]));
  return GABROO_VOICE_AUDITION_BLIND_CODES.map(blindCode=>{
-  const h=humanByCode.get(blindCode),t=technicalByCode.get(blindCode),
+  const h=humanByCode.get(blindCode),t=technicalByCode.get(blindCode),playbackRows=playback.filter(x=>x.blindCode===blindCode),
    rights=t?.commercialRights??"not_submitted",retention=t?.dataRetentionTerms??"not_submitted",training=t?.modelTrainingTerms??"not_submitted";
   const reviewerEvidenceComplete=Boolean(h&&h.reviewerCount>=3&&h.rejectionGates.length===0);
   const technicalEvidenceComplete=Boolean(t?.eligibleForOwnerReview);
@@ -41,7 +48,7 @@ export function buildGabrooVoiceAuditionComparison(
    streamingStabilityRatePercent:t?.streamingStabilityRatePercent??null,slowPlaybackMeanRating:t?.slowPlaybackMeanRating??null,
    estimatedCostPerAudioMinuteInr:t?.estimatedCostPerAudioMinuteInr??null,
    commercialRights:rights,dataRetentionTerms:retention,modelTrainingTerms:training,
-   reviewerEvidenceComplete,technicalEvidenceComplete,eligibleForOwnerReview:reviewerEvidenceComplete&&technicalEvidenceComplete
+   playbackRateEvidenceComplete:GABROO_PLAYBACK_RATE_TEST_POINTS.every(rate=>playbackRows.some(x=>x.rate===rate&&x.clientRateTrials>0)),\n   playbackRateSummaries:playbackRows,reviewerEvidenceComplete,technicalEvidenceComplete,eligibleForOwnerReview:reviewerEvidenceComplete&&technicalEvidenceComplete
   };
  });
 }
