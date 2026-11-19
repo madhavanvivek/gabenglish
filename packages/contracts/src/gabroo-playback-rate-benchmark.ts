@@ -10,7 +10,7 @@ export const gabrooPlaybackRateTrialSchema=z.object({
  playbackMethod:z.enum(["client_rate_adjustment","provider_resynthesis"]),
  intelligibility:rating,naturalness:rating,
  audibleArtifacts:z.array(z.enum(["pitch_distortion","chipmunk_effect","robotic_artifact","choppy_audio","clipped_audio","volume_pumping","other"])).max(7),
- completed:boolean,notes:z.string().max(500).optional()
+ completed:z.boolean(),notes:z.string().max(500).optional()
 }).strict().superRefine((trial,ctx)=>{
  if(Math.abs(trial.requestedRate-trial.appliedRate)>1e-8)ctx.addIssue({code:"custom",path:["appliedRate"],message:"Applied playback rate must match the requested learner setting."});
 });
