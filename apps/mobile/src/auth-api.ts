@@ -186,40 +186,67 @@ export async function recognizeGabrooAudio(input:{
  */
 export async function synthesizeGabrooSpeech(input:{text:string;speed:number;signal?:AbortSignal}):Promise<string>{
  const text=input.text.trim();
+ const maxAudioBytes=12*1024*1024;
  if(!text||text.length>4_000)throw new AuthApiError("Gabroo speech must contain between 1 and 4000 characters.");
  if(!Number.isFinite(input.speed)||input.speed<0.75||input.speed>1.5)throw new AuthApiError("Gabroo speaking speed must be between 0.75× and 1.5×.");
  const request=async(accessToken:string)=>{
-  const response=await fetch(baseUrl()+"/api/v1/gabroo/speech",{
-   method:"POST",
-   headers:{authorization:"Bearer "+accessToken,"content-type":"application/json",accept:"audio/mpeg"},
-   body:JSON.stringify({text,speed:input.speed}),
-   ...(input.signal?{signal:input.signal}:{})
-  });
-  if(!response.ok){
-   const payload=await response.json().catch(()=>null) as unknown;
-   const message=typeof payload==="object"&&payload!==null&&"error" in payload&&typeof payload.error==="object"&&payload.error!==null&&"message" in payload.error&&typeof payload.error.message==="string"?payload.error.message:`Gabroo speech is unavailable (${response.status}).`;
-   throw new AuthApiError(message,response.status);
+  if(input.signal?.aborted)throw new AuthApiError("Gabroo speech request was cancelled.");
+  const controller=new AbortController();
+  let timedOut=false;
+  const abortFromCaller=()=>controller.abort();
+  input.signal?.addEventListener("abort",abortFromCaller,{once:true});
+  const timeout=setTimeout(()=>{timedOut=true;controller.abort();},45_000);
+  try{
+   const response=await fetch(baseUrl()+"/api/v1/gabroo/speech",{
+    method:"POST",
+    headers:{authorization:"Bearer "+accessToken,"content-type":"application/json",accept:"audio/mpeg"},
+    body:JSON.stringify({text,speed:input.speed}),
+    signal:controller.signal
+   });
+   if(!response.ok){
+    const payload=await response.json().catch(()=>null) as unknown;
+    const message=typeof payload==="object"&&payload!==null&&"error" in payload&&typeof payload.error==="object"&&payload.error!==null&&"message" in payload.error&&typeof payload.error.message==="string"?payload.error.message:`Gabroo speech is unavailable (${response.status}).`;
+    throw new AuthApiError(message,response.status);
+   }
+   const contentType=response.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
+   if(contentType!=="audio/mpeg")throw new AuthApiError("Gabroo returned an unsupported audio format.");
+   const declaredLength=Number(response.headers.get("content-length"));
+   if(Number.isFinite(declaredLength)&&declaredLength>maxAudioBytes)throw new AuthApiError("Gabroo audio exceeded the permitted size.");
+   const bytes=new Uint8Array(await response.arrayBuffer());
+   if(bytes.byteLength===0||bytes.byteLength>maxAudioBytes)throw new AuthApiError("Gabroo returned an invalid audio response.");
+   let binary="";
+   const chunkSize=0x8000;
+   for(let offset=0;offset<bytes.length;offset+=chunkSize){
+    binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+chunkSize,bytes.length)));
+   }
+   const base64=btoa(binary);
+   const directory=FileSystem.cacheDirectory;
+   if(!directory)throw new AuthApiError("Device audio cache is unavailable.");
+   const uri=directory+`gabroo-${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`;
+   try{
+    await FileSystem.writeAsStringAsync(uri,base64,{encoding:FileSystem.EncodingType.Base64});
+    return uri;
+   }catch(error){
+    await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+    throw error;
+   }
+  }catch(error){
+   if(input.signal?.aborted)throw new AuthApiError("Gabroo speech request was cancelled.");
+   if(timedOut)throw new AuthApiError("Gabroo took too long to prepare this speech. Please try again.");
+   if(error instanceof AuthApiError)throw error;
+   if(error instanceof Error&&error.name==="AbortError")throw new AuthApiError("Gabroo speech request was interrupted.");
+   throw new AuthApiError("Could not prepare Gabroo audio. Check your connection and try again.");
+  }finally{
+   clearTimeout(timeout);
+   input.signal?.removeEventListener("abort",abortFromCaller);
   }
-  const bytes=new Uint8Array(await response.arrayBuffer());
-  if(bytes.byteLength===0||bytes.byteLength>12*1024*1024)throw new AuthApiError("Gabroo returned an invalid audio response.");
-  let binary="";
-  const chunkSize=0x8000;
-  for(let offset=0;offset<bytes.length;offset+=chunkSize){
-   binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+chunkSize,bytes.length)));
-  }
-  const base64=btoa(binary);
-  const directory=FileSystem.cacheDirectory;
-  if(!directory)throw new AuthApiError("Device audio cache is unavailable.");
-  const uri=directory+`gabroo-${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`;
-  await FileSystem.writeAsStringAsync(uri,base64,{encoding:FileSystem.EncodingType.Base64});
-  return uri;
  };
  let access=await SecureStore.getItemAsync(ACCESS_KEY);
  if(!access){await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);}
  if(!access)throw new AuthApiError("Your session has expired. Please sign in again.",401);
  try{return await request(access);}
  catch(error){
-  if(!(error instanceof AuthApiError)||error.status!==401)throw error;
+  if(input.signal?.aborted||!(error instanceof AuthApiError)||error.status!==401)throw error;
   await renewSession();
   const refreshed=await SecureStore.getItemAsync(ACCESS_KEY);
   if(!refreshed)throw new AuthApiError("Your session has expired. Please sign in again.",401);
