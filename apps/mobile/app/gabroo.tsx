@@ -2,7 +2,7 @@ import {useCallback,useEffect,useRef,useState} from "react";
 import * as Speech from "expo-speech";
 import {Audio} from "expo-av";
 import * as FileSystem from "expo-file-system";
-import {confirmGabrooTranscript,GABROO_LOCAL_CAPTURE_MAX_MS,initialGabrooPlaybackState,initialGabrooTurnState,playGabrooSpeechSegments,reduceGabrooPlayback,reduceGabrooTurn,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooPlaybackState,type GabrooTurnState,type GabrooVoiceSessionState,type GabrooTranscript,type GabrooRecognitionLanguage} from "@gabenglish/contracts";
+import {chunkGabrooSpeechSegments,confirmGabrooTranscript,GABROO_LOCAL_CAPTURE_MAX_MS,initialGabrooPlaybackState,initialGabrooTurnState,playGabrooSpeechSegments,reduceGabrooPlayback,reduceGabrooTurn,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooPlaybackState,type GabrooTurnState,type GabrooVoiceSessionState,type GabrooTranscript,type GabrooRecognitionLanguage} from "@gabenglish/contracts";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
@@ -246,7 +246,7 @@ export default function GabrooScreen(){
   try{
    const text=message.content.trim();
    if(!text)return;
-   const segments=splitGabrooSpeechText(text);
+   const segments=chunkGabrooSpeechSegments(splitGabrooSpeechText(text),600);
    if(!segments.length)return;
    let playbackStarted=false;
    setSpeechNotice("Preparing Gabroo's voice…");
