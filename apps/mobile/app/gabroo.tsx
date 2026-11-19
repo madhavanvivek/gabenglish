@@ -115,6 +115,7 @@ export default function GabrooScreen(){
     playbackStateRef.current=reduceGabrooPlayback(playback,{type:"interrupted",playback_id:playback.playback_id});
    }
    void Speech.stop();
+   void releaseSpeechAudio();
    const recording=recordingRef.current;
    recordingRef.current=null;
    if(recording){
@@ -135,7 +136,7 @@ export default function GabrooScreen(){
  };
  const openConversation=async(item:GabrooConversation)=>{
   cancelActiveTurn();
-  speechRunRef.current+=1;void Speech.stop();setSpeakingMessageId(null);
+  speechRunRef.current+=1;void Speech.stop();void releaseSpeechAudio();setSpeakingMessageId(null);
   conversationMutationSequenceRef.current+=1;
   const requestId=++conversationOpenSequenceRef.current;
   setBusy(true);setError("");
