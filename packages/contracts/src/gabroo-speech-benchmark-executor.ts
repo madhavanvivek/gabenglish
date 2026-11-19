@@ -61,6 +61,7 @@ export async function executeGabrooSpeechBenchmark(options:GabrooBenchmarkExecut
    if(options.signal?.aborted){skipped+=options.candidates.length;continue;}
    validateGabrooBenchmarkAudio(sample,audio);
   }catch{
+   if(options.signal?.aborted){skipped+=options.candidates.length;continue;}
    for(const candidate of options.candidates){
     attempted++;
     results.push({candidateId:candidate.candidateId,sampleId:sample.sampleId,mode:sample.mode,environment:sample.environment,status:"failure",referenceText:sample.referenceText,audioSeconds:sample.durationMs/1000});
