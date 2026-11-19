@@ -18,7 +18,8 @@ const fileNames:Record<string,string>={
 export function createGabrooSpeechRecognitionProvider(config:RecognitionConfig,fetcher:FetchLike=fetch):GabrooSpeechRecognitionProvider|undefined{
  const apiKey=config.GABROO_LLM_API_KEY?.trim();
  if(!apiKey)return undefined;
- const base=config.GABROO_LLM_BASE_URL.replace(/\\/+$/,"");
+ let base=config.GABROO_LLM_BASE_URL;
+ while(base.endsWith("/"))base=base.slice(0,-1);
  const model=config.GABROO_STT_MODEL?.trim()||"whisper-1";
  return {
   async transcribe(input):Promise<GabrooTranscript>{
