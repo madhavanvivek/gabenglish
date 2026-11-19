@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {validateGabrooAudioBytes,validateGabrooAudioHeaders} from "./gabroo-audio-response";
+import {readGabrooAudioBytes,validateGabrooAudioBytes,validateGabrooAudioHeaders} from "./gabroo-audio-response";
 
 describe("Gabroo audio response validation",()=>{
  it("accepts MP3 content type with optional charset and known length",()=>{
