@@ -31,4 +31,20 @@ describe("Gabroo speech human review scoring",()=>{
   expect(summary.samplesNeedingAdjudication).toEqual(["ml-01"]);
   expect(summary.meanCodeSwitchHandling).toBeNull();
  });
+ it("flags critical omissions even when numeric ratings do not disagree",()=>{
+  const summary=summarizeGabrooSpeechHumanReviews([
+   review({issueTags:["key_content_omitted"]}),
+   review({reviewerLabel:"reviewer-2",issueTags:[]})
+  ])[0];
+  expect(summary.samplesNeedingAdjudication).toEqual(["ml-01"]);
+ });
+ it("tracks content completeness and language fidelity separately",()=>{
+  const summary=summarizeGabrooSpeechHumanReviews([
+   review({contentCompleteness:2,languageFidelity:4}),
+   review({reviewerLabel:"reviewer-2",contentCompleteness:4,languageFidelity:5})
+  ])[0];
+  expect(summary.meanContentCompleteness).toBe(3);
+  expect(summary.meanLanguageFidelity).toBe(4.5);
+  expect(summary.samplesNeedingAdjudication).toEqual(["ml-01"]);
+ });
 });
