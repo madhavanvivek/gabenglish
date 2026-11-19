@@ -1,6 +1,7 @@
 import type {LearnerLessonContent} from "@gabenglish/contracts";
 import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system";
+import {validateGabrooAudioBytes,validateGabrooAudioHeaders} from "./gabroo-audio-response";
 import {authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
 
 const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
@@ -186,8 +187,7 @@ export async function recognizeGabrooAudio(input:{
  */
 export async function synthesizeGabrooSpeech(input:{text:string;speed:number;signal?:AbortSignal}):Promise<string>{
  const text=input.text.trim();
- const maxAudioBytes=12*1024*1024;
- if(!text||text.length>4_000)throw new AuthApiError("Gabroo speech must contain between 1 and 4000 characters.");
+  if(!text||text.length>4_000)throw new AuthApiError("Gabroo speech must contain between 1 and 4000 characters.");
  if(!Number.isFinite(input.speed)||input.speed<0.75||input.speed>1.5)throw new AuthApiError("Gabroo speaking speed must be between 0.75× and 1.5×.");
  const request=async(accessToken:string)=>{
   if(input.signal?.aborted)throw new AuthApiError("Gabroo speech request was cancelled.");
@@ -208,12 +208,9 @@ export async function synthesizeGabrooSpeech(input:{text:string;speed:number;sig
     const message=typeof payload==="object"&&payload!==null&&"error" in payload&&typeof payload.error==="object"&&payload.error!==null&&"message" in payload.error&&typeof payload.error.message==="string"?payload.error.message:`Gabroo speech is unavailable (${response.status}).`;
     throw new AuthApiError(message,response.status);
    }
-   const contentType=response.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
-   if(contentType!=="audio/mpeg")throw new AuthApiError("Gabroo returned an unsupported audio format.");
-   const declaredLength=Number(response.headers.get("content-length"));
-   if(Number.isFinite(declaredLength)&&declaredLength>maxAudioBytes)throw new AuthApiError("Gabroo audio exceeded the permitted size.");
+   validateGabrooAudioHeaders(response.headers.get("content-type"),response.headers.get("content-length"));
    const bytes=new Uint8Array(await response.arrayBuffer());
-   if(bytes.byteLength===0||bytes.byteLength>maxAudioBytes)throw new AuthApiError("Gabroo returned an invalid audio response.");
+   validateGabrooAudioBytes(bytes);
    let binary="";
    const chunkSize=0x8000;
    for(let offset=0;offset<bytes.length;offset+=chunkSize){
