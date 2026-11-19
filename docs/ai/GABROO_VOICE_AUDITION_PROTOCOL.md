@@ -190,3 +190,14 @@ No candidate is selected by the weighted score alone. The final owner packet mus
 6. Recommended candidate and explicit unresolved risks.
 
 **Decision status:** Pending audition samples and evidence. No canonical voice, provider or model is approved until the product owner explicitly selects one after reviewing the packet.
+
+
+## 9. Machine-readable blind scorecards
+
+The shared contract `@gabenglish/contracts` exports `gabrooVoiceAuditionReviewSchema` and `summarizeGabrooVoiceAuditions`. Each reviewer submits one independent scorecard per blind candidate using the fixed ten-dimension 1–5 rubric and the rejection-gate list. The weights are encoded once in the contract and sum to 100%.
+
+The summary preserves each reviewer's weighted score and the score range. A candidate is marked `eligibleForOwnerReview` only when at least three distinct reviewers have submitted scorecards and no rejection gate has been recorded. This is an evidence-completeness gate, not a voice approval or ranking. A high weighted score never overrides a rejection gate.
+
+Duplicate reviewer submissions for the same blind code are rejected. Ratings outside 1–5, unknown blind codes, unknown rejection gates and unexpected fields are rejected by schema validation. Keep provider identity separate from blind scorecards until independent scoring is complete.
+
+The owner must still inspect the anonymised samples, individual scorecards, evidence notes, technical results and commercial/privacy evidence and explicitly approve the canonical voice. No automated score can make that decision.
