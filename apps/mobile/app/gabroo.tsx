@@ -34,6 +34,7 @@ export default function GabrooScreen(){
  const speechSoundRef=useRef<Audio.Sound|null>(null);
  const speechRequestAbortRef=useRef<AbortController|null>(null);
  const speechAudioUriRef=useRef<string|null>(null);
+ const speechSegmentResolveRef=useRef<(()=>void)|null>(null);
  const [turnState,setTurnState]=useState<GabrooTurnState>(initialGabrooTurnState);
  const [speechNotice,setSpeechNotice]=useState("");
  const [speechSaving,setSpeechSaving]=useState(false);
@@ -231,6 +232,7 @@ export default function GabrooScreen(){
  const speakMessage=async(message:GabrooConversationMessage)=>{
   if(speakingMessageId===message.id){await stopSpeech();return;}
   speechRequestAbortRef.current?.abort();
+  speechSegmentResolveRef.current?.();speechSegmentResolveRef.current=null;
   const requestController=new AbortController();speechRequestAbortRef.current=requestController;
   const run=++speechRunRef.current;
   const playbackId=`${message.id}:${run}`;
@@ -244,37 +246,64 @@ export default function GabrooScreen(){
   try{
    const text=message.content.trim();
    if(!text)return;
+   const segments=splitGabrooSpeechText(text);
+   if(!segments.length)return;
+   let playbackStarted=false;
    setSpeechNotice("Preparing Gabroo's voice…");
-   const uri=await synthesizeGabrooSpeech({text,speed:speechRate,signal:requestController.signal});
-   if(run!==speechRunRef.current){
-    await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
-    return;
-   }
-   speechAudioUriRef.current=uri;
-   const created=await Audio.Sound.createAsync({uri},{shouldPlay:false,rate:speechRate,shouldCorrectPitch:true});
-   if(run!==speechRunRef.current){
-    await created.sound.unloadAsync().catch(()=>undefined);
-    await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
-    if(speechAudioUriRef.current===uri)speechAudioUriRef.current=null;
-    return;
-   }
-   speechSoundRef.current=created.sound;
-   playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"started",playback_id:playbackId});
-   setSpeakingMessageId(message.id);setSpeechNotice("");
-   await created.sound.setRateAsync(speechRate,true);
-   await new Promise<void>((resolve,reject)=>{
-    let settled=false;
-    created.sound.setOnPlaybackStatusUpdate(status=>{
-     if(!status.isLoaded||settled)return;
-     if(status.didJustFinish){settled=true;resolve();}
-    });
-    void created.sound.playAsync().catch(error=>{
-     if(!settled){settled=true;reject(error);}
-    });
-   });
+   const completed=await playGabrooSpeechSegments(segments,{
+    speak:async(segment,rate)=>{
+     if(run!==speechRunRef.current||requestController.signal.aborted)return;
+     const uri=await synthesizeGabrooSpeech({text:segment.text,speed:rate,signal:requestController.signal});
+     if(run!==speechRunRef.current||requestController.signal.aborted){
+      await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+      return;
+     }
+     speechAudioUriRef.current=uri;
+     let sound:Audio.Sound|null=null;
+     try{
+      const created=await Audio.Sound.createAsync({uri},{shouldPlay:false,rate,shouldCorrectPitch:true});
+      sound=created.sound;
+      if(run!==speechRunRef.current||requestController.signal.aborted)return;
+      speechSoundRef.current=sound;
+      if(!playbackStarted){
+       playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"started",playback_id:playbackId});
+       setSpeakingMessageId(message.id);setSpeechNotice("");
+       playbackStarted=true;
+      }
+      await new Promise<void>((resolve,reject)=>{
+       let settled=false;
+       const finish=()=>{
+        if(settled)return;
+        settled=true;
+        if(speechSegmentResolveRef.current===finish)speechSegmentResolveRef.current=null;
+        resolve();
+       };
+       speechSegmentResolveRef.current=finish;
+       sound!.setOnPlaybackStatusUpdate(status=>{
+        if(status.isLoaded&&status.didJustFinish)finish();
+       });
+       void sound!.playAsync().catch(reason=>{
+        if(!settled){settled=true;if(speechSegmentResolveRef.current===finish)speechSegmentResolveRef.current=null;reject(reason);}
+       });
+      });
+     }finally{
+      if(sound){
+       sound.setOnPlaybackStatusUpdate(null);
+       if(speechSoundRef.current===sound)speechSoundRef.current=null;
+       await sound.stopAsync().catch(()=>undefined);
+       await sound.unloadAsync().catch(()=>undefined);
+      }
+      if(speechAudioUriRef.current===uri)speechAudioUriRef.current=null;
+      await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+     }
+    }
+   },speechRate,()=>run!==speechRunRef.current||requestController.signal.aborted);
    if(run===speechRunRef.current){
-    playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"finished",playback_id:playbackId});
+    if(completed>0&&playbackStarted){
+     playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"finished",playback_id:playbackId});
+    }
     setSpeakingMessageId(null);
+    if(completed===0&&segments.length>0)setSpeechNotice("Gabroo's speech was interrupted.");
    }
   }catch(reason){
    if(run===speechRunRef.current){
