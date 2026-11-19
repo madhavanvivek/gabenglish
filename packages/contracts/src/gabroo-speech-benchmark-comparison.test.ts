@@ -41,4 +41,14 @@ describe("Gabroo speech benchmark comparison report",()=>{
   }));
   expect(renderGabrooSpeechBenchmarkComparison(unsafe,results)).toContain("Provider \\| A");
  });
+ it("includes separate human-review averages and adjudication flags",()=>{
+  const reviews=[
+   {candidateId:"a",sampleId:"one",mode:"ml-IN" as const,environment:"quiet" as const,reviewerLabel:"r1",meaningPreservation:5,readability:4,intelligibility:5,issueTags:[]},
+   {candidateId:"a",sampleId:"one",mode:"ml-IN" as const,environment:"quiet" as const,reviewerLabel:"r2",meaningPreservation:2,readability:4,intelligibility:4,issueTags:[]}
+  ];
+  const report=renderGabrooSpeechBenchmarkComparison(experiment,results,reviews);
+  expect(report).toContain("Human review (separate from automated WER/CER)");
+  expect(report).toContain("3.50");
+  expect(report).toContain("one");
+ });
 });
