@@ -14,7 +14,7 @@ export interface GabrooBenchmarkCandidate {
 export interface GabrooBenchmarkExecutionOptions {
  samples:GabrooSpeechBenchmarkSample[];
  candidates:GabrooBenchmarkCandidate[];
- loadAudio:(sample:GabrooSpeechBenchmarkSample)=>Promise<Uint8Array>;
+ loadAudio:(sample:GabrooSpeechBenchmarkSample,signal?:AbortSignal)=>Promise<Uint8Array>;
  timeoutMs?:number;
  signal?:AbortSignal;
  includeTuningSamples?:boolean;
@@ -57,7 +57,8 @@ export async function executeGabrooSpeechBenchmark(options:GabrooBenchmarkExecut
   if(options.signal?.aborted){skipped+=options.candidates.length;continue;}
   let audio:Uint8Array;
   try{
-   audio=await options.loadAudio(sample);
+   audio=await options.loadAudio(sample,options.signal);
+   if(options.signal?.aborted){skipped+=options.candidates.length;continue;}
    validateGabrooBenchmarkAudio(sample,audio);
   }catch{
    for(const candidate of options.candidates){
