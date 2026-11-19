@@ -33,4 +33,19 @@ describe("Gabroo benchmark comparison CLI",()=>{
   await writeFile(results,"invalid-json\n");await writeFile(metadata,JSON.stringify(experiment));
   await expect(writeGabrooBenchmarkComparisonReport(results,metadata,output)).rejects.toThrow("invalid JSONL");
  });
+ it("accepts optional human-review JSON and includes its aggregate",async()=>{
+  const root=await mkdtemp(join(tmpdir(),"gabroo-compare-"));roots.push(root);
+  const results=join(root,"results.jsonl"),metadata=join(root,"experiment.json"),reviewsPath=join(root,"reviews.json"),output=join(root,"comparison.md");
+  await writeFile(results,[row("a"),row("b")].map(x=>JSON.stringify(x)).join("\n")+"\n");
+  await writeFile(metadata,JSON.stringify(experiment));
+  await writeFile(reviewsPath,JSON.stringify([
+   {candidateId:"a",sampleId:"s1",mode:"ml-IN",environment:"quiet",reviewerLabel:"r1",meaningPreservation:5,readability:4,intelligibility:5,issueTags:[]},
+   {candidateId:"a",sampleId:"s1",mode:"ml-IN",environment:"quiet",reviewerLabel:"r2",meaningPreservation:4,readability:4,intelligibility:5,issueTags:[]}
+  ]));
+  const summary=await writeGabrooBenchmarkComparisonReport(results,metadata,output,reviewsPath);
+  const report=await readFile(output,"utf8");
+  expect(summary.humanReviewRecords).toBe(2);
+  expect(report).toContain("Human review (separate from automated WER/CER)");
+  expect(report).toContain("4.50");
+ });
 });
