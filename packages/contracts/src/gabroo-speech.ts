@@ -165,7 +165,7 @@ export function chunkGabrooSpeechSegments(
    const character=characters[index];
    current+=character;
    const next=characters[index+1];
-   const sentenceBoundary=/[.!?…।॥]/u.test(character)&&(!next||/\\s/u.test(next));
+   const sentenceBoundary=/[.!?…।॥]/u.test(character)&&(!next||/\s/u.test(next));
    if(sentenceBoundary||Array.from(current).length>=maxCharacters){
     if(current.trim())chunks.push({text:current,language:segment.language});
     current="";
