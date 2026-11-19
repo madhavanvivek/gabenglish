@@ -165,3 +165,14 @@ Example metadata is deliberately not committed with real provider details or lea
 The comparison renderer requires the result candidate IDs to exactly match the experiment candidate list. Within each language mode and environment, it requires every candidate to have the same sample IDs. A mismatch blocks the report rather than silently comparing unlike corpora.
 
 The report deliberately does not rank candidates or declare a winner. It calls out that blind Malayalam-fluent human review, meaning preservation, code-switch adjudication, and legal/security/privacy/commercial approval remain separate release gates. Use held-out results for final evaluation; do not tune against them.
+
+
+### Local candidate comparison command
+
+After a completed local benchmark, generate the candidate comparison using the result JSONL and the experiment metadata JSON:
+
+```bash
+pnpm --filter @gabenglish/api benchmark:compare -- ./benchmark/results.jsonl ./benchmark/experiment.json ./benchmark/comparison.md
+```
+
+The command rejects malformed result lines, invalid experiment metadata, candidate mismatches and non-comparable sample sets. It writes a metrics comparison without raw transcripts and does not call any provider. Keep both input files and the generated report in approved local storage; benchmark result JSONL contains transcripts.
