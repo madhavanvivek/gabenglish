@@ -264,7 +264,7 @@ export default function GabrooScreen(){
      speechAudioUriRef.current=uri;
      let sound:Audio.Sound|null=null;
      try{
-      const created=await Audio.Sound.createAsync({uri},{shouldPlay:false,rate,shouldCorrectPitch:true});
+      const created=await Audio.Sound.createAsync({uri},{shouldPlay:false,rate:speechRateRef.current,shouldCorrectPitch:true});
       sound=created.sound;
       if(run!==speechRunRef.current||requestController.signal.aborted)return;
       speechSoundRef.current=sound;
