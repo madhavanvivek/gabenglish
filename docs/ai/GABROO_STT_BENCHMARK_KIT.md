@@ -180,15 +180,32 @@ The command rejects malformed result lines, invalid experiment metadata, candida
 
 ## Human transcript review scoring
 
-`packages/contracts/src/gabroo-speech-benchmark-human-review.ts` defines structured blind-review ratings separate from automated WER/CER. Each review records a non-identifying reviewer label, candidate/sample, language mode, environment, meaning preservation, readability and intelligibility on a 1–5 scale. Mixed Malayalam-English samples additionally require a code-switch handling rating. Code-switch ratings are rejected for single-language samples.
+`packages/contracts/src/gabroo-speech-benchmark-human-review.ts` defines structured blind-review ratings separate from automated WER/CER. Each review records a non-identifying reviewer label, candidate/sample, language mode, environment, meaning preservation, content completeness, language fidelity, readability and learner comprehension on a 1–5 scale. Mixed Malayalam-English samples additionally require a code-switch handling rating. Critical error tags are recorded separately from numeric scores. Code-switch ratings are rejected for single-language samples.
 
-The aggregator reports mean ratings and flags a sample for adjudication when fewer than two independent reviews exist or reviewers differ by at least two points on a core rating. It does not select a provider, infer a winner or replace human adjudication. Reviewer labels must be pseudonymous and must not contain names, email addresses or account identifiers. Keep blind-review candidate identities hidden from reviewers until scoring is complete.
+The aggregator reports mean ratings and flags a sample for adjudication when fewer than two independent reviews exist or reviewers differ by at least two points on any core rating, or either reviewer records a critical meaning/content error. It does not select a provider, infer a winner or replace human adjudication. Reviewer labels must be pseudonymous and must not contain names, email addresses or account identifiers. Keep blind-review candidate identities hidden from reviewers until scoring is complete.
 
-Suggested rubric:
-- **Meaning preservation:** 1 = meaning materially changed or unusable; 3 = gist retained but important content lost; 5 = meaning faithfully preserved.
-- **Code-switch handling:** 1 = language switches substantially lost or misrepresented; 3 = partial preservation with notable errors; 5 = natural and accurate preservation of both language spans.
-- **Readability:** 1 = difficult to interpret; 3 = understandable with effort; 5 = clear and easy to read.
-- **Intelligibility:** 1 = learner intent cannot be understood; 3 = intent mostly recoverable; 5 = intent clear and unambiguous.
+Suggested rubric (score every applicable dimension independently; do not collapse them into one overall score):
+
+| Dimension | What reviewers judge | 1 — Poor | 2 — Weak | 3 — Adequate | 4 — Strong | 5 — Excellent |
+|---|---|---|---|---|---|---|
+| Meaning preservation | Whether the transcript communicates the same intent as the audio | Meaning reversed, materially changed or unusable | Main intent partly wrong | General intent retained, meaningful nuance lost | Meaning correct with only minor nuance loss | Intent and nuance faithfully preserved |
+| Content completeness | Retention of key words, facts, numbers, names, negation and function words | Multiple critical details missing or invented | One critical detail or several smaller details wrong | Main content present; a notable omission/error remains | All key details retained; only trivial omission | All meaningful content retained without additions |
+| Language fidelity | Correct language identity and script for each spoken span | Languages/scripts frequently misidentified | Repeated language or script errors | Mostly correct with noticeable errors | Correct apart from isolated minor error | Correct language and expected script throughout |
+| Malayalam-English code-switch handling (mixed only) | Preservation of switches, borrowed terms and boundaries between Malayalam and English | Switches erased or meaning broken | Frequent switches lost/misassigned | Main switches retained but several errors | Nearly all switches and boundaries correct | Natural, accurate preservation of every meaningful switch |
+| Transcript readability | Segmentation, spacing, punctuation and ease of scanning without changing meaning | Very difficult to parse | Frequent disruptive formatting | Readable with effort; inconsistent segmentation | Clear with minor formatting issues | Clear, consistently segmented and easy to scan |
+| Learner comprehension | Whether a Malayalam-speaking learner can understand the intended message from the transcript | Learner cannot recover the intended message | Requires substantial guessing or help | Main message recoverable, but confusion remains | Clear with minor ambiguity | Immediately clear and unambiguous |
+
+Use integer scores only. A 2 or 4 means the result falls between the adjacent anchors. Do not award a high readability or comprehension score to a fluent-looking transcript that changes meaning or omits a critical detail. A score of 5 is not a claim of perfect transcription; it means no meaningful issue was observed for that dimension.
+
+**Critical error flags (record independently of ratings):** meaning changed, key content/function word omitted, hallucinated content, number/name error, Malayalam script error, English-span error, unnecessary transliteration, code-switch lost, language-boundary error, punctuation/segmentation error, unintelligible span, other. Add a concise note for every critical error. A single critical error can require adjudication even when the average rating is high.
+
+**Review protocol:**
+- Reviewers listen to the source audio and inspect the transcript; do not judge from transcript text alone.
+- Score each dimension independently, then add issue tags. Do not infer pronunciation quality or learner ability from STT output.
+- Code-switch handling is mandatory only for mixed-language samples.
+- If the audio itself is unclear, mark the relevant issue and note it; do not automatically blame the recognizer for unintelligible source audio.
+- Use two independent Malayalam-fluent reviewers per sample. Adjudicate if fewer than two reviews exist, any core dimension differs by 2 or more points, or either reviewer flags a critical meaning/content error.
+- Keep reviewer labels pseudonymous and blind candidate identity until both initial reviews are submitted.
 
 Ratings are structured evidence, not an objective measure of accent quality. Do not penalize a learner for a regional accent when their intended meaning is intelligible.
 
