@@ -58,7 +58,7 @@ export function summarizeGabrooSpeechHumanReviews(reviews:GabrooSpeechHumanRevie
   for(const review of bucket){const list=bySample.get(review.sampleId)??[];list.push(review);bySample.set(review.sampleId,list);}
   const mean=(values:number[])=>values.reduce((sum,value)=>sum+value,0)/values.length;
   const samplesNeedingAdjudication=[...bySample.entries()]
-   .filter(([,items])=>items.length<2||Math.max(...items.map(x=>x.meaningPreservation))-Math.min(...items.map(x=>x.meaningPreservation))>=2||
+   .filter(([,items])=>items.length<2||items.some(x=>x.issueTags.some(tag=>["meaning_changed","key_content_omitted","function_word_omitted","hallucinated_words","number_or_name_error"].includes(tag)))||Math.max(...items.map(x=>x.meaningPreservation))-Math.min(...items.map(x=>x.meaningPreservation))>=2||
     Math.max(...items.map(x=>x.contentCompleteness))-Math.min(...items.map(x=>x.contentCompleteness))>=2||
     Math.max(...items.map(x=>x.languageFidelity))-Math.min(...items.map(x=>x.languageFidelity))>=2||
     Math.max(...items.map(x=>x.readability))-Math.min(...items.map(x=>x.readability))>=2||
