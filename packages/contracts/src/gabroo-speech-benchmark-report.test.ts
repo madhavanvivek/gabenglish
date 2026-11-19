@@ -34,6 +34,14 @@ describe("Gabroo speech benchmark report aggregation",()=>{
    {...base,sampleId:"same",referenceText:"hi",transcript:"hi",latencyMs:30}
   ])).toThrow("Duplicate");
  });
+ it("does not confuse distinct candidate/sample pairs containing separators",()=>{
+  const report=buildSpeechBenchmarkReport([
+   {...base,candidateId:"a\\u0000b",sampleId:"c",referenceText:"hi",transcript:"hi",latencyMs:20},
+   {...base,candidateId:"a",sampleId:"b\\u0000c",referenceText:"hi",transcript:"hi",latencyMs:30}
+  ]);
+  expect(report).toHaveLength(1);
+  expect(report[0].samples).toBe(2);
+ });
  it("rejects successful results without a transcript or latency",()=>{
   expect(()=>buildSpeechBenchmarkReport([
    {...base,sampleId:"missing",referenceText:"hi",transcript:"",latencyMs:20}
