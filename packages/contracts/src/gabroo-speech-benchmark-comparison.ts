@@ -65,13 +65,14 @@ export function renderGabrooSpeechBenchmarkComparison(
   "- Do not select or enable a provider from these metrics alone. Complete held-out human review and the legal, security, privacy and commercial decision gates first.",
   "",
   "## Human review (separate from automated WER/CER)","",
-  "| Candidate | Mode | Environment | Reviewed samples | Reviewers | Meaning | Code-switch | Readability | Intelligibility | Adjudication required |",
-  "|---|---|---|---:|---:|---:|---:|---:|---:|---|"
+  "| Candidate | Mode | Environment | Reviewed samples | Reviewers | Meaning | Completeness | Language fidelity | Code-switch | Readability | Learner comprehension | Adjudication required |",
+  "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|"
  );
  for(const summary of humanSummaries){
   lines.push("| "+[
    cell(summary.candidateId),summary.mode,summary.environment,String(summary.reviewedSamples),
    String(summary.reviewerCount),summary.meanMeaningPreservation.toFixed(2),
+   summary.meanContentCompleteness.toFixed(2),summary.meanLanguageFidelity.toFixed(2),
    summary.meanCodeSwitchHandling===null?"—":summary.meanCodeSwitchHandling.toFixed(2),
    summary.meanReadability.toFixed(2),summary.meanIntelligibility.toFixed(2),
    summary.samplesNeedingAdjudication.length?summary.samplesNeedingAdjudication.map(cell).join(", "):"No flagged samples"
