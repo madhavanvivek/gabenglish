@@ -110,6 +110,10 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   const controller=new AbortController();
   let timeout:ReturnType<typeof setTimeout>|undefined;
   let response:{content:string};
+  const abortOnDisconnect=()=>{
+   if(!reply.raw.writableFinished)controller.abort();
+  };
+  reply.raw.once("close",abortOnDisconnect);
   try{
    const timedOut=new Promise<never>((_,reject)=>{
     timeout=setTimeout(()=>{controller.abort();reject(new Error("Gabroo provider timed out"));},PROVIDER_TIMEOUT_MS);
@@ -140,7 +144,9 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
    return error(reply,request.id,503,"GABROO_REPLY_UNAVAILABLE","Gabroo could not respond just now. Your message was not saved; please try again.");
   }finally{
    if(timeout)clearTimeout(timeout);
+   reply.raw.off("close",abortOnDisconnect);
   }
+  if(controller.signal.aborted)return reply;
   const answer=typeof response?.content==="string"?response.content.trim():"";
   if(!answer||answer.length>12000)return error(reply,request.id,503,"GABROO_REPLY_UNAVAILABLE","Gabroo returned an invalid response. Your message was not saved.");
   const writeClient:PoolClient=await pool.connect();
