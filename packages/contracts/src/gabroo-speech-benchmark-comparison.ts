@@ -65,7 +65,7 @@ export function renderGabrooSpeechBenchmarkComparison(
   "- Do not select or enable a provider from these metrics alone. Complete held-out human review and the legal, security, privacy and commercial decision gates first.",
   "",
   "## Human review (separate from automated WER/CER)","",
-  "| Candidate | Mode | Environment | Reviewed samples | Reviewers | Meaning | Completeness | Language fidelity | Code-switch | Readability | Learner comprehension | Reviewer pairs | Exact agreement | Mean absolute difference | Adjudication count |",
+  "| Candidate | Mode | Environment | Reviewed samples | Reviewers | Meaning | Completeness | Language fidelity | Code-switch | Readability | Learner comprehension | Reviewer pairs | Paired ratings | Exact agreement | Mean absolute difference | Adjudication count | Adjudication sample IDs |",
   "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
  );
  for(const summary of humanSummaries){
@@ -75,12 +75,12 @@ export function renderGabrooSpeechBenchmarkComparison(
    summary.meanContentCompleteness.toFixed(2),summary.meanLanguageFidelity.toFixed(2),
    summary.meanCodeSwitchHandling===null?"—":summary.meanCodeSwitchHandling.toFixed(2),
    summary.meanReadability.toFixed(2),summary.meanIntelligibility.toFixed(2),
-   String(summary.reviewerPairs),summary.exactRatingAgreementPercent===null?"—":summary.exactRatingAgreementPercent.toFixed(2)+"%",
+   String(summary.reviewerPairs),String(summary.pairedRatings),summary.exactRatingAgreementPercent===null?"—":summary.exactRatingAgreementPercent.toFixed(2)+"%",
    summary.meanAbsoluteRatingDifference===null?"—":summary.meanAbsoluteRatingDifference.toFixed(2),
-   String(summary.samplesNeedingAdjudication.length)
+   String(summary.samplesNeedingAdjudication.length),cell(summary.samplesNeedingAdjudication.join(", "))||"—"
   ].join(" | ")+" |");
  }
- lines.push("","Human review scores are descriptive averages, not a provider ranking. Exact agreement is the percentage of paired dimension ratings that match; mean absolute difference is the average absolute 1–5 rating gap. Samples with fewer than two independent reviews, material reviewer disagreement or critical error flags require adjudication.","","No provider is ranked or declared the winner by this report.",""
+ lines.push("","Human review scores are descriptive averages, not a provider ranking. Reviewer pairs counts independent reviewer-to-reviewer comparisons per sample; paired ratings counts the scored dimensions compared across those pairs. Exact agreement is the percentage of paired dimension ratings that match; mean absolute difference is the average absolute 1–5 rating gap. Adjudication sample IDs are listed so reviewers can resolve the exact records. Samples with fewer than two independent reviews, material reviewer disagreement or critical error flags require adjudication.","","No provider is ranked or declared the winner by this report.",""
  );
  return lines.join("\n");
 }
