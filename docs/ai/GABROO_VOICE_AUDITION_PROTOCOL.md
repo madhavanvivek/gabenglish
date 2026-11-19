@@ -201,3 +201,26 @@ The summary preserves each reviewer's weighted score and the score range. A cand
 Duplicate reviewer submissions for the same blind code are rejected. Ratings outside 1–5, unknown blind codes, unknown rejection gates and unexpected fields are rejected by schema validation. Keep provider identity separate from blind scorecards until independent scoring is complete.
 
 The owner must still inspect the anonymised samples, individual scorecards, evidence notes, technical results and commercial/privacy evidence and explicitly approve the canonical voice. No automated score can make that decision.
+
+
+## 10. Machine-readable technical evidence and latency report
+
+The shared contract `@gabenglish/contracts` exports `gabrooVoiceTechnicalEvidenceSchema` and `summarizeGabrooVoiceTechnicalEvidence`. Store one technical evidence record per blind candidate. Do not place credentials, tokens, raw learner audio or private provider request payloads in this record.
+
+Each measured trial records the blind code, device, network profile, first-audio latency, full-response latency, interruption recovery, streaming stability, playback rate, slow-playback naturalness (1–5) and whether the trial failed. Full-response latency must not be lower than first-audio latency.
+
+The summary reports:
+- Trial count and failure percentage.
+- Median and P95 first-audio latency.
+- Median and P95 full-response latency.
+- Interruption recovery and streaming stability percentages.
+- Mean slow-playback naturalness.
+- Estimated cost per audio minute and representative daily audio minutes, when supplied.
+
+Latency percentiles are computed from recorded trial values; keep the original trial rows with the report so results can be audited. Run candidates on the same test device/network conditions wherever possible. The summary does not normalize away different conditions.
+
+### Evidence-completeness gate
+
+Technical evidence is marked complete only when at least five trials exist, supporting evidence references are supplied, commercial rights, data-retention terms and model-training terms are verified, and every recorded slow-playback naturalness rating is at least 3/5. This is a minimum evidence gate, not a claim that a candidate meets a latency target or is suitable for production. The owner must still inspect the actual measurements, licensing documents, privacy terms and blind listener scorecards.
+
+No latency threshold is silently treated as an approved product requirement. Compare observed values and make an explicit owner decision before selecting a provider.
