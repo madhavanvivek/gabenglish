@@ -15,10 +15,14 @@ import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabroo
 const conversationModes:{value:GabrooConversationMode;label:string}[]=[{value:"free_flow",label:"Free flow"},{value:"gentle_correction",label:"Gentle correction"},{value:"detailed_correction",label:"Detailed correction"},{value:"topic_practice",label:"Topic practice"},{value:"role_play",label:"Role-play"},{value:"vocabulary_building",label:"Vocabulary"},{value:"confidence_practice",label:"Confidence"}];
 
 export default function GabrooScreen(){
- const params=useLocalSearchParams<{practiceTerm?:string;practiceMeaning?:string;practiceExample?:string}>();
+ const params=useLocalSearchParams<{practiceTerm?:string;practiceMeaning?:string;practiceExample?:string;practiceOriginal?:string;practiceSuggestion?:string;practiceNote?:string}>();
  const practiceTerm=typeof params.practiceTerm==="string"?params.practiceTerm.trim().slice(0,120):"";
  const practiceMeaning=typeof params.practiceMeaning==="string"?params.practiceMeaning.trim().slice(0,300):"";
  const practiceExample=typeof params.practiceExample==="string"?params.practiceExample.trim().slice(0,500):"";
+ const practiceOriginal=typeof params.practiceOriginal==="string"?params.practiceOriginal.trim().slice(0,240):"";
+ const practiceSuggestion=typeof params.practiceSuggestion==="string"?params.practiceSuggestion.trim().slice(0,240):"";
+ const practiceNote=typeof params.practiceNote==="string"?params.practiceNote.trim().slice(0,400):"";
+ const hasSentencePractice=Boolean(practiceOriginal&&practiceSuggestion);
  const [subscription,setSubscription]=useState<SubscriptionStatus|null>(null);
  const [recognitionStatus,setRecognitionStatus]=useState<GabrooRecognitionStatus|null>(null);
  const [speechStatus,setSpeechStatus]=useState<GabrooSpeechStatus|null>(null);
@@ -204,7 +208,7 @@ export default function GabrooScreen(){
   try{
    const result=await createGabrooConversation({mode,support_language:"ml"});
    if(requestId!==conversationOpenSequenceRef.current)return;
-   activeConversationIdRef.current=result.conversation.id;setTurnState(initialGabrooTurnState);setActive(result.conversation);setMode(result.conversation.mode);setMessages([]);setDraft(practiceTerm?`I would like to practise the English word “${practiceTerm}”. ${practiceMeaning?`Its Malayalam meaning is “${practiceMeaning}”. `:""}${practiceExample?`Here is my example: “${practiceExample}”. `:""}Please help me use it naturally in a conversation.`:"");setSpeechNotice(practiceTerm?`Vocabulary practice: ${practiceTerm}. Review the suggested message and send it when you are ready.`:"");setConversations(current=>[result.conversation,...current]);
+   activeConversationIdRef.current=result.conversation.id;setTurnState(initialGabrooTurnState);setActive(result.conversation);setMode(result.conversation.mode);setMessages([]);setDraft(hasSentencePractice?`I want to practise this sentence pattern. My original example was: “${practiceOriginal}”. A suggested form is: “${practiceSuggestion}”. ${practiceNote?`The grammar note says: ${practiceNote} `:""}Please explain the difference simply, give me one new example, and let me try making my own sentence.`:practiceTerm?`I would like to practise the English word “${practiceTerm}”. ${practiceMeaning?`Its Malayalam meaning is “${practiceMeaning}”. `:""}${practiceExample?`Here is my example: “${practiceExample}”. `:""}Please help me use it naturally in a conversation.`:"");setSpeechNotice(hasSentencePractice?`Sentence practice: ${practiceOriginal} → ${practiceSuggestion}. Review the message and send it when you are ready.`:practiceTerm?`Vocabulary practice: ${practiceTerm}. Review the suggested message and send it when you are ready.`:"");setConversations(current=>[result.conversation,...current]);
   }catch(reason){
    if(requestId===conversationOpenSequenceRef.current)setError(reason instanceof AuthApiError&&reason.status===503? "Gabroo's conversation service is not connected yet. Your subscription and account are unchanged.":reason instanceof Error?reason.message:"Could not start a conversation.");
   }finally{
