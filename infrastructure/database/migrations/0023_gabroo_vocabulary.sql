@@ -12,8 +12,6 @@ CREATE TABLE gabroo_vocabulary (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(user_id,source_saved_phrase_id,term),
-  CONSTRAINT gabroo_vocabulary_user_phrase_fk
-    FOREIGN KEY (source_saved_phrase_id) REFERENCES gabroo_learner_memory(id) ON DELETE CASCADE
 );
 CREATE INDEX gabroo_vocabulary_user_status_updated_idx
   ON gabroo_vocabulary(user_id,status,updated_at DESC);
