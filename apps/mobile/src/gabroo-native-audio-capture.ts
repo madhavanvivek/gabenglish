@@ -31,7 +31,6 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
  let starting=false;
  let generation=0;
  let terminal=false;
- let nativeStartInFlight=false;
 
  const report=(error:unknown)=>{
   const normalized=error instanceof Error?error:new Error("Gabroo microphone capture failed.");
@@ -52,10 +51,9 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
   terminal=true;
   active=false;
   options.sender.close(reason);
-  // Preserve the starting flag while native start is pending. The start()
-  // catch path clears it and stops the stream after the native promise settles.
-  if(starting&&nativeStartInFlight)return;
-  starting=false;
+  // Do not call native stop while permission or native start is pending.
+  // The start() catch path owns cleanup after the awaited operation settles.
+  if(starting)return;
   if(stream){
    const current=stream;
    stream=undefined;
@@ -85,9 +83,7 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
     if(!granted)throw new Error("Microphone permission was not granted.");
     if(operation!==generation||!options.isForeground())throw new Error("Gabroo capture was cancelled before microphone start.");
     nativeStartAttempted=true;
-    nativeStartInFlight=true;
     await currentStream.start();
-    nativeStartInFlight=false;
     if(operation!==generation||!options.isForeground()){
      // The catch path stops the stream after a pending native start resolves.
      throw new Error("Gabroo capture was cancelled while starting.");
