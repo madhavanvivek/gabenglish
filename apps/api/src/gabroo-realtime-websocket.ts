@@ -93,7 +93,7 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
       }
      });
      ws.once("close",()=>{clearInterval(heartbeat);if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
-     ws.once("error",()=>{clearInterval(heartbeat);if(activeByUser.get(consumed.userId)===ws)activeByUser.delete(consumed.userId);});
+     ws.once("error",()=>{clearInterval(heartbeat);if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
     });
    }catch{rejectUpgrade(socket,503);}
   })();
