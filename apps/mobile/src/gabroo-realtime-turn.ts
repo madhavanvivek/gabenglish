@@ -82,7 +82,7 @@ export function createGabrooRealtimeTurnCoordinator(input:{
    report(error);
    return {completed:false as const,reason:"capture_stop_failed" as const};
   }finally{
-   if(operation===generation){capture=undefined;sender=undefined;activeTurnId=undefined;state="idle";}
+   if(operation===generation||(activeTurnId===turnId&&state==="stopping")){capture=undefined;sender=undefined;activeTurnId=undefined;state="idle";}
   }
  };
 
