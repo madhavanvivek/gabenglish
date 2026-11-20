@@ -3,7 +3,7 @@ import {Pool} from "pg";
 import {mkdtemp,rm,writeFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
-import {randomUUID,scryptSync} from "node:crypto";
+import {randomBytes,randomUUID,scryptSync} from "node:crypto";
 import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
 import {runMigrations} from "./migrate.js";
@@ -57,6 +57,52 @@ integration("PostgreSQL placement session integration",()=>{
    "SELECT indexdef FROM pg_indexes WHERE indexname='gabroo_speech_playback_tickets_expires_at_idx'"
   );
   expect(index.rows[0]?.indexdef).toContain("(expires_at)");
+ });
+
+ it("serializes concurrent playback-ticket issuance for one learner in PostgreSQL",async()=>{
+  if(!pool||!migrationApplied)return;
+  const email="gabroo-ticket-race-"+randomUUID()+"@example.test";
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  let userId:string|undefined;
+  try{
+   await createVerifiedTestSession(app,email,pool);
+   const user=await pool.query<{id:string}>("SELECT id FROM users WHERE email=$1",[email]);
+   userId=user.rows[0]?.id;
+   if(!userId)throw new Error("Concurrent ticket test learner was not created");
+   const issue=async(text:string)=>{
+    const client=await pool!.connect();
+    const digest=randomBytes(32).toString("hex");
+    try{
+     await client.query("BEGIN");
+     await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))",[userId]);
+     await client.query("UPDATE gabroo_speech_playback_tickets SET consumed_at=now() WHERE user_id=$1 AND consumed_at IS NULL",[userId]);
+     await client.query(
+      "INSERT INTO gabroo_speech_playback_tickets(token_digest,user_id,speech_text,speech_speed,expires_at) VALUES($1,$2,$3,$4,now()+interval '60 seconds')",
+      [digest,userId,text,1]
+     );
+     await client.query("COMMIT");
+     return digest;
+    }catch(error){
+     await client.query("ROLLBACK");
+     throw error;
+    }finally{client.release();}
+   };
+   const digests=await Promise.all([issue("First concurrent reply"),issue("Second concurrent reply")]);
+   const result=await pool.query<{total:string;active:string;consumed:string}>(
+    "SELECT count(*)::text AS total,count(*) FILTER(WHERE consumed_at IS NULL)::text AS active,count(*) FILTER(WHERE consumed_at IS NOT NULL)::text AS consumed FROM gabroo_speech_playback_tickets WHERE user_id=$1 AND token_digest=ANY($2::char(64)[])",
+    [userId,digests]
+   );
+   expect(result.rows[0]).toEqual({total:"2",active:"1",consumed:"1"});
+   const active=await pool.query<{speech_text:string}>(
+    "SELECT speech_text FROM gabroo_speech_playback_tickets WHERE user_id=$1 AND token_digest=ANY($2::char(64)[]) AND consumed_at IS NULL",
+    [userId,digests]
+   );
+   expect(active.rows).toHaveLength(1);
+   expect(["First concurrent reply","Second concurrent reply"]).toContain(active.rows[0]?.speech_text);
+  }finally{
+   if(userId)await pool.query("DELETE FROM users WHERE id=$1",[userId]);
+   await app.close();
+  }
  });
 
  it("authenticates Superadmins, manages offer windows, audits changes and revokes admin sessions",async()=>{
