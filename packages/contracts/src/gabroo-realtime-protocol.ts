@@ -61,9 +61,10 @@ export const gabrooRealtimeServerMessageSchema=z.discriminatedUnion("type",[
  turnBase.extend({type:z.literal("turn.completed")}).strict(),
  turnBase.extend({
   type:z.literal("turn.failed"),
-  code:z.enum(["TURN_LIMIT","RECOGNITION_FAILED","RESPONSE_FAILED","AUDIO_FAILED","RATE_LIMITED"]),
+  code:z.enum(["TURN_LIMIT","RECOGNITION_FAILED","RESPONSE_FAILED","AUDIO_FAILED","RATE_LIMITED","TRANSPORT_NOT_READY"]),
   message:z.string().trim().min(1).max(300)
  }).strict(),
+ base.extend({type:z.literal("session.connected")}).strict(),
  base.extend({type:z.literal("session.interrupted"),reason:z.enum(["network","audio_route","server_restart","entitlement","timeout"])}).strict(),
  base.extend({type:z.literal("session.closed"),reason:z.enum(["learner_stop","expired","server_shutdown","policy"])}).strict()
 ]);
