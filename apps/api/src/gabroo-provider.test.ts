@@ -22,6 +22,11 @@ describe("Gabroo language-model provider",()=>{
   expect(body.messages[0].content).toContain("Never infer a learner’s age, gender, relationship");
   expect(body.messages[0].content).toContain("natural, contemporary Kerala Malayalam");
   expect(body.messages[0].content).toContain("Ask at most one clear follow-up question");
+  expect(body.messages[0].content).toContain("Your primary conversation goal is to help the learner speak more");
+  expect(body.messages[0].content).toContain("listen-contribute-invite-listen rhythm");
+  expect(body.messages[0].content).toContain("Actively encourage elaboration");
+  expect(body.messages[0].content).toContain("Let the learner do most of the explaining and idea-building");
+  expect(body.messages[0].content).toContain("Do not correct every sentence");
   expect(body.messages[0].content).toContain("If the learner’s stage is unknown");
   expect(body.messages[0].content).toContain("Never address learners with overly familiar terms");
   expect(body.messages[0].content).toContain("Treat saved learner memory");
