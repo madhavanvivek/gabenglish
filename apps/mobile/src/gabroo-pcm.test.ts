@@ -39,6 +39,7 @@ describe("Gabroo PCM normalization",()=>{
   expect(()=>normalizeGabrooPcm16Mono({...base,channels:3})).toThrow(/one or two/);
   expect(()=>normalizeGabrooPcm16Mono({...base,data:new ArrayBuffer(3)})).toThrow(/incomplete/);
   expect(()=>normalizeGabrooPcm16Mono({...base,data:floatBuffer([Number.NaN])})).toThrow(/non-finite/);
+  expect(()=>normalizeGabrooPcm16Mono({...base,encoding:"pcm_float" as "float32"})).toThrow(/encoding/);
  });
 });
 
