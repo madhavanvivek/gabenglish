@@ -40,6 +40,14 @@ describe("Gabroo speech readiness contract",()=>{
   expect(()=>parseGabrooSpeechStatus({...available,speed:{minimum:Number.NaN,maximum:1.5}})).toThrow(/invalid response/i);
   expect(()=>parseGabrooSpeechStatus({...available,speed:{minimum:0.75,maximum:Number.POSITIVE_INFINITY}})).toThrow(/invalid response/i);
  });
+ it("rejects arrays masquerading as readiness objects or speed ranges",()=>{
+  expect(()=>parseGabrooSpeechStatus([])).toThrow(/invalid response/i);
+  expect(()=>parseGabrooSpeechStatus({...available,speed:[]})).toThrow(/invalid response/i);
+ });
+ it("accepts inclusive supported speed boundaries",()=>{
+  expect(parseGabrooSpeechStatus({...available,speed:{minimum:0.75,maximum:0.75}}).speed).toEqual({minimum:0.75,maximum:0.75});
+  expect(parseGabrooSpeechStatus({...available,speed:{minimum:1.5,maximum:1.5}}).speed).toEqual({minimum:1.5,maximum:1.5});
+ });
  it("rejects missing or malformed readiness fields",()=>{
   expect(()=>parseGabrooSpeechStatus(null)).toThrow(/invalid response/i);
   expect(()=>parseGabrooSpeechStatus({available:"yes",formats:["audio/mpeg"],speed:{minimum:0.75,maximum:1.5}})).toThrow(/invalid response/i);
