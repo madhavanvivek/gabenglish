@@ -40,6 +40,9 @@ describe("Gabroo realtime WebSocket handshake",()=>{
   const connected=nextMessage(client);
   await new Promise<void>((resolve,reject)=>{client.once("open",resolve);client.once("error",reject);});
   expect(await connected).toMatchObject({protocol_version:1,session_id:SESSION_ID,type:"session.connected"});
+  const turnFailed=nextMessage(client);
+  client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-1",type:"turn.start",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1}}));
+  expect(await turnFailed).toMatchObject({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-1",type:"turn.failed",code:"TRANSPORT_NOT_READY"});
   const closed=nextMessage(client);
   const ended=new Promise<void>(resolve=>client.once("close",()=>resolve()));
   client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,type:"session.stop"}));
