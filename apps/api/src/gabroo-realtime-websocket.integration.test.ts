@@ -40,8 +40,14 @@ describe("Gabroo realtime WebSocket handshake",()=>{
   const connected=nextMessage(client);
   await new Promise<void>((resolve,reject)=>{client.once("open",resolve);client.once("error",reject);});
   expect(await connected).toMatchObject({protocol_version:1,session_id:SESSION_ID,type:"session.connected"});
-  const turnFailed=nextMessage(client);
+  const accepted=nextMessage(client);
   client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-1",type:"turn.start",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1}}));
+  expect(await accepted).toMatchObject({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-1",type:"turn.accepted",max_turn_ms:120000});
+  const framePayload=Buffer.from([0,1,2,3,4,5,6,7]);
+  client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-1",type:"audio.frame",sequence:0,byte_length:framePayload.byteLength}));
+  client.send(framePayload);
+  const turnFailed=nextMessage(client);
+  client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-1",type:"turn.end"}));
   expect(await turnFailed).toMatchObject({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-1",type:"turn.failed",code:"TRANSPORT_NOT_READY"});
   const closed=nextMessage(client);
   const ended=new Promise<void>(resolve=>client.once("close",()=>resolve()));
