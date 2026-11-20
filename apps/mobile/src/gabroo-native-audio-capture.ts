@@ -11,6 +11,7 @@ export type GabrooNativeAudioStream={
 export type GabrooCaptureSender={
  enqueue:(buffer:GabrooNativeAudioBuffer)=>Promise<void>;
  close:(reason?:string)=>void;
+ finish?:()=>Promise<void>;
 };
 
 export type GabrooNativeAudioCaptureOptions={
@@ -50,14 +51,22 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
   generation+=1;
   terminal=true;
   active=false;
-  options.sender.close(reason);
   // Do not call native stop while permission or native start is pending.
   // The start() catch path owns cleanup after the awaited operation settles.
-  if(starting)return;
+  if(starting){options.sender.close(reason);return;}
   if(stream){
    const current=stream;
    stream=undefined;
    try{await current.stop();}catch(error){report(error);}
+  }
+  // Stop capture first, then drain every already-accepted audio frame before
+  // the coordinator sends turn.end. Failure falls back to immediate close.
+  try{
+   if(options.sender.finish)await options.sender.finish();
+   else options.sender.close(reason);
+  }catch(error){
+   options.sender.close("audio_sender_drain_failed");
+   report(error);
   }
  };
 
