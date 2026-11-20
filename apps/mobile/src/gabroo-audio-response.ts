@@ -2,8 +2,11 @@ const MAX_GABROO_AUDIO_BYTES=12*1024*1024;
 
 export function expectedGabrooAudioLength(contentLength:string|null):number|null{
  if(contentLength===null)return null;
+ // Content-Length is an unsigned decimal integer; Number() alone also accepts
+ // whitespace, signs and hexadecimal notation that are not valid header values.
+ if(!/^\\d+$/.test(contentLength))throw new Error("Gabroo returned an invalid audio length.");
  const length=Number(contentLength);
- if(!Number.isSafeInteger(length)||length<0)throw new Error("Gabroo returned an invalid audio length.");
+ if(!Number.isSafeInteger(length))throw new Error("Gabroo returned an invalid audio length.");
  if(length>MAX_GABROO_AUDIO_BYTES)throw new Error("Gabroo audio exceeded the permitted size.");
  return length;
 }
