@@ -151,6 +151,8 @@ Exit: written decision on transport/provider feasibility; no production micropho
 - [x] Add one-active-connection-per-learner process guard, ping/pong heartbeat, 60-second idle timeout, 15-minute session ceiling, and clean shutdown handling.
 - [ ] Add distributed connection/rate limits and session revocation across multiple API instances.
 - [x] Add WebSocket upgrade validation and a live handshake/close integration test.
+- [x] Accept 16 kHz mono PCM turns with JSON frame metadata and immediately-following binary payloads.
+- [x] Enforce exact payload lengths, contiguous sequence numbers, 64 KiB frames, 5 MiB/120-second turn bounds and 60 frames/second.
 - [x] Add a live integration test for a valid metadata-plus-binary frame and the explicit recognition-not-ready terminal response.
 - [ ] Add invalid sequence/length, stale-session, cancellation, backpressure and multi-instance tests.
 - Keep audio bytes transient and prove no persistence/logging.
