@@ -4,7 +4,8 @@ import type {Duplex} from "node:stream";
 import type {FastifyInstance} from "fastify";
 import type {Pool} from "pg";
 import {WebSocket,WebSocketServer} from "ws";
-import {gabrooRealtimeClientMessageSchema,GABROO_REALTIME_PROTOCOL_VERSION,GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES,validateGabrooRealtimeAudioFrame,type GabrooRealtimeAudioFrameMetadata,type GabrooRealtimeAudioFormat} from "@gabenglish/contracts";
+import {gabrooRealtimeClientMessageSchema,GABROO_REALTIME_PROTOCOL_VERSION,GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES,validateGabrooRealtimeAudioFrame,type GabrooRealtimeAudioFrameMetadata,type GabrooRealtimeAudioFormat,type GabrooSpeechRecognitionProvider} from "@gabenglish/contracts";
+import {recognizeGabrooAudio} from "./gabroo-recognition-service.js";
 import {consumeGabrooRealtimeSessionTicket} from "./gabroo-realtime-sessions.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
 import type {AppConfig} from "./config.js";
@@ -27,6 +28,8 @@ type ActiveTurn={
  totalBytes:number;
  pendingFrame?:GabrooRealtimeAudioFrameMetadata;
  frameTimes:number[];
+ chunks:Buffer[];
+ controller:AbortController;
 };
 
 export function parseGabrooRealtimeUpgrade(request:IncomingMessage,allowedOrigins:string[]){
@@ -59,7 +62,17 @@ function rejectUpgrade(socket:Duplex,status:number){
  socket.destroy();
 }
 
-export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:Pool,config:AppConfig){
+export function pcm16MonoToWav(pcm:Uint8Array,sampleRate=16000){
+ if(pcm.byteLength===0||pcm.byteLength%2!==0)throw new Error("PCM audio must contain complete 16-bit mono samples.");
+ const header=Buffer.alloc(44);
+ header.write("RIFF",0);header.writeUInt32LE(36+pcm.byteLength,4);header.write("WAVE",8);
+ header.write("fmt ",12);header.writeUInt32LE(16,16);header.writeUInt16LE(1,20);header.writeUInt16LE(1,22);
+ header.writeUInt32LE(sampleRate,24);header.writeUInt32LE(sampleRate*2,28);header.writeUInt16LE(2,32);header.writeUInt16LE(16,34);
+ header.write("data",36);header.writeUInt32LE(pcm.byteLength,40);
+ return Buffer.concat([header,Buffer.from(pcm)]);
+}
+
+export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:Pool,config:AppConfig,recognitionProvider?:GabrooSpeechRecognitionProvider){
  const wss=new WebSocketServer({noServer:true,maxPayload:GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES,perMessageDeflate:false,handleProtocols(protocols){return protocols.has(GABROO_REALTIME_SUBPROTOCOL)?GABROO_REALTIME_SUBPROTOCOL:false;}});
  const activeByUser=new Map<string,{socket:WebSocket;sessionId:string}>();
  const connectingUsers=new Set<string>();
@@ -118,7 +131,7 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
        if(activeTurn.totalBytes>MAX_TURN_AUDIO_BYTES){failTurn(activeTurn.id,"TURN_LIMIT","This voice turn exceeded the audio size limit.");activeTurn=undefined;return;}
        if(now-activeTurn.startedAt>MAX_TURN_MS){failTurn(activeTurn.id,"TURN_LIMIT","This voice turn exceeded the time limit.");activeTurn=undefined;return;}
        activeTurn.nextSequence+=1;
-       // Audio bytes are validated in memory and intentionally discarded. No provider pipeline is wired yet.
+       activeTurn.chunks.push(Buffer.from(payload));
        return;
       }
       if(activeTurn?.pendingFrame){ws.close(1008,"audio_frame_payload_required");return;}
@@ -128,13 +141,13 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
       if(!parsedMessage.success||parsedMessage.data.session_id!==sessionId){ws.close(1008,"invalid_session_message");return;}
       const message=parsedMessage.data;
       if(message.type==="session.stop"){activeTurn=undefined;send({type:"session.closed",reason:"learner_stop"});ws.close(1000,"learner_stop");return;}
-      if(message.type==="tutor.interrupt"){if(activeTurn?.id===message.turn_id)activeTurn=undefined;return;}
+      if(message.type==="tutor.interrupt"){if(activeTurn?.id===message.turn_id){activeTurn.controller.abort();activeTurn=undefined;}return;}
       if(message.type==="turn.start"){
        if(activeTurn){failTurn(message.turn_id,"TURN_LIMIT","Finish or interrupt the current voice turn first.");return;}
        if(message.audio.codec!=="pcm_s16le"||message.audio.sample_rate_hz!==16000||message.audio.channels!==1){
         failTurn(message.turn_id,"TRANSPORT_NOT_READY","Only 16 kHz mono PCM audio is currently accepted by the transport.");return;
        }
-       activeTurn={id:message.turn_id,audio:message.audio,startedAt:Date.now(),nextSequence:0,totalBytes:0,frameTimes:[]};
+       activeTurn={id:message.turn_id,audio:message.audio,startedAt:Date.now(),nextSequence:0,totalBytes:0,frameTimes:[],chunks:[],controller:new AbortController()};
        send({type:"turn.accepted",turn_id:message.turn_id,max_turn_ms:MAX_TURN_MS});
        return;
       }
@@ -150,11 +163,31 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
        const completed=activeTurn;
        activeTurn=undefined;
        if(Date.now()-completed.startedAt>MAX_TURN_MS){failTurn(completed.id,"TURN_LIMIT","This voice turn exceeded the time limit.");return;}
-       failTurn(completed.id,"TRANSPORT_NOT_READY","Audio transport received the frames, but live speech recognition is not connected yet. Please use the recording and transcript review flow.");
+       if(!recognitionProvider){failTurn(completed.id,"TRANSPORT_NOT_READY","Live speech recognition is not configured. Please use the recording and transcript review flow.");return;}
+       void (async()=>{
+        try{
+         const pcm=Buffer.concat(completed.chunks,completed.totalBytes);
+         const wav=pcm16MonoToWav(pcm,completed.audio.sample_rate_hz);
+         const transcript=await recognizeGabrooAudio({
+          audio:new Uint8Array(wav.buffer,wav.byteOffset,wav.byteLength),
+          metadata:{mimeType:"audio/wav",sizeBytes:wav.byteLength,language:"ml-en"},
+          consentGranted:true,
+          provider:recognitionProvider,
+          signal:completed.controller.signal,
+          timeoutMs:30_000
+         });
+         if(completed.controller.signal.aborted||ws.readyState!==WebSocket.OPEN)return;
+         send({type:"transcript.final",turn_id:completed.id,text:transcript.text,language_detected:transcript.languageDetected,review_required:true});
+        }catch{
+         if(!completed.controller.signal.aborted&&ws.readyState===WebSocket.OPEN)failTurn(completed.id,"RECOGNITION_FAILED","Gabroo could not recognise that voice turn. Please try again or use transcript review.");
+        }finally{
+         completed.chunks.length=0;
+        }
+       })();
       }
      });
-     ws.once("close",()=>{clearInterval(heartbeat);activeTurn=undefined;if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
-     ws.once("error",()=>{clearInterval(heartbeat);activeTurn=undefined;if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
+     ws.once("close",()=>{clearInterval(heartbeat);activeTurn?.controller.abort();activeTurn?.chunks.splice(0);activeTurn=undefined;if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
+     ws.once("error",()=>{clearInterval(heartbeat);activeTurn?.controller.abort();activeTurn?.chunks.splice(0);activeTurn=undefined;if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
     });
    }catch{if(reservedUserId)connectingUsers.delete(reservedUserId);rejectUpgrade(socket,503);}
   })();
