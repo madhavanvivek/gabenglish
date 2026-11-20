@@ -64,10 +64,12 @@ export function createGabrooRealtimeTurnCoordinator(input:{
  const stop=async()=>{
   if(state!=="capturing"||!activeTurnId||!capture||!sender)throw new Error("No active Gabroo microphone turn can be stopped.");
   state="stopping";
+  const operation=generation;
   const turnId=activeTurnId;
   const currentCapture=capture;
   try{
    const result=await currentCapture.stop();
+   if(operation!==generation)return {completed:false as const,reason:"interrupted" as const};
    if(!result.drained){
     try{input.connection.interrupt(turnId);}catch{}
     return {completed:false as const,reason:"audio_drain_failed" as const};
@@ -80,7 +82,7 @@ export function createGabrooRealtimeTurnCoordinator(input:{
    report(error);
    return {completed:false as const,reason:"capture_stop_failed" as const};
   }finally{
-   capture=undefined;sender=undefined;activeTurnId=undefined;state="idle";
+   if(operation===generation){capture=undefined;sender=undefined;activeTurnId=undefined;state="idle";}
   }
  };
 
@@ -88,6 +90,10 @@ export function createGabrooRealtimeTurnCoordinator(input:{
   if(!activeTurnId)return;
   const turnId=activeTurnId;
   const operation=++generation;
+  if(state==="stopping"){
+   try{input.connection.interrupt(turnId);}catch(error){report(error);}
+   return;
+  }
   const currentCapture=capture;
   const currentSender=sender;
   state="stopping";
