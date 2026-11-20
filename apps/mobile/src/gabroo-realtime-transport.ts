@@ -1,4 +1,5 @@
 import {GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES,GABROO_REALTIME_PROTOCOL_VERSION,gabrooRealtimeServerMessageSchema,type GabrooRealtimeAudioFormat,type GabrooRealtimeServerMessage} from "@gabenglish/contracts";
+import {createGabrooRealtimeSessionTicket} from "./auth-api";
 
 export const GABROO_REALTIME_CONNECT_PATH="/api/v1/gabroo/realtime/connect";
 
@@ -71,4 +72,48 @@ export function connectGabrooRealtimeSocket(input:{
   stop(){sendControl({type:"session.stop"});},
   close(){socket.close(1000,"learner_stop");}
  };
+}
+
+/**
+ * Obtain the authenticated, consent-gated one-use ticket and resolve only after
+ * the server confirms that the WebSocket session is connected. This opens no
+ * microphone and deliberately leaves audio capture to a separately validated
+ * native streaming adapter.
+ */
+export async function openGabrooRealtimeSession(input:{
+ consentGranted:true;
+ callbacks?:GabrooRealtimeSocketCallbacks;
+}){
+ if(input.consentGranted!==true)throw new Error("Explicit learner consent is required.");
+ const apiBaseUrl=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\\/$/,"");
+ if(!apiBaseUrl)throw new Error("The Gabenglish API is not configured.");
+ const ticket=await createGabrooRealtimeSessionTicket(true);
+ return await new Promise<ReturnType<typeof connectGabrooRealtimeSocket>>((resolve,reject)=>{
+  let settled=false;
+  let connection:ReturnType<typeof connectGabrooRealtimeSocket>;
+  const fail=(message:string)=>{
+   if(settled)return;
+   settled=true;
+   try{connection?.close();}catch{}
+   reject(new Error(message));
+  };
+  try{
+   connection=connectGabrooRealtimeSocket({
+    apiBaseUrl,sessionId:ticket.session_id,connectionTicket:ticket.connection_ticket,
+    callbacks:{
+     onOpen:()=>input.callbacks?.onOpen?.(),
+     onMessage:message=>{
+      if(message.type==="session.connected"&&!settled){settled=true;resolve(connection);}
+      input.callbacks?.onMessage?.(message);
+     },
+     onInvalidMessage:()=>{input.callbacks?.onInvalidMessage?.();fail("Gabroo returned an invalid realtime message.");},
+     onError:()=>{input.callbacks?.onError?.();fail("Could not establish the Gabroo realtime connection.");},
+     onClose:(code,reason)=>{
+      input.callbacks?.onClose?.(code,reason);
+      if(!settled)fail("Gabroo realtime connection closed before it was ready.");
+     }
+    }
+   });
+  }catch(error){fail(error instanceof Error?error.message:"Could not open Gabroo realtime session.");}
+ });
 }
