@@ -1,5 +1,34 @@
 import {describe,it,expect} from "vitest";
-import {buildGabrooTeachingPolicy,buildGabrooLearnerTurnGuidance} from "./gabroo-teaching-policy.js";
+import {buildGabrooTeachingPolicy,buildGabrooLearnerTurnGuidance,buildGabrooConversationContinuityGuidance} from "./gabroo-teaching-policy.js";
+
+describe("Gabroo conversation continuity",()=>{
+ it("treats the latest learner turn as an answer to Gabroo's previous question",()=>{
+  const guidance=buildGabrooConversationContinuityGuidance({history:[
+   {role:"user",content:"I want to improve my English."},
+   {role:"assistant",content:"What situations do you use English in most?"},
+   {role:"user",content:"Mostly at work."}
+  ]});
+  expect(guidance).toContain("Treat it as an answer");
+  expect(guidance).toContain("Do not repeat the previous question");
+ });
+ it("continues an established thread without restarting greetings",()=>{
+  const guidance=buildGabrooConversationContinuityGuidance({history:[
+   {role:"user",content:"I enjoy cooking."},
+   {role:"assistant",content:"Cooking can be creative. Which dish do you enjoy making?"}
+  ]});
+  expect(guidance).toContain("avoid repeated greetings");
+ });
+ it("does not invent continuity for a first conversation turn",()=>{
+  expect(buildGabrooConversationContinuityGuidance({history:[]})).toContain("do not pretend to remember");
+ });
+ it("adds conversation continuity guidance to the provider policy",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",latestLearnerMessage:"Mostly at work.",conversationHistory:[
+   {role:"assistant",content:"What situations do you use English in most?"},
+   {role:"user",content:"Mostly at work."}
+  ]});
+  expect(policy.responseGuidance.join(" ")).toContain("Treat it as an answer");
+ });
+});
 
 describe("Gabroo learner-turn adaptation",()=>{
  it("encourages a small expansion after a brief answer",()=>{
