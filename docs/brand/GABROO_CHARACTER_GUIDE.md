@@ -5,7 +5,7 @@ Version 1.3 — exploratory character brief; final visual identity and 3D avatar
 **Selection process:** `docs/brand/GABROO_LIVE_CHARACTER_IDENTITY_LOCK.md`. This is an exploratory brief, not a final character design. No concept, face, outfit or production 3D avatar has owner approval. Prepare distinct concepts for review; update this guide only after the owner selects one.
 
 ## Character identity
-Gabroo is Gabenglish's single signature AI English buddy. No direction selected. The final identity must be chosen by the owner after reviewing multiple visual concepts. Do not treat Concept C or another previous concept as approved. Present the approved character as-is; any production 3D reconstruction requires owner review against the master before animation.
+Gabroo is Gabenglish's single signature AI English buddy. No direction selected. The final identity must be chosen by the owner after reviewing multiple visual concepts. Do not treat Concept C or another previous concept as approved. Once the owner selects and approves a character master, preserve it; any production 3D reconstruction requires owner review against that selected master before animation.
 
 ## Exploratory appearance criteria
 - Warm medium-brown skin; large expressive brown eyes; rounded friendly features.
