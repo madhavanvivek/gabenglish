@@ -73,6 +73,25 @@ describe("Gabroo native capture lifecycle boundary",()=>{
   expect(x.sender.close).not.toHaveBeenCalled();
  });
  
+ it("shares one native stop and sender drain across concurrent stop callers",async()=>{
+  const x=setup();
+  let releaseStop!:()=>void;
+  const stopGate=new Promise<void>(resolve=>{releaseStop=resolve;});
+  vi.mocked(x.stream.stop).mockImplementationOnce(async()=>{
+   x.calls.push("stop-start");
+   await stopGate;
+   x.calls.push("stop-end");
+  });
+  await x.controller.start({consentGranted:true});
+  const first=x.controller.stop("learner_stop");
+  const second=x.controller.stop("session_interrupt");
+  expect(first).toBe(second);
+  expect(x.stream.stop).toHaveBeenCalledOnce();
+  releaseStop();
+  await expect(Promise.all([first,second])).resolves.toEqual([{drained:true},{drained:true}]);
+  expect(x.sender.finish).toHaveBeenCalledOnce();
+  expect(x.calls.filter(call=>call==="stop-start")).toHaveLength(1);
+ });
  it("reports a successful drain only after native capture has stopped",async()=>{
   const x=setup();
   await x.controller.start({consentGranted:true});
