@@ -27,7 +27,7 @@ const policyByMode:Record<GabrooConversationMode,Omit<GabrooTeachingPolicy,"mode
 export function buildGabrooLearnerTurnGuidance(input:{latestLearnerMessage?:string|null}):string{
  const message=input.latestLearnerMessage?.trim()??"";
  if(!message)return "No learner message is available yet: invite the learner to choose a topic or share what they would like to practise; do not assume an interest.";
- const startsWithQuestion=/^(what|why|how|when|where|who|which|whose|whom|can|could|would|will|should|is|are|am|do|does|did|have|has|had|may|might|എന്ത്|എന്താണ്|എങ്ങനെ|എന്തുകൊണ്ട്|എപ്പോൾ|എവിടെ|ആര്|ആരാണ്|ചെയ്യാമോ|പറ്റുമോ)\b/i.test(message);
+ const startsWithQuestion=/^(what|why|how|when|where|who|which|whose|whom|can|could|would|will|should|is|are|am|do|does|did|have|has|had|may|might)\b/i.test(message)||/^(എന്ത്|എന്താണ്|എങ്ങനെ|എന്തുകൊണ്ട്|എപ്പോൾ|എവിടെ|ആര്|ആരാണ്|ചെയ്യാമോ|പറ്റുമോ)/.test(message);
  const signalsConfusion=/\b(i do not understand|i don.t understand|i am confused|i.m confused|please explain|explain this|help me understand)\b/i.test(message)||/(മനസ്സിലായില്ല|മനസ്സിലാകുന്നില്ല|വ്യക്തമല്ല|ഒന്ന് വിശദീകരിക്കൂ|സഹായിക്കൂ)/.test(message);
  const isDirectQuestion=message.includes("?")||startsWithQuestion||signalsConfusion;
  if(isDirectQuestion)return "The learner appears to be asking a direct question or expressing a doubt. Answer that question clearly first, at an accessible level. Do not withhold the answer merely to force more speaking. After resolving it, offer one natural invitation to share an example, apply the idea or return to the conversation if appropriate.";
