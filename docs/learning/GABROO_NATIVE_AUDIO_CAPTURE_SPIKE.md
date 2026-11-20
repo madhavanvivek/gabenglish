@@ -59,7 +59,7 @@ A platform-independent capture lifecycle controller now defines the boundary exp
 - stops native capture on explicit stop or sender/backpressure failure;
 - treats a failed or cancelled startup as terminal because its sender is closed; a retry must create a fresh controller and sender, preventing capture from restarting against a permanently closed transport;
 - defers native cleanup to the startup operation when permission or native start is pending, avoiding a native `stop()` call before native capture has actually started;
-- closes the sender on all failed-start and stop paths.
+- on a normal stop, stops native capture first and drains all already-accepted audio frames before closing the sender; failed startup and sender failure still close immediately.
 
 The controller accepts an injected native stream port. It does not import `expo-audio`, request real device permission itself, or claim microphone capture works on the current SDK 53 app. The React integration and physical-device QA remain gated on the Expo SDK upgrade.
 
