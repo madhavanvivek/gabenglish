@@ -49,15 +49,19 @@ describe("Gabroo live conversation state machine",()=>{
    .toBe("listening");
  });
 
- it("ignores no stale audio completion by rejecting mismatched audio ids",()=>{
+ it("ignores stale audio completion events without disturbing the current turn",()=>{
   const speaking=move(initialGabrooConversationState,
    {type:"begin_greeting"},{type:"greeting_finished"},
    {type:"learner_turn_started"},
    {type:"response_speech_started",timeline:speech()}
   );
-  expect(()=>reduceGabrooConversation(speaking,{
+  expect(reduceGabrooConversation(speaking,{
    type:"speech_finished",audio_id:"older-audio"
-  })).toThrow(/Invalid Gabroo conversation transition/);
+  })).toEqual(speaking);
+  const interrupted=reduceGabrooConversation(speaking,{type:"learner_barge_in"});
+  expect(reduceGabrooConversation(interrupted,{
+   type:"speech_finished",audio_id:"gabroo-audio-001"
+  })).toEqual(interrupted);
  });
 
  it("clears speech and records a bounded connection error during recovery",()=>{
