@@ -47,7 +47,7 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
   });
  };
 
- const stop=async(reason="learner_stop"):{drained:boolean}=>{
+ const stop=async(reason="learner_stop"):Promise<{drained:boolean}>=>{
   generation+=1;
   terminal=true;
   active=false;
