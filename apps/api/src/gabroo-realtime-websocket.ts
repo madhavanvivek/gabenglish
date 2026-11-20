@@ -103,6 +103,7 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
      let lastActivity=connectedAt;
      let lastPong=connectedAt;
      let activeTurn:ActiveTurn|undefined;
+     const pendingRecognitions=new Map<string,AbortController>();
      const send=(message:Record<string,unknown>)=>{if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({protocol_version:GABROO_REALTIME_PROTOCOL_VERSION,session_id:sessionId,...message}));};
      const failTurn=(turnId:string,code:"TURN_LIMIT"|"RATE_LIMITED"|"TRANSPORT_NOT_READY"|"RECOGNITION_FAILED",message:string)=>{
       send({type:"turn.failed",turn_id:turnId,code,message});
@@ -140,8 +141,8 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
       const parsedMessage=gabrooRealtimeClientMessageSchema.safeParse(payload);
       if(!parsedMessage.success||parsedMessage.data.session_id!==sessionId){ws.close(1008,"invalid_session_message");return;}
       const message=parsedMessage.data;
-      if(message.type==="session.stop"){activeTurn?.controller.abort();activeTurn?.chunks.splice(0);activeTurn=undefined;send({type:"session.closed",reason:"learner_stop"});ws.close(1000,"learner_stop");return;}
-      if(message.type==="tutor.interrupt"){if(activeTurn?.id===message.turn_id){activeTurn.controller.abort();activeTurn=undefined;}return;}
+      if(message.type==="session.stop"){activeTurn?.controller.abort();activeTurn?.chunks.splice(0);activeTurn=undefined;for(const controller of pendingRecognitions.values())controller.abort();pendingRecognitions.clear();send({type:"session.closed",reason:"learner_stop"});ws.close(1000,"learner_stop");return;}
+      if(message.type==="tutor.interrupt"){if(activeTurn?.id===message.turn_id){activeTurn.controller.abort();activeTurn.chunks.length=0;activeTurn=undefined;}pendingRecognitions.get(message.turn_id)?.abort();return;}
       if(message.type==="turn.start"){
        if(activeTurn){failTurn(message.turn_id,"TURN_LIMIT","Finish or interrupt the current voice turn first.");return;}
        if(message.audio.codec!=="pcm_s16le"||message.audio.sample_rate_hz!==16000||message.audio.channels!==1){
@@ -186,8 +187,8 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
        })();
       }
      });
-     ws.once("close",()=>{clearInterval(heartbeat);activeTurn?.controller.abort();activeTurn?.chunks.splice(0);activeTurn=undefined;if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
-     ws.once("error",()=>{clearInterval(heartbeat);activeTurn?.controller.abort();activeTurn?.chunks.splice(0);activeTurn=undefined;if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
+     ws.once("close",()=>{clearInterval(heartbeat);activeTurn?.controller.abort();activeTurn?.chunks.splice(0);activeTurn=undefined;for(const controller of pendingRecognitions.values())controller.abort();pendingRecognitions.clear();if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
+     ws.once("error",()=>{clearInterval(heartbeat);activeTurn?.controller.abort();activeTurn?.chunks.splice(0);activeTurn=undefined;for(const controller of pendingRecognitions.values())controller.abort();pendingRecognitions.clear();if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
     });
    }catch{if(reservedUserId)connectingUsers.delete(reservedUserId);rejectUpgrade(socket,503);}
   })();
