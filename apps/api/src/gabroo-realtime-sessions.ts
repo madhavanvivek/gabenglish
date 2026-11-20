@@ -60,6 +60,7 @@ export async function registerGabrooRealtimeSessionRoutes(app:FastifyInstance,po
   if(!learner)return sendError(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account to prepare a Gabroo voice session.");
   const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);
   if(!entitlement)return sendError(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to use Gabroo realtime voice.");
+  if(request.headers["x-gabroo-consent"]!=="true")return sendError(reply,request.id,400,"CONSENT_REQUIRED","Please confirm that you want to start a Gabroo voice session before connecting.");
   try{
    const ticket=await issueGabrooRealtimeSessionTicket(pool,learner.id);
    reply.header("cache-control","private, no-store");
