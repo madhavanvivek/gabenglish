@@ -23,6 +23,7 @@ export const placementReportSchema=z.object({
   response_count:z.number().int().nonnegative(),
   extended_samples:z.number().int().nonnegative(),
   brief_samples:z.number().int().nonnegative(),
+  response_metrics:z.object({average_words_per_response:z.number().nonnegative(),average_unique_word_ratio:z.number().min(0).max(1),average_words_per_sentence:z.number().nonnegative()}),
   observed_patterns:z.array(z.string()),
   limitations:z.array(z.string()),
   next_steps:z.array(z.string())
