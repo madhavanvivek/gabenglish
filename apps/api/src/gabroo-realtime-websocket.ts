@@ -163,6 +163,12 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
        if(!activeTurn||activeTurn.id!==message.turn_id){failTurn(message.turn_id,"TURN_LIMIT","No matching voice turn is active.");return;}
        const completed=activeTurn;
        activeTurn=undefined;
+       if(completed.totalBytes===0){
+        failTurn(completed.id,"TURN_LIMIT","No microphone audio was received for this voice turn.");
+        completed.controller.abort();
+        completed.chunks.length=0;
+        return;
+       }
        if(Date.now()-completed.startedAt>MAX_TURN_MS){failTurn(completed.id,"TURN_LIMIT","This voice turn exceeded the time limit.");completed.controller.abort();completed.chunks.length=0;return;}
        if(!recognitionProvider){failTurn(completed.id,"TRANSPORT_NOT_READY","Live speech recognition is not configured. Please use the recording and transcript review flow.");completed.controller.abort();completed.chunks.length=0;return;}
        pendingRecognitions.set(completed.id,completed.controller);
