@@ -138,4 +138,13 @@ describe("Gabroo native capture lifecycle boundary",()=>{
   expect(x.controller.isActive).toBe(false);
  });
 
+
+ it("requires a fresh controller after startup failure closes its sender",async()=>{
+  const x=setup();
+  vi.mocked(x.stream.start).mockRejectedValueOnce(new Error("native startup failed"));
+  await expect(x.controller.start({consentGranted:true})).rejects.toThrow(/native startup failed/);
+  await expect(x.controller.start({consentGranted:true})).rejects.toThrow(/new Gabroo capture controller/);
+  expect(x.stream.start).toHaveBeenCalledOnce();
+ });
+
 });
