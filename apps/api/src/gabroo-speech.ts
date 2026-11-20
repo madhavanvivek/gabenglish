@@ -33,6 +33,7 @@ async function synthesizeAndSend(
  const onAborted=()=>controller.abort();
  const onResponseClosed=()=>{if(!reply.raw.writableEnded)controller.abort();release();};
  let released=false;
+ let streaming=false;
  const release=()=>{if(released)return;released=true;activeSpeechLearners.delete(learnerId);};
  request.raw.once("aborted",onAborted);
  reply.raw.once("close",onResponseClosed);
@@ -49,6 +50,7 @@ async function synthesizeAndSend(
    result.audio.once("close",release);
    result.audio.once("end",release);
    reply.raw.once("finish",release);
+   streaming=true;
    return reply.send(result.audio);
   }
   const result=await provider.synthesize(input);
@@ -65,7 +67,7 @@ async function synthesizeAndSend(
  }finally{
   request.raw.removeListener("aborted",onAborted);
   reply.raw.removeListener("close",onResponseClosed);
-  if(!reply.raw.headersSent||reply.raw.writableEnded)release();
+  if(!streaming||reply.raw.writableEnded)release();
  }
 }
 
