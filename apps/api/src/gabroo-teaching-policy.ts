@@ -24,7 +24,21 @@ const policyByMode:Record<GabrooConversationMode,Omit<GabrooTeachingPolicy,"mode
   confidence_practice:{correction:"gentle",primaryGoal:"build_confidence",responseGuidance:["Make participation feel safe and achievable.","Praise specific communication successes without exaggeration.","Choose easy next steps and avoid correcting every mistake."]}
 };
 
-export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection?:"ml_to_en"|"en_to_ml";targetLanguage?:"ml"|"en";stage?:1|2|3|4|5;preferredName?:string|null;learningGoal?:string|null;profileCorrectionPreference?:"gentle"|"balanced"|"detailed";learnerMemory?:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>}):GabrooTeachingPolicy{
+export function buildGabrooLearnerTurnGuidance(input:{latestLearnerMessage?:string|null}):string{
+ const message=input.latestLearnerMessage?.trim()??"";
+ if(!message)return "No learner message is available yet: invite the learner to choose a topic or share what they would like to practise; do not assume an interest.";
+ const startsWithQuestion=/^(what|why|how|when|where|who|which|whose|whom|can|could|would|will|should|is|are|am|do|does|did|have|has|had|may|might|എന്ത്|എന്താണ്|എങ്ങനെ|എന്തുകൊണ്ട്|എപ്പോൾ|എവിടെ|ആര്|ആരാണ്|ചെയ്യാമോ|പറ്റുമോ)\b/i.test(message);
+ const isDirectQuestion=message.includes("?")||startsWithQuestion;
+ if(isDirectQuestion)return "The learner appears to be asking a direct question or expressing a doubt. Answer that question clearly first, at an accessible level. Do not withhold the answer merely to force more speaking. After resolving it, offer one natural invitation to share an example, apply the idea or return to the conversation if appropriate.";
+ const words=message.split(/\s+/).filter(Boolean).length;
+ const isBrief=words<=8||message.length<=55;
+ if(isBrief)return "The learner's latest contribution is brief. Acknowledge it warmly and invite one small expansion connected to what they said (for example, ask for a reason, a detail or one example). If they seem unsure, offer a sentence starter or two simple choices. Do not repeat the same generic 'tell me more' prompt.";
+ const isExtended=words>=25||message.length>=180;
+ if(isExtended)return "The learner has shared a substantial contribution. Reflect one specific idea they expressed and respond to its substance. Deepen that same thread with one thoughtful follow-up or a useful counter-example; do not ask them to repeat, summarise everything or add another unrelated topic.";
+ return "The learner has contributed a moderate amount. Respond to one specific detail, add a concise useful thought if it helps, and ask one relevant follow-up that moves their idea forward rather than restarting the topic.";
+}
+
+export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection?:"ml_to_en"|"en_to_ml";targetLanguage?:"ml"|"en";stage?:1|2|3|4|5;preferredName?:string|null;learningGoal?:string|null;profileCorrectionPreference?:"gentle"|"balanced"|"detailed";latestLearnerMessage?:string|null;learnerMemory?:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>}):GabrooTeachingPolicy{
  const selected=policyByMode[input.mode];
  const learningDirection=input.learningDirection??"ml_to_en";
  const targetLanguage=input.targetLanguage??(learningDirection==="ml_to_en"?"en":"ml");
