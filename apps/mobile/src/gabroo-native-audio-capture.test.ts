@@ -90,6 +90,7 @@ describe("Gabroo native capture lifecycle boundary",()=>{
   const request=controller.start({consentGranted:true});
   await Promise.resolve();
   await controller.stop();
+  expect(controller.isStarting).toBe(true);
   expect(stream.stop).not.toHaveBeenCalled();
   resolvePermission(true);
   await expect(request).rejects.toThrow(/cancelled/);
