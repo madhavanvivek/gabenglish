@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {evaluateSentencePracticeAnswer,listSentencePracticeExercises} from "./sentence-practice.js";
+import {evaluateSentencePracticeAnswer,evaluateWordOrderAnswer,listSentencePracticeExercises,listWordOrderExercises} from "./sentence-practice.js";
 
 describe("sentence construction practice",()=>{
  it("provides a bounded set of reviewed beginner sentence patterns",()=>{
