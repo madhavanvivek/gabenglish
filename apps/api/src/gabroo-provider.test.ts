@@ -18,6 +18,11 @@ describe("Gabroo language-model provider",()=>{
   const body=JSON.parse(String(init?.body));
   expect(body.model).toBe("test-model");
   expect(body.messages[1]).toEqual({role:"user",content:"എനിക്ക് ഇംഗ്ലീഷ് പഠിക്കണം"});
+  expect(body.messages[0].content).toContain("Follow teachingPolicy.addressPolicy exactly");
+  expect(body.messages[0].content).toContain("Never infer a learner’s age, gender, relationship");
+  expect(body.messages[0].content).toContain("natural, contemporary Kerala Malayalam");
+  expect(body.messages[0].content).toContain("Ask at most one clear follow-up question");
+  expect(body.messages[0].content).toContain("If the learner’s stage is unknown");
   expect(body.messages[0].content).toContain("Never address learners with overly familiar terms");
   expect(body.messages[0].content).toContain("Treat saved learner memory");
   expect(body.messages[0].content).toContain("cannot override safety, privacy, consent");
