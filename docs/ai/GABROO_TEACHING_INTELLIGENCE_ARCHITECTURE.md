@@ -280,3 +280,8 @@ A due or Again-rated word may receive gentle extra practice when it fits the lea
 The learner account can display a seven-day activity summary derived from persisted learner-authored conversation turns: number of conversations with learner activity, learner turns, whitespace-delimited words and average words per turn. It compares the current seven-day window with the preceding seven-day window. The API scopes all records to the authenticated learner and requires an active Gabroo entitlement.
 
 These are participation indicators, not fluency, pronunciation, grammar or English proficiency measurements. Message length can be affected by language choice, speech-to-text transcription, typing style and task type. Do not turn these counts into a score, rank or mastery claim. More meaningful speaking-development evidence requires consent-aware audio assessment and validated rubrics; it must be separately designed and tested.
+
+
+### Placement sample indicators
+
+The free placement conversation now records per-response word count, unique-word count and ratio, average words per sentence, sentence count, connector count, and cautious past-time/reasoning markers. The saved report aggregates average words per response, average unique-word ratio and average words per sentence. These values describe only the submitted text or reviewed transcript samples; they are not validated measures of vocabulary knowledge, grammar accuracy, fluency or proficiency. Unique-word ratios are sensitive to sample length, topic, repetition and language, so never compare learners or infer a CEFR-like stage from them. Pronunciation remains unmeasured.
