@@ -370,6 +370,40 @@ describe("API foundation",()=>{
   await app.close();
  });
 
+ it("releases the learner slot after a provider stream fails",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let failedStreamClosed!:()=>void;
+  const streamClosed=new Promise<void>(resolve=>{failedStreamClosed=resolve;});
+  let calls=0;
+  const provider={
+   synthesize:async()=>({audio:new Uint8Array([1]),contentType:"audio/mpeg" as const}),
+   synthesizeStream:async()=>{
+    calls++;
+    if(calls>1)return {audio:Readable.from([Buffer.from([9,8,7])]),contentType:"audio/mpeg" as const};
+    const audio=new Readable({read(){this.destroy(new Error("simulated provider stream failure"));}});
+    audio.once("close",()=>failedStreamClosed());
+    return {audio,contentType:"audio/mpeg" as const};
+   }
+  };
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,provider);
+  await app.listen({host:"127.0.0.1",port:0});
+  const address=app.server.address();
+  if(!address||typeof address==="string")throw new Error("Expected a TCP listener");
+  const client=httpRequest({host:"127.0.0.1",port:address.port,path:"/api/v1/gabroo/speech",method:"POST",headers:{
+   authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET),
+   "content-type":"application/json"
+  }});
+  client.on("error",()=>undefined);
+  client.end(JSON.stringify({text:"This stream will fail",speed:1}));
+  await expect(streamClosed).resolves.toBeUndefined();
+  await new Promise<void>(resolve=>client.once("close",()=>resolve()));
+  const retry=await app.inject({method:"POST",url:"/api/v1/gabroo/speech",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{text:"A recovered reply",speed:1}});
+  expect(retry.statusCode).toBe(200);
+  expect(retry.rawPayload).toEqual(Buffer.from([9,8,7]));
+  expect(calls).toBe(2);
+  await app.close();
+ });
+
  it("issues a short-lived opaque playback ticket and allows exactly one native GET",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   let stored:{digest:string;userId:string;text:string;speed:number;consumed:boolean}|undefined;
