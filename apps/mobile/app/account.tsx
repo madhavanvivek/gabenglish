@@ -4,7 +4,7 @@ import {Link} from "expo-router";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
 import {BrandMark} from "../src/ui";
-import {AuthApiError,getLearnerMe,getLatestFreeDiagnosticReport,logoutLearner,requestLearnerOtp,verifyLearnerOtp,type LearnerMe,type OtpChallenge,type SavedFreeDiagnosticReport,type GabrooMemoryItem,type GabrooMemoryCategory,clearGabrooMemory,createGabrooMemory,deleteGabrooMemory,listGabrooMemory,updateGabrooMemory,updateLearnerPreferences,updateLearnerProfile} from "../src/auth-api";
+import {AuthApiError,getLearnerMe,getLatestFreeDiagnosticReport,logoutLearner,requestLearnerOtp,verifyLearnerOtp,type LearnerMe,type OtpChallenge,type SavedFreeDiagnosticReport,type GabrooMemoryItem,type GabrooMemoryCategory,clearGabrooMemory,createGabrooMemory,deleteGabrooMemory,listGabrooMemory,updateGabrooMemory,updateLearnerPreferences,updateLearnerProfile,getGabrooSpeakingProgress,type GabrooSpeakingProgress} from "../src/auth-api";
 
 export default function AccountScreen(){
  const [channel,setChannel]=useState<"email"|"phone">("email");
@@ -15,6 +15,7 @@ export default function AccountScreen(){
  const [profileName,setProfileName]=useState("");
  const [profileBusy,setProfileBusy]=useState(false);
  const [savedReport,setSavedReport]=useState<SavedFreeDiagnosticReport|null>(null);
+ const [speakingProgress,setSpeakingProgress]=useState<GabrooSpeakingProgress|null>(null);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
@@ -27,7 +28,7 @@ export default function AccountScreen(){
  const [memoryBusy,setMemoryBusy]=useState(false);
  useEffect(()=>{
   let active=true;
-  getLearnerMe().then(async value=>{if(active){setAccount(value);setProfileName(value.user.display_name??"");}try{const report=await getLatestFreeDiagnosticReport();if(active)setSavedReport(report);}catch{/* No free report has been completed yet. */}try{const saved=await listGabrooMemory();if(active)setMemories(saved.memory);}catch(reason){if(active&&(!(reason instanceof AuthApiError)||reason.status!==401))setError(reason instanceof Error?reason.message:"Could not load your saved Gabroo memory.");}}).catch(reason=>{
+  getLearnerMe().then(async value=>{if(active){setAccount(value);setProfileName(value.user.display_name??"");}try{const progress=await getGabrooSpeakingProgress();if(active)setSpeakingProgress(progress);}catch{/* Speaking activity requires an active Gabroo subscription. */}try{const report=await getLatestFreeDiagnosticReport();if(active)setSavedReport(report);}catch{/* No free report has been completed yet. */}try{const saved=await listGabrooMemory();if(active)setMemories(saved.memory);}catch(reason){if(active&&(!(reason instanceof AuthApiError)||reason.status!==401))setError(reason instanceof Error?reason.message:"Could not load your saved Gabroo memory.");}}).catch(reason=>{
    if(active&&(!(reason instanceof AuthApiError)||reason.status!==401))setError(reason instanceof Error?reason.message:"Could not load your account.");
   });
   return()=>{active=false;};
@@ -47,7 +48,7 @@ export default function AccountScreen(){
   setBusy(true);setError("");setNotice("");
   try{
    await verifyLearnerOtp({challenge_id:challenge.challenge_id,code:code.trim()});
-   const refreshedAccount=await getLearnerMe();setAccount(refreshedAccount);setProfileName(refreshedAccount.user.display_name??"");try{setSavedReport(await getLatestFreeDiagnosticReport());}catch{setSavedReport(null);}try{setMemories((await listGabrooMemory()).memory);}catch{setMemories([]);}setChallenge(null);setCode("");
+   const refreshedAccount=await getLearnerMe();setAccount(refreshedAccount);setProfileName(refreshedAccount.user.display_name??"");try{setSpeakingProgress(await getGabrooSpeakingProgress());}catch{setSpeakingProgress(null);}try{setSavedReport(await getLatestFreeDiagnosticReport());}catch{setSavedReport(null);}try{setMemories((await listGabrooMemory()).memory);}catch{setMemories([]);}setChallenge(null);setCode("");
    setNotice("Your verified Gabenglish account is ready. Your free analysis can now be saved.");
   }catch(reason){setError(reason instanceof Error?reason.message:"Could not verify the code.");}
   finally{setBusy(false);}
@@ -153,6 +154,14 @@ export default function AccountScreen(){
     <Pressable disabled={profileBusy||!profileName.trim()||profileName.trim()===(account.user.display_name??"")} onPress={saveProfile} style={[s.profileSave,(profileBusy||!profileName.trim()||profileName.trim()===(account.user.display_name??""))&&s.disabled]}>{profileBusy?<ActivityIndicator color="#fff"/>:<Text style={s.profileSaveText}>Save profile name</Text>}</Pressable>
    </View>
    <Link href="/vocabulary" style={{color:colors.primary,fontWeight:"900",marginTop:12,marginBottom:12}}>Open my vocabulary →</Link>
+   {speakingProgress?<View style={s.progressCard}>
+    <Text style={s.progressTitle}>Your speaking activity · last 7 days</Text>
+    <View style={s.progressGrid}>
+     {[{label:"Your turns",value:speakingProgress.current.learner_turns},{label:"Words written",value:speakingProgress.current.learner_words},{label:"Avg. words / turn",value:speakingProgress.current.average_words_per_turn},{label:"Conversations",value:speakingProgress.current.sessions}].map(item=><View key={item.label} style={s.progressMetric}><Text style={s.progressValue}>{item.value}</Text><Text style={s.progressLabel}>{item.label}</Text></View>)}
+    </View>
+    <Text style={s.progressNote}>Previous 7 days: {speakingProgress.previous.learner_turns} turns · {speakingProgress.previous.learner_words} words · {speakingProgress.previous.sessions} conversations.</Text>
+    <Text style={s.progressNote}>{speakingProgress.interpretation}</Text>
+   </View>:null}
    <Text style={s.section}>Learning preferences</Text>
    <Text style={s.profileLabel}>Explanation language</Text>
    <View style={s.preferenceChoices}>{([{value:"ml",label:"Malayalam"},{value:"en",label:"English"}] as const).map(item=><Pressable key={item.value} disabled={preferenceBusy} onPress={()=>void changeSupportLanguage(item.value)} style={[s.preferenceChoice,account.preferences?.support_language===item.value&&s.preferenceChoiceActive]}><Text style={[s.preferenceChoiceText,account.preferences?.support_language===item.value&&s.preferenceChoiceTextActive]}>{item.label}</Text></Pressable>)}</View>
@@ -211,6 +220,13 @@ export default function AccountScreen(){
  </ScrollView></SafeAreaView>;
 }
 const s=StyleSheet.create({
+ progressCard:{backgroundColor:"#F2F8FF",borderRadius:14,padding:14,marginTop:12,marginBottom:14,borderWidth:1,borderColor:"#DCEBFA"},
+ progressTitle:{fontSize:14,fontWeight:"900",color:"#234B72",marginBottom:10},
+ progressGrid:{flexDirection:"row",flexWrap:"wrap",gap:8},
+ progressMetric:{width:"48%",backgroundColor:"#fff",borderRadius:10,padding:10},
+ progressValue:{fontSize:20,fontWeight:"900",color:"#203B58"},
+ progressLabel:{fontSize:10,fontWeight:"700",color:"#62768A",marginTop:3},
+ progressNote:{fontSize:10,lineHeight:15,color:"#62768A",marginTop:8},
  safe:{flex:1,backgroundColor:colors.background},page:{flexGrow:1,padding:22,paddingBottom:36},
  header:{alignItems:"center",marginBottom:24},logo:{width:46,height:46,borderRadius:15,backgroundColor:colors.primary,alignItems:"center",justifyContent:"center"},logoText:{color:"#fff",fontSize:29,fontWeight:"900"},brand:{marginTop:10,color:colors.text,fontSize:22,fontWeight:"900"},subtitle:{fontSize:13,lineHeight:20,color:"#6B6278",textAlign:"center",marginTop:7},
  card:{backgroundColor:"#fff",borderRadius:20,padding:18,borderWidth:1,borderColor:"#EAE2F0"},profileEditor:{backgroundColor:"#FAF7FF",borderRadius:14,padding:13,marginTop:15},profileLabel:{fontSize:11,fontWeight:"800",color:"#625A6D",marginTop:12,marginBottom:6},profileInput:{backgroundColor:"#FFFEFC",borderWidth:1,borderColor:colors.border,borderRadius:11,padding:11,fontSize:13,color:colors.text},profileSave:{backgroundColor:colors.primary,borderRadius:10,padding:11,alignItems:"center",marginTop:9},profileSaveText:{fontSize:11,fontWeight:"900",color:"#fff"},preferenceChoices:{flexDirection:"row",flexWrap:"wrap",gap:7,marginTop:6},preferenceChoice:{borderWidth:1,borderColor:"#DED2EF",borderRadius:18,paddingVertical:8,paddingHorizontal:12},preferenceChoiceActive:{backgroundColor:colors.primary,borderColor:colors.primary},preferenceChoiceText:{fontSize:11,fontWeight:"800",color:"#665B77"},preferenceChoiceTextActive:{color:"#fff"},reminderRow:{flexDirection:"row",alignItems:"center",gap:12,marginTop:15,padding:12,backgroundColor:"#FAF7FF",borderRadius:12},reminderTitle:{fontSize:12,fontWeight:"900",color:colors.text},reminderHint:{fontSize:10,lineHeight:15,color:"#70677B",marginTop:4},reminderPill:{paddingVertical:6,paddingHorizontal:10,borderRadius:15,backgroundColor:"#EDE8F2"},reminderPillOn:{backgroundColor:"#E4F4E8"},reminderPillText:{fontSize:10,fontWeight:"900",color:"#766D80"},reminderPillTextOn:{color:"#28643A"},sectionTop:{fontSize:17,fontWeight:"900",color:colors.text},helper:{fontSize:12,lineHeight:18,color:"#70677B",marginTop:7,marginBottom:15},switchRow:{flexDirection:"row",backgroundColor:"#F3EFF8",padding:4,borderRadius:12},switch:{flex:1,padding:11,alignItems:"center",borderRadius:9},switchActive:{backgroundColor:"#fff"},switchText:{fontSize:13,fontWeight:"800",color:"#81788C"},switchTextActive:{color:colors.primaryStrong},
