@@ -36,6 +36,34 @@ describe("Gabroo live conversation state machine",()=>{
   expect(state).toEqual({phase:"listening",activeSpeech:null,lastError:null});
  });
 
+ it("returns to listening with a bounded error when current audio playback fails",()=>{
+  const speaking=move(initialGabrooConversationState,
+   {type:"begin_greeting"},{type:"greeting_finished"},
+   {type:"learner_turn_started"},
+   {type:"response_speech_started",timeline:speech()}
+  );
+  expect(reduceGabrooConversation(speaking,{
+   type:"speech_failed",audio_id:"gabroo-audio-001",reason:"  Audio decoder unavailable  "
+  })).toEqual({phase:"listening",activeSpeech:null,lastError:"Audio decoder unavailable"});
+  expect(reduceGabrooConversation(speaking,{
+   type:"speech_failed",audio_id:"gabroo-audio-001",reason:"x".repeat(500)
+  }).lastError).toHaveLength(300);
+  expect(reduceGabrooConversation(speaking,{
+   type:"speech_failed",audio_id:"gabroo-audio-001",reason:"   "
+  }).lastError).toBe("Gabroo audio playback failed.");
+ });
+
+ it("ignores stale playback failure events",()=>{
+  const speaking=move(initialGabrooConversationState,
+   {type:"begin_greeting"},{type:"greeting_finished"},
+   {type:"learner_turn_started"},
+   {type:"response_speech_started",timeline:speech()}
+  );
+  expect(reduceGabrooConversation(speaking,{
+   type:"speech_failed",audio_id:"older-audio",reason:"decoder failed"
+  })).toEqual(speaking);
+ });
+
  it("clears active audio immediately when the learner interrupts",()=>{
   const speaking=move(initialGabrooConversationState,
    {type:"begin_greeting"},{type:"greeting_finished"},
