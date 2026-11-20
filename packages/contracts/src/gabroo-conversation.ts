@@ -53,6 +53,9 @@ export function reduceGabrooConversation(
    if(state.phase!=="idle")return invalidTransition(state,event);
    return {phase:"greeting",activeSpeech:null,lastError:null};
   case "greeting_finished":
+   // A greeting player may resolve after barge-in or connection loss. Its late
+   // completion must not overwrite the newer interrupted/recovery state.
+   if(state.phase==="interrupted"||state.phase==="recovering"||state.phase==="listening"||state.phase==="thinking"||state.phase==="speaking")return state;
    if(state.phase!=="greeting")return invalidTransition(state,event);
    return {phase:"listening",activeSpeech:null,lastError:null};
   case "learner_turn_started":
