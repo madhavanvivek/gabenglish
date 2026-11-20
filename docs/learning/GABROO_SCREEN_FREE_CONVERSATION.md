@@ -81,12 +81,11 @@ The child-facing session must not display subscription upsells or prompt to exte
 ## 7. Implementation phases
 
 ### Phase 1 — Dark Screen Mode UI
-- Build a dedicated screen-free setup and session UI.
-- Reuse authenticated conversation and speech endpoints.
-- Implement turn-based capture, VAD or push-to-talk fallback, audio playback and cancellation.
-- Add visible mic/listening/speaking/paused states, a session timer and a stop control.
-- Add parent-configured session duration and daily limits.
-- Test foreground operation and natural screen dimming; do not yet claim locked-screen microphone support.
+- Add a Dark Screen action to the active Gabroo conversation.
+- Implement the full-black overlay with only an audio output toggle and Return to normal mode.
+- Preserve conversation state, scroll position and audio lifecycle across entry and exit.
+- Ensure audio-off immediately stops/blocks Gabroo playback and audio-on permits playback again.
+- Test accessible labels, touch targets, OLED/LCD behaviour and app background/foreground transitions.
 
 ### Phase 2 — Android locked-screen audio
 - Add native foreground service and persistent notification actions.
