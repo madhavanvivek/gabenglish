@@ -43,6 +43,40 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   const rows=await pool.query("SELECT "+conversationSelect+" FROM gabroo_conversations WHERE user_id=$1 ORDER BY updated_at DESC LIMIT 100",[learner.id]);
   return {conversations:rows.rows};
  });
+ app.get("/api/v1/gabroo/speaking-progress",async(request,reply)=>{
+  const learner=await learnerFor(request,reply,pool,config);if(!learner)return;
+  const summary=await pool.query<{
+   period:"current"|"previous";
+   sessions:number;
+   learner_turns:number;
+   learner_words:string;
+   average_words_per_turn:string|null;
+  }>(`
+   WITH bounds AS (
+    SELECT now()-interval '7 days' AS current_start,now()-interval '14 days' AS previous_start
+   ), learner_messages AS (
+    SELECT c.id AS conversation_id,m.created_at,
+     CASE WHEN btrim(m.content)='' THEN 0 ELSE cardinality(regexp_split_to_array(btrim(m.content),'\\s+')) END AS word_count,
+     CASE WHEN m.created_at>=b.current_start THEN 'current' ELSE 'previous' END AS period
+    FROM gabroo_conversation_messages m
+    JOIN gabroo_conversations c ON c.id=m.conversation_id
+    CROSS JOIN bounds b
+    WHERE c.user_id=$1 AND m.role='user' AND m.created_at>=b.previous_start
+   )
+   SELECT period,count(DISTINCT conversation_id)::int AS sessions,count(*)::int AS learner_turns,
+    COALESCE(sum(word_count),0)::text AS learner_words,
+    round(avg(word_count),1)::text AS average_words_per_turn
+   FROM learner_messages GROUP BY period
+  `,[learner.id]);
+  const empty={sessions:0,learner_turns:0,learner_words:0,average_words_per_turn:0};
+  const current=summary.rows.find(row=>row.period==="current");
+  const previous=summary.rows.find(row=>row.period==="previous");
+  const shape=(row:typeof current)=>row?{
+   sessions:Number(row.sessions),learner_turns:Number(row.learner_turns),
+   learner_words:Number(row.learner_words),average_words_per_turn:Number(row.average_words_per_turn??0)
+  }:empty;
+  return {window_days:7,current:shape(current),previous:shape(previous),interpretation:"Activity indicators only; word counts and response length are not an English proficiency or fluency score."};
+ });
  app.get("/api/v1/gabroo/conversations/:id",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);if(!learner)return error(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
   const idSchemaResult=idSchema.safeParse((request.params as {id?:string}).id);if(!idSchemaResult.success)return error(reply,request.id,400,"VALIDATION_ERROR","Invalid conversation id.");
