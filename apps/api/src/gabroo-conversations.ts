@@ -135,6 +135,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
       learningGoal:learnerProfile?.learning_goal,
       profileCorrectionPreference:learnerProfile?.correction_mode,
       latestLearnerMessage:parsedBody.data.message,
+      conversationHistory:[...history,{role:"user",content:parsedBody.data.message}],
       learnerMemory:savedMemory.map(item=>({category:item.category,memoryKey:item.memory_key,content:item.content}))
      })
     }),
