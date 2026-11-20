@@ -98,14 +98,15 @@ Control messages are JSON objects with a version, type, session ID, and where ap
 
 Client → server:
 - `session.ready`: confirms client is ready after authenticated connection.
-- `turn.start`: begins an explicitly consented learner turn.
+- `turn.start`: begins an explicitly consented learner turn; currently rejected with `TRANSPORT_NOT_READY` until streaming recognition is integrated.
 - `audio.frame`: binary frame; metadata identifies codec, sample rate, channels and sequence.
 - `turn.end`: ends the learner turn; server finalizes recognition.
 - `tutor.interrupt`: cancels the active tutor response.
 - `session.stop`: stops capture and closes the session.
 
 Server → client:
-- `session.accepted`: accepted capabilities and negotiated audio format.
+- `session.connected`: authenticated control connection established; this does not mean audio streaming is ready.
+- `session.accepted`: future negotiated audio capabilities, emitted only after an audio pipeline is actually available.
 - `turn.accepted`: accepted turn ID and limits.
 - `transcript.partial`: provisional transcript, clearly marked as unconfirmed.
 - `transcript.final`: final transcript for the active turn.
@@ -114,7 +115,7 @@ Server → client:
 - `tutor.timeline`: validated viseme/expression/gesture timeline associated with an audio ID.
 - `turn.completed`, `turn.failed`, `session.interrupted`, `session.closed`: terminal lifecycle events.
 
-The versioned message and frame-metadata schemas now live in `packages/contracts/src/gabroo-realtime-protocol.ts`, with contract tests in the adjacent test file. These schemas validate message shape only. The API now issues authenticated, paid-entitlement-gated one-time session tickets and exposes an atomic consume helper. No WebSocket upgrade route, microphone capture, audio-frame transport or provider streaming has been implemented yet; the response explicitly reports `websocket_handshake_pending`.
+The versioned message and frame-metadata schemas live in `packages/contracts/src/gabroo-realtime-protocol.ts`. The API now issues authenticated, paid-entitlement-gated one-time session tickets and exposes an atomic consume helper. A WebSocket upgrade handler is implemented at `/api/v1/gabroo/realtime/connect`: it accepts the ticket in the `Sec-WebSocket-Protocol` header (never a URL), checks the configured browser origin when present, atomically consumes the ticket, rechecks the learner account and paid entitlement, binds the connection to the ticket's session/user, and allows only one active connection per learner in this process. It emits `session.connected`, handles `session.stop`, sends periodic ping heartbeats, and enforces 60-second idle and 15-minute absolute connection limits. The handshake is control-plane only: binary audio frames are deliberately rejected, and `turn.start` returns `TRANSPORT_NOT_READY` until a streaming recognizer and bounded audio pipeline are implemented. The mobile recording/review/confirm fallback remains the supported voice-input path.
 
 The ticket endpoint is `POST /api/v1/gabroo/realtime/session-ticket`. It requires the existing verified learner authentication and an active subscription. Tickets expire after 60 seconds, are single-use, and only their SHA-256 digests are persisted in `gabroo_realtime_session_tickets` (migration `0025_gabroo_realtime_session_tickets.sql`). Issuing a replacement invalidates the learner's previous unconsumed ticket. `consumeGabrooRealtimeSessionTicket` performs an atomic expiry-checked consume for the future upgrade handler. The transport must validate every message at both ends before it is enabled.
 
@@ -145,11 +146,14 @@ Exit: written decision on transport/provider feasibility; no production micropho
 - [x] Add initial contract tests for protocol versioning, malformed audio format, frame bounds, payload-length matching and server event shapes.
 - [x] Add authenticated, subscription-gated session-ticket issuance with a 60-second lifetime, one unconsumed ticket per learner, and SHA-256 digest-only persistence. The raw ticket is returned once with `Cache-Control: private, no-store`.
 - [x] Add an atomic single-use ticket-consumption helper for the future WebSocket handshake; malformed, expired and replayed tickets fail closed.
-- [ ] Bind ticket consumption to an actual WebSocket upgrade and enforce session ownership, origin policy and connection rate limits.
-- Add transport lifecycle tests, malformed-frame tests, stale-session tests, cancellation tests and bounded-buffer tests.
+- [x] Bind ticket consumption to the WebSocket upgrade; recheck account/entitlement, validate configured browser origins, and bind the connection to its consumed session/user.
+- [x] Add one-active-connection-per-learner process guard, ping/pong heartbeat, 60-second idle timeout, 15-minute session ceiling, and clean shutdown handling.
+- [ ] Add distributed connection/rate limits and session revocation across multiple API instances.
+- [x] Add WebSocket upgrade validation and a live handshake/close integration test.
+- [ ] Add distributed transport lifecycle tests, malformed-frame tests, stale-session tests, cancellation tests and bounded-buffer tests.
 - Keep audio bytes transient and prove no persistence/logging.
 
-Exit: authenticated test client can connect, exchange control events and close safely without real microphone capture. The ticket issuance and replay-protection foundations are implemented; the WebSocket handshake and live transport remain outstanding.
+Exit: authenticated test client can connect, receive `session.connected`, stop and close safely without microphone capture. The WebSocket control-plane handshake is implemented and covered by a live integration test. Audio transport, streaming providers and mobile device feasibility remain outstanding.
 
 ### Stage C — streaming learner turn
 - Implement mobile capture adapter, VAD, bounded frame streaming and push-to-talk fallback.
