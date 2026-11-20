@@ -2,7 +2,8 @@ import {describe,expect,it} from "vitest";
 import {
  gabrooSpeechTimelineSchema,
  gabrooVisemeEventSchema,
- sampleGabrooAvatarFrame
+ sampleGabrooAvatarFrame,
+ sampleGabrooAvatarFrameFromPlaybackStatus
 } from "./gabroo-avatar.js";
 
 const timeline=()=>gabrooSpeechTimelineSchema.parse({
@@ -99,6 +100,31 @@ describe("Gabroo canonical avatar animation contract",()=>{
    .toEqual({shape:"neutral",weight:0});
   expect(sampleGabrooAvatarFrame(timeline(),1200).viseme)
    .toEqual({shape:"neutral",weight:0});
+ });
+
+ it("samples visemes from the native audio player's actual position",()=>{
+  const data=timeline();
+  const frame=sampleGabrooAvatarFrameFromPlaybackStatus(data,{positionMillis:180,isPlaying:true},0);
+  expect(frame.viseme).toEqual({shape:"closed_lips",weight:1});
+  const next=sampleGabrooAvatarFrameFromPlaybackStatus(data,{positionMillis:400,isPlaying:true},0);
+  expect(next.viseme).toEqual({shape:"open_wide",weight:1});
+ });
+
+ it("returns a fully neutral avatar frame whenever native audio is not playing",()=>{
+  const frame=sampleGabrooAvatarFrameFromPlaybackStatus(timeline(),{positionMillis:180,isPlaying:false});
+  expect(frame).toEqual({
+   viseme:{shape:"neutral",weight:0},
+   expression:"neutral",
+   expressionWeight:0,
+   gesture:null,
+   gestureWeight:0
+  });
+ });
+
+ it("rejects invalid native playback status rather than inventing timing",()=>{
+  expect(()=>sampleGabrooAvatarFrameFromPlaybackStatus(timeline(),{positionMillis:-1,isPlaying:true})).toThrow(/position/i);
+  expect(()=>sampleGabrooAvatarFrameFromPlaybackStatus(timeline(),{positionMillis:Number.NaN,isPlaying:true})).toThrow(/position/i);
+  expect(()=>sampleGabrooAvatarFrameFromPlaybackStatus(timeline(),{positionMillis:10,isPlaying:"yes" as unknown as boolean})).toThrow(/playing state/i);
  });
 
  it("rejects invalid fade and playback values",()=>{
