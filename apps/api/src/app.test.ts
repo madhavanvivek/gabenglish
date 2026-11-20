@@ -1,4 +1,5 @@
 import {createHmac} from "node:crypto";
+import {request as httpRequest} from "node:http";
 import {describe,it,expect} from "vitest";
 import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
@@ -291,6 +292,42 @@ describe("API foundation",()=>{
   const response=await app.inject({method:"GET",url:"/api/v1/subscriptions/prices"});
   expect(response.statusCode).toBe(503);
   expect(response.json().error.code).toBe("SUBSCRIPTION_PRICING_UNAVAILABLE");
+  await app.close();
+ });
+
+ it("aborts synthesis and releases the learner slot when the client disconnects",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let started!:()=>void;
+  let aborted!:()=>void;
+  const synthesisStarted=new Promise<void>(resolve=>{started=resolve;});
+  const synthesisAborted=new Promise<void>(resolve=>{aborted=resolve;});
+  let calls=0;
+  const provider={synthesize:async(input:{signal:AbortSignal})=>{
+   calls++;
+   if(calls>1)return {audio:new Uint8Array([7,8,9]),contentType:"audio/mpeg" as const};
+   started();
+   return new Promise<never>((_resolve,reject)=>{
+    const cancel=()=>{aborted();reject(new Error("cancelled by client"));};
+    if(input.signal.aborted)cancel();
+    else input.signal.addEventListener("abort",cancel,{once:true});
+   });
+  }};
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,provider);
+  await app.listen({host:"127.0.0.1",port:0});
+  const address=app.server.address();
+  if(!address||typeof address==="string")throw new Error("Expected a TCP listener");
+  const client=httpRequest({host:"127.0.0.1",port:address.port,path:"/api/v1/gabroo/speech",method:"POST",headers:{
+   authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET),
+   "content-type":"application/json"
+  }});
+  client.on("error",()=>undefined);
+  client.end(JSON.stringify({text:"Please speak",speed:1}));
+  await synthesisStarted;
+  client.destroy();
+  await expect(synthesisAborted).resolves.toBeUndefined();
+  const retry=await app.inject({method:"POST",url:"/api/v1/gabroo/speech",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{text:"A fresh reply",speed:1}});
+  expect(retry.statusCode).toBe(200);
+  expect(calls).toBe(2);
   await app.close();
  });
 
