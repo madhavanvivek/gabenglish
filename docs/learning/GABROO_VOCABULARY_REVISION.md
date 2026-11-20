@@ -38,6 +38,16 @@ This is a small, transparent, bounded interval scheduler, not a claim of clinica
 - New items are due immediately; mastered items are excluded.
 - The learner can review an item manually before its next due time.
 
+## Revision-aware Gabroo practice
+
+The conversation context may include a bounded set of active learner vocabulary items with two revision signals: whether the next review is due and the last recall rating. The query prioritises Again-rated items first, then due items, then other Learning/Familiar items, while retaining the five-item context limit.
+
+- A due or Again-rated word is marked for gentle contextual practice in the teaching policy.
+- Gabroo may model one relevant word in a fresh, level-appropriate sentence and invite optional use.
+- Gabroo must not announce that the learner struggled, imply failure, force an unrelated word, interrupt a direct question, or convert free conversation into a quiz.
+- Revision signals never automatically change Learning/Familiar/Mastered status.
+- A saved word being used in conversation is not counted as a spaced-revision rating or proof of mastery.
+
 ## Privacy and ownership
 
 - Every vocabulary item belongs to one authenticated learner.
