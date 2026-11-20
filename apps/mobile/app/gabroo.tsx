@@ -324,6 +324,11 @@ export default function GabrooScreen(){
    playbackStateRef.current=reduceGabrooPlayback(previousPlayback,{type:"interrupted",playback_id:previousPlayback.playback_id});
   }
   try{
+   // Recording mode is explicitly disabled before tutor playback. This also
+   // enables playback through the iOS silent switch and applies Android
+   // audio ducking consistently, including on a fresh app launch.
+   await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true,shouldDuckAndroid:true});
+   if(run!==speechRunRef.current||requestController.signal.aborted)return;
    await Speech.stop();
    await releaseSpeechAudio();
    // A newer tap may start while native stop/unload is still pending.
