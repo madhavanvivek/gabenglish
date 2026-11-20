@@ -83,7 +83,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   let history:GabrooMessage[]=[];
   let learnerProfile:{display_name:string|null;learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed"}|undefined;
   let savedMemory:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>=[];
-  let savedVocabulary:Array<{term:string;malayalamMeaning:string;exampleSentence:string;status:"learning"|"familiar"}>=[];
+  let savedVocabulary:Array<{term:string;malayalamMeaning:string;exampleSentence:string;status:"learning"|"familiar";isDue:boolean;lastReviewRating:"again"|"hard"|"good"|"easy"|null}>=[];
   try{
    await client.query("BEGIN");
    const found=await client.query<{id:string;mode:GabrooConversationMode;support_language:"ml"|"en";learning_direction:"ml_to_en"|"en_to_ml";target_language:"ml"|"en";status:string;turn_count:number}>(
@@ -97,8 +97,8 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
    const memory=await client.query<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>(
     "SELECT category,memory_key,content FROM gabroo_learner_memory WHERE user_id=$1 ORDER BY updated_at DESC LIMIT 20",[learner.id]);
    savedMemory=memory.rows;
-   const vocabulary=await client.query<{term:string;malayalamMeaning:string;exampleSentence:string;status:"learning"|"familiar"}>(
-    "SELECT term,malayalam_meaning AS \"malayalamMeaning\",example_sentence AS \"exampleSentence\",status FROM gabroo_vocabulary WHERE user_id=$1 AND learning_direction=$2 AND status IN ('learning','familiar') ORDER BY CASE status WHEN 'learning' THEN 0 ELSE 1 END,updated_at DESC LIMIT 5",[learner.id,snapshot.learning_direction]);
+   const vocabulary=await client.query<{term:string;malayalamMeaning:string;exampleSentence:string;status:"learning"|"familiar";isDue:boolean;lastReviewRating:"again"|"hard"|"good"|"easy"|null}>(
+    "SELECT term,malayalam_meaning AS \"malayalamMeaning\",example_sentence AS \"exampleSentence\",status,(review_due_at<=now()) AS \"isDue\",last_review_rating AS \"lastReviewRating\" FROM gabroo_vocabulary WHERE user_id=$1 AND learning_direction=$2 AND status IN ('learning','familiar') ORDER BY CASE WHEN last_review_rating='again' THEN 0 WHEN review_due_at<=now() THEN 1 WHEN status='learning' THEN 2 ELSE 3 END,updated_at DESC LIMIT 5",[learner.id,snapshot.learning_direction]);
    savedVocabulary=vocabulary.rows;
    const existing=await client.query<{role:"user"|"assistant";content:string}>(
     "SELECT role,content FROM gabroo_conversation_messages WHERE conversation_id=$1 ORDER BY sequence_number DESC LIMIT 20",[snapshot.id]);
