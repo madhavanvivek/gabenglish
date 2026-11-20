@@ -404,6 +404,18 @@ integration("PostgreSQL placement session integration",()=>{
    expect(receivedPolicy?.learnerContext).toEqual({preferredName:"Anu K",learningGoal:"Speak confidently at work",profileCorrectionPreference:"detailed"});
    expect(receivedPolicy?.stageGuidance).toContain("not yet available");
    expect(receivedPolicy?.learnerMemory).toEqual([{category:"saved_phrase",memoryKey:"Useful phrase",content:"Could you please clarify?"}]);
+
+   // A partially provisioned profile must not prevent Gabroo from replying.
+   await pool.query("DELETE FROM user_preferences WHERE user_id=$1",[userId]);
+   const fallbackConversation=await app.inject({method:"POST",url:"/api/v1/gabroo/conversations",headers,payload:{}});
+   expect(fallbackConversation.statusCode).toBe(201);
+   const fallbackId=fallbackConversation.json().conversation.id as string;
+   const fallbackReply=await app.inject({method:"POST",url:"/api/v1/gabroo/conversations/"+fallbackId+"/messages",headers,payload:{message:"I would like to practise English."}});
+   expect(fallbackReply.statusCode).toBe(200);
+   expect(receivedPolicy?.learnerContext).toEqual({preferredName:"Anu K",profileCorrectionPreference:"balanced"});
+   expect(receivedPolicy?.stageGuidance).toContain("not yet available");
+   await pool.query("DELETE FROM gabroo_conversations WHERE id=$1",[fallbackId]);
+
    const read=await app.inject({method:"GET",url:"/api/v1/gabroo/conversations/"+conversationId,headers});
    expect(read.statusCode).toBe(200);
    expect(read.json().messages).toHaveLength(2);
