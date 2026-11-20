@@ -42,7 +42,7 @@ describe("word-order sentence construction",()=>{
   expect(evaluateWordOrderAnswer("unknown",[])).toBeNull();
  });
  it("returns bilingual feedback without treating every incorrect order as a grammar diagnosis",()=>{
-  const result=evaluateWordOrderAnswer("tile-order-02",["Do","when","you","get","home","?"]);
+  const result=evaluateWordOrderAnswer("tile-order-02",["do","when","you","get","home","?"]);
   expect(result?.correct).toBe(false);
   expect(result?.explanationMl).toContain("subject");
  });
