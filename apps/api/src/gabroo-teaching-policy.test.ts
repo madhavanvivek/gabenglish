@@ -2,6 +2,17 @@ import {describe,it,expect} from "vitest";
 import {buildGabrooTeachingPolicy} from "./gabroo-teaching-policy.js";
 
 describe("Gabroo teaching policy",()=>{
+ it("prioritises learner participation while allowing concise knowledge contributions in every mode",()=>{
+  const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
+  for(const mode of modes){
+   const guidance=buildGabrooTeachingPolicy({mode,supportLanguage:"ml"}).responseGuidance.join(" ");
+   expect(guidance).toContain("help the learner express more of their own ideas");
+   expect(guidance).toContain("listen–contribute–invite–listen");
+   expect(guidance).toContain("invite elaboration");
+   expect(guidance).toContain("Follow the learner’s chosen thread");
+   expect(guidance).toContain("Do not correct every sentence");
+  }
+ });
  it("keeps free-flow conversation natural and correction-light",()=>{
   const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"});
   expect(policy.correction).toBe("none");
