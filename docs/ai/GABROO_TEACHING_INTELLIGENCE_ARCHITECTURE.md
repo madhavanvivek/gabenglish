@@ -289,6 +289,6 @@ The free placement conversation now records per-response word count, unique-word
 
 ### Conservative grammar review observations
 
-The placement pilot now checks only a narrow set of high-confidence surface patterns: selected present-simple subject/verb mismatches, selected have/has and be-verb agreement cases, selected base-verb forms after am, and selected irregular past forms after did. It returns at most three examples per response with a short teaching note, and deduplicates the report to at most eight review items.
+The placement pilot checks a narrow set of surface patterns: selected present-simple subject/verb mismatches, have/has and be-verb agreement, selected verb forms after am, does/doesn't, did/didn't and modal verbs. It returns at most three examples per response with a teaching note and a suggested correction, and deduplicates the report to at most eight review items. Suggested corrections are pattern-based examples, not automatic rewrites of the learner's response.
 
 These are prompts for review, not definitive error labels. The rules are intentionally incomplete, can miss many genuine errors, and may flag context they do not understand. Do not infer an overall grammar ability, proficiency stage or learner ranking from these rules. The learner-facing report explicitly describes them as patterns to review; a qualified language educator and broader contextual assessment are required before stronger conclusions.
