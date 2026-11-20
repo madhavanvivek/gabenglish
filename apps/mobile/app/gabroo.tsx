@@ -10,7 +10,7 @@ import {colors} from "../src/theme";
 import {adjustGabrooSpeechRate} from "../src/learner-settings";
 import {cacheGabrooSpeechRate} from "../src/learner-preference-cache";
 import {BrandMark} from "../src/ui";
-import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getGabrooRecognitionStatus,getGabrooSpeechStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,type GabrooSpeechStatus,updateGabrooConversation,updateLearnerPreferences,synthesizeGabrooSpeech,createGabrooMemory} from "../src/auth-api";
+import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getGabrooRecognitionStatus,getGabrooSpeechStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,type GabrooSpeechStatus,deleteGabrooMemory,updateGabrooConversation,updateLearnerPreferences,synthesizeGabrooSpeech,createGabrooMemory} from "../src/auth-api";
 
 const conversationModes:{value:GabrooConversationMode;label:string}[]=[{value:"free_flow",label:"Free flow"},{value:"gentle_correction",label:"Gentle correction"},{value:"detailed_correction",label:"Detailed correction"},{value:"topic_practice",label:"Topic practice"},{value:"role_play",label:"Role-play"},{value:"vocabulary_building",label:"Vocabulary"},{value:"confidence_practice",label:"Confidence"}];
 
@@ -103,12 +103,16 @@ export default function GabrooScreen(){
   const improved=message.content.trim().replace(/\s+/g," ").slice(0,420);
   if(!improved)return;
   setSavingRevisionId(message.id);setSpeechNotice("");
+  let originalId:string|null=null;
   try{
-   const content=JSON.stringify({version:1,original:practiceDraft.slice(0,420),improved,savedAt:new Date().toISOString()});
-   await createGabrooMemory({category:"learning_note",memory_key:"sentence_revision_"+message.id.slice(0,64),content});
+   const revisionKey="sentence_revision_"+message.id.slice(0,44);
+   const original=await createGabrooMemory({category:"learning_note",memory_key:revisionKey+"_original",content:practiceDraft.slice(0,500)});
+   originalId=original.memory.id;
+   await createGabrooMemory({category:"learning_note",memory_key:revisionKey+"_improved",content:improved.slice(0,500)});
    setSavedRevisionIds(current=>[...current,message.id]);
    setSpeechNotice("Saved both sentence versions to your private Sentence Notebook.");
   }catch(reason){
+   if(originalId)await deleteGabrooMemory(originalId).catch(()=>undefined);
    setSpeechNotice(reason instanceof AuthApiError&&reason.status===409?"This revision is already saved in your Sentence Notebook.":"Could not save this revision. Please try again.");
   }finally{setSavingRevisionId(null);}
  },[practiceDraft,savingRevisionId,savedRevisionIds]);
