@@ -1,13 +1,13 @@
 # Gabroo Progressive Audio Playback — Architecture Decision
 
-Status: native remote playback bridge implemented; end-to-end streaming validation pending.
+Status: provider and API route progressive streaming implemented; CI and physical-device end-to-end validation pending.
 Date: 2026-11-20
 
 ## Context
 
 The original mobile speech path sent a POST request, read the complete MP3 response into a JavaScript byte array, converted it to base64, wrote a temporary file, and only then created an Expo AV player. The current implementation now creates a short-lived playback ticket with an authenticated POST and passes its opaque GET URL directly to Expo AV, avoiding the JavaScript byte-array/base64/temp-file path. Sentence chunking remains in place.
 
-The API provider currently reads the complete provider response into a bounded `Uint8Array` before the route sends it. The provider still buffers the complete response before the GET route sends it. Native remote playback can consume the resulting HTTP response without a JavaScript copy, but provider synthesis-to-device delivery is not yet end-to-end streaming.
+The provider adapter now exposes a bounded Node readable stream, enforcing the 12 MiB limit incrementally and checking empty or mismatched-length responses. The API playback route prefers this stream and pipes it to the HTTP response with backpressure and disconnect cancellation. A bounded buffered `synthesize` compatibility path remains for existing callers. Native remote playback can consume the response without a JavaScript byte-array/base64 copy; physical-device confirmation is still required.
 
 ## Evidence from the current stack
 
@@ -26,7 +26,7 @@ The current app's speech endpoint is POST-only and accepts text plus speed in a 
 3. Design a short-lived, opaque playback ticket created by an authenticated POST. The ticket must not contain readable learner text and must be scoped to the learner, requested speech, expiry and a bounded number of uses.
 4. The native player will use a GET media endpoint with the ticket. The GET endpoint must re-check ticket validity and subscription/ownership policy, then stream MP3 bytes with correct content type and cancellation propagation.
 5. Avoid storing ticket state only in process memory: Render restarts and multiple instances make in-memory tickets unreliable. Prefer a durable shared store with expiry and atomic consume semantics, or a cryptographically signed opaque ticket with an explicitly accepted replay window and no claim of single-use.
-6. Change the provider adapter to expose a cancellable byte stream only after the route has incremental byte-limit enforcement, disconnect propagation and tests. Do not first remove the existing 12 MiB cap.
+6. Keep the provider adapter's cancellable byte stream, incremental 12 MiB enforcement, disconnect propagation and regression tests. Retain the bounded buffered compatibility method until callers no longer need it.
 7. Keep the current complete-buffer implementation as a fallback until physical Android and iOS device tests prove the native path.
 
 ## Required spike and acceptance criteria
@@ -51,7 +51,8 @@ The current app's speech endpoint is POST-only and accepts text plus speed in a 
 
 ## Current status
 
-- Server provider response is still fully buffered (bounded to 12 MiB).
-- Mobile response is still fully read and written to a temporary MP3 file.
+- Provider-level progressive streaming is implemented with incremental 12 MiB enforcement and content-length verification.
+- The playback GET route prefers the streaming interface and pipes audio with Node stream backpressure and disconnect cancellation.
+- Mobile uses the native remote-URI playback path; confirm first-audio behavior and cancellation on physical Android/iOS devices.
 - Mobile and API cancellation handling has been strengthened and regression-tested.
-- Authenticated ticket issuance, durable one-time ticket consumption, server GET media route and native remote URI playback are implemented.\n- The API still buffers provider MP3 output before returning it; provider-to-device streaming and first-audio latency improvement are not yet achieved.\n- Physical Android/iOS playback, cancellation, memory and audio-clock validation remain pending.\n- Expired-ticket cleanup scheduling remains pending.
+- Authenticated ticket issuance, durable one-time ticket consumption, server GET media route and native remote URI playback are implemented.\n- End-to-end streaming performance and first-audio latency improvement remain unverified until real provider and physical-device tests pass.\n- Physical Android/iOS playback, cancellation, memory and audio-clock validation remain pending.\n- Expired-ticket cleanup scheduling remains pending.
