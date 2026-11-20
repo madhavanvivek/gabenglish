@@ -1,10 +1,10 @@
 # Gabroo Canonical Voice — Audition and Approval Protocol
 
-Status: voice direction approved; production voice/provider not selected.
+Status: **no voice selected or approved**; this document is an audition brief and evaluation protocol.
 
 ## 1. Purpose
 
-Select one consistent male-presenting voice for the approved Gabroo character. The voice must sound friendly, energetic, funny and patient, with natural Kerala Malayalam and comfortable Malayalam-English code-switching. The voice must be pleasant for repeated, extended learning sessions and clear when teaching English.
+Select a consistent voice for Gabroo. Candidate auditions may include male-presenting voices with friendly, energetic, funny and patient delivery, natural Kerala Malayalam and comfortable Malayalam-English code-switching. This is an evaluation brief, not a final gender, voice or provider approval. The selected voice must be pleasant for repeated, extended learning sessions and clear when teaching English.
 
 No provider's demo voice becomes Gabroo by default. No voice is production-approved until the owner explicitly approves the benchmark result.
 
@@ -104,7 +104,7 @@ A provider or model migration must be re-auditioned if it changes voice identity
 
 ## 7. Current status
 
-- Male, funny, energetic, friendly Kerala Malayalam voice direction: approved.
+- Voice identity, gender and provider: **not selected or approved**; the male Kerala Malayalam style in this script is an audition direction only.
 - Respectful address policy: required; no default “eda/edi”.
 - Standard audition script and evaluation protocol: documented.
 - Candidate samples and blind evaluation: pending.
