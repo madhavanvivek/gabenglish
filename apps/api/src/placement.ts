@@ -50,6 +50,11 @@ function buildPlacementReport(session:Session){
   response_count:session.evidence.length,
   extended_samples:session.evidence.filter(item=>item.sampleSize==="extended").length,
   brief_samples:session.evidence.filter(item=>item.sampleSize==="brief").length,
+  response_metrics:{
+   average_words_per_response:session.evidence.length?Math.round(session.evidence.reduce((sum,item)=>sum+item.metrics.wordCount,0)/session.evidence.length*10)/10:0,
+   average_unique_word_ratio:session.evidence.length?Math.round(session.evidence.reduce((sum,item)=>sum+item.metrics.uniqueWordRatio,0)/session.evidence.length*100)/100:0,
+   average_words_per_sentence:session.evidence.length?Math.round(session.evidence.reduce((sum,item)=>sum+item.metrics.averageWordsPerSentence,0)/session.evidence.length*10)/10:0
+  },
   observed_patterns:patterns,
   limitations,
   next_steps:[
