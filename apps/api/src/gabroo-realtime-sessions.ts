@@ -31,7 +31,7 @@ export async function issueGabrooRealtimeSessionTicket(pool:Pool,userId:string):
   if(!expiresAt)throw new Error("Realtime session ticket insert returned no expiry");
   await client.query("COMMIT");
   inTransaction=false;
-  return {sessionId,connectionTicket,expiresAt:new Date(expiresAt)};
+  return {sessionId,connectionTicket,expiresAt:expiresAt instanceof Date?expiresAt:new Date(expiresAt)};
  }catch(error){
   if(inTransaction)await client.query("ROLLBACK");
   throw error;
