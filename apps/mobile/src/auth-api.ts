@@ -267,10 +267,12 @@ export async function deleteGabrooMemory(id:string){await authorized("/api/v1/ga
 
 export async function clearGabrooMemory(){return await authorized("/api/v1/gabroo/memory","DELETE") as {deleted_count:number};}
 
+export type GabrooReviewRating="again"|"hard"|"good"|"easy";
+export type GabrooVocabularyReviewSchedule={interval_days:number;ease_factor:number;review_count:number;next_review_at:string;rating:GabrooReviewRating};
 export type GabrooVocabularyStatus="learning"|"familiar"|"mastered";
 export type GabrooVocabularyItem={
  id:string;source_saved_phrase_id:string;term:string;malayalam_meaning:string;example_sentence:string;
- learning_direction:"ml_to_en"|"en_to_ml";status:GabrooVocabularyStatus;created_at:string;updated_at:string;
+ learning_direction:"ml_to_en"|"en_to_ml";status:GabrooVocabularyStatus;review_due_at:string;last_reviewed_at:string|null;review_count:number;interval_days:number|string;ease_factor:number|string;last_review_rating:GabrooReviewRating|null;created_at:string;updated_at:string;
 };
 export async function listGabrooVocabulary(){
  return await authorized("/api/v1/gabroo/vocabulary","GET") as {vocabulary:GabrooVocabularyItem[];privacy:{owner_only:boolean;editable:boolean;deletable:boolean;explicitly_saved_only:boolean}};
@@ -283,6 +285,12 @@ export async function updateGabrooVocabulary(id:string,input:{term?:string;malay
 }
 export async function deleteGabrooVocabulary(id:string){
  await authorized("/api/v1/gabroo/vocabulary/"+encodeURIComponent(id),"DELETE");
+}
+export async function getGabrooVocabularyDue(){
+ return await authorized("/api/v1/gabroo/vocabulary/review-due","GET") as {items:GabrooVocabularyItem[];reviewed_due_count:number};
+}
+export async function reviewGabrooVocabulary(id:string,rating:GabrooReviewRating){
+ return await authorized("/api/v1/gabroo/vocabulary/"+encodeURIComponent(id)+"/review","POST",{rating}) as {vocabulary:GabrooVocabularyItem;schedule:GabrooVocabularyReviewSchedule};
 }
 
 export type PublishedLearningLesson={
