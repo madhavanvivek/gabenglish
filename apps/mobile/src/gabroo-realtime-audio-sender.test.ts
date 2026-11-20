@@ -49,6 +49,27 @@ describe("Gabroo realtime audio sender",()=>{
   await expect(sender.enqueue(native([0.1]))).rejects.toThrow(/finished/);
  });
  
+ it("waits for an in-flight backpressure pump before finishing",async()=>{
+  vi.useFakeTimers();
+  let bufferedAmount=200;
+  const sent:number[]=[];
+  const sender=createGabrooRealtimeAudioSender({
+   sendFrame:sequence=>sent.push(sequence),
+   getBufferedAmount:()=>bufferedAmount,
+   isOpen:()=>true,
+   highWaterBytes:100,lowWaterBytes:20,drainTimeoutMs:1_000
+  });
+  const enqueue=sender.enqueue(native(Array.from({length:1_600},()=>0.2)));
+  const finish=sender.finish();
+  expect(sender.isClosed).toBe(false);
+  bufferedAmount=0;
+  await vi.advanceTimersByTimeAsync(20);
+  await enqueue;
+  await finish;
+  expect(sent).toEqual([0]);
+  expect(sender.isClosed).toBe(true);
+ });
+
  it("closes explicitly and rejects subsequent buffers",async()=>{
   const sender=createGabrooRealtimeAudioSender({sendFrame:()=>{},getBufferedAmount:()=>0,isOpen:()=>true});
   sender.close();
