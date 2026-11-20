@@ -58,9 +58,13 @@ export function createGabrooSpeechSynthesisProvider(
    }else{
     const chunks:Uint8Array[]=[];
     let total=0;
+    const cancelOnAbort=()=>{void reader.cancel().catch(()=>undefined);};
+    if(input.signal.aborted)throw new Error("Gabroo speech synthesis was cancelled.");
+    input.signal.addEventListener("abort",cancelOnAbort,{once:true});
     try{
      while(true){
       const part=await reader.read();
+      if(input.signal.aborted)throw new Error("Gabroo speech synthesis was cancelled.");
       if(part.done)break;
       total+=part.value.byteLength;
       if(total>MAX_AUDIO_BYTES){
@@ -72,6 +76,8 @@ export function createGabrooSpeechSynthesisProvider(
     }catch(error){
      await reader.cancel().catch(()=>undefined);
      throw error;
+    }finally{
+     input.signal.removeEventListener("abort",cancelOnAbort);
     }
     audio=new Uint8Array(total);
     let offset=0;
