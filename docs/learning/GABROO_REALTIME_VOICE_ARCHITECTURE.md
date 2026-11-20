@@ -142,7 +142,6 @@ Exit: written decision on transport/provider feasibility; no production micropho
 - [x] Define versioned control-event and bounded audio-frame metadata schemas in `packages/contracts`.
 - [x] Add initial contract tests for protocol versioning, malformed audio format, frame bounds, payload-length matching and server event shapes.
 - [ ] Add single-use session ticket issuance/consumption, session ownership, entitlement checks and rate limits.
-- Add single-use session ticket issuance/consumption, session ownership, entitlement checks and rate limits.
 - Add transport lifecycle tests, malformed-frame tests, stale-session tests, cancellation tests and bounded-buffer tests.
 - Keep audio bytes transient and prove no persistence/logging.
 
