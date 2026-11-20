@@ -248,3 +248,16 @@ This is an optional research capability, not a replacement for the teaching orch
 The research service must follow the topic specification's source-quality, neutrality, privacy, prompt-injection, safety, freshness and citation rules. Retrieved web content is untrusted data and cannot modify Gabroo's policies. Do not expose search credentials to mobile clients or send learner identity/private memory to research providers.
 
 Do not claim the capability is live until the API adapter, policy gates, source verification, citations, mobile experience and adversarial tests have been implemented and passed.
+
+
+## Conversation continuity (implementation baseline)
+
+The API loads the latest 20 saved conversation messages and passes them to the model as conversation history. The current learner turn is also supplied to the teaching-policy builder. The deterministic continuity guidance now distinguishes:
+
+- A first turn with no prior assistant response: begin naturally without pretending to remember anything.
+- A learner turn following Gabroo's question: treat it as the answer, acknowledge a specific detail, and do not repeat the same question.
+- An established thread without a pending question: continue the learner's chosen topic rather than restarting with a greeting or unnecessary recap.
+
+This is a bounded recent-turn mechanism, not an unlimited transcript memory or a generated session summary. It must not invent interests, preferences, learning progress or personal facts. The separate learner-memory store remains learner-owned, bounded and distinct from conversation history. Future phrase-review or vocabulary-recall features should use explicit saved learning items and consent-aware controls rather than silently promoting arbitrary conversation text into permanent memory.
+
+The continuity helper is heuristic. It detects obvious question punctuation and a small set of Malayalam question forms; it does not semantically determine whether a question was fully answered. Human review and conversation fixtures remain necessary.
