@@ -1,6 +1,6 @@
 # Gabroo Screen-Free Conversation Mode
 
-Status: proposed product feature; specification committed for implementation planning. No background microphone service or screen-off capability is claimed to exist yet.
+Status: Phase 1 Dark Screen Mode UI implemented on `foundation/gabroo-live-avatar-runtime`; physical-device QA and CI verification remain outstanding. No background microphone service or screen-off capability is claimed to exist.
 
 ## 1. Product goal
 
@@ -17,7 +17,7 @@ The first version is deliberately simple: it is a dark overlay on the existing G
 - Activating it covers the conversation UI with a pure black, full-screen view.
 - Keep only two visible controls: a single audio toggle (speaker on/off) and **Return to normal mode**.
 - Do not show lesson content, transcript, character animation, rewards, navigation or other distracting UI while dark mode is active.
-- The audio toggle controls Gabroo's audible output. Its state must be clear and accessible; turning audio off stops/blocks Gabroo playback, and turning it on allows playback again.
+- The audio toggle controls Gabroo's audible output only while Dark Screen Mode is active. Turning audio off immediately stops current playback and blocks further playback while the overlay remains active. Turning it back on permits the next playback but does not restart interrupted speech. Returning to normal mode restores audio to on.
 - **Return to normal mode** removes the overlay and restores the exact conversation screen and scroll position without resetting or losing the conversation.
 - The mode must not silently end, restart or duplicate the active conversation.
 
