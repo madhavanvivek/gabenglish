@@ -61,6 +61,7 @@ describe("Gabroo native capture lifecycle boundary",()=>{
   x.controller.onBuffer(payload);
   expect(x.sender.enqueue).toHaveBeenCalledOnce();
   await x.controller.stop();
+  await expect(x.controller.start({consentGranted:true})).rejects.toThrow(/new Gabroo capture controller/);
  });
 
  it("stops capture when sender backpressure fails",async()=>{
@@ -74,14 +75,23 @@ describe("Gabroo native capture lifecycle boundary",()=>{
   expect(x.errors).toHaveLength(1);
  });
 
- it("cancels permission wait if the tutor screen loses foreground",async()=>{
-  const x=setup();
+ it("cancels a pending permission request when capture is stopped",async()=>{
   let resolvePermission!:(granted:boolean)=>void;
   const pending=new Promise<boolean>(resolve=>{resolvePermission=resolve;});
-  const request=x.controller.start({consentGranted:true});
-  // Permission promise is controlled through the injected function in a separate controller.
-  await x.controller.stop();
+  const stream:GabrooNativeAudioStream={
+   sampleRate:48_000,channels:1,isStreaming:false,
+   start:vi.fn(async()=>{}),stop:vi.fn(async()=>{})
+  };
+  const sender={enqueue:vi.fn(async()=>{}),close:vi.fn()};
+  const controller=createGabrooNativeAudioCaptureController({
+   requestPermission:()=>pending,sender,isForeground:()=>true
+  });
+  controller.attachStream(stream);
+  const request=controller.start({consentGranted:true});
+  await Promise.resolve();
+  await controller.stop();
   resolvePermission(true);
-  await expect(request).rejects.toThrow();
+  await expect(request).rejects.toThrow(/cancelled/);
+  expect(stream.start).not.toHaveBeenCalled();
  });
 });
