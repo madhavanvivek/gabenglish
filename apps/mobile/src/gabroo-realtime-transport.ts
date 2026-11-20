@@ -1,0 +1,74 @@
+import {GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES,GABROO_REALTIME_PROTOCOL_VERSION,gabrooRealtimeServerMessageSchema,type GabrooRealtimeAudioFormat,type GabrooRealtimeServerMessage} from "@gabenglish/contracts";
+
+export const GABROO_REALTIME_CONNECT_PATH="/api/v1/gabroo/realtime/connect";
+
+export function toGabrooRealtimeWebSocketUrl(apiBaseUrl:string){
+ let url:URL;
+ try{url=new URL(apiBaseUrl);}catch{throw new Error("Gabenglish API URL is invalid.");}
+ if(url.protocol==="https:")url.protocol="wss:";
+ else if(url.protocol==="http:")url.protocol="ws:";
+ else throw new Error("Gabroo realtime voice requires an HTTP(S) API URL.");
+ url.pathname=url.pathname.replace(/\/$/,"")+GABROO_REALTIME_CONNECT_PATH;
+ url.search="";
+ url.hash="";
+ return url.toString();
+}
+
+export function createGabrooRealtimeFrame(turnId:string,sessionId:string,sequence:number,payload:Uint8Array){
+ if(!turnId.trim()||!sessionId.trim())throw new Error("A session and turn ID are required.");
+ if(!Number.isSafeInteger(sequence)||sequence<0)throw new Error("Audio frame sequence must be a non-negative integer.");
+ if(!(payload instanceof Uint8Array)||payload.byteLength===0||payload.byteLength>GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES)throw new Error("Audio frame is empty or exceeds the transport limit.");
+ const metadata={protocol_version:GABROO_REALTIME_PROTOCOL_VERSION,session_id:sessionId,turn_id:turnId,type:"audio.frame" as const,sequence,byte_length:payload.byteLength};
+ const bytes=payload.slice();
+ return {metadata,binary:bytes.buffer as ArrayBuffer};
+}
+
+export type GabrooRealtimeSocketCallbacks={
+ onOpen?:()=>void;
+ onMessage?:(message:GabrooRealtimeServerMessage)=>void;
+ onInvalidMessage?:()=>void;
+ onError?:()=>void;
+ onClose?:(code:number,reason:string)=>void;
+};
+
+export function connectGabrooRealtimeSocket(input:{
+ apiBaseUrl:string;
+ sessionId:string;
+ connectionTicket:string;
+ callbacks?:GabrooRealtimeSocketCallbacks;
+}){
+ if(!input.sessionId.trim()||!/^[0-9a-f]{64}$/.test(input.connectionTicket))throw new Error("A valid realtime session ticket is required.");
+ const url=toGabrooRealtimeWebSocketUrl(input.apiBaseUrl);
+ const socket=new WebSocket(url,["gabroo.v1","ticket."+input.connectionTicket]);
+ socket.onopen=()=>{
+  socket.send(JSON.stringify({protocol_version:GABROO_REALTIME_PROTOCOL_VERSION,session_id:input.sessionId,type:"session.ready"}));
+  input.callbacks?.onOpen?.();
+ };
+ socket.onmessage=event=>{
+  let payload:unknown;
+  try{payload=JSON.parse(String(event.data));}catch{input.callbacks?.onInvalidMessage?.();return;}
+  const parsed=gabrooRealtimeServerMessageSchema.safeParse(payload);
+  if(!parsed.success||parsed.data.session_id!==input.sessionId){input.callbacks?.onInvalidMessage?.();return;}
+  input.callbacks?.onMessage?.(parsed.data);
+ };
+ socket.onerror=()=>input.callbacks?.onError?.();
+ socket.onclose=event=>input.callbacks?.onClose?.(event.code,event.reason);
+ const sendControl=(message:Record<string,unknown>)=>{
+  if(socket.readyState!==WebSocket.OPEN)throw new Error("Gabroo realtime connection is not open.");
+  socket.send(JSON.stringify({protocol_version:GABROO_REALTIME_PROTOCOL_VERSION,session_id:input.sessionId,...message}));
+ };
+ return {
+  socket,
+  startTurn(turnId:string,audio:GabrooRealtimeAudioFormat){sendControl({type:"turn.start",turn_id:turnId,audio});},
+  sendAudioFrame(turnId:string,sequence:number,payload:Uint8Array){
+   const frame=createGabrooRealtimeFrame(turnId,input.sessionId,sequence,payload);
+   sendControl(frame.metadata);
+   if(socket.readyState!==WebSocket.OPEN)throw new Error("Gabroo realtime connection closed before the audio frame payload.");
+   socket.send(frame.binary);
+  },
+  endTurn(turnId:string){sendControl({type:"turn.end",turn_id:turnId});},
+  interrupt(turnId:string){sendControl({type:"tutor.interrupt",turn_id:turnId});},
+  stop(){sendControl({type:"session.stop"});},
+  close(){socket.close(1000,"learner_stop");}
+ };
+}
