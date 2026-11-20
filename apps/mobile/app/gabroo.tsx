@@ -3,7 +3,7 @@ import * as Speech from "expo-speech";
 import {Audio} from "expo-av";
 import * as FileSystem from "expo-file-system";
 import {chunkGabrooSpeechSegments,confirmGabrooTranscript,GABROO_LOCAL_CAPTURE_MAX_MS,initialGabrooPlaybackState,initialGabrooTurnState,playGabrooSpeechSegments,reduceGabrooPlayback,reduceGabrooTurn,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooPlaybackState,type GabrooTurnState,type GabrooVoiceSessionState,type GabrooTranscript,type GabrooRecognitionLanguage} from "@gabenglish/contracts";
-import {Link,useFocusEffect} from "expo-router";
+import {Link,useFocusEffect,useLocalSearchParams} from "expo-router";
 import {ActivityIndicator,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
@@ -27,7 +27,7 @@ export default function GabrooScreen(){
  const conversationMutationSequenceRef=useRef(0);
  const [messages,setMessages]=useState<GabrooConversationMessage[]>([]);
  const [draft,setDraft]=useState("");
- const [mode,setMode]=useState<GabrooConversationMode>("gentle_correction");
+ const [mode,setMode]=useState<GabrooConversationMode>(practiceTerm?"vocabulary_building":"gentle_correction");
  const [busy,setBusy]=useState(false);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
@@ -200,7 +200,7 @@ export default function GabrooScreen(){
   try{
    const result=await createGabrooConversation({mode,support_language:"ml"});
    if(requestId!==conversationOpenSequenceRef.current)return;
-   activeConversationIdRef.current=result.conversation.id;setTurnState(initialGabrooTurnState);setActive(result.conversation);setMode(result.conversation.mode);setMessages([]);setDraft("");setSpeechNotice("");setConversations(current=>[result.conversation,...current]);
+   activeConversationIdRef.current=result.conversation.id;setTurnState(initialGabrooTurnState);setActive(result.conversation);setMode(result.conversation.mode);setMessages([]);setDraft(practiceTerm?`I would like to practise the English word “${practiceTerm}”. ${practiceMeaning?`Its Malayalam meaning is “${practiceMeaning}”. `:""}${practiceExample?`Here is my example: “${practiceExample}”. `:""}Please help me use it naturally in a conversation.`:"");setSpeechNotice(practiceTerm?`Vocabulary practice: ${practiceTerm}. Review the suggested message and send it when you are ready.`:"");setConversations(current=>[result.conversation,...current]);
   }catch(reason){
    if(requestId===conversationOpenSequenceRef.current)setError(reason instanceof AuthApiError&&reason.status===503? "Gabroo's conversation service is not connected yet. Your subscription and account are unchanged.":reason instanceof Error?reason.message:"Could not start a conversation.");
   }finally{
