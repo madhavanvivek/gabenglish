@@ -53,6 +53,7 @@ export function connectGabrooRealtimeSocket(input:{
   const parsed=gabrooRealtimeServerMessageSchema.safeParse(payload);
   if(!parsed.success||parsed.data.session_id!==input.sessionId){input.callbacks?.onInvalidMessage?.();return;}
   if(parsed.data.type==="session.accepted")sessionAccepted=true;
+  if(parsed.data.type==="session.closed"||parsed.data.type==="session.interrupted")sessionAccepted=false;
   input.callbacks?.onMessage?.(parsed.data);
  };
  socket.onerror=()=>input.callbacks?.onError?.();
