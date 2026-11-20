@@ -19,9 +19,13 @@ describe("Gabroo conversation quality signals",()=>{
   expect(result.flags).toContain("missing_invitation_after_short_answer");
  });
  it("detects a generic prompt repeated from the previous turn",()=>{
-  const result=evaluateGabrooConversationTurn({learnerMessage:"I enjoy cooking.",previousLearnerMessages:["Tell me more."],gabrooReply:"Tell me more."});
+  const result=evaluateGabrooConversationTurn({learnerMessage:"I enjoy cooking.",previousGabrooReplies:["Tell me more."],gabrooReply:"Tell me more."});
   expect(result.flags).toContain("repeated_generic_prompt");
   expect(result.checks.avoidsRepeatedGenericPrompt).toBe(false);
+ });
+ it("does not demand a follow-up when a short learner turn is a direct question",()=>{
+  const result=evaluateGabrooConversationTurn({learnerMessage:"Why?",gabrooReply:"Because the process needs more time."});
+  expect(result.flags).not.toContain("missing_invitation_after_short_answer");
  });
  it("reports observable signals without pretending to judge semantic correctness",()=>{
   const result=evaluateGabrooConversationTurn({learnerMessage:"Online classes save travel time.",gabrooReply:"That sounds useful. How does saving travel time change your daily routine?"});
