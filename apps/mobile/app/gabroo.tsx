@@ -219,6 +219,10 @@ export default function GabrooScreen(){
   try{
    await stopSpeech();
    if(requestId!==conversationOpenSequenceRef.current)return;
+   // A transcript belongs to the conversation in which it was recorded.
+   // Discard any pending audio/transcript before switching conversation context.
+   await discardTranscriptionAudio();
+   if(requestId!==conversationOpenSequenceRef.current)return;
    const result=await getGabrooConversation(item.id);
    if(requestId!==conversationOpenSequenceRef.current)return;
    activeConversationIdRef.current=result.conversation.id;setTurnState(initialGabrooTurnState);setActive(result.conversation);setMode(result.conversation.mode);setMessages(result.messages);setDraft("");setSpeechNotice("");
@@ -235,6 +239,9 @@ export default function GabrooScreen(){
   setBusy(true);setError("");
   try{
    await stopSpeech();
+   if(requestId!==conversationOpenSequenceRef.current)return;
+   // Never carry an unsubmitted transcript from an earlier conversation into a new one.
+   await discardTranscriptionAudio();
    if(requestId!==conversationOpenSequenceRef.current)return;
    const result=await createGabrooConversation({mode,support_language:"ml"});
    if(requestId!==conversationOpenSequenceRef.current)return;
