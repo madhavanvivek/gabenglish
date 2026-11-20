@@ -400,6 +400,16 @@ integration("PostgreSQL placement session integration",()=>{
    expect(sent.statusCode).toBe(200);
    expect(sent.json().messages).toHaveLength(2);
    expect(sent.json().messages.map((message:{role:string})=>message.role)).toEqual(["user","assistant"]);
+   const speakingProgress=await app.inject({method:"GET",url:"/api/v1/gabroo/speaking-progress",headers});
+   expect(speakingProgress.statusCode).toBe(200);
+   expect(speakingProgress.json()).toMatchObject({
+    window_days:7,
+    current:{sessions:1,learner_turns:1,learner_words:6,average_words_per_turn:6},
+    previous:{sessions:0,learner_turns:0,learner_words:0,average_words_per_turn:0}
+   });
+   expect(speakingProgress.json().interpretation).toContain("not an English proficiency");
+   const otherSpeakingProgress=await app.inject({method:"GET",url:"/api/v1/gabroo/speaking-progress",headers:{authorization:"Bearer "+otherToken}});
+   expect(otherSpeakingProgress.statusCode).toBe(403);
    expect(providerCalls).toBe(1);expect(receivedMode).toBe("free_flow");
    expect(receivedPolicy?.learnerContext).toEqual({preferredName:"Anu K",learningGoal:"Speak confidently at work",profileCorrectionPreference:"detailed"});
    expect(receivedPolicy?.stageGuidance).toContain("not yet available");
