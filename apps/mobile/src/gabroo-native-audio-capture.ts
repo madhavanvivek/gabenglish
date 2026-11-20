@@ -47,13 +47,13 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
   });
  };
 
- const stop=async(reason="learner_stop")=>{
+ const stop=async(reason="learner_stop"):{drained:boolean}=>{
   generation+=1;
   terminal=true;
   active=false;
   // Do not call native stop while permission or native start is pending.
   // The start() catch path owns cleanup after the awaited operation settles.
-  if(starting){options.sender.close(reason);return;}
+  if(starting){options.sender.close(reason);return {drained:false};}
   if(stream){
    const current=stream;
    stream=undefined;
@@ -64,9 +64,11 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
   try{
    if(options.sender.finish)await options.sender.finish();
    else options.sender.close(reason);
+   return {drained:true};
   }catch(error){
    options.sender.close("audio_sender_drain_failed");
    report(error);
+   return {drained:false};
   }
  };
 
