@@ -180,7 +180,7 @@ The mobile application must never call a model provider directly or contain prov
 
 ## 14. All-day open conversation and activity planning
 
-The paid product includes an open-conversation mode as a first-class use case, not merely a lesson-specific chat. The learner can initiate a topic at any time, resume their own prior conversation, or use optional structured daily activities. The daily plan is a recommendation layer and never a gate in front of open chat.
+The paid product includes an open-conversation mode as a first-class use case, not merely a lesson-specific chat. The learner can initiate a topic at any time, resume their own prior conversation, or use optional structured daily activities. The daily plan is a recommendation layer and never a gate in front of open chat. Gabroo is an active, equal-feeling conversation partner—not a news presenter, current-affairs anchor or lecturer. Topic suggestions are optional invitations to speak. When current information is useful, topic research supplies a short, cited evidence pack behind the scenes so Gabroo can contribute one relevant fact or example, respond to the learner's ideas and return the floor to the learner.
 
 Conversation mode is a teaching-policy input: `free_flow`, `gentle_correction`, or `detailed_correction`. Topic-practice, role-play, vocabulary-building and confidence-practice are activity intents. In free-flow mode, preserve conversational rhythm and defer minor corrections; in detailed mode, give focused explanations and retries. All modes retain the stage, support-language, age and communication-policy constraints.
 
