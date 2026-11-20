@@ -45,7 +45,7 @@ export const gabrooRealtimeServerMessageSchema=z.discriminatedUnion("type",[
  }).strict(),
  turnBase.extend({type:z.literal("turn.accepted"),max_turn_ms:z.number().int().positive().max(120_000)}).strict(),
  turnBase.extend({type:z.literal("transcript.partial"),text:z.string().max(12_000)}).strict(),
- turnBase.extend({type:z.literal("transcript.final"),text:z.string().trim().min(1).max(12_000)}).strict(),
+ turnBase.extend({type:z.literal("transcript.final"),text:z.string().trim().min(1).max(12_000),language_detected:z.enum(["ml","en","mixed","unknown"]),review_required:z.literal(true)}).strict(),
  turnBase.extend({type:z.literal("tutor.text.delta"),text:z.string().max(4_000)}).strict(),
  turnBase.extend({type:z.literal("tutor.text.final"),text:z.string().trim().min(1).max(12_000)}).strict(),
  turnBase.extend({
