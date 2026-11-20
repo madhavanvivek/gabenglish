@@ -27,17 +27,40 @@ const CONNECTORS = /\b(because|although|however|therefore|while|whereas|for exam
 const PAST_MARKERS = /\b(yesterday|last\s+(?:week|month|year|weekend)|ago|was|were|did|went|had|visited|worked|studied|made|saw)\b/i;
 const REASON_MARKERS = /\b(because|since|the reason|so that|therefore)\b/i;
 
-type GrammarObservation = {category:"subject_verb_agreement"|"verb_form"|"past_tense_form";example:string;note:string};
+type GrammarObservation = {category:"subject_verb_agreement"|"verb_form"|"past_tense_form";example:string;note:string;suggestion:string};
 function collectGrammarObservations(value:string):GrammarObservation[]{
  const findings:GrammarObservation[]=[];
- const add=(category:GrammarObservation["category"],example:string,note:string)=>{
-  if(findings.length<3&&!findings.some(item=>item.category===category&&item.example.toLowerCase()===example.toLowerCase()))findings.push({category,example,note});
+ const add=(category:GrammarObservation["category"],example:string,note:string,suggestion:string)=>{
+  if(findings.length<3&&!findings.some(item=>item.category===category&&item.example.toLowerCase()===example.toLowerCase()))findings.push({category,example,note,suggestion});
  };
- for(const match of value.matchAll(/\b(he|she|it)\s+(go|work|like|want|need|have|do|play|study|eat|speak|live|watch|make|take|come|know|say)\b/gi))add("subject_verb_agreement",match[0],"With he, she or it in the present simple, this verb often needs an -s or -es ending.");
- for(const match of value.matchAll(/\b(i|you|we|they)\s+has\b/gi))add("subject_verb_agreement",match[0],"Check the subject: has is normally used with he, she or it; use have with I, you, we or they.");
- for(const match of value.matchAll(/\b(he|she|it)\s+are\b/gi))add("subject_verb_agreement",match[0],"Check subject and be-verb agreement: he, she and it normally pair with is.");
- for(const match of value.matchAll(/\b(i|he|she|it|we|they|you)\s+am\s+(go|work|like|want|need|have|do|play|study|eat|speak|live|watch|make|take|come|know|say)\b/gi))add("verb_form",match[0],"After am, a continuous action usually needs an -ing form, or choose the simple present if it is a routine.");
- for(const match of value.matchAll(/\bdid\s+(went|ate|saw|did|made|took|came|spoke|wrote|bought)\b/gi))add("past_tense_form",match[0],"After did, use the base form of the main verb.");
+ const verbs="go|work|like|want|need|have|do|play|study|eat|speak|live|watch|make|take|come|know|say|read|write|run|drink|buy|visit|teach|try";
+ for(const match of value.matchAll(new RegExp("\\b(he|she|it)\\s+("+verbs+")\\b","gi"))){
+  const base=match[2]!.toLowerCase();
+  const thirdPerson=base==="have"?"has":base==="do"?"does":base==="go"?"goes":base.endsWith("y")?base.slice(0,-1)+"ies":base+"s";
+  add("subject_verb_agreement",match[0],"With he, she or it in the present simple, this verb usually needs an -s or -es ending.",match[0].replace(new RegExp("\\b"+base+"$","i"),thirdPerson));
+ }
+ for(const match of value.matchAll(/\b(i|you|we|they)\s+has\b/gi))add("subject_verb_agreement",match[0],"Has normally pairs with he, she or it; use have with I, you, we or they.",match[0].replace(/has$/i,"have"));
+ for(const match of value.matchAll(/\b(he|she|it)\s+are\b/gi))add("subject_verb_agreement",match[0],"He, she and it normally pair with is.",match[0].replace(/are$/i,"is"));
+ for(const match of value.matchAll(/\b(i|you|we|they)\s+is\b/gi))add("subject_verb_agreement",match[0],"I pairs with am; you, we and they normally pair with are.",match[1]!.toLowerCase()==="i"?match[0].replace(/is$/i,"am"):match[0].replace(/is$/i,"are"));
+ for(const match of value.matchAll(/\b(i|he|she|it|we|they|you)\s+am\s+(go|work|like|want|need|have|do|play|study|eat|speak|live|watch|make|take|come|know|say|agree|understand)\b/gi)){
+  const verb=match[2]!.toLowerCase();
+  const suggestion=["agree","understand","know","have","want","need","like"].includes(verb)?match[0].replace(/\bam\s+/i,""):match[0].replace(new RegExp("\\b"+verb+"$","i"),verb.endsWith("e")?verb.slice(0,-1)+"ing":verb+"ing");
+  add("verb_form",match[0],"After am, use an -ing form for an action in progress. Verbs such as agree, know and understand are usually not used in this continuous form.",suggestion);
+ }
+ for(const match of value.matchAll(/\b(does(?:\s+not|n't))\s+(goes|works|likes|wants|needs|has|does|plays|studies|eats|speaks|lives|watches|makes|takes|comes|knows|says)\b/gi)){
+  const form=match[2]!.toLowerCase();
+  const base=form==="has"?"have":form==="does"?"do":form==="goes"?"go":form==="studies"?"study":form.replace(/s$/,"");
+  add("verb_form",match[0],"After does or doesn't, use the base form of the main verb.",match[0].replace(new RegExp(form+"$","i"),base));
+ }
+ for(const match of value.matchAll(/\b(did|didn't|did\s+not)\s+(went|ate|saw|did|made|took|came|spoke|wrote|bought|visited|worked|studied)\b/gi)){
+  const base:Record<string,string>={went:"go",ate:"eat",saw:"see",did:"do",made:"make",took:"take",came:"come",spoke:"speak",wrote:"write",bought:"buy",visited:"visit",worked:"work",studied:"study"};
+  add("past_tense_form",match[0],"After did or didn't, use the base form of the main verb.",match[0].replace(new RegExp(match[2]+"$","i"),base[match[2]!.toLowerCase()]!));
+ }
+ for(const match of value.matchAll(/\b(can|could|should|would|will|must|may|might)\s+(goes|works|likes|wants|needs|has|does|plays|studies|eats|speaks|lives|watches|makes|takes|comes|knows|says)\b/gi)){
+  const form=match[2]!.toLowerCase();
+  const base=form==="has"?"have":form==="does"?"do":form==="goes"?"go":form==="studies"?"study":form.replace(/s$/,"");
+  add("verb_form",match[0],"After a modal verb such as can, should or will, use the base form of the next verb.",match[0].replace(new RegExp(form+"$","i"),base));
+ }
  return findings;
 }
 
