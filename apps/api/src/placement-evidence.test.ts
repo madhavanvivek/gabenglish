@@ -53,7 +53,7 @@ describe("placement response evidence extraction",()=>{
     expect(result.observations).toContain("A few grammar patterns may be worth reviewing; automated checks can miss context and valid alternatives.");
     expect(result).not.toHaveProperty("score");
     const modal=extractResponseEvidence("modal","I can speaks English.");
-    expect(modal.grammarObservations).toEqual([expect.objectContaining({example:"can speaks",suggestion:"can speak"})]);
+    expect(modal.grammarObservations).toEqual([expect.objectContaining({example:"can speaks",suggestion:"can speak",supportNoteMl:expect.stringContaining("modal verb-ുകൾക്ക് ശേഷം")})]);
   });
 
   it("does not flag correct common agreement and verb forms",()=>{
@@ -68,7 +68,7 @@ describe("placement response evidence extraction",()=>{
       expect.objectContaining({category:"subject_verb_agreement",example:"She study",suggestion:"She studies"}),
       expect.objectContaining({category:"verb_form",example:"He doesn't goes",suggestion:"He doesn't go"})
     ]));
-    expect(result.grammarObservations.every(item=>item.note.length>0&&item.suggestion.length>0)).toBe(true);
+    expect(result.grammarObservations.every(item=>item.note.length>0&&item.supportNoteMl.length>0&&item.suggestion.length>0)).toBe(true);
     expect(result).not.toHaveProperty("score");
   });
 
@@ -77,6 +77,15 @@ describe("placement response evidence extraction",()=>{
     expect(result.grammarObservations).toEqual([
       expect.objectContaining({example:"I am agree",suggestion:"I agree"})
     ]);
+  });
+
+  it("provides Malayalam support for known grammar patterns",()=>{
+    const result=extractResponseEvidence("ml-support","She go to work. He doesn't goes there. Yesterday I did went home.");
+    expect(result.grammarObservations).toEqual(expect.arrayContaining([
+      expect.objectContaining({example:"She go",supportNoteMl:expect.stringContaining("he, she, it")}),
+      expect.objectContaining({example:"He doesn't goes",supportNoteMl:expect.stringContaining("does / does not")}),
+      expect.objectContaining({example:"did went",supportNoteMl:expect.stringContaining("did / did not")})
+    ]));
   });
 
   it("counts Unicode Malayalam words",()=>{
