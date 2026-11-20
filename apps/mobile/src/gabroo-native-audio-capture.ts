@@ -61,6 +61,7 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
 
  return {
   attachStream(next:GabrooNativeAudioStream){
+   if(terminal)throw new Error("Create a new Gabroo capture controller before attaching another native stream.");
    if(active||starting)throw new Error("Stop Gabroo capture before replacing its native stream.");
    stream=next;
   },
