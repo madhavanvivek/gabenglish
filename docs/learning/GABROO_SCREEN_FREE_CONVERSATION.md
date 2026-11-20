@@ -124,6 +124,7 @@ The child-facing session must not display subscription upsells or prompt to exte
 - Recognition upload operations use an in-flight guard, and discard cleanup clears the transcription busy state. Learner text and recordings are not sent to Gabroo without the separate confirmation step.
 - Existing MP3 response validation, speech readiness parser and conversation state reducer are reusable foundations.
 - Mobile MP3 playback now treats native playback-status errors and rejected `playAsync()` calls as terminal segment failures; pending playback promises are settled so normal sound/file cleanup can run. This is source-level hardening only and still requires physical-device audio-route/interruption QA.
+- Gabroo now explicitly switches Expo AV into playback mode before speech synthesis/playback (`allowsRecordingIOS: false`, silent-switch playback enabled on iOS, Android audio ducking enabled). This avoids relying on whichever audio mode happened to be left by a prior recording or a fresh app launch; physical-device route and interruption behaviour still requires QA.
 - Existing backend conversation endpoint is authenticated and entitlement-aware; speech endpoints issue short-lived playback tickets.
 - Existing Gabroo production voice, streaming Malayalam recognition and live 3D avatar remain separate delivery gates. Screen-Free mode must not imply those unfinished capabilities are complete.
 
