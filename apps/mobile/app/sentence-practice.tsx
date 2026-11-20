@@ -7,6 +7,8 @@ import {colors,radius,space} from "../src/theme";
 import {decodeSavedSentenceDraft,encodeSavedSentenceDraft,evaluateSentencePracticeAnswer,evaluateWordOrderAnswer,listSentencePracticeExercises,listWordOrderExercises} from "../src/sentence-practice";
 import {createGabrooMemory,deleteGabrooMemory,listGabrooMemory,type GabrooMemoryItem} from "../src/auth-api";
 
+type SentenceNotebookEntry={id:string;memoryIds:string[];original:string;improved?:string;savedAt:string};
+
 export default function SentencePracticeScreen(){
  const exercises=useMemo(()=>listSentencePracticeExercises(),[]);
  const [index,setIndex]=useState(0);
@@ -19,13 +21,33 @@ export default function SentencePracticeScreen(){
  const [wordResult,setWordResult]=useState<{correct:boolean;explanationEn:string;explanationMl:string}|null>(null);
  const [freeResponse,setFreeResponse]=useState("");
  const [showModel,setShowModel]=useState(false);
- const [savedDrafts,setSavedDrafts]=useState<GabrooMemoryItem[]>([]);
+ const [savedDrafts,setSavedDrafts]=useState<SentenceNotebookEntry[]>([]);
  const [savingDraft,setSavingDraft]=useState(false);
  const [draftNotice,setDraftNotice]=useState("");
  const [loadingDrafts,setLoadingDrafts]=useState(true);
- useEffect(()=>{let active=true;void listGabrooMemory().then(result=>{if(active)setSavedDrafts(result.memory.filter(item=>item.category==="learning_note"&&item.memory_key.startsWith("sentence_revision_")&&decodeSavedSentenceDraft(item.content)!==null));}).catch(()=>{if(active)setDraftNotice("Saved sentences could not be loaded right now.");}).finally(()=>{if(active)setLoadingDrafts(false);});return()=>{active=false;};},[]);
+ useEffect(()=>{let active=true;void listGabrooMemory().then(result=>{
+  if(!active)return;
+  const notes=result.memory.filter(item=>item.category==="learning_note"&&item.memory_key.startsWith("sentence_revision_"));
+  const entries:SentenceNotebookEntry[]=[];
+  const paired=new Map<string,{original?:GabrooMemoryItem;improved?:GabrooMemoryItem}>();
+  for(const item of notes){
+   const draft=decodeSavedSentenceDraft(item.content);
+   if(draft){entries.push({id:item.id,memoryIds:[item.id],original:draft.original,improved:draft.improved,savedAt:draft.savedAt});continue;}
+   const match=item.memory_key.match(/^(sentence_revision_.+)_(original|improved)$/);
+   if(!match)continue;
+   const group=paired.get(match[1])??{};
+   if(match[2]==="original")group.original=item;else group.improved=item;
+   paired.set(match[1],group);
+  }
+  for(const [key,group] of paired){
+   if(!group.original)continue;
+   entries.push({id:key,memoryIds:[group.original.id,...(group.improved?[group.improved.id]:[])],original:group.original.content,improved:group.improved?.content,savedAt:group.original.created_at});
+  }
+  entries.sort((a,b)=>Date.parse(b.savedAt)-Date.parse(a.savedAt));
+  setSavedDrafts(entries);
+ }).catch(()=>{if(active)setDraftNotice("Saved sentences could not be loaded right now.");}).finally(()=>{if(active)setLoadingDrafts(false);});return()=>{active=false;};},[]);
  async function saveSentenceDraft(){if(!freeResponse.trim()||savingDraft)return;setSavingDraft(true);setDraftNotice("");try{const now=new Date().toISOString();const content=encodeSavedSentenceDraft(freeResponse,now);if(!content){setDraftNotice("Write a sentence before saving.");return;}const created=await createGabrooMemory({category:"learning_note",memory_key:"sentence_revision_"+Date.now(),content});setSavedDrafts(items=>[created.memory,...items]);setDraftNotice("Saved. You can revisit this sentence below or practise it with Gabroo.");}catch(error){setDraftNotice(error instanceof Error?error.message:"Could not save this sentence. Please try again.");}finally{setSavingDraft(false);}}
- async function removeSentenceDraft(id:string){try{await deleteGabrooMemory(id);setSavedDrafts(items=>items.filter(item=>item.id!==id));setDraftNotice("Sentence draft deleted.");}catch(error){setDraftNotice(error instanceof Error?error.message:"Could not delete this sentence.");}}
+ async function removeSentenceDraft(entry:SentenceNotebookEntry){try{await Promise.all(entry.memoryIds.map(id=>deleteGabrooMemory(id)));setSavedDrafts(items=>items.filter(item=>item.id!==entry.id));setDraftNotice("Sentence draft deleted.");}catch(error){setDraftNotice(error instanceof Error?error.message:"Could not delete this sentence.");}}
  const current=exercises[index];
  const result=selected&&current?evaluateSentencePracticeAnswer(current.id,selected):null;
  const score=Object.values(answers).filter(Boolean).length;
@@ -51,7 +73,7 @@ export default function SentencePracticeScreen(){
     <View style={s.options}>{current.options.map(option=><Pressable key={option.id} accessibilityRole="radio" accessibilityState={{checked:selected===option.id,disabled:Boolean(selected)}} disabled={Boolean(selected)} onPress={()=>choose(option.id)} style={[s.option,selected===option.id&&s.optionSelected,result?.correct&&selected===option.id&&s.optionCorrect,result&&!result.correct&&selected===option.id&&s.optionWrong]}><Text style={s.optionText}>{option.text}</Text>{selected===option.id?<Text style={s.optionMark}>{result?.correct?"✓":"↻"}</Text>:null}</Pressable>)}</View>
     {result?<View style={s.feedback}><Text style={result.correct?s.correct:s.tryAgain}>{result.correct?"Good choice!":"Not quite — review the pattern."}</Text><Text style={s.explanation}>{result.explanationEn}</Text><Text style={s.malayalam}>മലയാളത്തിൽ: {result.explanationMl}</Text><Text style={s.body}>Your original choice is kept as a practice attempt on this screen only. It is not saved to your account.</Text><Pressable accessibilityRole="button" onPress={next} style={s.primary}><Text style={s.primaryText}>{index===exercises.length-1?"See my practice summary":"Next exercise →"}</Text></Pressable></View>:null}
    </SurfaceCard></>:null}
-  <SurfaceCard><Eyebrow>YOUR SENTENCE NOTEBOOK</Eyebrow><Text style={s.cardTitle}>Sentences you saved</Text><Text style={s.body}>Only sentences you explicitly save appear here. They stay in your private Gabroo learning notes until you delete them.</Text>{loadingDrafts?<Text style={s.body}>Loading saved sentences…</Text>:savedDrafts.length?savedDrafts.map(item=>{const draft=decodeSavedSentenceDraft(item.content);if(!draft)return null;return <View key={item.id} style={s.savedDraft}><Text style={s.body}>YOUR ORIGINAL SENTENCE</Text><Text style={s.savedText}>{draft.original}</Text>{draft.improved?<><Text style={s.body}>GABROO SUGGESTED VERSION</Text><Text style={s.savedText}>{draft.improved}</Text></>:null}<Text style={s.body}>Saved {new Date(draft.savedAt).toLocaleDateString()}</Text><Link href={{pathname:"/gabroo",params:{practiceTitle:"Revise my saved sentence",practicePrompt:"Please help me revise this sentence while preserving my intended meaning.",practiceInstruction:"Give one clear improvement and explain the changes in Malayalam and English.",practiceDraft:draft.original}}} style={s.talkLink}>Revise with Gabroo →</Link><Pressable accessibilityRole="button" onPress={()=>void removeSentenceDraft(item.id)} style={s.deleteDraft}><Text style={s.deleteText}>Delete saved sentence</Text></Pressable></View>;}):<Text style={s.body}>No saved sentences yet. Save a draft above to build your revision notebook.</Text>}</SurfaceCard>
+  <SurfaceCard><Eyebrow>YOUR SENTENCE NOTEBOOK</Eyebrow><Text style={s.cardTitle}>Sentences you saved</Text><Text style={s.body}>Only sentences you explicitly save appear here. They stay in your private Gabroo learning notes until you delete them.</Text>{loadingDrafts?<Text style={s.body}>Loading saved sentences…</Text>:savedDrafts.length?savedDrafts.map(item=>{const draft=item;return <View key={item.id} style={s.savedDraft}><Text style={s.body}>YOUR ORIGINAL SENTENCE</Text><Text style={s.savedText}>{draft.original}</Text>{draft.improved?<><Text style={s.body}>GABROO SUGGESTED VERSION</Text><Text style={s.savedText}>{draft.improved}</Text></>:null}<Text style={s.body}>Saved {new Date(draft.savedAt).toLocaleDateString()}</Text><Link href={{pathname:"/gabroo",params:{practiceTitle:"Revise my saved sentence",practicePrompt:"Please help me revise this sentence while preserving my intended meaning.",practiceInstruction:"Give one clear improvement and explain the changes in Malayalam and English.",practiceDraft:draft.original}}} style={s.talkLink}>Revise with Gabroo →</Link><Pressable accessibilityRole="button" onPress={()=>void removeSentenceDraft(item)} style={s.deleteDraft}><Text style={s.deleteText}>Delete saved sentence</Text></Pressable></View>;}):<Text style={s.body}>No saved sentences yet. Save a draft above to build your revision notebook.</Text>}</SurfaceCard>
   <View style={s.bottom}><Text style={s.bottomText}>Want to use these patterns in a real conversation?</Text>{!complete&&current?<Link href={{pathname:"/gabroo",params:{practiceTitle:current.title,practicePrompt:current.prompt,practiceInstruction:current.instruction}}} style={s.talkLink}>Practise this pattern with Gabroo →</Link>:<Link href="/gabroo" style={s.talkLink}>Talk to Gabroo →</Link>}</View>
  </ScrollView></SafeAreaView>;
 }
