@@ -297,3 +297,8 @@ These are prompts for review, not definitive error labels. The rules are intenti
 ## 18. Contextual sentence-construction practice
 
 When a free diagnostic report contains a conservative grammar review item, show the learner the original observed phrase, a clearly labelled suggested form and the short explanation. Offer an optional action to practise that exact pattern with Gabroo. The app pre-fills a draft that includes both forms and asks Gabroo to explain the contrast, model one fresh example and invite the learner to construct a sentence. The learner must review and send the draft; opening the practice route must never submit text automatically. This is a learning prompt, not a definitive correction: preserve the original learner response, do not infer a proficiency level, and make no claim that the finite rule-based checks cover all valid English. The current explanations are English-only; Malayalam-localised reviewed explanations remain a separate content task.
+
+
+## 19. Malayalam-supported grammar review notes
+
+The conservative placement grammar patterns now include a bounded, reviewed Malayalam support note alongside the English explanation. Notes are selected from explicit known pattern descriptions (subject–verb agreement, be-verb agreement, -ing after am, base form after does/did and base form after modal verbs). The mapping fails closed if a new English note is introduced without reviewed Malayalam copy; do not silently fall back to machine translation. These notes are explanatory aids, not a complete grammar curriculum. Keep the original English explanation and learner example visible, and continue to label the suggested form as a review prompt rather than a guaranteed rewrite.
