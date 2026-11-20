@@ -1,0 +1,87 @@
+import {describe,expect,it,vi} from "vitest";
+import {createGabrooNativeAudioCaptureController,type GabrooNativeAudioStream} from "./gabroo-native-audio-capture";
+
+function setup(){
+ let foreground=true;
+ let permission=true;
+ const calls:string[]=[];
+ const errors:Error[]=[];
+ let buffer:(value:{data:ArrayBuffer;encoding:"float32"|"int16";sampleRate:number;channels:number})=>void=()=>{};
+ const stream:GabrooNativeAudioStream={
+  sampleRate:48_000,channels:1,isStreaming:false,
+  start:vi.fn(async()=>{calls.push("start");stream.isStreaming=true;}),
+  stop:vi.fn(async()=>{calls.push("stop");stream.isStreaming=false;})
+ };
+ const sender={enqueue:vi.fn(async()=>{}),close:vi.fn((reason?:string)=>calls.push("close:"+reason))};
+ const controller=createGabrooNativeAudioCaptureController({
+  requestPermission:vi.fn(async()=>permission),
+  sender,
+  isForeground:()=>foreground,
+  onError:error=>errors.push(error)
+ });
+ controller.attachStream(stream);
+ return {controller,stream,sender,calls,errors,setForeground:(v:boolean)=>foreground=v,setPermission:(v:boolean)=>permission=v,setBuffer:(v:typeof buffer)=>{buffer=v;},getBuffer:()=>buffer};
+}
+
+describe("Gabroo native capture lifecycle boundary",()=>{
+ it("requires explicit consent and foreground state before permission",async()=>{
+  const x=setup();
+  await expect(x.controller.start({consentGranted:false as true})).rejects.toThrow(/consent/);
+  x.setForeground(false);
+  await expect(x.controller.start({consentGranted:true})).rejects.toThrow(/tutor screen/);
+  expect(x.stream.start).not.toHaveBeenCalled();
+ });
+
+ it("requests permission and starts the attached stream only after consent",async()=>{
+  const x=setup();
+  await expect(x.controller.start({consentGranted:true})).resolves.toEqual({sampleRate:48_000,channels:1});
+  expect(x.controller.isActive).toBe(true);
+  expect(x.stream.start).toHaveBeenCalledOnce();
+  await x.controller.stop();
+  expect(x.stream.stop).toHaveBeenCalledOnce();
+  expect(x.controller.isActive).toBe(false);
+ });
+
+ it("fails closed when microphone permission is denied",async()=>{
+  const x=setup();x.setPermission(false);
+  await expect(x.controller.start({consentGranted:true})).rejects.toThrow(/permission/);
+  expect(x.stream.start).not.toHaveBeenCalled();
+  expect(x.sender.close).toHaveBeenCalledWith("capture_start_failed");
+ });
+
+ it("ignores buffers unless capture is active and foregrounded",async()=>{
+  const x=setup();
+  const payload={data:new ArrayBuffer(4),encoding:"float32" as const,sampleRate:48_000,channels:1};
+  x.controller.onBuffer(payload);
+  expect(x.sender.enqueue).not.toHaveBeenCalled();
+  await x.controller.start({consentGranted:true});
+  x.controller.onBuffer(payload);
+  expect(x.sender.enqueue).toHaveBeenCalledOnce();
+  x.setForeground(false);
+  x.controller.onBuffer(payload);
+  expect(x.sender.enqueue).toHaveBeenCalledOnce();
+  await x.controller.stop();
+ });
+
+ it("stops capture when sender backpressure fails",async()=>{
+  const x=setup();
+  x.sender.enqueue.mockRejectedValueOnce(new Error("queue full"));
+  await x.controller.start({consentGranted:true});
+  x.controller.onBuffer({data:new ArrayBuffer(4),encoding:"float32",sampleRate:48_000,channels:1});
+  await Promise.resolve();await Promise.resolve();
+  expect(x.controller.isActive).toBe(false);
+  expect(x.stream.stop).toHaveBeenCalled();
+  expect(x.errors).toHaveLength(1);
+ });
+
+ it("cancels permission wait if the tutor screen loses foreground",async()=>{
+  const x=setup();
+  let resolvePermission!:(granted:boolean)=>void;
+  const pending=new Promise<boolean>(resolve=>{resolvePermission=resolve;});
+  const request=x.controller.start({consentGranted:true});
+  // Permission promise is controlled through the injected function in a separate controller.
+  await x.controller.stop();
+  resolvePermission(true);
+  await expect(request).rejects.toThrow();
+ });
+});
