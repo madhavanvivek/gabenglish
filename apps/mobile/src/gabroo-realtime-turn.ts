@@ -99,7 +99,11 @@ export function createGabrooRealtimeTurnCoordinator(input:{
   const turnId=activeTurnId;
   const operation=++generation;
   if(state==="stopping"){
+   // Stop may be awaiting the native capture drain. Revoke the sender
+   // immediately so queued microphone frames cannot continue flowing while
+   // the native stop promise is unresolved.
    try{input.connection.interrupt(turnId);}catch(error){report(error);}
+   try{sender?.close("learner_interrupt");}catch(error){report(error);}
    return;
   }
   const currentCapture=capture;
