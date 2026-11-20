@@ -35,6 +35,23 @@ describe("Gabroo recognition service consent boundary",()=>{
   });
  });
 
+ it("forwards every learner-selected recognition mode unchanged",async()=>{
+  const transcribe=vi.fn(async (_input:Parameters<GabrooSpeechRecognitionProvider["transcribe"]>[0])=>transcript);
+  const provider:GabrooSpeechRecognitionProvider={transcribe};
+  for(const language of ["ml-en","ml-IN","en-IN"] as const){
+   await recognizeGabrooAudio({
+    audio,
+    metadata:{...metadata,language},
+    consentGranted:true,
+    provider
+   });
+  }
+  expect(transcribe).toHaveBeenCalledTimes(3);
+  expect(transcribe.mock.calls.map(([input])=>input.language)).toEqual([
+   "ml-en","ml-IN","en-IN"
+  ]);
+ });
+
  it("does not store or auto-confirm the provider transcript",async()=>{
   const provider:GabrooSpeechRecognitionProvider={transcribe:async()=>transcript};
   const result=await recognizeGabrooAudio({audio,metadata,consentGranted:true,provider});

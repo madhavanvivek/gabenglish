@@ -50,6 +50,12 @@ function buildPlacementReport(session:Session){
   response_count:session.evidence.length,
   extended_samples:session.evidence.filter(item=>item.sampleSize==="extended").length,
   brief_samples:session.evidence.filter(item=>item.sampleSize==="brief").length,
+  response_metrics:{
+   average_words_per_response:session.evidence.length?Math.round(session.evidence.reduce((sum,item)=>sum+item.metrics.wordCount,0)/session.evidence.length*10)/10:0,
+   average_unique_word_ratio:session.evidence.length?Math.round(session.evidence.reduce((sum,item)=>sum+item.metrics.uniqueWordRatio,0)/session.evidence.length*100)/100:0,
+   average_words_per_sentence:session.evidence.length?Math.round(session.evidence.reduce((sum,item)=>sum+item.metrics.averageWordsPerSentence,0)/session.evidence.length*10)/10:0
+  },
+  grammar_review_items:[...new Map(session.evidence.flatMap(item=>item.grammarObservations).map(item=>[item.category+"|"+item.example.toLowerCase(),item])).values()].slice(0,8).map(({supportNoteMl,...item})=>({...item,support_note_ml:supportNoteMl})),
   observed_patterns:patterns,
   limitations,
   next_steps:[
@@ -150,7 +156,7 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
   const next=selectNextPrompt(session,expected.id,incoming.response);
   const complete=!next;
   let result:Record<string,unknown>;
-  if(complete){const report=buildPlacementReport(session);const gabroo_explanation=buildGabrooExplanation(report);const evidence=session.evidence.map(item=>({prompt_id:item.promptId,source:item.source,observed_skills:item.observedSkills,observations:item.observations,sample_size:item.sampleSize,limitations:item.limitations,metrics:{word_count:item.metrics.wordCount,sentence_count:item.metrics.sentenceCount,connector_count:item.metrics.connectorCount,has_past_reference:item.metrics.hasPastReference,has_reasoning_marker:item.metrics.hasReasoningMarker}}));result={session_id:session.id,prompt_id:"complete",gabroo_message:"Thank you for sharing that with me. I have prepared a preliminary report from this conversation. It does not assign a learning stage yet.",difficulty_band:session.band,turn_number:session.turn+1,is_complete:true,evidence,report,gabroo_explanation};}
+  if(complete){const report=buildPlacementReport(session);const gabroo_explanation=buildGabrooExplanation(report);const evidence=session.evidence.map(item=>({prompt_id:item.promptId,source:item.source,observed_skills:item.observedSkills,observations:item.observations,grammar_observations:item.grammarObservations.map(({supportNoteMl,...grammar})=>({...grammar,support_note_ml:supportNoteMl})),sample_size:item.sampleSize,limitations:item.limitations,metrics:{word_count:item.metrics.wordCount,unique_word_count:item.metrics.uniqueWordCount,unique_word_ratio:item.metrics.uniqueWordRatio,average_words_per_sentence:item.metrics.averageWordsPerSentence,sentence_count:item.metrics.sentenceCount,connector_count:item.metrics.connectorCount,has_past_reference:item.metrics.hasPastReference,has_reasoning_marker:item.metrics.hasReasoningMarker}}));result={session_id:session.id,prompt_id:"complete",gabroo_message:"Thank you for sharing that with me. I have prepared a preliminary report from this conversation. It does not assign a learning stage yet.",difficulty_band:session.band,turn_number:session.turn+1,is_complete:true,evidence,report,gabroo_explanation};}
   else {const selected=next!;session.currentPromptId=selected.id;session.band=selected.band;result={session_id:session.id,prompt_id:selected.id,gabroo_message:selected.text,difficulty_band:selected.band,turn_number:session.turn+1,is_complete:false};}
   session.lastTurn={prompt_id:incoming.prompt_id,response:incoming.response,response_mode:incoming.response_mode,result};
   const saved=await saveSession(session);

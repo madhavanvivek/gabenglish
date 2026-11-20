@@ -19,7 +19,7 @@ Gabenglish teaches practical English, not memorisation alone. It should help lea
 ## 2. Gabroo character and behaviour
 
 ### Personality direction
-- Male voice direction.
+- Voice identity and exact voice remain unapproved; candidate auditions must be benchmarked before selection.
 - Funny, energetic, friendly, talkative and witty.
 - Natural Kerala Malayalam and understandable code-switching.
 - Gentle, situational teasing may be used when welcomed; never insult, humiliate, shame or discourage.
@@ -34,7 +34,7 @@ Gabenglish teaches practical English, not memorisation alone. It should help lea
 - Offer changeable communication styles: Friendly and respectful (default), Casual and conversational, Playful and energetic, Calm and professional.
 - Children receive age-appropriate, safe communication; teenagers are not forced into slang; adults and older adults are treated respectfully without patronising assumptions.
 
-See `docs/brand/GABROO_CHARACTER_GUIDE.md` and `docs/brand/GABROO_COMMUNICATION_POLICY.md`. The learner-supplied Gabroo character artwork is the approved identity reference. The Version 2 Gabenglish logo treatment is approved as the visual direction (17 November 2026); this approves the logo composition and brand presentation, not a change to Gabroo’s canonical facial identity. A production-ready character model sheet and vector logo assets still need to be prepared and reviewed. Generated concept renders are not production assets.
+See `docs/brand/GABROO_CHARACTER_GUIDE.md` and `docs/brand/GABROO_COMMUNICATION_POLICY.md`. Gabroo's final character identity and production 3D avatar have **not** been approved. Any supplied artwork or generated concept is exploratory reference material only until the owner explicitly selects and approves a canonical character direction and its production model. The Version 2 Gabenglish logo treatment is approved as the visual direction (17 November 2026); logo approval does not approve a Gabroo face, character concept, 3D model or avatar. A production-ready character model sheet and vector logo assets still need to be prepared and reviewed. Generated concept renders are not production assets.
 
 ## 3. Learning stages and progression
 
@@ -89,11 +89,11 @@ Distinguish grammatical errors, unnatural-but-valid phrasing, vocabulary/word-ch
 
 Malayalam learner-facing content must be reviewed by a fluent Kerala Malayalam educator/editor. English content must be checked for grammar, naturalness, register and accepted alternatives. Audio, cultural appropriateness and age suitability must be reviewed before publication.
 
-## 6A. Approved Gabroo identity lock (binding)
+## 6A. Gabroo visual identity selection and approval gate
 
-Gabroo must remain exactly the owner-approved **Concept C — Signature Gabroo** from **Gabenglish Branding Kit Version 2**. The approved artwork is the single canonical visual source across registration, onboarding, placement, lessons, live conversations, progress, notifications and marketing. No redesign, regeneration, substitution, character mixing, alternate face/outfit or vendor-provided avatar is permitted. Only faithful technical extensions of the same approved character (3D reconstruction, rigging, expressions, visemes and gestures) are allowed, with owner review of the 3D model against the master before animation production.
+No Gabroo character concept, face, outfit or production 3D avatar has been approved yet. The visual direction is an open selection task. Prepare multiple clearly differentiated concepts for owner review, then develop the selected direction into a production model sheet and 3D model. Do not describe any existing concept, artwork or model as canonical or approved before explicit owner sign-off. After selection, preserve the approved identity consistently across registration, onboarding, placement, lessons, live conversations, progress, notifications and marketing. Obtain owner approval of the 3D model before rigging and animation production.
 
-The binding source of truth is `docs/brand/GABROO_LIVE_CHARACTER_IDENTITY_LOCK.md`; the detailed appearance guide is `docs/brand/GABROO_CHARACTER_GUIDE.md`. The approved master artwork still needs to be imported into the repository with a provenance manifest and checksum. Do not invent a checksum or treat a storyboard/render as the approved source asset. Production model, rig, animation and visual regression remain pending.
+The selection and approval process is defined in `docs/brand/GABROO_LIVE_CHARACTER_IDENTITY_LOCK.md`; the character guide is exploratory and must not be treated as an approved identity. Once a concept and model are approved, import the exact approved master asset into the repository with provenance and checksum. Do not invent a checksum or treat a storyboard/render as an approved source asset. Character selection, production model, rig, animation and visual regression remain pending.
 
 ## 6. Speech, AI and character technology
 
@@ -190,7 +190,7 @@ Current repository structure includes `apps/mobile`, `apps/api`, `packages/contr
 - Login throttling is stored in PostgreSQL using keyed email/IP digests, without retaining raw email/IP values in the attempt log.
 - Mobile placement flow now provides an explicit restart action when a server session expires or is no longer available.
 - Shared Zod contracts now cover learner registration, login, refresh, profile, preferences, consent and token response shapes.
-- Gabroo's Concept C identity direction and respectful communication/address policy are documented.
+- Gabroo's Gabroo personality and respectful communication/address policy are documented; final visual identity and 3D avatar are not approved.
 
 ### Latest validation checkpoint
 The placement-selector correction passed workflow run 43859020856. The mobile expired-session recovery and API placement work then passed workflow run 43859171656 (API typecheck, API tests, shared-contract typecheck and mobile typecheck). The optimistic-concurrency implementation and regression test passed workflow run 43859779934: API typecheck, all 21 API tests, shared-contract typecheck and mobile typecheck. The real PostgreSQL 16 integration suite passed workflow run 43861505662: CI applied migrations 0001 and 0002, then verified session persistence across API restarts, concurrent response handling and expiry. The learner account lifecycle, session-bound access-token revocation and mobile account screen passed workflow run 43863689708: all 27 API tests passed across five files, including PostgreSQL migration checks, registration, scrypt password storage, login throttling, profile/preferences, consent, refresh rotation, immediate access-token invalidation on refresh/logout and account disablement; API typecheck, shared-contract typecheck and mobile typecheck also passed. A second run 43863698242 also passed. No production deployment has been performed.

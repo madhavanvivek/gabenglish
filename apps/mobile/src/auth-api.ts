@@ -1,6 +1,7 @@
 import type {LearnerLessonContent} from "@gabenglish/contracts";
 import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system";
+import {readGabrooAudioBytes} from "./gabroo-audio-response";
 import {authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
 
 const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
@@ -90,10 +91,10 @@ export async function loginLearner(input:{email:string;password:string}){
  const tokens=await saveTokens(payload);
  return {tokens,email_verified:Boolean(payload.email_verified)};
 }
-async function authorized(path:string,method:"GET"|"POST"|"PATCH"|"DELETE",body?:unknown):Promise<unknown>{
+async function authorized(path:string,method:"GET"|"POST"|"PATCH"|"DELETE",body?:unknown,signal?:AbortSignal,extraHeaders:Record<string,string>={}):Promise<unknown>{
  let access=await SecureStore.getItemAsync(ACCESS_KEY);
  if(!access){await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);}
- const send=()=>fetch(baseUrl()+path,{method,headers:{"content-type":"application/json",accept:"application/json",authorization:"Bearer "+access},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ const send=()=>fetch(baseUrl()+path,{method,headers:{"content-type":"application/json",accept:"application/json",authorization:"Bearer "+access,...extraHeaders},...(body===undefined?{}:{body:JSON.stringify(body)}),...(signal?{signal}:{})});
  let response=await send();
  if(response.status===401){
   await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);response=await send();
@@ -103,7 +104,7 @@ async function authorized(path:string,method:"GET"|"POST"|"PATCH"|"DELETE",body?
 export async function getLearnerMe(){return await authorized("/api/v1/auth/me","GET") as LearnerMe;}
 export type SavedFreeDiagnosticReport={
  report_id:string;
- report:{status:string;recommendation_status:string;assessment_mode:string;response_count:number;extended_samples:number;brief_samples:number;observed_patterns:string[];limitations:string[];next_steps:string[]};
+ report:{status:string;recommendation_status:string;assessment_mode:string;response_count:number;extended_samples:number;brief_samples:number;response_metrics:{average_words_per_response:number;average_unique_word_ratio:number;average_words_per_sentence:number};grammar_review_items?:{category:"subject_verb_agreement"|"verb_form"|"past_tense_form";example:string;note:string;support_note_ml:string;suggestion:string}[];observed_patterns:string[];limitations:string[];next_steps:string[]};
  gabroo_explanation:string;assessment_mode:string;created_at:string;access:"free";
 };
 export async function getLatestFreeDiagnosticReport(){
@@ -119,6 +120,27 @@ export async function logoutLearner(){
  const refresh=await SecureStore.getItemAsync(REFRESH_KEY);
  try{if(refresh)await post("/api/v1/auth/logout",{refresh_token:refresh});}
  finally{await clearTokens();}
+}
+
+export type GabrooRealtimeSessionTicket={
+ session_id:string;
+ connection_ticket:string;
+ expires_at:string;
+ expires_in_seconds:number;
+ single_use:true;
+ transport:"websocket_handshake_pending";
+};
+
+/** Prepare a one-use realtime connection capability only after explicit learner consent. */
+export async function createGabrooRealtimeSessionTicket(consentGranted:true):Promise<GabrooRealtimeSessionTicket>{
+ if(consentGranted!==true)throw new AuthApiError("Explicit consent is required before starting a Gabroo realtime session.");
+ const payload=await authorized("/api/v1/gabroo/realtime/session-ticket","POST",undefined,undefined,{"x-gabroo-consent":"true"});
+ if(typeof payload!=="object"||payload===null)throw new AuthApiError("The realtime session service returned an invalid response.");
+ const value=payload as Record<string,unknown>;
+ if(typeof value.session_id!=="string"||typeof value.connection_ticket!=="string"||!/^[0-9a-f]{64}$/.test(value.connection_ticket)||typeof value.expires_at!=="string"||value.single_use!==true||value.transport!=="websocket_handshake_pending"||typeof value.expires_in_seconds!=="number"){
+  throw new AuthApiError("The realtime session service returned an invalid ticket.");
+ }
+ return value as GabrooRealtimeSessionTicket;
 }
 
 export type GabrooConversationMode="free_flow"|"gentle_correction"|"detailed_correction"|"topic_practice"|"role_play"|"vocabulary_building"|"confidence_practice";
@@ -178,6 +200,49 @@ export async function recognizeGabrooAudio(input:{
  }
 }
 
+
+/**
+ * Request a short-lived, private MP3 playback file from the configured Gabroo
+ * voice provider. Audio is written to the app cache, never persisted as learner
+ * content, and callers must delete it after playback or interruption.
+ */
+/**
+ * Create a short-lived one-time playback capability. The app passes the
+ * returned URL directly to Expo AV so native networking fetches the MP3;
+ * learner text is sent only in the authenticated POST body, never in a URL.
+ */
+export async function synthesizeGabrooSpeech(input:{text:string;speed:number;signal?:AbortSignal}):Promise<string>{
+ const text=input.text.trim();
+ if(!text||text.length>4_000)throw new AuthApiError("Gabroo speech must contain between 1 and 4000 characters.");
+ if(!Number.isFinite(input.speed)||input.speed<0.75||input.speed>1.5)throw new AuthApiError("Gabroo speaking speed must be between 0.75× and 1.5×.");
+ if(input.signal?.aborted)throw new AuthApiError("Gabroo speech request was cancelled.");
+ const controller=new AbortController();
+ let timedOut=false;
+ const abortFromCaller=()=>controller.abort();
+ input.signal?.addEventListener("abort",abortFromCaller,{once:true});
+ const timeout=setTimeout(()=>{timedOut=true;controller.abort();},15_000);
+ try{
+  const payload=await authorized("/api/v1/gabroo/speech/playback-ticket","POST",{text,speed:input.speed},controller.signal) as unknown;
+  if(input.signal?.aborted)throw new AuthApiError("Gabroo speech request was cancelled.");
+  if(typeof payload!=="object"||payload===null||!("playback_url" in payload)||typeof payload.playback_url!=="string"||!("method" in payload)||payload.method!=="GET")
+   throw new AuthApiError("Gabroo returned an invalid native playback ticket.");
+  if(!/^\/api\/v1\/gabroo\/speech\/playback\/[0-9a-f]{64}$/.test(payload.playback_url))
+   throw new AuthApiError("Gabroo returned an unsafe playback address.");
+  if(!("expires_at" in payload)||typeof payload.expires_at!=="string"||!Number.isFinite(Date.parse(payload.expires_at))||Date.parse(payload.expires_at)<=Date.now())
+   throw new AuthApiError("Gabroo returned an expired playback ticket.");
+  return new URL(payload.playback_url,baseUrl()+"/").toString();
+ }catch(error){
+  if(input.signal?.aborted)throw new AuthApiError("Gabroo speech request was cancelled.");
+  if(timedOut)throw new AuthApiError("Gabroo took too long to prepare this speech. Please try again.");
+  if(error instanceof AuthApiError)throw error;
+  if(error instanceof Error&&error.name==="AbortError")throw new AuthApiError("Gabroo speech request was interrupted.");
+  throw new AuthApiError("Could not prepare Gabroo audio. Check your connection and try again.");
+ }finally{
+  clearTimeout(timeout);
+  input.signal?.removeEventListener("abort",abortFromCaller);
+ }
+}
+
 export type {GabrooRecognitionStatus};
 export async function getGabrooRecognitionStatus(){
  const payload=await authorized("/api/v1/gabroo/recognition/status","GET");
@@ -187,13 +252,23 @@ export async function getGabrooRecognitionStatus(){
 }
 
 export async function getSubscriptionStatus(){return await authorized("/api/v1/subscriptions/current","GET") as SubscriptionStatus;}
+
+export {parseGabrooSpeechStatus} from "./gabroo-speech-status";
+import {parseGabrooSpeechStatus as validateGabrooSpeechStatus} from "./gabroo-speech-status";
+import type {GabrooSpeechStatus} from "./gabroo-speech-status";
+export type {GabrooSpeechStatus} from "./gabroo-speech-status";
+export async function getGabrooSpeechStatus(){
+ const payload=await authorized("/api/v1/gabroo/speech/status","GET");
+ try{return validateGabrooSpeechStatus(payload);}
+ catch{throw new AuthApiError("Gabroo speech availability returned an invalid response.");}
+}
 export async function listGabrooConversations(){return await authorized("/api/v1/gabroo/conversations","GET") as {conversations:GabrooConversation[]};}
 export async function getGabrooConversation(id:string){return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id),"GET") as {conversation:GabrooConversation;messages:GabrooConversationMessage[]};}
 export async function createGabrooConversation(input:{mode?:GabrooConversationMode;support_language?:"ml"|"en";title?:string}={}){
  return await authorized("/api/v1/gabroo/conversations","POST",input) as {conversation:GabrooConversation};
 }
-export async function sendGabrooMessage(id:string,message:string){
- return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id)+"/messages","POST",{message}) as {messages:GabrooConversationMessage[]};
+export async function sendGabrooMessage(id:string,message:string,signal?:AbortSignal){
+ return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id)+"/messages","POST",{message},signal) as {messages:GabrooConversationMessage[]};
 }
 export async function deleteGabrooConversation(id:string){
  await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id),"DELETE");
@@ -212,6 +287,50 @@ export async function updateGabrooMemory(id:string,input:{category?:GabrooMemory
 export async function deleteGabrooMemory(id:string){await authorized("/api/v1/gabroo/memory/"+encodeURIComponent(id),"DELETE");}
 
 export async function clearGabrooMemory(){return await authorized("/api/v1/gabroo/memory","DELETE") as {deleted_count:number};}
+
+export type GabrooReviewRating="again"|"hard"|"good"|"easy";
+export type GabrooVocabularyReviewSchedule={interval_days:number;ease_factor:number;review_count:number;next_review_at:string;rating:GabrooReviewRating};
+export type GabrooVocabularyStatus="learning"|"familiar"|"mastered";
+export type GabrooVocabularyItem={
+ id:string;source_saved_phrase_id:string;term:string;malayalam_meaning:string;example_sentence:string;
+ learning_direction:"ml_to_en"|"en_to_ml";status:GabrooVocabularyStatus;review_due_at:string;last_reviewed_at:string|null;review_count:number;interval_days:number|string;ease_factor:number|string;last_review_rating:GabrooReviewRating|null;created_at:string;updated_at:string;
+};
+export async function listGabrooVocabulary(){
+ return await authorized("/api/v1/gabroo/vocabulary","GET") as {vocabulary:GabrooVocabularyItem[];privacy:{owner_only:boolean;editable:boolean;deletable:boolean;explicitly_saved_only:boolean}};
+}
+export async function createGabrooVocabulary(input:{source_saved_phrase_id:string;term:string;malayalam_meaning:string;example_sentence?:string;learning_direction?:"ml_to_en"|"en_to_ml"}){
+ return await authorized("/api/v1/gabroo/vocabulary","POST",input) as {vocabulary:GabrooVocabularyItem};
+}
+export async function updateGabrooVocabulary(id:string,input:{term?:string;malayalam_meaning?:string;example_sentence?:string;status?:GabrooVocabularyStatus}){
+ return await authorized("/api/v1/gabroo/vocabulary/"+encodeURIComponent(id),"PATCH",input) as {vocabulary:GabrooVocabularyItem};
+}
+export async function deleteGabrooVocabulary(id:string){
+ await authorized("/api/v1/gabroo/vocabulary/"+encodeURIComponent(id),"DELETE");
+}
+export type GabrooVocabularyProgress={
+ total:number;learning:number;familiar:number;mastered:number;due_now:number;total_reviews:number;
+ recently_reviewed:number;needs_attention:number;window_days:7;
+};
+export async function getGabrooVocabularyProgress(){
+ return await authorized("/api/v1/gabroo/vocabulary/progress","GET") as {progress:GabrooVocabularyProgress};
+}
+export async function getGabrooVocabularyDue(){
+ return await authorized("/api/v1/gabroo/vocabulary/review-due","GET") as {items:GabrooVocabularyItem[];reviewed_due_count:number};
+}
+export async function reviewGabrooVocabulary(id:string,rating:GabrooReviewRating){
+ return await authorized("/api/v1/gabroo/vocabulary/"+encodeURIComponent(id)+"/review","POST",{rating}) as {vocabulary:GabrooVocabularyItem;schedule:GabrooVocabularyReviewSchedule};
+}
+
+export type GabrooSpeakingProgressPeriod={
+ sessions:number;learner_turns:number;learner_words:number;average_words_per_turn:number;
+};
+export type GabrooSpeakingProgress={
+ window_days:7;current:GabrooSpeakingProgressPeriod;previous:GabrooSpeakingProgressPeriod;
+ interpretation:string;
+};
+export async function getGabrooSpeakingProgress(){
+ return await authorized("/api/v1/gabroo/speaking-progress","GET") as GabrooSpeakingProgress;
+}
 
 export type PublishedLearningLesson={
  id:string;slug:string|null;title:string;version_id:string;version:number|null;

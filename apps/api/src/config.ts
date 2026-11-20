@@ -5,10 +5,28 @@ const schema=z.object({
  PORT:z.coerce.number().int().min(1).max(65535).default(4000),
  DATABASE_URL:z.string().url().optional(),
  AUTH_TOKEN_SECRET:z.string().min(32).default("gabenglish-local-development-secret-change-before-deploy"),
- CORS_ORIGINS:z.string().default("http://localhost:8081,http://localhost:19006")
+ CORS_ORIGINS:z.string().default("http://localhost:8081,http://localhost:19006"),
+ GABROO_LLM_API_KEY:z.string().optional(),
+ GABROO_LLM_BASE_URL:z.string().url().default("https://api.openai.com/v1"),
+ GABROO_LLM_MODEL:z.string().optional(),
+ GABROO_STT_MODEL:z.string().default("whisper-1"),
+ GABROO_TTS_MODEL:z.string().optional(),
+ GABROO_TTS_VOICE:z.string().optional()
 }).superRefine((value,ctx)=>{
  if(value.NODE_ENV==="production"&&value.AUTH_TOKEN_SECRET==="gabenglish-local-development-secret-change-before-deploy"){
   ctx.addIssue({code:"custom",path:["AUTH_TOKEN_SECRET"],message:"AUTH_TOKEN_SECRET must be replaced before production."});
+ }
+ if(value.NODE_ENV==="production"&&new URL(value.GABROO_LLM_BASE_URL).protocol!=="https:"){
+  ctx.addIssue({code:"custom",path:["GABROO_LLM_BASE_URL"],message:"Gabroo provider endpoints must use HTTPS in production."});
+ }
+ if(Boolean(value.GABROO_TTS_MODEL)!==Boolean(value.GABROO_TTS_VOICE)){
+  ctx.addIssue({code:"custom",path:["GABROO_TTS_VOICE"],message:"GABROO_TTS_MODEL and GABROO_TTS_VOICE must be configured together."});
+ }
+ if(Boolean(value.GABROO_TTS_MODEL)&&!value.GABROO_LLM_API_KEY){
+  ctx.addIssue({code:"custom",path:["GABROO_LLM_API_KEY"],message:"GABROO_LLM_API_KEY is required when Gabroo speech synthesis is configured."});
+ }
+ if(Boolean(value.GABROO_LLM_API_KEY)!==Boolean(value.GABROO_LLM_MODEL)){
+  ctx.addIssue({code:"custom",path:["GABROO_LLM_MODEL"],message:"GABROO_LLM_API_KEY and GABROO_LLM_MODEL must be configured together."});
  }
 });
 export function loadConfig(source:NodeJS.ProcessEnv=process.env){

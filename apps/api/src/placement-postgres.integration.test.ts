@@ -3,7 +3,7 @@ import {Pool} from "pg";
 import {mkdtemp,rm,writeFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
-import {randomUUID,scryptSync} from "node:crypto";
+import {randomBytes,randomUUID,scryptSync} from "node:crypto";
 import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
 import {runMigrations} from "./migrate.js";
@@ -39,7 +39,70 @@ integration("PostgreSQL placement session integration",()=>{
   if(!pool||!migrationApplied)return;
   await runMigrations(pool);
   const result=await pool.query<{version:string}>("SELECT version FROM schema_migrations ORDER BY version");
-  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql","0011_learning_direction.sql","0012_gabroo_conversation_direction.sql","0013_directional_diagnostic_reports.sql","0014_direction_aware_curriculum_progress.sql","0015_learner_exercise_attempts.sql","0016_subscription_offer_pricing.sql","0017_subscription_checkout_quotes.sql","0018_admin_subscription_controls.sql","0019_admin_session_idle_timeout.sql"]);
+  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql","0011_learning_direction.sql","0012_gabroo_conversation_direction.sql","0013_directional_diagnostic_reports.sql","0014_direction_aware_curriculum_progress.sql","0015_learner_exercise_attempts.sql","0016_subscription_offer_pricing.sql","0017_subscription_checkout_quotes.sql","0018_admin_subscription_controls.sql","0019_admin_session_idle_timeout.sql","0020_gabroo_speech_playback_tickets.sql","0021_one_active_gabroo_playback_ticket.sql","0022_gabroo_playback_ticket_expiry_index.sql","0023_gabroo_vocabulary.sql","0024_gabroo_vocabulary_review_schedule.sql","0025_gabroo_realtime_session_tickets.sql"]);
+ });
+
+ it("enforces one unconsumed Gabroo playback ticket per learner",async()=>{
+  if(!pool||!migrationApplied)return;
+  const index=await pool.query<{indexdef:string}>(
+   "SELECT indexdef FROM pg_indexes WHERE indexname='gabroo_speech_playback_tickets_one_unconsumed_per_user_idx'"
+  );
+  expect(index.rows[0]?.indexdef).toContain("UNIQUE");
+  expect(index.rows[0]?.indexdef).toContain("WHERE (consumed_at IS NULL)");
+ });
+
+ it("indexes playback ticket expiry for bounded cleanup",async()=>{
+  if(!pool||!migrationApplied)return;
+  const index=await pool.query<{indexdef:string}>(
+   "SELECT indexdef FROM pg_indexes WHERE indexname='gabroo_speech_playback_tickets_expires_at_idx'"
+  );
+  expect(index.rows[0]?.indexdef).toContain("(expires_at)");
+ });
+
+ it("serializes concurrent playback-ticket issuance for one learner in PostgreSQL",async()=>{
+  if(!pool||!migrationApplied)return;
+  const email="gabroo-ticket-race-"+randomUUID()+"@example.test";
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  let userId:string|undefined;
+  try{
+   await createVerifiedTestSession(app,email,pool);
+   const user=await pool.query<{id:string}>("SELECT id FROM users WHERE email=$1",[email]);
+   userId=user.rows[0]?.id;
+   if(!userId)throw new Error("Concurrent ticket test learner was not created");
+   const issue=async(text:string)=>{
+    const client=await pool!.connect();
+    const digest=randomBytes(32).toString("hex");
+    try{
+     await client.query("BEGIN");
+     await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))",[userId]);
+     await client.query("UPDATE gabroo_speech_playback_tickets SET consumed_at=now() WHERE user_id=$1 AND consumed_at IS NULL",[userId]);
+     await client.query(
+      "INSERT INTO gabroo_speech_playback_tickets(token_digest,user_id,speech_text,speech_speed,expires_at) VALUES($1,$2,$3,$4,now()+interval '60 seconds')",
+      [digest,userId,text,1]
+     );
+     await client.query("COMMIT");
+     return digest;
+    }catch(error){
+     await client.query("ROLLBACK");
+     throw error;
+    }finally{client.release();}
+   };
+   const digests=await Promise.all([issue("First concurrent reply"),issue("Second concurrent reply")]);
+   const result=await pool.query<{total:string;active:string;consumed:string}>(
+    "SELECT count(*)::text AS total,count(*) FILTER(WHERE consumed_at IS NULL)::text AS active,count(*) FILTER(WHERE consumed_at IS NOT NULL)::text AS consumed FROM gabroo_speech_playback_tickets WHERE user_id=$1 AND token_digest=ANY($2::char(64)[])",
+    [userId,digests]
+   );
+   expect(result.rows[0]).toEqual({total:"2",active:"1",consumed:"1"});
+   const active=await pool.query<{speech_text:string}>(
+    "SELECT speech_text FROM gabroo_speech_playback_tickets WHERE user_id=$1 AND token_digest=ANY($2::char(64)[]) AND consumed_at IS NULL",
+    [userId,digests]
+   );
+   expect(active.rows).toHaveLength(1);
+   expect(["First concurrent reply","Second concurrent reply"]).toContain(active.rows[0]?.speech_text);
+  }finally{
+   if(userId)await pool.query("DELETE FROM users WHERE id=$1",[userId]);
+   await app.close();
+  }
  });
 
  it("authenticates Superadmins, manages offer windows, audits changes and revokes admin sessions",async()=>{
@@ -337,10 +400,32 @@ integration("PostgreSQL placement session integration",()=>{
    expect(sent.statusCode).toBe(200);
    expect(sent.json().messages).toHaveLength(2);
    expect(sent.json().messages.map((message:{role:string})=>message.role)).toEqual(["user","assistant"]);
+   const speakingProgress=await app.inject({method:"GET",url:"/api/v1/gabroo/speaking-progress",headers});
+   expect(speakingProgress.statusCode).toBe(200);
+   expect(speakingProgress.json()).toMatchObject({
+    window_days:7,
+    current:{sessions:1,learner_turns:1,learner_words:6,average_words_per_turn:6},
+    previous:{sessions:0,learner_turns:0,learner_words:0,average_words_per_turn:0}
+   });
+   expect(speakingProgress.json().interpretation).toContain("not an English proficiency");
+   const otherSpeakingProgress=await app.inject({method:"GET",url:"/api/v1/gabroo/speaking-progress",headers:{authorization:"Bearer "+otherToken}});
+   expect(otherSpeakingProgress.statusCode).toBe(403);
    expect(providerCalls).toBe(1);expect(receivedMode).toBe("free_flow");
    expect(receivedPolicy?.learnerContext).toEqual({preferredName:"Anu K",learningGoal:"Speak confidently at work",profileCorrectionPreference:"detailed"});
    expect(receivedPolicy?.stageGuidance).toContain("not yet available");
    expect(receivedPolicy?.learnerMemory).toEqual([{category:"saved_phrase",memoryKey:"Useful phrase",content:"Could you please clarify?"}]);
+
+   // A partially provisioned profile must not prevent Gabroo from replying.
+   await pool.query("DELETE FROM user_preferences WHERE user_id=$1",[userId]);
+   const fallbackConversation=await app.inject({method:"POST",url:"/api/v1/gabroo/conversations",headers,payload:{}});
+   expect(fallbackConversation.statusCode).toBe(201);
+   const fallbackId=fallbackConversation.json().conversation.id as string;
+   const fallbackReply=await app.inject({method:"POST",url:"/api/v1/gabroo/conversations/"+fallbackId+"/messages",headers,payload:{message:"I would like to practise English."}});
+   expect(fallbackReply.statusCode).toBe(200);
+   expect(receivedPolicy?.learnerContext).toEqual({preferredName:"Anu K",profileCorrectionPreference:"balanced"});
+   expect(receivedPolicy?.stageGuidance).toContain("not yet available");
+   await pool.query("DELETE FROM gabroo_conversations WHERE id=$1",[fallbackId]);
+
    const read=await app.inject({method:"GET",url:"/api/v1/gabroo/conversations/"+conversationId,headers});
    expect(read.statusCode).toBe(200);
    expect(read.json().messages).toHaveLength(2);
@@ -658,4 +743,50 @@ integration("PostgreSQL placement session integration",()=>{
   expect(response.json().error.code).toBe("SESSION_EXPIRED");
   await app.close();
  });
+
+ it("keeps vocabulary learner-owned and only creates it from an explicitly saved Gabroo phrase",async()=>{
+  if(!pool||!migrationApplied)return;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const firstEmail="vocabulary-owner-"+randomUUID()+"@example.test";
+  const secondEmail="vocabulary-other-"+randomUUID()+"@example.test";
+  try{
+   const firstToken=await createVerifiedTestSession(app,firstEmail,pool);
+   const secondToken=await createVerifiedTestSession(app,secondEmail,pool);
+   const firstHeaders={authorization:"Bearer "+firstToken};
+   const secondHeaders={authorization:"Bearer "+secondToken};
+   const saved=await app.inject({method:"POST",url:"/api/v1/gabroo/memory",headers:firstHeaders,payload:{category:"saved_phrase",memory_key:"make up your mind",content:"You should make up your mind before Friday."}});
+   expect(saved.statusCode).toBe(201);
+   const phraseId=saved.json().memory.id as string;
+   const created=await app.inject({method:"POST",url:"/api/v1/gabroo/vocabulary",headers:firstHeaders,payload:{source_saved_phrase_id:phraseId,term:"make up your mind",malayalam_meaning:"ഒരു തീരുമാനം എടുക്കുക",example_sentence:"I need to make up my mind.",learning_direction:"ml_to_en"}});
+   expect(created.statusCode).toBe(201);
+   expect(created.json().vocabulary).toMatchObject({source_saved_phrase_id:phraseId,status:"learning",learning_direction:"ml_to_en"});
+   const duplicate=await app.inject({method:"POST",url:"/api/v1/gabroo/vocabulary",headers:firstHeaders,payload:{source_saved_phrase_id:phraseId,term:"make up your mind",malayalam_meaning:"തീരുമാനിക്കുക"}});
+   expect(duplicate.statusCode).toBe(409);
+   const vocabularyId=created.json().vocabulary.id as string;
+   const otherProgress=await app.inject({method:"GET",url:"/api/v1/gabroo/vocabulary/progress",headers:secondHeaders});
+   expect(otherProgress.statusCode).toBe(200);
+   expect(otherProgress.json().progress).toMatchObject({total:0,learning:0,familiar:0,mastered:0,total_reviews:0});
+   const reviewed=await app.inject({method:"POST",url:"/api/v1/gabroo/vocabulary/"+vocabularyId+"/review",headers:firstHeaders,payload:{rating:"again"}});
+   expect(reviewed.statusCode).toBe(200);
+   const progress=await app.inject({method:"GET",url:"/api/v1/gabroo/vocabulary/progress",headers:firstHeaders});
+   expect(progress.statusCode).toBe(200);
+   expect(progress.json().progress).toMatchObject({total:1,learning:1,familiar:0,mastered:0,total_reviews:1,recently_reviewed:1,needs_attention:1,window_days:7});
+   const otherList=await app.inject({method:"GET",url:"/api/v1/gabroo/vocabulary",headers:secondHeaders});
+   expect(otherList.statusCode).toBe(200);
+   expect(otherList.json().vocabulary).toHaveLength(0);
+   const crossAccount=await app.inject({method:"PATCH",url:"/api/v1/gabroo/vocabulary/"+vocabularyId,headers:secondHeaders,payload:{status:"mastered"}});
+   expect(crossAccount.statusCode).toBe(404);
+   const updated=await app.inject({method:"PATCH",url:"/api/v1/gabroo/vocabulary/"+vocabularyId,headers:firstHeaders,payload:{status:"mastered"}});
+   expect(updated.statusCode).toBe(200);
+   expect(updated.json().vocabulary.status).toBe("mastered");
+   const deleted=await app.inject({method:"DELETE",url:"/api/v1/gabroo/vocabulary/"+vocabularyId,headers:firstHeaders});
+   expect(deleted.statusCode).toBe(204);
+   const remaining=await app.inject({method:"GET",url:"/api/v1/gabroo/vocabulary",headers:firstHeaders});
+   expect(remaining.json().vocabulary).toHaveLength(0);
+  }finally{
+   await pool.query("DELETE FROM users WHERE email_normalized=ANY($1::text[])",[[firstEmail,secondEmail]]);
+   await app.close();
+  }
+ });
+
 });

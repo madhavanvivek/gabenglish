@@ -11,9 +11,10 @@ export const placementEvidenceSchema=z.object({
   source:z.enum(["text","voice_transcript"]),
   observed_skills:z.array(placementSkillSchema).max(0),
   observations:z.array(z.string()),
+  grammar_observations:z.array(z.object({category:z.enum(["subject_verb_agreement","verb_form","past_tense_form"]),example:z.string(),note:z.string(),support_note_ml:z.string(),suggestion:z.string()})).max(3),
   sample_size:z.enum(["brief","extended"]),
   limitations:z.array(z.string()),
-  metrics:z.object({word_count:z.number().int().nonnegative(),sentence_count:z.number().int().nonnegative(),connector_count:z.number().int().nonnegative(),has_past_reference:z.boolean(),has_reasoning_marker:z.boolean()})
+  metrics:z.object({word_count:z.number().int().nonnegative(),unique_word_count:z.number().int().nonnegative(),unique_word_ratio:z.number().min(0).max(1),average_words_per_sentence:z.number().nonnegative(),sentence_count:z.number().int().nonnegative(),connector_count:z.number().int().nonnegative(),has_past_reference:z.boolean(),has_reasoning_marker:z.boolean()})
 });
 export const placementSkillFindingSchema=z.object({skill:placementSkillSchema,finding:z.string(),confidence:z.enum(["low","medium","high"]),evidence:z.array(z.string())});
 export const placementReportSchema=z.object({
@@ -23,6 +24,8 @@ export const placementReportSchema=z.object({
   response_count:z.number().int().nonnegative(),
   extended_samples:z.number().int().nonnegative(),
   brief_samples:z.number().int().nonnegative(),
+  response_metrics:z.object({average_words_per_response:z.number().nonnegative(),average_unique_word_ratio:z.number().min(0).max(1),average_words_per_sentence:z.number().nonnegative()}),
+  grammar_review_items:z.array(z.object({category:z.enum(["subject_verb_agreement","verb_form","past_tense_form"]),example:z.string(),note:z.string(),support_note_ml:z.string(),suggestion:z.string()})).max(8),
   observed_patterns:z.array(z.string()),
   limitations:z.array(z.string()),
   next_steps:z.array(z.string())

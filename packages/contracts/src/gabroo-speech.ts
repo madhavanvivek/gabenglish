@@ -146,6 +146,37 @@ export function splitGabrooSpeechText(input:string):GabrooSpeechSegment[]{
 }
 
 
+/**
+ * Bound synthesis request size and split at sentence boundaries where possible.
+ * Punctuation and whitespace remain attached to the original spoken text.
+ */
+export function chunkGabrooSpeechSegments(
+ segments:GabrooSpeechSegment[],
+ maxCharacters=600
+):GabrooSpeechSegment[]{
+ if(!Number.isInteger(maxCharacters)||maxCharacters<1||maxCharacters>4_000){
+  throw new Error("Gabroo speech chunk size must be between 1 and 4000 characters.");
+ }
+ const chunks:GabrooSpeechSegment[]=[];
+ for(const segment of segments){
+  let current="";
+  const characters=Array.from(segment.text);
+  for(let index=0;index<characters.length;index+=1){
+   const character=characters[index];
+   current+=character;
+   const next=characters[index+1];
+   const sentenceBoundary=/[.!?…।॥]/u.test(character)&&(!next||/\s/u.test(next));
+   if(sentenceBoundary||Array.from(current).length>=maxCharacters){
+    if(current.trim())chunks.push({text:current,language:segment.language});
+    current="";
+   }
+  }
+  if(current.trim())chunks.push({text:current,language:segment.language});
+  else if(current&&chunks.length&&chunks[chunks.length-1].language===segment.language)chunks[chunks.length-1].text+=current;
+ }
+ return chunks;
+}
+
 /** Minimal adapter used by the tested sequential speech queue. */
 export interface GabrooSegmentPlayback {
  speak(segment:GabrooSpeechSegment,rate:GabrooSpeechRate):Promise<void>;
@@ -167,6 +198,9 @@ export async function playGabrooSpeechSegments(
  for(const segment of segments){
   if(shouldStop())break;
   await playback.speak(segment,rate);
+  // A provider may resolve its promise when stop() interrupts playback.
+  // Re-check cancellation before counting the segment as fully played.
+  if(shouldStop())break;
   completed+=1;
  }
  return completed;

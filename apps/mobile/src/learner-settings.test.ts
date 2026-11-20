@@ -29,6 +29,22 @@ describe("Gabroo speech-rate preference", () => {
     expect(adjustGabrooSpeechRate(GABROO_SPEECH_RATE_MAX, 0.05)).toBe(GABROO_SPEECH_RATE_MAX);
   });
 
+  it("quantizes persisted values to the supported 0.05 increment", () => {
+    expect(clampGabrooSpeechRate(1.03)).toBe(1.05);
+    expect(clampGabrooSpeechRate(1.02)).toBe(1);
+    expect(clampGabrooSpeechRate(0.76)).toBe(0.75);
+    expect(clampGabrooSpeechRate(1.499)).toBe(1.5);
+  });
+
+  it("keeps repeated adjustments aligned to the supported increment", () => {
+    let rate = 0.75;
+    for (let index = 0; index < 15; index += 1) {
+      rate = adjustGabrooSpeechRate(rate, 0.05);
+      expect(rate).toBeCloseTo(GABROO_SPEECH_RATE_MIN + Math.round((rate - GABROO_SPEECH_RATE_MIN) / 0.05) * 0.05, 8);
+    }
+    expect(rate).toBe(1.5);
+  });
+
   it("falls back to normal speed for non-finite values", () => {
     expect(clampGabrooSpeechRate(Number.NaN)).toBe(1);
     expect(clampGabrooSpeechRate(Number.POSITIVE_INFINITY)).toBe(1);
