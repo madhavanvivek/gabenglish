@@ -12,6 +12,7 @@ export type GabrooTeachingPolicy={
   stageGuidance:string;
   learnerContext:{preferredName?:string;learningGoal?:string;profileCorrectionPreference?:"gentle"|"balanced"|"detailed"};
   learnerMemory:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>;
+  learnerVocabulary:Array<{term:string;malayalamMeaning:string;exampleSentence:string;status:"learning"|"familiar"}>;
 };
 
 const policyByMode:Record<GabrooConversationMode,Omit<GabrooTeachingPolicy,"mode"|"supportLanguage"|"learningDirection"|"targetLanguage"|"addressPolicy"|"stageGuidance"|"learnerContext"|"learnerMemory">>={
@@ -58,7 +59,7 @@ export function buildGabrooLearnerTurnGuidance(input:{latestLearnerMessage?:stri
  return "The learner has contributed a moderate amount. Respond to one specific detail, add a concise useful thought if it helps, and ask one relevant follow-up that moves their idea forward rather than restarting the topic.";
 }
 
-export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection?:"ml_to_en"|"en_to_ml";targetLanguage?:"ml"|"en";stage?:1|2|3|4|5;preferredName?:string|null;learningGoal?:string|null;profileCorrectionPreference?:"gentle"|"balanced"|"detailed";latestLearnerMessage?:string|null;conversationHistory?:Array<{role:"user"|"assistant";content:string}>;learnerMemory?:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>}):GabrooTeachingPolicy{
+export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection?:"ml_to_en"|"en_to_ml";targetLanguage?:"ml"|"en";stage?:1|2|3|4|5;preferredName?:string|null;learningGoal?:string|null;profileCorrectionPreference?:"gentle"|"balanced"|"detailed";latestLearnerMessage?:string|null;conversationHistory?:Array<{role:"user"|"assistant";content:string}>;learnerMemory?:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>;learnerVocabulary?:Array<{term:string;malayalamMeaning:string;exampleSentence?:string|null;status:"learning"|"familiar"|"mastered"}>}):GabrooTeachingPolicy{
  const selected=policyByMode[input.mode];
  const learningDirection=input.learningDirection??"ml_to_en";
  const targetLanguage=input.targetLanguage??(learningDirection==="ml_to_en"?"en":"ml");
@@ -95,6 +96,7 @@ export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;sup
    ...(input.learningGoal?.trim()?{learningGoal:input.learningGoal.trim().slice(0,200)}:{}),
    ...(input.profileCorrectionPreference?{profileCorrectionPreference:input.profileCorrectionPreference}:{})
   },
-  learnerMemory:(input.learnerMemory??[]).slice(0,20).map(item=>({category:item.category,memoryKey:item.memoryKey.slice(0,80),content:item.content.slice(0,500)}))
+  learnerMemory:(input.learnerMemory??[]).slice(0,20).map(item=>({category:item.category,memoryKey:item.memoryKey.slice(0,80),content:item.content.slice(0,500)})),
+  learnerVocabulary:(input.learnerVocabulary??[]).filter(item=>item.status==="learning"||item.status==="familiar").slice(0,5).map(item=>({term:item.term.trim().slice(0,120),malayalamMeaning:item.malayalamMeaning.trim().slice(0,300),exampleSentence:(item.exampleSentence??"").trim().slice(0,500),status:item.status}))
  };
 }
