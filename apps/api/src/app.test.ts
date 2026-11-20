@@ -1,5 +1,6 @@
 import {createHmac} from "node:crypto";
 import {request as httpRequest} from "node:http";
+import {Readable} from "node:stream";
 import {describe,it,expect} from "vitest";
 import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
@@ -349,9 +350,9 @@ describe("API foundation",()=>{
    return {rows:[]};
   }} as any;
   const synthesized:Array<{text:string;speed:number}>=[];
-  const provider={synthesize:async(input:{text:string;speed:number;signal:AbortSignal})=>{
+  const provider={synthesizeStream:async(input:{text:string;speed:number;signal:AbortSignal})=>{
    synthesized.push({text:input.text,speed:input.speed});
-   return {audio:new Uint8Array([4,5,6]),contentType:"audio/mpeg" as const};
+   return {audio:Readable.from([Buffer.from([4,5]),Buffer.from([6])]),contentType:"audio/mpeg" as const};
   }};
   const app=await buildApp(config,async()=>true,pool,undefined,undefined,undefined,provider);
   const headers={authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)};
