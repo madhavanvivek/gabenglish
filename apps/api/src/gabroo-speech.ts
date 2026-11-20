@@ -34,7 +34,7 @@ async function synthesizeAndSend(
  const onResponseClosed=()=>{if(!reply.raw.writableEnded)controller.abort();release();};
  let released=false;
  let streaming=false;
- const release=()=>{if(released)return;released=true;activeSpeechLearners.delete(learnerId);};
+ const release=()=>{if(released)return;released=true;activeSpeechLearners.delete(learnerId);request.raw.removeListener("aborted",onAborted);reply.raw.removeListener("close",onResponseClosed);};
  request.raw.once("aborted",onAborted);
  reply.raw.once("close",onResponseClosed);
  try{
@@ -65,8 +65,6 @@ async function synthesizeAndSend(
   request.log.error({request_id:request.id},"Gabroo speech synthesis failed");
   return sendError(reply,request.id,502,"SPEECH_SYNTHESIS_FAILED","Gabroo could not prepare speech just now. Please try again.");
  }finally{
-  request.raw.removeListener("aborted",onAborted);
-  reply.raw.removeListener("close",onResponseClosed);
   if(!streaming||reply.raw.writableEnded)release();
  }
 }
