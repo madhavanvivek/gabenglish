@@ -14,6 +14,13 @@ describe("Gabroo learner-turn adaptation",()=>{
    expect(guidance).toContain("Do not withhold the answer");
   }
  });
+ it("resolves explicit confusion before asking the learner to elaborate",()=>{
+  for(const message of ["I don't understand","I'm confused","Please explain this again","എനിക്ക് മനസ്സിലായില്ല"]){
+   const guidance=buildGabrooLearnerTurnGuidance({latestLearnerMessage:message});
+   expect(guidance).toContain("Answer that question clearly first");
+   expect(guidance).toContain("Do not withhold the answer");
+  }
+ });
  it("deepens a substantial contribution instead of asking the learner to repeat it",()=>{
   const message="I believe technology can improve education because students can learn at their own pace, explore difficult subjects in different ways, receive immediate feedback, and practise skills whenever they have time.";
   const guidance=buildGabrooLearnerTurnGuidance({latestLearnerMessage:message});
