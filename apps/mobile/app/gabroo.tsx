@@ -368,12 +368,20 @@ export default function GabrooScreen(){
         resolve();
        };
        speechSegmentResolveRef.current=finish;
+       const fail=(reason:unknown)=>{
+        if(settled)return;
+        settled=true;
+        if(speechSegmentResolveRef.current===finish)speechSegmentResolveRef.current=null;
+        reject(reason instanceof Error?reason:new Error("Gabroo audio playback failed."));
+       };
        sound!.setOnPlaybackStatusUpdate(status=>{
-        if(status.isLoaded&&status.didJustFinish)finish();
+        if(status.isLoaded){
+         if(status.didJustFinish)finish();
+        }else if(status.error){
+         fail(new Error(status.error));
+        }
        });
-       void sound!.playAsync().catch(reason=>{
-        if(!settled){settled=true;if(speechSegmentResolveRef.current===finish)speechSegmentResolveRef.current=null;reject(reason);}
-       });
+       void sound!.playAsync().catch(fail);
       });
      }finally{
       if(sound){
