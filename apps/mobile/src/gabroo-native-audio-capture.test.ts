@@ -94,4 +94,17 @@ describe("Gabroo native capture lifecycle boundary",()=>{
   await expect(request).rejects.toThrow(/cancelled/);
   expect(stream.start).not.toHaveBeenCalled();
  });
+
+ it("stops and rejects a native format that becomes unsupported after start",async()=>{
+  const x=setup();
+  vi.mocked(x.stream.start).mockImplementationOnce(async()=>{
+   x.stream.sampleRate=7_000;
+   x.stream.isStreaming=true;
+  });
+  await expect(x.controller.start({consentGranted:true})).rejects.toThrow(/unsupported microphone format/);
+  expect(x.stream.stop).toHaveBeenCalledOnce();
+  expect(x.controller.isActive).toBe(false);
+  expect(x.sender.close).toHaveBeenCalledWith("capture_start_failed");
+ });
+
 });
