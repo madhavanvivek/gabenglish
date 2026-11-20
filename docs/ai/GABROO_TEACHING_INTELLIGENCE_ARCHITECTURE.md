@@ -285,3 +285,10 @@ These are participation indicators, not fluency, pronunciation, grammar or Engli
 ### Placement sample indicators
 
 The free placement conversation now records per-response word count, unique-word count and ratio, average words per sentence, sentence count, connector count, and cautious past-time/reasoning markers. The saved report aggregates average words per response, average unique-word ratio and average words per sentence. These values describe only the submitted text or reviewed transcript samples; they are not validated measures of vocabulary knowledge, grammar accuracy, fluency or proficiency. Unique-word ratios are sensitive to sample length, topic, repetition and language, so never compare learners or infer a CEFR-like stage from them. Pronunciation remains unmeasured.
+
+
+### Conservative grammar review observations
+
+The placement pilot now checks only a narrow set of high-confidence surface patterns: selected present-simple subject/verb mismatches, selected have/has and be-verb agreement cases, selected base-verb forms after am, and selected irregular past forms after did. It returns at most three examples per response with a short teaching note, and deduplicates the report to at most eight review items.
+
+These are prompts for review, not definitive error labels. The rules are intentionally incomplete, can miss many genuine errors, and may flag context they do not understand. Do not infer an overall grammar ability, proficiency stage or learner ranking from these rules. The learner-facing report explicitly describes them as patterns to review; a qualified language educator and broader contextual assessment are required before stronger conclusions.
