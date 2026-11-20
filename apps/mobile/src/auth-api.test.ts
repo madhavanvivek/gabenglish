@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {AuthApiError,parseGabrooSpeechStatus} from "./auth-api";
+import {parseGabrooSpeechStatus} from "./gabroo-speech-status";
 
 describe("Gabroo speech readiness contract",()=>{
  it("accepts a configured MP3 provider and supported playback range",()=>{
@@ -21,6 +21,6 @@ describe("Gabroo speech readiness contract",()=>{
   {available:true,formats:[],speed:{minimum:0.75,maximum:2}},
   {available:true,formats:[],speed:{minimum:Number.NaN,maximum:1.5}},
  ])("rejects malformed or unsafe provider metadata: %j",(payload)=>{
-  expect(()=>parseGabrooSpeechStatus(payload)).toThrow(AuthApiError);
+  expect(()=>parseGabrooSpeechStatus(payload)).toThrow("Gabroo speech availability returned an invalid response.");
  });
 });
