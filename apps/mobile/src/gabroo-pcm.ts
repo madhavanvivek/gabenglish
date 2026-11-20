@@ -21,6 +21,9 @@ export function normalizeGabrooPcm16Mono(input: GabrooNativeAudioBuffer): Uint8A
   if (!(input.data instanceof ArrayBuffer) || input.data.byteLength === 0) {
     throw new Error("Gabroo audio buffer is empty.");
   }
+  if (input.encoding !== "float32" && input.encoding !== "int16") {
+    throw new Error("Gabroo audio encoding is unsupported.");
+  }
   if (!Number.isSafeInteger(input.sampleRate) || input.sampleRate < 8_000 || input.sampleRate > 192_000) {
     throw new Error("Gabroo audio sample rate is unsupported.");
   }
