@@ -40,7 +40,11 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
  };
 
  const onBuffer=(buffer:{data:ArrayBuffer;encoding:"float32"|"int16";sampleRate:number;channels:number})=>{
-  if(!active||!options.isForeground())return;
+  if(!options.isForeground()){
+   if(active||starting)void stop("app_background");
+   return;
+  }
+  if(!active)return;
   void options.sender.enqueue(buffer).catch(error=>{
    if(!active)return;
    report(error);
@@ -86,6 +90,11 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
    stream=next;
   },
   onBuffer,
+  /** Stop the native stream and revoke queued audio as soon as the app backgrounds. */
+  onAppBackground(){
+   if(active||starting)return stop("app_background");
+   return Promise.resolve({drained:false});
+  },
   async start(input:{consentGranted:true}){
    if(input.consentGranted!==true)throw new Error("Explicit learner consent is required before microphone capture.");
    if(terminal)throw new Error("Create a new Gabroo capture controller for the next voice turn.");
