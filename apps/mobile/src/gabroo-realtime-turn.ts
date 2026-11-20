@@ -29,6 +29,7 @@ export function createGabrooRealtimeTurnCoordinator(input:{
  let activeTurnId:string|undefined;
  let capture:GabrooRealtimeCapturePort|undefined;
  let sender:GabrooCaptureSender|undefined;
+ let generation=0;
 
  const report=(error:unknown)=>{
   input.onError?.(error instanceof Error?error:new Error("Gabroo voice turn failed."));
@@ -39,16 +40,22 @@ export function createGabrooRealtimeTurnCoordinator(input:{
   if(!turnId.trim())throw new Error("A Gabroo voice turn ID is required.");
   state="starting";
   activeTurnId=turnId;
+  const operation=++generation;
+  let currentSender:GabrooCaptureSender|undefined;
+  let currentCapture:GabrooRealtimeCapturePort|undefined;
   try{
-   sender=input.connection.createAudioSender(turnId);
-   capture=input.createCapture(sender);
+   currentSender=input.connection.createAudioSender(turnId);
+   currentCapture=input.createCapture(currentSender);
+   sender=currentSender;
+   capture=currentCapture;
    input.connection.startTurn(turnId,audio);
-   await capture.start({consentGranted:true});
+   await currentCapture.start({consentGranted:true});
+   if(operation!==generation)throw new Error("Gabroo voice turn was interrupted while starting.");
    state="capturing";
   }catch(error){
-   sender?.close("capture_start_failed");
+   currentSender?.close("capture_start_failed");
    try{input.connection.interrupt(turnId);}catch{}
-   capture=undefined;sender=undefined;activeTurnId=undefined;state="idle";
+   if(operation===generation){capture=undefined;sender=undefined;activeTurnId=undefined;state="idle";}
    report(error);
    throw error;
   }
@@ -77,13 +84,19 @@ export function createGabrooRealtimeTurnCoordinator(input:{
   }
  };
 
- const interrupt=()=>{
+ const interrupt=async()=>{
   if(!activeTurnId)return;
   const turnId=activeTurnId;
+  const operation=++generation;
+  const currentCapture=capture;
+  const currentSender=sender;
+  state="stopping";
   try{input.connection.interrupt(turnId);}catch(error){report(error);}
-  void capture?.stop().catch(report);
-  sender?.close("learner_interrupt");
-  capture=undefined;sender=undefined;activeTurnId=undefined;state="idle";
+  try{await currentCapture?.stop();}catch(error){report(error);}
+  currentSender?.close("learner_interrupt");
+  if(operation===generation){
+   capture=undefined;sender=undefined;activeTurnId=undefined;state="idle";
+  }
  };
 
  return {
