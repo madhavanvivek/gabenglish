@@ -273,3 +273,10 @@ The account screen already provides owner-controlled CRUD for saved goals, inter
 Gabroo conversation requests may receive up to five active, learner-owned vocabulary entries. Context selection prioritises entries last rated Again, then entries whose review date is due, followed by other Learning/Familiar entries. The teaching policy receives only bounded term, Malayalam meaning, example, status and a derived practice-needed signal.
 
 A due or Again-rated word may receive gentle extra practice when it fits the learner's current thread: a fresh, level-appropriate model sentence and an optional invitation to use it. Gabroo must not announce difficulty, imply failure, force an unrelated word, interrupt a direct question or turn free-flow conversation into a quiz. Conversation exposure does not count as a spaced-repetition rating and never changes mastery status automatically. These signals are private to the learner and do not become shared curriculum data.
+
+
+## Speaking activity indicators
+
+The learner account can display a seven-day activity summary derived from persisted learner-authored conversation turns: number of conversations with learner activity, learner turns, whitespace-delimited words and average words per turn. It compares the current seven-day window with the preceding seven-day window. The API scopes all records to the authenticated learner and requires an active Gabroo entitlement.
+
+These are participation indicators, not fluency, pronunciation, grammar or English proficiency measurements. Message length can be affected by language choice, speech-to-text transcription, typing style and task type. Do not turn these counts into a score, rank or mastery claim. More meaningful speaking-development evidence requires consent-aware audio assessment and validated rubrics; it must be separately designed and tested.
