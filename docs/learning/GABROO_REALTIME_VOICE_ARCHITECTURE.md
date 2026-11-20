@@ -114,7 +114,7 @@ Server → client:
 - `tutor.timeline`: validated viseme/expression/gesture timeline associated with an audio ID.
 - `turn.completed`, `turn.failed`, `session.interrupted`, `session.closed`: terminal lifecycle events.
 
-The versioned message and frame-metadata schemas now live in `packages/contracts/src/gabroo-realtime-protocol.ts`, with contract tests in the adjacent test file. These schemas validate message shape only: no websocket route, session-ticket issuance, microphone capture, audio-frame transport or provider streaming has been implemented. The transport must validate every message at both ends before it is enabled.
+The versioned message and frame-metadata schemas now live in `packages/contracts/src/gabroo-realtime-protocol.ts`, with contract tests in the adjacent test file. These schemas validate message shape only. The API now issues authenticated, paid-entitlement-gated one-time session tickets and exposes an atomic consume helper. No WebSocket upgrade route, microphone capture, audio-frame transport or provider streaming has been implemented yet; the response explicitly reports `websocket_handshake_pending`. The transport must validate every message at both ends before it is enabled.
 
 ## 5. Privacy, safety and operational rules
 
@@ -141,11 +141,13 @@ Exit: written decision on transport/provider feasibility; no production micropho
 ### Stage B — contracts and server session foundation
 - [x] Define versioned control-event and bounded audio-frame metadata schemas in `packages/contracts`.
 - [x] Add initial contract tests for protocol versioning, malformed audio format, frame bounds, payload-length matching and server event shapes.
-- [ ] Add single-use session ticket issuance/consumption, session ownership, entitlement checks and rate limits.
+- [x] Add authenticated, subscription-gated session-ticket issuance with a 60-second lifetime, one unconsumed ticket per learner, and SHA-256 digest-only persistence. The raw ticket is returned once with `Cache-Control: private, no-store`.
+- [x] Add an atomic single-use ticket-consumption helper for the future WebSocket handshake; malformed, expired and replayed tickets fail closed.
+- [ ] Bind ticket consumption to an actual WebSocket upgrade and enforce session ownership, origin policy and connection rate limits.
 - Add transport lifecycle tests, malformed-frame tests, stale-session tests, cancellation tests and bounded-buffer tests.
 - Keep audio bytes transient and prove no persistence/logging.
 
-Exit: authenticated test client can connect, exchange control events and close safely without real microphone capture.
+Exit: authenticated test client can connect, exchange control events and close safely without real microphone capture. The ticket issuance and replay-protection foundations are implemented; the WebSocket handshake and live transport remain outstanding.
 
 ### Stage C — streaming learner turn
 - Implement mobile capture adapter, VAD, bounded frame streaming and push-to-talk fallback.
