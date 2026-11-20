@@ -433,7 +433,9 @@ describe("API foundation",()=>{
   const config=loadConfig({NODE_ENV:"test"});
   let stored:{digest:string;userId:string;text:string;speed:number;consumed:boolean}|undefined;
   let ticketIssueSql="";
+  const ticketTransactionSql:string[]=[];
   const handleQuery=async(sql:string,values?:unknown[])=>{
+   if(["BEGIN","COMMIT","ROLLBACK"].includes(sql)||sql.includes("pg_advisory_xact_lock")||sql.includes("SET consumed_at=now() WHERE user_id=")||sql.includes("INSERT INTO gabroo_speech_playback_tickets"))ticketTransactionSql.push(sql);
    if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
    if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
    if(sql.includes("INSERT INTO gabroo_speech_playback_tickets")){
@@ -472,6 +474,7 @@ describe("API foundation",()=>{
   expect(ticketIssueSql).toContain("INSERT INTO gabroo_speech_playback_tickets");
   expect(ticketIssueSql).toContain("VALUES($1,$2,$3,$4,now()+interval '60 seconds')");
   expect(ticketIssueSql).not.toContain("WITH learner_lock");
+  expect(ticketTransactionSql.slice(0,5).map(sql=>sql==="BEGIN"?"BEGIN":sql.includes("pg_advisory_xact_lock")?"LOCK":sql.includes("SET consumed_at=now() WHERE user_id=")?"SUPERSEDE":sql.includes("INSERT INTO gabroo_speech_playback_tickets")?"INSERT":sql)).toEqual(["BEGIN","LOCK","SUPERSEDE","INSERT","COMMIT"]);
   const ticket=created.json();
   expect(ticket.method).toBe("GET");
   expect(ticket.expires_at).toBeTruthy();
