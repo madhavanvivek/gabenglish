@@ -82,6 +82,37 @@ describe("Gabroo realtime mobile transport helpers",()=>{
   connection.close();
  });
 
+ it("revokes the active turn when the server closes an idle session by timeout",()=>{
+  const sent:string[]=[];
+  const received:string[]=[];
+  class MockSocket{
+   static CONNECTING=0;static OPEN=1;static CLOSING=2;static CLOSED=3;
+   readyState=1;bufferedAmount=0;
+   onopen:(()=>void)|null=null;onmessage:((event:{data:string})=>void)|null=null;
+   onerror:(()=>void)|null=null;onclose:((event:{code:number;reason:string})=>void)|null=null;
+   constructor(readonly url:string,readonly protocols:string[]){}
+   send(value:string|ArrayBuffer){if(typeof value==="string")sent.push(value);}
+   close(){this.readyState=3;}
+  }
+  vi.stubGlobal("WebSocket",Object.assign(MockSocket,{CONNECTING:0,OPEN:1,CLOSING:2,CLOSED:3}));
+  const connection=connectGabrooRealtimeSocket({
+   apiBaseUrl:"https://api.example.com",sessionId:"session-timeout",connectionTicket:"8".repeat(64),
+   callbacks:{onMessage:message=>received.push(message.type)}
+  });
+  connection.socket.onmessage?.({data:JSON.stringify({
+   protocol_version:1,session_id:"session-timeout",type:"session.accepted",
+   audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1},max_frame_bytes:65536,max_turn_ms:120000
+  })} as MessageEvent);
+  connection.startTurn("turn-before-timeout",{codec:"pcm_s16le",sample_rate_hz:16000,channels:1});
+  connection.socket.onmessage?.({data:JSON.stringify({
+   protocol_version:1,session_id:"session-timeout",type:"session.closed",reason:"timeout"
+  })} as MessageEvent);
+  expect(received).toEqual(["session.accepted","session.closed"]);
+  expect(()=>connection.startTurn("turn-after-timeout",{codec:"pcm_s16le",sample_rate_hz:16000,channels:1})).toThrow("not been accepted");
+  expect(sent.map(value=>JSON.parse(value).type)).toEqual(["turn.start"]);
+  connection.close();
+ });
+
  it("allows only one active voice turn and releases it on a terminal turn event",()=>{
   const sent:string[]=[];
   class MockSocket{
