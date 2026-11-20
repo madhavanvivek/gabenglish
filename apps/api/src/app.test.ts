@@ -432,10 +432,12 @@ describe("API foundation",()=>{
  it("issues a short-lived opaque playback ticket and allows exactly one native GET",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   let stored:{digest:string;userId:string;text:string;speed:number;consumed:boolean}|undefined;
+  let ticketIssueSql="";
   const pool={query:async(sql:string,values?:unknown[])=>{
    if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
    if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
    if(sql.includes("INSERT INTO gabroo_speech_playback_tickets")){
+    ticketIssueSql=sql;
     stored={digest:String(values?.[0]),userId:String(values?.[1]),text:String(values?.[2]),speed:Number(values?.[3]),consumed:false};
     return {rows:[{expires_at:new Date(Date.now()+60_000)}]};
    }
@@ -459,6 +461,8 @@ describe("API foundation",()=>{
   const phrase="നമസ്കാരം! Let's practise speaking.";
   const created=await app.inject({method:"POST",url:"/api/v1/gabroo/speech/playback-ticket",headers,payload:{text:phrase,speed:0.85}});
   expect(created.statusCode).toBe(201);
+  expect(ticketIssueSql).toContain("WITH superseded AS");
+  expect(ticketIssueSql).toContain("WHERE user_id=$2 AND consumed_at IS NULL AND expires_at>now()");
   const ticket=created.json();
   expect(ticket.method).toBe("GET");
   expect(ticket.expires_at).toBeTruthy();
