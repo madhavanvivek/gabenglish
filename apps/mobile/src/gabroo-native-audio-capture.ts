@@ -70,25 +70,28 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
    if(terminal)throw new Error("Create a new Gabroo capture controller for the next voice turn.");
    if(active||starting)throw new Error("Gabroo microphone capture is already active.");
    if(!options.isForeground())throw new Error("Gabroo voice capture is available only while the tutor screen is active.");
-   if(!stream)throw new Error("Gabroo native audio stream is not attached.");
+   const currentStream=stream;
+   if(!currentStream)throw new Error("Gabroo native audio stream is not attached.");
    starting=true;
    const operation=++generation;
    try{
     const granted=await options.requestPermission();
     if(!granted)throw new Error("Microphone permission was not granted.");
     if(operation!==generation||!options.isForeground())throw new Error("Gabroo capture was cancelled before microphone start.");
-    await stream.start();
+    await currentStream.start();
     if(operation!==generation||!options.isForeground()){
-     await stream.stop();
+     // stop() may already have run while the native start promise was pending.
+     // Stop again after start resolves so a late native start cannot leave the mic open.
+     await currentStream.stop();
      throw new Error("Gabroo capture was cancelled while starting.");
     }
     if(!Number.isFinite(stream.sampleRate)||stream.sampleRate<8_000||!Number.isSafeInteger(stream.channels)||stream.channels<1||stream.channels>2){
-     await stream.stop();
+     await currentStream.stop();
      throw new Error("The device returned an unsupported microphone format.");
     }
     active=true;
     starting=false;
-    return {sampleRate:stream.sampleRate,channels:stream.channels};
+    return {sampleRate:currentStream.sampleRate,channels:currentStream.channels};
    }catch(error){
     starting=false;
     active=false;
