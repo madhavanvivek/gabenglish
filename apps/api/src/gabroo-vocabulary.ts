@@ -21,9 +21,38 @@ const idSchema=z.string().uuid();
 function fail(reply:any,requestId:string,status:number,code:string,message:string){
  return reply.code(status).send({error:{code,message,request_id:requestId}});
 }
-const columns="id,source_saved_phrase_id,term,malayalam_meaning,example_sentence,learning_direction,status,created_at,updated_at";
+import {calculateGabrooReviewSchedule,type GabrooReviewRating} from "./gabroo-review-schedule.js";
+const columns="id,source_saved_phrase_id,term,malayalam_meaning,example_sentence,learning_direction,status,review_due_at,last_reviewed_at,review_count,interval_days,ease_factor,last_review_rating,created_at,updated_at";
+const reviewSchema=z.object({rating:z.enum(["again","hard","good","easy"])}).strict();
 
 export async function registerGabrooVocabularyRoutes(app:FastifyInstance,pool:Pool,config:AppConfig){
+ app.get("/api/v1/gabroo/vocabulary/review-due",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return fail(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
+  const rows=await pool.query(`SELECT ${columns} FROM gabroo_vocabulary WHERE user_id=$1 AND status <> 'mastered' AND review_due_at<=now() ORDER BY review_due_at ASC LIMIT 50`,[learner.id]);
+  return {items:rows.rows,reviewed_due_count:rows.rowCount??0};
+ });
+ app.post("/api/v1/gabroo/vocabulary/:id/review",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return fail(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
+  const id=idSchema.safeParse((request.params as {id?:string}).id),parsed=reviewSchema.safeParse(request.body);
+  if(!id.success||!parsed.success)return fail(reply,request.id,400,"VALIDATION_ERROR","Choose a valid recall rating.");
+  const client=await pool.connect();
+  try{
+   await client.query("BEGIN");
+   const current=await client.query<{interval_days:string;ease_factor:string;review_count:number;status:string}>(
+    "SELECT interval_days,ease_factor,review_count,status FROM gabroo_vocabulary WHERE id=$1 AND user_id=$2 FOR UPDATE",[id.data,learner.id]);
+   if(!current.rows[0]){await client.query("ROLLBACK");return fail(reply,request.id,404,"VOCABULARY_NOT_FOUND","This vocabulary item is not available.");}
+   const item=current.rows[0];
+   if(item.status==="mastered"){await client.query("ROLLBACK");return fail(reply,request.id,409,"VOCABULARY_ALREADY_MASTERED","This item is marked mastered. Change its status before reviewing it again.");}
+   const schedule=calculateGabrooReviewSchedule({rating:parsed.data.rating,intervalDays:Number(item.interval_days),easeFactor:Number(item.ease_factor),reviewCount:item.review_count});
+   const updated=await client.query(`UPDATE gabroo_vocabulary SET review_due_at=$3,last_reviewed_at=now(),review_count=$4,interval_days=$5,ease_factor=$6,last_review_rating=$7,updated_at=now() WHERE id=$1 AND user_id=$2 RETURNING ${columns}`,
+    [id.data,learner.id,schedule.dueAt,schedule.reviewCount,schedule.intervalDays,schedule.easeFactor,parsed.data.rating]);
+   await client.query("COMMIT");
+   return {vocabulary:updated.rows[0],schedule:{interval_days:schedule.intervalDays,ease_factor:schedule.easeFactor,review_count:schedule.reviewCount,next_review_at:schedule.dueAt.toISOString(),rating:parsed.data.rating}};
+  }catch(error){await client.query("ROLLBACK");throw error;}
+  finally{client.release();}
+ });
  app.get("/api/v1/gabroo/vocabulary",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return fail(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
