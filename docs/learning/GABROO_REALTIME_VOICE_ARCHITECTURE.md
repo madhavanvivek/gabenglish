@@ -1,6 +1,6 @@
 # Gabroo Real-Time Voice Architecture
 
-Status: Architecture proposal grounded in the current feature branch. No streaming transport, VAD pipeline, full-duplex session, or real-time avatar/audio synchronization is implemented by this document.
+Status: Architecture proposal plus an implemented server-side WebSocket control-plane prototype on the current feature branch. Streaming audio, VAD, full-duplex conversation, and real-time avatar/audio synchronization are not implemented.
 
 ## 1. Goal
 
@@ -127,6 +127,7 @@ The ticket endpoint is `POST /api/v1/gabroo/realtime/session-ticket`. It require
 - Partial transcripts are ephemeral. Persist only the final learner message under the existing conversation retention policy after the turn is accepted.
 - Disconnect and cancellation must abort provider work and discard uncommitted audio/transcript state.
 - Use TLS, single-use connection tickets, strict origin checks, bounded message parsing and rate limits.
+- Redact `Sec-WebSocket-Protocol` at the reverse proxy/load balancer because the short-lived ticket is carried there; never log the raw ticket or audio payloads.
 - Never expose provider credentials or raw access tokens to the mobile client.
 - Provide a clear fallback to the current record/review/confirm path when streaming is unavailable.
 - Locked-screen/background microphone support is a separate native platform project with its own permission, foreground-service, child privacy and app-store review. This architecture does not authorize background capture.
@@ -134,7 +135,7 @@ The ticket endpoint is `POST /api/v1/gabroo/realtime/session-ticket`. It require
 ## 6. Delivery plan and gates
 
 ### Stage A — transport and provider spike
-- Verify WebSocket support in the current Expo/React Native target builds and hosting topology.
+- [ ] Verify WebSocket support in the current Expo/React Native target builds and hosting topology. The API-side handshake prototype is not evidence of mobile or production-proxy compatibility.
 - Measure connect time, round-trip latency, audio frame stability, reconnect behaviour and server resource cost.
 - Select streaming STT/TTS providers only after testing Malayalam, English and mixed Malayalam-English samples.
 - Record vendor terms, data processing, retention, regional processing and child/family privacy review.
