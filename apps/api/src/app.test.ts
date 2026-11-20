@@ -497,4 +497,36 @@ describe("API foundation",()=>{
   await app.close();
  });
 
+ it("rolls back failed playback-ticket inserts and always releases the transaction client",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const transactionSql:string[]=[];
+  let released=false;
+  const handleQuery=async(sql:string)=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   return {rows:[]};
+  };
+  const client={
+   query:async(sql:string)=>{
+    transactionSql.push(sql);
+    if(sql.includes("INSERT INTO gabroo_speech_playback_tickets"))throw new Error("simulated insert failure");
+    return {rows:[]};
+   },
+   release:()=>{released=true;}
+  };
+  const pool={query:handleQuery,connect:async()=>client} as any;
+  const provider={synthesize:async()=>({audio:new Uint8Array([1]),contentType:"audio/mpeg" as const})};
+  const app=await buildApp(config,async()=>true,pool,undefined,undefined,undefined,provider);
+  const response=await app.inject({
+   method:"POST",url:"/api/v1/gabroo/speech/playback-ticket",
+   headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},
+   payload:{text:"Hello Gabroo",speed:1}
+  });
+  expect(response.statusCode).toBe(500);
+  expect(transactionSql.map(sql=>sql==="BEGIN"?"BEGIN":sql==="COMMIT"?"COMMIT":sql==="ROLLBACK"?"ROLLBACK":sql.includes("pg_advisory_xact_lock")?"LOCK":sql.includes("SET consumed_at=now() WHERE user_id=")?"SUPERSEDE":"INSERT"))
+   .toEqual(["BEGIN","LOCK","SUPERSEDE","INSERT","ROLLBACK"]);
+  expect(released).toBe(true);
+  await app.close();
+ });
+
 });
