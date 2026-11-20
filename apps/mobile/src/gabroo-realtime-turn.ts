@@ -30,6 +30,7 @@ export function createGabrooRealtimeTurnCoordinator(input:{
  let capture:GabrooRealtimeCapturePort|undefined;
  let sender:GabrooCaptureSender|undefined;
  let generation=0;
+ let stopResult:Promise<{completed:true;reason:"audio_drained"}|{completed:false;reason:"interrupted"|"audio_drain_failed"|"capture_stop_failed"}>|undefined;
 
  const report=(error:unknown)=>{
   input.onError?.(error instanceof Error?error:new Error("Gabroo voice turn failed."));
@@ -39,6 +40,7 @@ export function createGabrooRealtimeTurnCoordinator(input:{
   if(state!=="idle")throw new Error("Finish the current Gabroo voice turn before starting another.");
   if(!turnId.trim())throw new Error("A Gabroo voice turn ID is required.");
   state="starting";
+  stopResult=undefined;
   activeTurnId=turnId;
   const operation=++generation;
   let currentSender:GabrooCaptureSender|undefined;
@@ -61,29 +63,35 @@ export function createGabrooRealtimeTurnCoordinator(input:{
   }
  };
 
- const stop=async()=>{
+ const stop=():Promise<{completed:true;reason:"audio_drained"}|{completed:false;reason:"interrupted"|"audio_drain_failed"|"capture_stop_failed"}>=>{
+  // Multiple UI stop actions share one drain; do not reject a second tap.
+  if(stopResult)return stopResult;
   if(state!=="capturing"||!activeTurnId||!capture||!sender)throw new Error("No active Gabroo microphone turn can be stopped.");
   state="stopping";
   const operation=generation;
   const turnId=activeTurnId;
   const currentCapture=capture;
-  try{
-   const result=await currentCapture.stop();
-   if(operation!==generation)return {completed:false as const,reason:"interrupted" as const};
-   if(!result.drained){
+  const currentSender=sender;
+  stopResult=(async()=>{
+   try{
+    const result=await currentCapture.stop();
+    if(operation!==generation)return {completed:false as const,reason:"interrupted" as const};
+    if(!result.drained){
+     try{input.connection.interrupt(turnId);}catch{}
+     return {completed:false as const,reason:"audio_drain_failed" as const};
+    }
+    input.connection.endTurn(turnId);
+    return {completed:true as const,reason:"audio_drained" as const};
+   }catch(error){
+    try{currentSender.close("capture_stop_failed");}catch{}
     try{input.connection.interrupt(turnId);}catch{}
-    return {completed:false as const,reason:"audio_drain_failed" as const};
+    report(error);
+    return {completed:false as const,reason:"capture_stop_failed" as const};
+   }finally{
+    if(operation===generation||(activeTurnId===turnId&&state==="stopping")){capture=undefined;sender=undefined;activeTurnId=undefined;state="idle";}
    }
-   input.connection.endTurn(turnId);
-   return {completed:true as const,reason:"audio_drained" as const};
-  }catch(error){
-   try{sender.close("capture_stop_failed");}catch{}
-   try{input.connection.interrupt(turnId);}catch{}
-   report(error);
-   return {completed:false as const,reason:"capture_stop_failed" as const};
-  }finally{
-   if(operation===generation||(activeTurnId===turnId&&state==="stopping")){capture=undefined;sender=undefined;activeTurnId=undefined;state="idle";}
-  }
+  })();
+  return stopResult;
  };
 
  const interrupt=async()=>{
