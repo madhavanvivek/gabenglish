@@ -1,4 +1,4 @@
-import type {GabrooNativeAudioCaptureOptions,GabrooNativeAudioStream} from "./gabroo-native-audio-capture";
+import type {GabrooNativeAudioStream} from "./gabroo-native-audio-capture";
 
 /** Structural subset of expo-audio's AudioStream class, kept dependency-free for SDK 53 CI. */
 export type ExpoAudioStreamPort={
