@@ -673,9 +673,10 @@ export default function GabrooScreen(){
     }
     // Voice-input captures are also temporary: leaving the app must not
     // leave an unreviewed microphone recording on disk.
-    if((transcriptionRecordingRef.current||transcriptionUriRef.current)&&!transcriptionOperationRef.current){
-     // Also remove a stopped-but-not-yet-uploaded recording, not only an
-     // actively recording microphone session.
+    if(transcriptionUriRef.current||(transcriptionRecordingRef.current&&!transcriptionOperationRef.current)){
+     // A stopped recording may be in the explicit transcription-upload step.
+     // Invalidate that request and remove its local source on backgrounding;
+     // an in-progress native stop is left to finish its own cleanup first.
      void discardTranscriptionAudio();
     }
    }
