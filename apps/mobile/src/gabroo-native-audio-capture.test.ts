@@ -80,6 +80,16 @@ describe("Gabroo native capture lifecycle boundary",()=>{
   expect(x.calls.indexOf("stop")).toBeLessThan(x.calls.indexOf("finish"));
  });
 
+ it("fails closed and skips sender drain when native capture stop fails",async()=>{
+  const x=setup();
+  vi.mocked(x.stream.stop).mockRejectedValueOnce(new Error("native stop failed"));
+  await x.controller.start({consentGranted:true});
+  await expect(x.controller.stop()).resolves.toEqual({drained:false});
+  expect(x.sender.close).toHaveBeenCalledWith("native_capture_stop_failed");
+  expect(x.sender.finish).not.toHaveBeenCalled();
+  expect(x.errors.at(-1)?.message).toBe("native stop failed");
+ });
+
  it("reports a failed drain when accepted audio cannot be flushed",async()=>{
   const x=setup();
   x.sender.finish.mockRejectedValueOnce(new Error("drain timeout"));
