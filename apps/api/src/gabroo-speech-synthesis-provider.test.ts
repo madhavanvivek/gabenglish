@@ -52,4 +52,27 @@ describe("Gabroo speech synthesis provider",()=>{
   const large=createGabrooSpeechSynthesisProvider(config,async()=>new Response(new Uint8Array(12*1024*1024+1),{status:200}))!;
   await expect(large.synthesize(input)).rejects.toThrow("size limit");
  });
+ it("joins valid chunked provider audio in order",async()=>{
+  const provider=createGabrooSpeechSynthesisProvider(config,async()=>new Response(new ReadableStream<Uint8Array>({
+   start(controller){
+    controller.enqueue(new Uint8Array([1,2]));
+    controller.enqueue(new Uint8Array([3,4]));
+    controller.close();
+   }
+  }),{status:200,headers:{"content-type":"audio/mpeg"}}))!;
+  await expect(provider.synthesize({text:"hello",speed:1,signal:new AbortController().signal})).resolves.toEqual({
+   audio:new Uint8Array([1,2,3,4]),contentType:"audio/mpeg"
+  });
+ });
+ it("cancels a provider stream when its cumulative audio exceeds the limit",async()=>{
+  const chunk=new Uint8Array(7*1024*1024);
+  const provider=createGabrooSpeechSynthesisProvider(config,async()=>new Response(new ReadableStream<Uint8Array>({
+   start(controller){
+    controller.enqueue(chunk);
+    controller.enqueue(chunk);
+   }
+  }),{status:200,headers:{"content-type":"audio/mpeg"}}))!;
+  await expect(provider.synthesize({text:"hello",speed:1,signal:new AbortController().signal})).rejects.toThrow(/size limit/i);
+ });
+
 });
