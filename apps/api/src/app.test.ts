@@ -404,6 +404,31 @@ describe("API foundation",()=>{
   await app.close();
  });
 
+ it("rejects expired playback tickets without invoking speech synthesis",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let updateSql="";
+  let providerCalls=0;
+  const pool={query:async(sql:string)=>{
+   if(sql.includes("UPDATE gabroo_speech_playback_tickets")){
+    updateSql=sql;
+    return {rows:[]};
+   }
+   return {rows:[]};
+  }} as any;
+  const provider={
+   synthesize:async()=>{providerCalls++;return {audio:new Uint8Array([1]),contentType:"audio/mpeg" as const};},
+   synthesizeStream:async()=>{providerCalls++;return {audio:Readable.from([Buffer.from([1])]),contentType:"audio/mpeg" as const};}
+  };
+  const app=await buildApp(config,async()=>true,pool,undefined,undefined,undefined,provider);
+  const response=await app.inject({method:"GET",url:"/api/v1/gabroo/speech/playback/"+"a".repeat(64),headers:{accept:"audio/mpeg"}});
+  expect(response.statusCode).toBe(404);
+  expect(response.json().error.code).toBe("PLAYBACK_TICKET_INVALID");
+  expect(updateSql).toContain("expires_at>now()");
+  expect(updateSql).toContain("consumed_at IS NULL");
+  expect(providerCalls).toBe(0);
+  await app.close();
+ });
+
  it("issues a short-lived opaque playback ticket and allows exactly one native GET",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   let stored:{digest:string;userId:string;text:string;speed:number;consumed:boolean}|undefined;
