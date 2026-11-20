@@ -63,9 +63,10 @@ export function reduceGabrooConversation(
    return {phase:"speaking",activeSpeech:timeline,lastError:null};
   }
   case "speech_finished":
-   if(state.phase!=="speaking"||state.activeSpeech?.audio_id!==event.audio_id){
-    return invalidTransition(state,event);
-   }
+   // Playback callbacks can arrive after barge-in, reset or a newer utterance.
+   // A completion for audio we no longer own is stale and must be harmless.
+   if(state.activeSpeech?.audio_id!==event.audio_id)return state;
+   if(state.phase!=="speaking")return invalidTransition(state,event);
    return {phase:"listening",activeSpeech:null,lastError:null};
   case "learner_barge_in":
    if(state.phase!=="speaking"&&state.phase!=="greeting")return invalidTransition(state,event);
