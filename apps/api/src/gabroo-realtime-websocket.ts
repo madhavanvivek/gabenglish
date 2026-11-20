@@ -32,6 +32,15 @@ type ActiveTurn={
  controller:AbortController;
 };
 
+export type GabrooRealtimeHandshakeState="awaiting_ready"|"ready";
+export function advanceGabrooRealtimeHandshake(state:GabrooRealtimeHandshakeState,messageType:string){
+ if(state==="awaiting_ready")return messageType==="session.ready"
+  ?{state:"ready" as const,accepted:true,close:false}
+  :{state,accepted:false,close:true};
+ if(messageType==="session.ready")return {state,accepted:false,close:true};
+ return {state,accepted:false,close:false};
+}
+
 export function parseGabrooRealtimeUpgrade(request:IncomingMessage,allowedOrigins:string[]){
  const rawUrl=request.url??"/";
  let url:URL;
@@ -103,6 +112,7 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
      let lastActivity=connectedAt;
      let lastPong=connectedAt;
      let activeTurn:ActiveTurn|undefined;
+     let handshakeState:GabrooRealtimeHandshakeState="awaiting_ready";
      const pendingRecognitions=new Map<string,AbortController>();
      const send=(message:Record<string,unknown>)=>{if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({protocol_version:GABROO_REALTIME_PROTOCOL_VERSION,session_id:sessionId,...message}));};
      const failTurn=(turnId:string,code:"TURN_LIMIT"|"RATE_LIMITED"|"TRANSPORT_NOT_READY"|"RECOGNITION_FAILED",message:string)=>{
@@ -119,6 +129,7 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
      ws.on("message",(data,isBinary)=>{
       lastActivity=Date.now();
       if(isBinary){
+       if(handshakeState!=="ready"){ws.close(1008,"session_not_ready");return;}
        if(!activeTurn?.pendingFrame){ws.close(1008,"unexpected_audio_frame");return;}
        const payload=Buffer.isBuffer(data)?data:Array.isArray(data)?Buffer.concat(data):Buffer.from(data as ArrayBuffer);
        let metadata:GabrooRealtimeAudioFrameMetadata;
@@ -141,6 +152,13 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
       const parsedMessage=gabrooRealtimeClientMessageSchema.safeParse(payload);
       if(!parsedMessage.success||parsedMessage.data.session_id!==sessionId){ws.close(1008,"invalid_session_message");return;}
       const message=parsedMessage.data;
+      const handshake=advanceGabrooRealtimeHandshake(handshakeState,message.type);
+      if(handshake.close){ws.close(1008,"session_not_ready");return;}
+      if(handshake.accepted){
+       handshakeState=handshake.state;
+       send({type:"session.accepted",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1},max_frame_bytes:GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES,max_turn_ms:MAX_TURN_MS});
+       return;
+      }
       if(message.type==="session.stop"){activeTurn?.controller.abort();activeTurn?.chunks.splice(0);activeTurn=undefined;for(const controller of pendingRecognitions.values())controller.abort();pendingRecognitions.clear();send({type:"session.closed",reason:"learner_stop"});ws.close(1000,"learner_stop");return;}
       if(message.type==="tutor.interrupt"){if(activeTurn?.id===message.turn_id){activeTurn.controller.abort();activeTurn.chunks.length=0;activeTurn=undefined;}const recognition=pendingRecognitions.get(message.turn_id);if(recognition){recognition.abort();pendingRecognitions.delete(message.turn_id);}return;}
       if(message.type==="turn.start"){
