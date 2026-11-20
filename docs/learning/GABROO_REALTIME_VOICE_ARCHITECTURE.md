@@ -107,15 +107,15 @@ Client → server:
 Server → client:
 - `session.connected`: authenticated control connection established; this does not mean audio streaming is ready.
 - `session.accepted`: future negotiated audio capabilities, emitted only after an audio pipeline is actually available.
-- `turn.accepted`: accepted turn ID and limits; this acknowledges transport readiness only, not recognition readiness.
+- `turn.accepted`: accepted turn ID and limits; it acknowledges a bounded audio turn, not a live partial-transcript stream.
 - `transcript.partial`: provisional transcript, clearly marked as unconfirmed.
-- `transcript.final`: final transcript for the active turn.
+- `transcript.final`: buffered recognition result for the ended turn, with detected language and `review_required: true`; it is never submitted to the conversation automatically.
 - `tutor.text.delta` / `tutor.text.final`: response text stream.
 - `tutor.audio.start` / binary audio frames / `tutor.audio.end`: ordered speech output.
 - `tutor.timeline`: validated viseme/expression/gesture timeline associated with an audio ID.
 - `turn.completed`, `turn.failed`, `session.interrupted`, `session.closed`: terminal lifecycle events.
 
-The versioned message and frame-metadata schemas live in `packages/contracts/src/gabroo-realtime-protocol.ts`. The API now issues authenticated, paid-entitlement-gated one-time session tickets and exposes an atomic consume helper. A WebSocket upgrade handler is implemented at `/api/v1/gabroo/realtime/connect`: it accepts the ticket in the `Sec-WebSocket-Protocol` header (never a URL), checks the configured browser origin when present, atomically consumes the ticket, rechecks the learner account and paid entitlement, binds the connection to the ticket's session/user, and allows only one active connection per learner in this process. It emits `session.connected`, handles `session.stop`, sends periodic ping heartbeats, and enforces 60-second idle and 15-minute absolute connection limits. The WebSocket now accepts `turn.start`, JSON frame metadata followed by matching binary payloads, and `turn.end` for 16 kHz mono PCM. It enforces sequential frame numbers, exact payload lengths, 64 KiB per-frame bounds, a 5 MiB/120-second turn ceiling and a 60-frame/second limit; audio bytes are discarded immediately after in-memory validation. It still has no streaming recognition provider: `turn.end` returns `TRANSPORT_NOT_READY`, and the mobile recording/review/confirm fallback remains the supported voice-input path.
+The versioned message and frame-metadata schemas live in `packages/contracts/src/gabroo-realtime-protocol.ts`. The API now issues authenticated, paid-entitlement-gated one-time session tickets and exposes an atomic consume helper. A WebSocket upgrade handler is implemented at `/api/v1/gabroo/realtime/connect`: it accepts the ticket in the `Sec-WebSocket-Protocol` header (never a URL), checks the configured browser origin when present, atomically consumes the ticket, rechecks the learner account and paid entitlement, binds the connection to the ticket's session/user, and allows only one active connection per learner in this process. It emits `session.connected`, handles `session.stop`, sends periodic ping heartbeats, and enforces 60-second idle and 15-minute absolute connection limits. The WebSocket accepts `turn.start`, JSON frame metadata followed by matching binary payloads, and `turn.end` for 16 kHz mono PCM. It enforces sequential frame numbers, exact payload lengths, 64 KiB per-frame bounds, a 5 MiB/120-second turn ceiling and a 60-frame/second limit. At turn end it currently buffers the bounded PCM in memory, wraps it as WAV, and calls the existing complete-file recognition provider; it returns a final transcript marked `review_required: true`, without creating or sending a conversation message. This is buffered end-of-turn recognition, not streaming STT or partial transcripts. Recognition can be interrupted and is cleaned up on session stop/disconnect; a second learner turn is rejected while recognition is pending. The mobile recording/review/confirm fallback remains available until mobile realtime capture and device QA are complete.
 
 The ticket endpoint is `POST /api/v1/gabroo/realtime/session-ticket`. It requires the existing verified learner authentication, an active subscription, and the explicit `x-gabroo-consent: true` confirmation before issuing a connection ticket. Tickets expire after 60 seconds, are single-use, and only their SHA-256 digests are persisted in `gabroo_realtime_session_tickets` (migration `0025_gabroo_realtime_session_tickets.sql`). Issuing a replacement invalidates the learner's previous unconsumed ticket. `consumeGabrooRealtimeSessionTicket` performs an atomic expiry-checked consume for the future upgrade handler. The transport validates message schemas, exact frame lengths and sequence order. Audio bytes are not persisted or logged. Streaming provider work and mobile capture remain disabled.
 
@@ -153,11 +153,12 @@ Exit: written decision on transport/provider feasibility; no production micropho
 - [x] Add WebSocket upgrade validation and a live handshake/close integration test.
 - [x] Accept 16 kHz mono PCM turns with JSON frame metadata and immediately-following binary payloads.
 - [x] Enforce exact payload lengths, contiguous sequence numbers, 64 KiB frames, 5 MiB/120-second turn bounds and 60 frames/second.
-- [x] Add a live integration test for a valid metadata-plus-binary frame and the explicit recognition-not-ready terminal response.
+- [x] Add live integration coverage for valid metadata-plus-binary frames and the buffered recognition review response.
+- [x] Abort in-flight recognition on learner interruption/session teardown and prevent overlapping half-duplex turns.
 - [ ] Add invalid sequence/length, stale-session, cancellation, backpressure and multi-instance tests.
 - Keep audio bytes transient and prove no persistence/logging.
 
-Exit: authenticated test client can connect, stream bounded 16 kHz mono PCM frames, receive `turn.accepted`, and close safely without microphone capture. Frame transport is implemented with in-memory validation and discard; streaming recognition, mobile device feasibility and provider integration remain outstanding.
+Exit: authenticated test client can connect, stream bounded 16 kHz mono PCM frames, receive a learner-review transcript through the existing complete-file STT adapter, interrupt recognition, and close safely without microphone capture. True streaming STT, mobile device feasibility and provider integration remain outstanding.
 
 ### Stage C — streaming learner turn
 - Implement mobile capture adapter, VAD, bounded frame streaming and push-to-talk fallback.
