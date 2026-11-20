@@ -5,6 +5,8 @@ export type ExpoAudioStreamPort={
  start:()=>Promise<void>;
  stop:()=>void|Promise<void>;
  isStreaming?:boolean;
+ sampleRate?:number;
+ channels?:number;
 };
 
 export type ExpoAudioPcmBuffer={
@@ -38,8 +40,8 @@ export function attachGabrooExpoAudioStream(input:{
  const nativeStream:GabrooNativeAudioStream={
   start:()=>input.stream.start(),
   stop:()=>input.stream.stop(),
-  sampleRate:input.requestedSampleRate??48_000,
-  channels:input.requestedChannels??1,
+  get sampleRate(){return input.stream.sampleRate??input.requestedSampleRate??48_000;},
+  get channels(){return input.stream.channels??input.requestedChannels??1;},
   get isStreaming(){return input.stream.isStreaming??false;}
  };
  input.controller.attachStream(nativeStream);
