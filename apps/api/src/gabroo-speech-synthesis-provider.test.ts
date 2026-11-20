@@ -34,6 +34,11 @@ describe("Gabroo speech synthesis provider",()=>{
   await expect(provider.synthesize({text:"x".repeat(4001),speed:1,signal})).rejects.toThrow("1–4000 characters");
   expect(fetcher).not.toHaveBeenCalled();
  });
+ it("rejects a missing provider content type instead of guessing the audio format",async()=>{
+  const input={text:"hello",speed:1,signal:new AbortController().signal};
+  const missing=createGabrooSpeechSynthesisProvider(config,async()=>new Response(new Uint8Array([1,2,3]),{status:200}))!;
+  await expect(missing.synthesize(input)).rejects.toThrow(/unsupported audio format/i);
+ });
  it("rejects unexpected provider audio formats and invalid declared lengths",async()=>{
   const input={text:"hello",speed:1,signal:new AbortController().signal};
   const wrongType=createGabrooSpeechSynthesisProvider(config,async()=>new Response("{}",{status:200,headers:{"content-type":"application/json"}}))!;
@@ -47,9 +52,9 @@ describe("Gabroo speech synthesis provider",()=>{
   const input={text:"hello",speed:1,signal:new AbortController().signal};
   const failed=createGabrooSpeechSynthesisProvider(config,async()=>new Response("unavailable",{status:503}))!;
   await expect(failed.synthesize(input)).rejects.toThrow("status 503");
-  const empty=createGabrooSpeechSynthesisProvider(config,async()=>new Response(new Uint8Array(),{status:200}))!;
+  const empty=createGabrooSpeechSynthesisProvider(config,async()=>new Response(new Uint8Array(),{status:200,headers:{"content-type":"audio/mpeg"}}))!;
   await expect(empty.synthesize(input)).rejects.toThrow("empty audio");
-  const large=createGabrooSpeechSynthesisProvider(config,async()=>new Response(new Uint8Array(12*1024*1024+1),{status:200}))!;
+  const large=createGabrooSpeechSynthesisProvider(config,async()=>new Response(new Uint8Array(12*1024*1024+1),{status:200,headers:{"content-type":"audio/mpeg"}}))!;
   await expect(large.synthesize(input)).rejects.toThrow("size limit");
  });
  it("joins valid chunked provider audio in order",async()=>{
