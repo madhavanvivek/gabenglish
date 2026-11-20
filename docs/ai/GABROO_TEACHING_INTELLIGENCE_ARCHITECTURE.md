@@ -302,3 +302,8 @@ When a free diagnostic report contains a conservative grammar review item, show 
 ## 19. Malayalam-supported grammar review notes
 
 The conservative placement grammar patterns now include a bounded, reviewed Malayalam support note alongside the English explanation. Notes are selected from explicit known pattern descriptions (subject–verb agreement, be-verb agreement, -ing after am, base form after does/did and base form after modal verbs). The mapping fails closed if a new English note is introduced without reviewed Malayalam copy; do not silently fall back to machine translation. These notes are explanatory aids, not a complete grammar curriculum. Keep the original English explanation and learner example visible, and continue to label the suggested form as a review prompt rather than a guaranteed rewrite.
+
+
+## 20. Guided sentence-construction practice
+
+The mobile sentence builder contains a small curated beginner set covering basic word order, present-simple agreement, question formation, negatives, past-tense forms, modal verbs, reason clauses and frequency-adverb placement. Each multiple-choice item includes an English explanation and a Malayalam support explanation. Answer checking is deterministic against an explicit answer key; unknown exercise IDs or option IDs are rejected. The result is a local practice-set tally only, never a proficiency score, and attempts are not persisted to the learner account. Learners can open Gabroo with the current pattern and prompt prefilled for a voluntary conversation; the learner must review and send the message. This starter set is not a complete curriculum and requires review by English and Kerala Malayalam educators before broader release.
