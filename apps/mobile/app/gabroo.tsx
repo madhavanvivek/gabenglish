@@ -4,7 +4,7 @@ import {Audio} from "expo-av";
 import * as FileSystem from "expo-file-system";
 import {chunkGabrooSpeechSegments,confirmGabrooTranscript,GABROO_LOCAL_CAPTURE_MAX_MS,initialGabrooPlaybackState,initialGabrooTurnState,playGabrooSpeechSegments,reduceGabrooPlayback,reduceGabrooTurn,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooPlaybackState,type GabrooTurnState,type GabrooVoiceSessionState,type GabrooTranscript,type GabrooRecognitionLanguage} from "@gabenglish/contracts";
 import {Link,useFocusEffect,useLocalSearchParams} from "expo-router";
-import {ActivityIndicator,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
+import {ActivityIndicator,AppState,Pressable,ScrollView,StatusBar,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
 import {adjustGabrooSpeechRate} from "../src/learner-settings";
@@ -707,7 +707,7 @@ export default function GabrooScreen(){
    if(requestId===conversationMutationSequenceRef.current)setBusy(false);
   }
  };
- return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
+ return <SafeAreaView style={s.safe}><StatusBar hidden={darkScreenMode} backgroundColor="#000" barStyle="light-content"/><ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
   <View style={s.top}><Link href="/home" style={s.back}>‹ Learning home</Link><BrandMark size={46}/><Text style={s.brand}>Gabroo</Text><Text style={s.subtitle}>Your everyday English companion</Text></View>
   {loading?<ActivityIndicator size="large" color={colors.primary} style={{marginTop:40}}/>:!subscription?.active?<View style={s.panel}><Text style={s.title}>Your English companion awaits</Text><Text style={s.copy}>Open conversations with Gabroo are included with an active Gabenglish subscription. Your free English analysis remains available in your account.</Text><Link href="/account" style={s.action}>Go to your account</Link></View>:<>
    {!active?<><View style={s.panel}><Text style={s.title}>Talk about anything suitable for practice.</Text><Text style={s.copy}>Work, travel, daily life, hobbies or a topic you are curious about. Choose how much correction you want as we build out the conversation experience.</Text><Text style={s.modeLabel}>Choose your conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>setMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View><Pressable disabled={busy} onPress={start} style={[s.button,busy&&s.disabled]}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Start a conversation</Text>}</Pressable></View><Text style={s.section}>Your conversations</Text>{conversations.length===0?<Text style={s.empty}>Your saved conversations will appear here.</Text>:conversations.map(item=><Pressable key={item.id} disabled={busy} onPress={()=>openConversation(item)} style={s.listItem}><Text style={s.listTitle}>{item.title??"Conversation"}</Text><Text style={s.listMeta}>{item.turn_count} exchanges · {new Date(item.updated_at).toLocaleDateString()}</Text></Pressable>)}</>:<>
