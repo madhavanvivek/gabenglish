@@ -425,6 +425,7 @@ export default function GabrooScreen(){
   if(uri)await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
   await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
   setTranscriptionRecording(false);
+  setTranscriptionBusy(false);
   setTranscript(null);setReviewedTranscript("");
  };
  const startTranscriptionCapture=async()=>{
@@ -511,6 +512,7 @@ export default function GabrooScreen(){
   const uri=transcriptionUriRef.current;
   if(!uri||!transcriptionConsent||!recognitionStatus?.available||transcriptionBusy)return;
   const operation=++transcriptionSequenceRef.current;
+  transcriptionOperationRef.current=true;
   setTranscriptionBusy(true);setSpeechNotice("");
   try{
    const result=await recognizeGabrooAudio({uri,mimeType:"audio/mp4",language:recognitionLanguage,consentGranted:true});
@@ -526,6 +528,7 @@ export default function GabrooScreen(){
    setSpeechNotice(reason instanceof Error?reason.message:"Could not transcribe this recording. Your audio will be discarded.");
    await discardTranscriptionAudio();
   }finally{
+   transcriptionOperationRef.current=false;
    if(operation===transcriptionSequenceRef.current)setTranscriptionBusy(false);
   }
  };
