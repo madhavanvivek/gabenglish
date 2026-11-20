@@ -35,6 +35,7 @@ describe("Gabroo realtime PCM conversion",()=>{
  it("rejects empty and incomplete PCM16 samples",()=>{
   expect(()=>pcm16MonoToWav(new Uint8Array())).toThrow("complete 16-bit");
   expect(()=>pcm16MonoToWav(new Uint8Array([0x01]))).toThrow("complete 16-bit");
+  expect(()=>pcm16MonoToWav(new Uint8Array([0x01,0x00]),8000)).toThrow("sample rate is not supported");
  });
 });
 
