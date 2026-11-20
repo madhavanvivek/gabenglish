@@ -105,4 +105,24 @@ describe("Gabroo speech synthesis provider",()=>{
   expect(streamCancelled).toBe(true);
  });
 
+ it("exposes the first provider audio chunk before synthesis finishes",async()=>{
+  let finish!:()=>void;
+  const finished=new Promise<void>(resolve=>{finish=resolve;});
+  const provider=createGabrooSpeechSynthesisProvider(config,async()=>new Response(new ReadableStream<Uint8Array>({
+   async start(controller){
+    controller.enqueue(new Uint8Array([7,8]));
+    await finished;
+    controller.enqueue(new Uint8Array([9]));
+    controller.close();
+   }
+  }),{status:200,headers:{"content-type":"audio/mpeg"}}))!;
+  const result=await provider.synthesizeStream!({text:"hello",speed:1,signal:new AbortController().signal});
+  const reader=result.audio.getReader();
+  const first=await reader.read();
+  expect(first.value).toEqual(Buffer.from([7,8]));
+  expect(first.done).toBe(false);
+  finish();
+  expect(await reader.read()).toMatchObject({done:false});
+  expect(await reader.read()).toMatchObject({done:true});
+ });
 });
