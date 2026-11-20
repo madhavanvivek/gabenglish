@@ -126,11 +126,11 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
        activeTurn.pendingFrame=undefined;
        const now=Date.now();
        activeTurn.frameTimes=activeTurn.frameTimes.filter(time=>now-time<1000);
-       if(activeTurn.frameTimes.length>=MAX_FRAMES_PER_SECOND){failTurn(activeTurn.id,"RATE_LIMITED","Audio frames arrived too quickly. Please retry.");activeTurn=undefined;return;}
+       if(activeTurn.frameTimes.length>=MAX_FRAMES_PER_SECOND){failTurn(activeTurn.id,"RATE_LIMITED","Audio frames arrived too quickly. Please retry.");activeTurn.controller.abort();activeTurn.chunks.length=0;activeTurn=undefined;return;}
        activeTurn.frameTimes.push(now);
        activeTurn.totalBytes+=metadata.byte_length;
-       if(activeTurn.totalBytes>MAX_TURN_AUDIO_BYTES){failTurn(activeTurn.id,"TURN_LIMIT","This voice turn exceeded the audio size limit.");activeTurn=undefined;return;}
-       if(now-activeTurn.startedAt>MAX_TURN_MS){failTurn(activeTurn.id,"TURN_LIMIT","This voice turn exceeded the time limit.");activeTurn=undefined;return;}
+       if(activeTurn.totalBytes>MAX_TURN_AUDIO_BYTES){failTurn(activeTurn.id,"TURN_LIMIT","This voice turn exceeded the audio size limit.");activeTurn.controller.abort();activeTurn.chunks.length=0;activeTurn=undefined;return;}
+       if(now-activeTurn.startedAt>MAX_TURN_MS){failTurn(activeTurn.id,"TURN_LIMIT","This voice turn exceeded the time limit.");activeTurn.controller.abort();activeTurn.chunks.length=0;activeTurn=undefined;return;}
        activeTurn.nextSequence+=1;
        activeTurn.chunks.push(Buffer.from(payload));
        return;
@@ -155,7 +155,7 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
       if(message.type==="audio.frame"){
        if(!activeTurn||activeTurn.id!==message.turn_id){failTurn(message.turn_id,"TURN_LIMIT","No matching voice turn is active.");return;}
        if(activeTurn.pendingFrame||message.sequence!==activeTurn.nextSequence){ws.close(1008,"audio_sequence_or_frame_order");return;}
-       if(Date.now()-activeTurn.startedAt>MAX_TURN_MS){failTurn(activeTurn.id,"TURN_LIMIT","This voice turn exceeded the time limit.");activeTurn=undefined;return;}
+       if(Date.now()-activeTurn.startedAt>MAX_TURN_MS){failTurn(activeTurn.id,"TURN_LIMIT","This voice turn exceeded the time limit.");activeTurn.controller.abort();activeTurn.chunks.length=0;activeTurn=undefined;return;}
        activeTurn.pendingFrame=message;
        return;
       }
@@ -163,8 +163,8 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
        if(!activeTurn||activeTurn.id!==message.turn_id){failTurn(message.turn_id,"TURN_LIMIT","No matching voice turn is active.");return;}
        const completed=activeTurn;
        activeTurn=undefined;
-       if(Date.now()-completed.startedAt>MAX_TURN_MS){failTurn(completed.id,"TURN_LIMIT","This voice turn exceeded the time limit.");return;}
-       if(!recognitionProvider){failTurn(completed.id,"TRANSPORT_NOT_READY","Live speech recognition is not configured. Please use the recording and transcript review flow.");return;}
+       if(Date.now()-completed.startedAt>MAX_TURN_MS){failTurn(completed.id,"TURN_LIMIT","This voice turn exceeded the time limit.");completed.controller.abort();completed.chunks.length=0;return;}
+       if(!recognitionProvider){failTurn(completed.id,"TRANSPORT_NOT_READY","Live speech recognition is not configured. Please use the recording and transcript review flow.");completed.controller.abort();completed.chunks.length=0;return;}
        pendingRecognitions.set(completed.id,completed.controller);
        void (async()=>{
         try{
