@@ -28,6 +28,19 @@ describe("Gabroo realtime turn coordinator",()=>{
   expect(x.coordinator.state).toBe("idle");
  });
 
+ it("shares one in-flight stop when the learner taps stop more than once",async()=>{
+  const x=setup();
+  let releaseStop!:(value:{drained:boolean})=>void;
+  x.capture.stop.mockImplementationOnce(()=>new Promise(resolve=>{releaseStop=resolve;}));
+  await x.coordinator.start("turn-double-stop",audio);
+  const first=x.coordinator.stop();
+  const second=x.coordinator.stop();
+  expect(first).toBe(second);
+  expect(x.capture.stop).toHaveBeenCalledOnce();
+  releaseStop({drained:true});
+  await expect(Promise.all([first,second])).resolves.toEqual([{completed:true,reason:"audio_drained"},{completed:true,reason:"audio_drained"}]);
+  expect(x.connection.endTurn).toHaveBeenCalledOnce();
+ });
  it("never sends turn.end when native capture reports a failed audio drain",async()=>{
   const x=setup(false);
   await x.coordinator.start("turn-2",audio);
