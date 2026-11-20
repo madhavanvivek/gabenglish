@@ -53,6 +53,34 @@ describe("Gabroo realtime turn coordinator",()=>{
   await x.coordinator.stop();
  });
 
+ it("cancels a turn whose native capture is still starting",async()=>{
+  const x=setup();
+  let resolveStart!:()=>void;
+  x.capture.start.mockImplementationOnce(()=>new Promise(resolve=>{resolveStart=()=>resolve({sampleRate:48_000,channels:1});}));
+  const starting=x.coordinator.start("turn-starting",audio);
+  await Promise.resolve();
+  await x.coordinator.interrupt();
+  resolveStart();
+  await expect(starting).rejects.toThrow(/interrupted while starting/);
+  expect(x.connection.endTurn).not.toHaveBeenCalled();
+  expect(x.coordinator.state).toBe("idle");
+ });
+
+ it("does not complete a turn if interruption arrives during audio drain",async()=>{
+  const x=setup();
+  let resolveStop!:(value:{drained:boolean})=>void;
+  x.capture.stop.mockImplementationOnce(()=>new Promise(resolve=>{resolveStop=resolve;}));
+  await x.coordinator.start("turn-draining",audio);
+  const stopping=x.coordinator.stop();
+  await Promise.resolve();
+  await x.coordinator.interrupt();
+  resolveStop({drained:true});
+  await expect(stopping).resolves.toEqual({completed:false,reason:"interrupted"});
+  expect(x.connection.interrupt).toHaveBeenCalledWith("turn-draining");
+  expect(x.connection.endTurn).not.toHaveBeenCalled();
+  expect(x.coordinator.state).toBe("idle");
+ });
+
  it("interrupts an active turn without sending turn.end",async()=>{
   const x=setup();
   await x.coordinator.start("turn-6",audio);
