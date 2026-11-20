@@ -66,4 +66,18 @@ describe("Gabroo audio response validation",()=>{
   expect(streamCancelled).toBe(true);
  });
 
+ it("discards bytes when a non-streaming response finishes after cancellation",async()=>{
+  const controller=new AbortController();
+  let finishRead!:(value:ArrayBuffer)=>void;
+  const response={
+   headers:new Headers({"content-type":"audio/mpeg"}),
+   body:null,
+   arrayBuffer:()=>new Promise<ArrayBuffer>(resolve=>{finishRead=resolve;})
+  };
+  const pending=readGabrooAudioBytes(response,controller.signal);
+  controller.abort();
+  finishRead(new Uint8Array([0x49,0x44,0x33]).buffer);
+  await expect(pending).rejects.toThrow(/cancelled/i);
+ });
+
 });
