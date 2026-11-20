@@ -70,6 +70,25 @@ describe("Gabroo realtime audio sender",()=>{
   expect(sender.isClosed).toBe(true);
  });
 
+ it("cancels queued microphone frames when the learner interrupts during backpressure",async()=>{
+  vi.useFakeTimers();
+  const sent:number[]=[];
+  const sender=createGabrooRealtimeAudioSender({
+   sendFrame:sequence=>sent.push(sequence),
+   getBufferedAmount:()=>200,
+   isOpen:()=>true,
+   highWaterBytes:100,lowWaterBytes:20,drainTimeoutMs:1_000
+  });
+  const enqueue=sender.enqueue(native(Array.from({length:1_600},()=>0.2)));
+  expect(sender.queuedBytes).toBe(3_200);
+  sender.close("learner_interrupt");
+  expect(sender.queuedBytes).toBe(0);
+  await vi.advanceTimersByTimeAsync(20);
+  await expect(enqueue).rejects.toThrow(/closed: learner_interrupt/);
+  expect(sent).toEqual([]);
+  expect(sender.isClosed).toBe(true);
+ });
+
  it("closes explicitly and rejects subsequent buffers",async()=>{
   const sender=createGabrooRealtimeAudioSender({sendFrame:()=>{},getBufferedAmount:()=>0,isOpen:()=>true});
   sender.close();
