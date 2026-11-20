@@ -1,19 +1,19 @@
 # Gabroo Progressive Audio Playback — Architecture Decision
 
-Status: investigation decision; implementation pending.
+Status: native remote playback bridge implemented; end-to-end streaming validation pending.
 Date: 2026-11-20
 
 ## Context
 
-The current mobile speech path sends a POST request, reads the complete MP3 response into a JavaScript byte array, converts it to base64, writes a temporary file, and only then creates an Expo AV player. Sentence chunking limits the amount requested at once, but it is not progressive playback of the provider response.
+The original mobile speech path sent a POST request, read the complete MP3 response into a JavaScript byte array, converted it to base64, wrote a temporary file, and only then created an Expo AV player. The current implementation now creates a short-lived playback ticket with an authenticated POST and passes its opaque GET URL directly to Expo AV, avoiding the JavaScript byte-array/base64/temp-file path. Sentence chunking remains in place.
 
-The API provider currently reads the complete provider response into a bounded `Uint8Array` before the route sends it. Therefore, replacing only the mobile file-writing step would improve client-side startup and memory behaviour, but would not make provider synthesis-to-device delivery end-to-end streaming.
+The API provider currently reads the complete provider response into a bounded `Uint8Array` before the route sends it. The provider still buffers the complete response before the GET route sends it. Native remote playback can consume the resulting HTTP response without a JavaScript copy, but provider synthesis-to-device delivery is not yet end-to-end streaming.
 
 ## Evidence from the current stack
 
 The app currently uses Expo SDK 53, React Native 0.79.2 and `expo-av ~15.1.7`.
 
-Expo AV's playback source supports a remote `uri` and request `headers`. Its native playback source can therefore carry the learner's bearer authorization header without downloading the MP3 through JavaScript first. See the Expo AV API documentation: https://docs.expo.dev/versions/v53.0.0/sdk/av/
+Expo AV's playback source supports a remote `uri` and request `headers`. The current implementation uses a short-lived opaque URL capability instead of putting the learner's bearer token in the media URL or needing a custom native request header. See the Expo AV API documentation: https://docs.expo.dev/versions/v53.0.0/sdk/av/
 
 This is a better first native playback spike than assuming React Native Fetch exposes a usable `ReadableStream.getReader()` on every supported device.
 
@@ -33,9 +33,9 @@ The current app's speech endpoint is POST-only and accepts text plus speed in a 
 
 - Confirm the exact `expo-av ~15.1.7` installed type definition accepts `{ uri, headers }`; do not infer solely from newer documentation.
 - Verify that Android ExoPlayer and iOS AVPlayer begin playback before the full response is downloaded for a chunked MP3 response.
-- Verify bearer/ticket headers reach the server on both platforms.
+- Verify the opaque ticket GET reaches the server on both platforms and ticket URLs are not retained in proxy/analytics logs.
 - Verify HTTP status failures are surfaced; do not allow an HTML/JSON error body to be played as audio.
-- Verify cancellation on Stop, navigation, app backgrounding, conversation switch and component unmount closes the native request and provider stream.
+- Verify cancellation on Stop, navigation, app backgrounding, conversation switch and component unmount closes the native request and provider stream. The POST ticket-creation request is abortable; the Expo AV GET request's cancellation behaviour still needs physical-device verification.
 - Verify 0.75–1.5x rate changes, pitch correction and the actual audio clock remain usable for viseme scheduling.
 - Measure time-to-first-audio, buffering, bytes received before playback, peak JS memory and interruption latency on low-, mid- and high-range Android devices.
 - Test expired, replayed, wrong-learner and revoked tickets.
@@ -54,4 +54,4 @@ The current app's speech endpoint is POST-only and accepts text plus speed in a 
 - Server provider response is still fully buffered (bounded to 12 MiB).
 - Mobile response is still fully read and written to a temporary MP3 file.
 - Mobile and API cancellation handling has been strengthened and regression-tested.
-- Native progressive playback, ticket issuance, server GET streaming and physical-device validation remain pending.
+- Authenticated ticket issuance, durable one-time ticket consumption, server GET media route and native remote URI playback are implemented.\n- The API still buffers provider MP3 output before returning it; provider-to-device streaming and first-audio latency improvement are not yet achieved.\n- Physical Android/iOS playback, cancellation, memory and audio-clock validation remain pending.\n- Expired-ticket cleanup scheduling remains pending.
