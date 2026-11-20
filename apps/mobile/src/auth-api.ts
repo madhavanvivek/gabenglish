@@ -208,7 +208,7 @@ export async function synthesizeGabrooSpeech(input:{text:string;speed:number;sig
     const message=typeof payload==="object"&&payload!==null&&"error" in payload&&typeof payload.error==="object"&&payload.error!==null&&"message" in payload.error&&typeof payload.error.message==="string"?payload.error.message:`Gabroo speech is unavailable (${response.status}).`;
     throw new AuthApiError(message,response.status);
    }
-   const bytes=await readGabrooAudioBytes(response);
+   const bytes=await readGabrooAudioBytes(response,controller.signal);
    let binary="";
    const chunkSize=0x8000;
    for(let offset=0;offset<bytes.length;offset+=chunkSize){
