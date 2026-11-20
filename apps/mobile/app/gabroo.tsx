@@ -88,9 +88,11 @@ export default function GabrooScreen(){
  const sendInFlightRef=useRef(false);
  const speechPreferenceSequenceRef=useRef(0);
  const playbackStateRef=useRef<GabrooPlaybackState>(initialGabrooPlaybackState);
- const audioModeQueueRef=useRef(createGabrooAudioModeQueue());
+ const audioModeQueueRef=useRef<ReturnType<typeof createGabrooAudioModeQueue>|null>(null);
+ if(audioModeQueueRef.current===null)audioModeQueueRef.current=createGabrooAudioModeQueue();
+ const audioModeQueue=audioModeQueueRef.current;
  const setGabrooAudioMode=(mode:Parameters<typeof Audio.setAudioModeAsync>[0])=>
-  audioModeQueueRef.current.enqueue(()=>Audio.setAudioModeAsync(mode));
+  audioModeQueue.enqueue(()=>Audio.setAudioModeAsync(mode));
  const saveReplyAsPhrase=useCallback(async(message:GabrooConversationMessage)=>{
   if(savingPhraseId||savedPhraseIds.includes(message.id))return;
   const phrase=message.content.trim().replace(/\s+/g," ").slice(0,500);
