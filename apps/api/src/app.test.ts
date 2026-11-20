@@ -332,6 +332,44 @@ describe("API foundation",()=>{
   await app.close();
  });
 
+ it("cancels a live playback stream and releases the learner slot after a client disconnect",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let started!:()=>void;
+  let streamClosed!:()=>void;
+  const synthesisStarted=new Promise<void>(resolve=>{started=resolve;});
+  const audioStreamClosed=new Promise<void>(resolve=>{streamClosed=resolve;});
+  let calls=0;
+  const provider={
+   synthesize:async()=>({audio:new Uint8Array([1]),contentType:"audio/mpeg" as const}),
+   synthesizeStream:async()=>{
+    calls++;
+    if(calls>1)return {audio:Readable.from([Buffer.from([7,8,9])]),contentType:"audio/mpeg" as const};
+    const audio=new Readable({read(){}});
+    audio.once("close",()=>streamClosed());
+    started();
+    return {audio,contentType:"audio/mpeg" as const};
+   }
+  };
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,provider);
+  await app.listen({host:"127.0.0.1",port:0});
+  const address=app.server.address();
+  if(!address||typeof address==="string")throw new Error("Expected a TCP listener");
+  const client=httpRequest({host:"127.0.0.1",port:address.port,path:"/api/v1/gabroo/speech",method:"POST",headers:{
+   authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET),
+   "content-type":"application/json"
+  }});
+  client.on("error",()=>undefined);
+  client.end(JSON.stringify({text:"Stream this reply",speed:1}));
+  await synthesisStarted;
+  client.destroy();
+  await expect(audioStreamClosed).resolves.toBeUndefined();
+  const retry=await app.inject({method:"POST",url:"/api/v1/gabroo/speech",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{text:"A fresh streamed reply",speed:1}});
+  expect(retry.statusCode).toBe(200);
+  expect(retry.rawPayload).toEqual(Buffer.from([7,8,9]));
+  expect(calls).toBe(2);
+  await app.close();
+ });
+
  it("issues a short-lived opaque playback ticket and allows exactly one native GET",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   let stored:{digest:string;userId:string;text:string;speed:number;consumed:boolean}|undefined;
