@@ -74,25 +74,27 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
    if(!currentStream)throw new Error("Gabroo native audio stream is not attached.");
    starting=true;
    const operation=++generation;
+   let nativeStartAttempted=false;
    try{
     const granted=await options.requestPermission();
     if(!granted)throw new Error("Microphone permission was not granted.");
     if(operation!==generation||!options.isForeground())throw new Error("Gabroo capture was cancelled before microphone start.");
+    nativeStartAttempted=true;
     await currentStream.start();
     if(operation!==generation||!options.isForeground()){
-     // stop() may already have run while the native start promise was pending.
-     // Stop again after start resolves so a late native start cannot leave the mic open.
-     await currentStream.stop();
+     // The catch path stops the stream after a pending native start resolves.
      throw new Error("Gabroo capture was cancelled while starting.");
     }
     if(!Number.isFinite(currentStream.sampleRate)||currentStream.sampleRate<8_000||!Number.isSafeInteger(currentStream.channels)||currentStream.channels<1||currentStream.channels>2){
-     await currentStream.stop();
      throw new Error("The device returned an unsupported microphone format.");
     }
     active=true;
     starting=false;
     return {sampleRate:currentStream.sampleRate,channels:currentStream.channels};
    }catch(error){
+    if(nativeStartAttempted){
+     try{await currentStream.stop();}catch(stopError){report(stopError);}
+    }
     starting=false;
     active=false;
     options.sender.close("capture_start_failed");
