@@ -1,0 +1,76 @@
+import {useCallback,useEffect,useState} from "react";
+import {ActivityIndicator,Alert,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
+import {Link} from "expo-router";
+import {SafeAreaView} from "react-native-safe-area-context";
+import {colors} from "../src/theme";
+import {AuthApiError,type GabrooMemoryItem,type GabrooVocabularyItem,type GabrooVocabularyStatus,listGabrooMemory,listGabrooVocabulary,createGabrooVocabulary,updateGabrooVocabulary,deleteGabrooVocabulary} from "../src/auth-api";
+
+const statuses:GabrooVocabularyStatus[]=["learning","familiar","mastered"];
+const statusLabels:Record<GabrooVocabularyStatus,string>={learning:"Learning",familiar:"Familiar",mastered:"Mastered"};
+
+export default function VocabularyScreen(){
+ const [phrases,setPhrases]=useState<GabrooMemoryItem[]>([]);
+ const [items,setItems]=useState<GabrooVocabularyItem[]>([]);
+ const [sourceId,setSourceId]=useState("");
+ const [term,setTerm]=useState("");
+ const [meaning,setMeaning]=useState("");
+ const [example,setExample]=useState("");
+ const [busy,setBusy]=useState(false);
+ const [loading,setLoading]=useState(true);
+ const [error,setError]=useState("");
+ const [notice,setNotice]=useState("");
+ const refresh=useCallback(async()=>{
+  const [memory,vocabulary]=await Promise.all([listGabrooMemory(),listGabrooVocabulary()]);
+  setPhrases(memory.memory.filter(item=>item.category==="saved_phrase"));
+  setItems(vocabulary.vocabulary);
+ },[]);
+ useEffect(()=>{let active=true;Promise.all([listGabrooMemory(),listGabrooVocabulary()]).then(([memory,vocabulary])=>{if(active){setPhrases(memory.memory.filter(item=>item.category==="saved_phrase"));setItems(vocabulary.vocabulary);}}).catch(reason=>{if(active)setError(reason instanceof Error?reason.message:"Could not load your vocabulary.");}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[]);
+ const add=async()=>{
+  if(busy||!sourceId||!term.trim()||!meaning.trim())return;
+  setBusy(true);setError("");setNotice("");
+  try{await createGabrooVocabulary({source_saved_phrase_id:sourceId,term:term.trim(),malayalam_meaning:meaning.trim(),example_sentence:example.trim(),learning_direction:"ml_to_en"});await refresh();setTerm("");setMeaning("");setExample("");setNotice("Added to your vocabulary. You can update its learning status as you practise.");}
+  catch(reason){setError(reason instanceof Error?reason.message:"Could not add this vocabulary item.");}
+  finally{setBusy(false);}
+ };
+ const changeStatus=async(item:GabrooVocabularyItem,status:GabrooVocabularyStatus)=>{
+  if(busy||item.status===status)return;
+  setBusy(true);setError("");setNotice("");
+  try{await updateGabrooVocabulary(item.id,{status});await refresh();}
+  catch(reason){setError(reason instanceof Error?reason.message:"Could not update this item.");}
+  finally{setBusy(false);}
+ };
+ const remove=(item:GabrooVocabularyItem)=>{
+  Alert.alert("Delete vocabulary item?","This removes the item from your personal vocabulary list. The saved Gabroo phrase will remain.",[{text:"Cancel",style:"cancel"},{text:"Delete",style:"destructive",onPress:async()=>{setBusy(true);setError("");try{await deleteGabrooVocabulary(item.id);await refresh();setNotice("Vocabulary item deleted.");}catch(reason){setError(reason instanceof Error?reason.message:"Could not delete this item.");}finally{setBusy(false);}}}]);
+ };
+ const selected=phrases.find(item=>item.id===sourceId);
+ return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
+  <Text style={s.eyebrow}>GABROO LEARNING</Text><Text style={s.title}>My vocabulary</Text><Text style={s.subtitle}>Build a personal word list from phrases you deliberately saved from Gabroo. You choose the meaning and track what you have mastered.</Text>
+  <Link href="/account" style={s.back}>‹ Account</Link>
+  {error?<Text accessibilityRole="alert" style={s.error}>{error}</Text>:null}
+  {notice?<Text accessibilityRole="status" style={s.notice}>{notice}</Text>:null}
+  <View style={s.card}>
+   <Text style={s.section}>Add from a saved Gabroo phrase</Text>
+   <Text style={s.hint}>First choose the phrase where you found the word or expression.</Text>
+   {phrases.length===0?<Text style={s.empty}>No saved phrases yet. In a conversation, tap “Save useful phrase” on a Gabroo reply first.</Text>:phrases.map(phrase=><Pressable key={phrase.id} onPress={()=>setSourceId(phrase.id)} style={[s.phrase,sourceId===phrase.id&&s.selected]}><Text style={s.phraseTitle}>{phrase.memory_key}</Text><Text style={s.phraseBody}>{phrase.content}</Text><Text style={s.choose}>{sourceId===phrase.id?"Selected":"Use this phrase"}</Text></Pressable>)}
+   {selected?<View style={s.form}>
+    <Text style={s.label}>English word or phrase</Text><TextInput value={term} onChangeText={setTerm} placeholder="e.g. make up your mind" maxLength={120} style={s.input}/>
+    <Text style={s.label}>Meaning in Malayalam</Text><TextInput value={meaning} onChangeText={setMeaning} placeholder="Write the meaning you understand" maxLength={300} style={s.input}/>
+    <Text style={s.label}>Example sentence (optional)</Text><TextInput value={example} onChangeText={setExample} placeholder="Use it in a sentence" maxLength={500} multiline style={[s.input,s.multiline]}/>
+    <Pressable disabled={busy||!term.trim()||!meaning.trim()} onPress={()=>void add()} style={[s.primary,(busy||!term.trim()||!meaning.trim())&&s.disabled]}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.primaryText}>Add to my vocabulary</Text>}</Pressable>
+   </View>:null}
+  </View>
+  <View style={s.card}>
+   <Text style={s.section}>Your word list ({items.length})</Text>
+   {loading?<ActivityIndicator color={colors.primary}/>:items.length===0?<Text style={s.empty}>Your vocabulary list is empty. Save a useful Gabroo phrase and add your first word above.</Text>:items.map(item=><View key={item.id} style={s.item}>
+    <View style={s.itemHead}><View style={{flex:1}}><Text style={s.term}>{item.term}</Text><Text style={s.meaning}>{item.malayalam_meaning}</Text></View><Pressable onPress={()=>remove(item)} disabled={busy} style={s.delete}><Text style={s.deleteText}>Delete</Text></Pressable></View>
+    {item.example_sentence?<Text style={s.example}>“{item.example_sentence}”</Text>:null}
+    <Text style={s.statusLabel}>Learning status</Text>
+    <View style={s.statusRow}>{statuses.map(status=><Pressable key={status} disabled={busy} onPress={()=>void changeStatus(item,status)} style={[s.statusButton,item.status===status&&s.statusActive]}><Text style={[s.statusText,item.status===status&&s.statusTextActive]}>{statusLabels[status]}</Text></Pressable>)}</View>
+   </View>)}
+  </View>
+  <Text style={s.privacy}>Only vocabulary you add from a saved phrase appears here. Meanings are learner-entered, not unverified dictionary claims. Your list is private to your account and can be edited or deleted.</Text>
+ </ScrollView></SafeAreaView>;
+}
+const s=StyleSheet.create({
+ safe:{flex:1,backgroundColor:colors.background},page:{padding:22,paddingBottom:48,gap:14},eyebrow:{fontSize:11,fontWeight:"900",letterSpacing:1.5,color:colors.primary},title:{fontSize:30,fontWeight:"900",color:colors.ink},subtitle:{fontSize:14,lineHeight:21,color:colors.muted},back:{color:colors.primary,fontWeight:"800",marginBottom:4},card:{backgroundColor:colors.surface,borderRadius:20,padding:17,gap:12,borderWidth:1,borderColor:colors.border},section:{fontSize:18,fontWeight:"900",color:colors.ink},hint:{fontSize:13,lineHeight:19,color:colors.muted},empty:{fontSize:13,lineHeight:20,color:colors.muted,paddingVertical:8},phrase:{borderWidth:1,borderColor:colors.border,borderRadius:13,padding:12,gap:5},selected:{borderColor:colors.primary,backgroundColor:colors.primarySoft},phraseTitle:{fontWeight:"800",color:colors.ink},phraseBody:{fontSize:13,lineHeight:19,color:colors.muted},choose:{fontSize:12,fontWeight:"800",color:colors.primary},form:{gap:9,marginTop:5},label:{fontSize:12,fontWeight:"800",color:colors.ink},input:{borderWidth:1,borderColor:colors.border,borderRadius:11,padding:12,color:colors.ink,backgroundColor:colors.background,fontSize:14},multiline:{minHeight:76,textAlignVertical:"top"},primary:{backgroundColor:colors.primary,borderRadius:12,padding:14,alignItems:"center",marginTop:4},primaryText:{color:"#fff",fontWeight:"900"},disabled:{opacity:0.45},item:{borderTopWidth:1,borderTopColor:colors.border,paddingTop:13,gap:9},itemHead:{flexDirection:"row",alignItems:"flex-start",gap:10},term:{fontSize:17,fontWeight:"900",color:colors.ink},meaning:{fontSize:14,color:colors.muted,marginTop:3},delete:{padding:7},deleteText:{fontSize:12,fontWeight:"800",color:colors.danger},example:{fontSize:13,lineHeight:19,color:colors.muted,fontStyle:"italic"},statusLabel:{fontSize:11,fontWeight:"800",color:colors.muted},statusRow:{flexDirection:"row",gap:7,flexWrap:"wrap"},statusButton:{borderWidth:1,borderColor:colors.border,borderRadius:20,paddingVertical:7,paddingHorizontal:10},statusActive:{backgroundColor:colors.primary,borderColor:colors.primary},statusText:{fontSize:11,fontWeight:"800",color:colors.muted},statusTextActive:{color:"#fff"},privacy:{fontSize:11,lineHeight:17,color:colors.muted,paddingHorizontal:3},error:{color:colors.danger,fontSize:13},notice:{color:colors.success,fontSize:13}
+});
