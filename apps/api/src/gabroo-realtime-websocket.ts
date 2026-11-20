@@ -66,14 +66,15 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
     wss.handleUpgrade(request,socket,head,ws=>{
      activeByUser.set(consumed.userId,ws);
      const sessionId=consumed.sessionId;
-     let lastActivity=Date.now();
-     let lastPong=Date.now();
+     const connectedAt=Date.now();
+     let lastActivity=connectedAt;
+     let lastPong=connectedAt;
      const send=(message:Record<string,unknown>)=>{if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({protocol_version:GABROO_REALTIME_PROTOCOL_VERSION,session_id:sessionId,...message}));};
-     send({type:"session.accepted",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1},max_frame_bytes:GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES,max_turn_ms:120000});
+     send({type:"session.connected"});
      const heartbeat=setInterval(()=>{
       const now=Date.now();
+      if(now-connectedAt>MAX_SESSION_MS){send({type:"session.closed",reason:"timeout"});ws.close(4000,"session_timeout");return;}
       if(now-lastPong>IDLE_TIMEOUT_MS||now-lastActivity>IDLE_TIMEOUT_MS){send({type:"session.closed",reason:"timeout"});ws.close(4000,"idle_timeout");return;}
-      if(now-lastActivity>MAX_SESSION_MS){send({type:"session.closed",reason:"timeout"});ws.close(4000,"session_timeout");return;}
       if(ws.readyState===WebSocket.OPEN)ws.ping();
      },HEARTBEAT_MS);
      ws.on("pong",()=>{lastPong=Date.now();});
@@ -87,7 +88,7 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
       const message=parsedMessage.data;
       if(message.type==="session.stop"){send({type:"session.closed",reason:"learner_stop"});ws.close(1000,"learner_stop");return;}
       if(message.type==="turn.start"){
-       send({type:"turn.failed",turn_id:message.turn_id,code:"RECOGNITION_FAILED",message:"Live audio recognition is not enabled yet. Please use the recording and transcript review flow."});
+       send({type:"turn.failed",turn_id:message.turn_id,code:"TRANSPORT_NOT_READY",message:"Live audio transport is not enabled yet. Please use the recording and transcript review flow."});
       }
      });
      ws.once("close",()=>{clearInterval(heartbeat);if(activeByUser.get(consumed.userId)===ws)activeByUser.delete(consumed.userId);});
