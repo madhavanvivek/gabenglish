@@ -63,7 +63,7 @@ describe("Gabroo audio response validation",()=>{
    cancel(){streamCancelled=true;}
   }),{headers:{"content-type":"audio/mpeg"}});
   await expect(readGabrooAudioBytes(response,controller.signal)).rejects.toThrow(/cancelled/i);
-  expect(streamCancelled).toBe(false);
+  expect(streamCancelled).toBe(true);
  });
 
 });
