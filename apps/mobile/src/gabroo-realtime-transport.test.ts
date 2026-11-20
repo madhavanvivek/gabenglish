@@ -24,7 +24,7 @@ describe("Gabroo realtime mobile transport helpers",()=>{
   expect(()=>createGabrooRealtimeFrame("turn-1","session-1",0,new Uint8Array(64*1024+1))).toThrow("empty or exceeds");
  });
 
- afterEach(()=>vi.unstubAllGlobals());
+ afterEach(()=>{vi.unstubAllGlobals();vi.unstubAllEnvs();});
  it("uses the one-use ticket and waits for server session confirmation",async()=>{
   const sent:string[]=[];
   class MockWebSocket{
