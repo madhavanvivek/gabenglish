@@ -331,4 +331,49 @@ describe("API foundation",()=>{
   await app.close();
  });
 
+ it("issues a short-lived opaque playback ticket and allows exactly one native GET",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let stored:{digest:string;userId:string;text:string;speed:number;consumed:boolean}|undefined;
+  const pool={query:async(sql:string,values?:unknown[])=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("INSERT INTO gabroo_speech_playback_tickets")){
+    stored={digest:String(values?.[0]),userId:String(values?.[1]),text:String(values?.[2]),speed:Number(values?.[3]),consumed:false};
+    return {rows:[{expires_at:new Date(Date.now()+60_000)}]};
+   }
+   if(sql.includes("UPDATE gabroo_speech_playback_tickets")){
+    if(!stored||stored.digest!==values?.[0]||stored.consumed)return {rows:[]};
+    stored.consumed=true;
+    return {rows:[{user_id:stored.userId,speech_text:stored.text,speech_speed:stored.speed}]};
+   }
+   return {rows:[]};
+  }} as any;
+  const synthesized:Array<{text:string;speed:number}>=[];
+  const provider={synthesize:async(input:{text:string;speed:number;signal:AbortSignal})=>{
+   synthesized.push({text:input.text,speed:input.speed});
+   return {audio:new Uint8Array([4,5,6]),contentType:"audio/mpeg" as const};
+  }};
+  const app=await buildApp(config,async()=>true,pool,undefined,undefined,undefined,provider);
+  const headers={authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)};
+  const phrase="നമസ്കാരം! Let's practise speaking.";
+  const created=await app.inject({method:"POST",url:"/api/v1/gabroo/speech/playback-ticket",headers,payload:{text:phrase,speed:0.85}});
+  expect(created.statusCode).toBe(201);
+  const ticket=created.json();
+  expect(ticket.method).toBe("GET");
+  expect(ticket.expires_at).toBeTruthy();
+  expect(ticket.playback_url).toMatch(/^\/api\/v1\/gabroo\/speech\/playback\/[0-9a-f]{64}$/);
+  expect(ticket.playback_url).not.toContain(phrase);
+  expect(stored).toMatchObject({userId:"00000000-0000-4000-8000-000000000001",text:phrase,speed:0.85,consumed:false});
+  const audio=await app.inject({method:"GET",url:ticket.playback_url,headers:{accept:"audio/mpeg"}});
+  expect(audio.statusCode).toBe(200);
+  expect(audio.headers["content-type"]).toContain("audio/mpeg");
+  expect(audio.rawPayload).toEqual(Buffer.from([4,5,6]));
+  expect(synthesized).toEqual([{text:phrase,speed:0.85}]);
+  const replay=await app.inject({method:"GET",url:ticket.playback_url,headers:{accept:"audio/mpeg"}});
+  expect(replay.statusCode).toBe(404);
+  expect(replay.json().error.code).toBe("PLAYBACK_TICKET_INVALID");
+  expect(synthesized).toHaveLength(1);
+  await app.close();
+ });
+
 });
