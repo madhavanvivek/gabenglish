@@ -32,4 +32,23 @@ describe("Gabroo Expo AudioStream adapter",()=>{
   expect(start).toHaveBeenCalledOnce();
   expect(stop).toHaveBeenCalledOnce();
  });
+
+ it("reads the actual native format reported after stream start",async()=>{
+  let attached:{start:()=>Promise<void>;sampleRate:number;channels:number}|undefined;
+  const native:{sampleRate:number;channels:number;start:()=>Promise<void>;stop:()=>Promise<void>}={
+   sampleRate:48_000,channels:1,
+   start:async()=>{native.sampleRate=44_100;native.channels=2;},
+   stop:async()=>{}
+  };
+  attachGabrooExpoAudioStream({
+   stream:native,
+   controller:{attachStream:value=>{attached=value;},onBuffer:()=>{}},
+   requestedSampleRate:48_000,requestedChannels:1
+  });
+  expect(attached?.sampleRate).toBe(48_000);
+  await attached?.start();
+  expect(attached?.sampleRate).toBe(44_100);
+  expect(attached?.channels).toBe(2);
+ });
+
 });
