@@ -14,6 +14,8 @@ describe("Gabroo speech readiness contract",()=>{
   {available:"yes",formats:[],speed:{minimum:0.75,maximum:1.5}},
   {available:true,formats:[""],speed:{minimum:0.75,maximum:1.5}},
   {available:true,formats:[1],speed:{minimum:0.75,maximum:1.5}},
+  {available:true,formats:[],speed:{minimum:0.75,maximum:1.5}},
+  {available:false,formats:["audio/mpeg"],speed:{minimum:0.75,maximum:1.5}},
   {available:true,formats:[],speed:{minimum:1.5,maximum:0.75}},
   {available:true,formats:[],speed:{minimum:0.5,maximum:1.5}},
   {available:true,formats:[],speed:{minimum:0.75,maximum:2}},
