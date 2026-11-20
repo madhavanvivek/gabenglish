@@ -1,3 +1,4 @@
+import {createGabrooRealtimeAudioSender,type GabrooRealtimeAudioSenderOptions} from "./gabroo-realtime-audio-sender";
 import {GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES,GABROO_REALTIME_PROTOCOL_VERSION,gabrooRealtimeServerMessageSchema,type GabrooRealtimeAudioFormat,type GabrooRealtimeServerMessage} from "@gabenglish/contracts";
 
 
@@ -70,6 +71,15 @@ export function connectGabrooRealtimeSocket(input:{
   endTurn(turnId:string){sendControl({type:"turn.end",turn_id:turnId});},
   interrupt(turnId:string){sendControl({type:"tutor.interrupt",turn_id:turnId});},
   stop(){sendControl({type:"session.stop"});},
+  createAudioSender(turnId:string,limits?:Pick<GabrooRealtimeAudioSenderOptions,"maxQueuedBytes"|"highWaterBytes"|"lowWaterBytes"|"drainTimeoutMs">){
+   if(!turnId.trim())throw new Error("A turn ID is required for audio capture.");
+   return createGabrooRealtimeAudioSender({
+    ...limits,
+    sendFrame:(sequence,payload)=>this.sendAudioFrame(turnId,sequence,payload),
+    getBufferedAmount:()=>socket.bufferedAmount,
+    isOpen:()=>socket.readyState===WebSocket.OPEN
+   });
+  },
   close(){socket.close(1000,"learner_stop");}
  };
 }
