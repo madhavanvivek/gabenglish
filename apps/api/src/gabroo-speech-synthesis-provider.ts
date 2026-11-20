@@ -44,7 +44,7 @@ export function createGabrooSpeechSynthesisProvider(
    });
    if(!response.ok)throw new Error("Gabroo speech synthesis request failed with status "+response.status);
    const contentType=response.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
-   if(contentType&&contentType!=="audio/mpeg")throw new Error("Gabroo speech provider returned an unsupported audio format.");
+   if(contentType!=="audio/mpeg")throw new Error("Gabroo speech provider returned an unsupported audio format.");
    const declaredLengthHeader=response.headers.get("content-length");
    if(declaredLengthHeader!==null){
     const declaredLength=Number(declaredLengthHeader);
