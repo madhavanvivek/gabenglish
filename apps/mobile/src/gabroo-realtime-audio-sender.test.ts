@@ -25,7 +25,7 @@ describe("Gabroo realtime audio sender",()=>{
  it("rejects audio when the bounded queue would overflow",async()=>{
   const sender=createGabrooRealtimeAudioSender({
    sendFrame:()=>{},getBufferedAmount:()=>1_000,isOpen:()=>true,
-   maxQueuedBytes:2_000,highWaterBytes:100,lowWaterBytes:20,drainTimeoutMs:1
+   maxQueuedBytes:5_000,highWaterBytes:100,lowWaterBytes:20,drainTimeoutMs:1
   });
   await expect(sender.enqueue(native(Array.from({length:2_000},()=>0)))).rejects.toThrow(/congested/);
   expect(sender.isClosed).toBe(true);
