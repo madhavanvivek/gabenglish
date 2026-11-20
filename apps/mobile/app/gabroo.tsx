@@ -15,6 +15,10 @@ import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabroo
 const conversationModes:{value:GabrooConversationMode;label:string}[]=[{value:"free_flow",label:"Free flow"},{value:"gentle_correction",label:"Gentle correction"},{value:"detailed_correction",label:"Detailed correction"},{value:"topic_practice",label:"Topic practice"},{value:"role_play",label:"Role-play"},{value:"vocabulary_building",label:"Vocabulary"},{value:"confidence_practice",label:"Confidence"}];
 
 export default function GabrooScreen(){
+ const params=useLocalSearchParams<{practiceTerm?:string;practiceMeaning?:string;practiceExample?:string}>();
+ const practiceTerm=typeof params.practiceTerm==="string"?params.practiceTerm.trim().slice(0,120):"";
+ const practiceMeaning=typeof params.practiceMeaning==="string"?params.practiceMeaning.trim().slice(0,300):"";
+ const practiceExample=typeof params.practiceExample==="string"?params.practiceExample.trim().slice(0,500):"";
  const [subscription,setSubscription]=useState<SubscriptionStatus|null>(null);
  const [recognitionStatus,setRecognitionStatus]=useState<GabrooRecognitionStatus|null>(null);
  const [speechStatus,setSpeechStatus]=useState<GabrooSpeechStatus|null>(null);
