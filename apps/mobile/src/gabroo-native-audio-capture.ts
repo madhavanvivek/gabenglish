@@ -85,7 +85,7 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
      await currentStream.stop();
      throw new Error("Gabroo capture was cancelled while starting.");
     }
-    if(!Number.isFinite(stream.sampleRate)||stream.sampleRate<8_000||!Number.isSafeInteger(stream.channels)||stream.channels<1||stream.channels>2){
+    if(!Number.isFinite(currentStream.sampleRate)||currentStream.sampleRate<8_000||!Number.isSafeInteger(currentStream.channels)||currentStream.channels<1||currentStream.channels>2){
      await currentStream.stop();
      throw new Error("The device returned an unsupported microphone format.");
     }
