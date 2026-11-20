@@ -3,7 +3,7 @@ import {ActivityIndicator,Alert,Pressable,ScrollView,StyleSheet,Text,TextInput,V
 import {Link} from "expo-router";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
-import {type GabrooMemoryItem,type GabrooVocabularyItem,type GabrooVocabularyStatus,listGabrooMemory,listGabrooVocabulary,createGabrooVocabulary,updateGabrooVocabulary,deleteGabrooVocabulary} from "../src/auth-api";
+import {type GabrooMemoryItem,type GabrooVocabularyItem,type GabrooVocabularyStatus,listGabrooMemory,listGabrooVocabulary,getGabrooVocabularyDue,reviewGabrooVocabulary,createGabrooVocabulary,updateGabrooVocabulary,deleteGabrooVocabulary} from "../src/auth-api";
 
 const statuses:GabrooVocabularyStatus[]=["learning","familiar","mastered"];
 const statusLabels:Record<GabrooVocabularyStatus,string>={learning:"Learning",familiar:"Familiar",mastered:"Mastered"};
@@ -11,6 +11,8 @@ const statusLabels:Record<GabrooVocabularyStatus,string>={learning:"Learning",fa
 export default function VocabularyScreen(){
  const [phrases,setPhrases]=useState<GabrooMemoryItem[]>([]);
  const [items,setItems]=useState<GabrooVocabularyItem[]>([]);
+ const [dueItems,setDueItems]=useState<GabrooVocabularyItem[]>([]);
+ const [revealedIds,setRevealedIds]=useState<string[]>([]);
  const [sourceId,setSourceId]=useState("");
  const [term,setTerm]=useState("");
  const [meaning,setMeaning]=useState("");
@@ -20,16 +22,28 @@ export default function VocabularyScreen(){
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
  const refresh=useCallback(async()=>{
-  const [memory,vocabulary]=await Promise.all([listGabrooMemory(),listGabrooVocabulary()]);
+  const [memory,vocabulary,due]=await Promise.all([listGabrooMemory(),listGabrooVocabulary(),getGabrooVocabularyDue()]);
   setPhrases(memory.memory.filter(item=>item.category==="saved_phrase"));
   setItems(vocabulary.vocabulary);
+  setDueItems(due.items);
  },[]);
- useEffect(()=>{let active=true;Promise.all([listGabrooMemory(),listGabrooVocabulary()]).then(([memory,vocabulary])=>{if(active){setPhrases(memory.memory.filter(item=>item.category==="saved_phrase"));setItems(vocabulary.vocabulary);}}).catch(reason=>{if(active)setError(reason instanceof Error?reason.message:"Could not load your vocabulary.");}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[]);
+ useEffect(()=>{let active=true;Promise.all([listGabrooMemory(),listGabrooVocabulary(),getGabrooVocabularyDue()]).then(([memory,vocabulary,due])=>{if(active){setPhrases(memory.memory.filter(item=>item.category==="saved_phrase"));setItems(vocabulary.vocabulary);setDueItems(due.items);}}).catch(reason=>{if(active)setError(reason instanceof Error?reason.message:"Could not load your vocabulary.");}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[]);
  const add=async()=>{
   if(busy||!sourceId||!term.trim()||!meaning.trim())return;
   setBusy(true);setError("");setNotice("");
   try{await createGabrooVocabulary({source_saved_phrase_id:sourceId,term:term.trim(),malayalam_meaning:meaning.trim(),example_sentence:example.trim(),learning_direction:"ml_to_en"});await refresh();setTerm("");setMeaning("");setExample("");setNotice("Added to your vocabulary. You can update its learning status as you practise.");}
   catch(reason){setError(reason instanceof Error?reason.message:"Could not add this vocabulary item.");}
+  finally{setBusy(false);}
+ };
+ const review=async(item:GabrooVocabularyItem,rating:"again"|"hard"|"good"|"easy")=>{
+  if(busy)return;
+  setBusy(true);setError("");setNotice("");
+  try{
+   const result=await reviewGabrooVocabulary(item.id,rating);
+   await refresh();
+   setRevealedIds(ids=>ids.filter(id=>id!==item.id));
+   setNotice(rating==="again"?"Let's practise this one again shortly.":`Next review scheduled in ${result.schedule.interval_days} day(s).`);
+  }catch(reason){setError(reason instanceof Error?reason.message:"Could not save your review.");}
   finally{setBusy(false);}
  };
  const changeStatus=async(item:GabrooVocabularyItem,status:GabrooVocabularyStatus)=>{
@@ -60,6 +74,15 @@ export default function VocabularyScreen(){
    </View>:null}
   </View>
   <View style={s.card}>
+   <Text style={s.section}>Review due now ({dueItems.length})</Text>
+   <Text style={s.hint}>Try to remember the Malayalam meaning before revealing it. Your answer sets the next revision date.</Text>
+   {dueItems.length===0?<Text style={s.empty}>You are all caught up. New vocabulary appears here when it is ready for revision.</Text>:dueItems.map(item=><View key={item.id} style={s.reviewItem}>
+    <Text style={s.term}>{item.term}</Text>
+    {revealedIds.includes(item.id)?<Text style={s.meaning}>{item.malayalam_meaning}</Text>:<Pressable onPress={()=>setRevealedIds(ids=>[...ids,item.id])} style={s.reveal}><Text style={s.revealText}>Reveal meaning</Text></Pressable>}
+    {revealedIds.includes(item.id)?<View style={s.statusRow}>{([{value:"again",label:"Again"},{value:"hard",label:"Hard"},{value:"good",label:"Good"},{value:"easy",label:"Easy"}] as const).map(option=><Pressable key={option.value} disabled={busy} onPress={()=>void review(item,option.value)} style={[s.statusButton,option.value==="good"&&s.statusActive]}><Text style={[s.statusText,option.value==="good"&&s.statusTextActive]}>{option.label}</Text></Pressable>)}</View>:null}
+   </View>)}
+  </View>
+  <View style={s.card}>
    <Text style={s.section}>Your word list ({items.length})</Text>
    {loading?<ActivityIndicator color={colors.primary}/>:items.length===0?<Text style={s.empty}>Your vocabulary list is empty. Save a useful Gabroo phrase and add your first word above.</Text>:items.map(item=><View key={item.id} style={s.item}>
     <View style={s.itemHead}><View style={{flex:1}}><Text style={s.term}>{item.term}</Text><Text style={s.meaning}>{item.malayalam_meaning}</Text></View><Pressable onPress={()=>remove(item)} disabled={busy} style={s.delete}><Text style={s.deleteText}>Delete</Text></Pressable></View>
@@ -72,5 +95,5 @@ export default function VocabularyScreen(){
  </ScrollView></SafeAreaView>;
 }
 const s=StyleSheet.create({
- safe:{flex:1,backgroundColor:colors.background},page:{padding:22,paddingBottom:48,gap:14},eyebrow:{fontSize:11,fontWeight:"900",letterSpacing:1.5,color:colors.primary},title:{fontSize:30,fontWeight:"900",color:colors.text},subtitle:{fontSize:14,lineHeight:21,color:colors.textMuted},back:{color:colors.primary,fontWeight:"800",marginBottom:4},card:{backgroundColor:colors.surface,borderRadius:20,padding:17,gap:12,borderWidth:1,borderColor:colors.border},section:{fontSize:18,fontWeight:"900",color:colors.text},hint:{fontSize:13,lineHeight:19,color:colors.textMuted},empty:{fontSize:13,lineHeight:20,color:colors.textMuted,paddingVertical:8},phrase:{borderWidth:1,borderColor:colors.border,borderRadius:13,padding:12,gap:5},selected:{borderColor:colors.primary,backgroundColor:colors.surfaceSoft},phraseTitle:{fontWeight:"800",color:colors.text},phraseBody:{fontSize:13,lineHeight:19,color:colors.textMuted},choose:{fontSize:12,fontWeight:"800",color:colors.primary},form:{gap:9,marginTop:5},label:{fontSize:12,fontWeight:"800",color:colors.text},input:{borderWidth:1,borderColor:colors.border,borderRadius:11,padding:12,color:colors.text,backgroundColor:colors.background,fontSize:14},multiline:{minHeight:76,textAlignVertical:"top"},primary:{backgroundColor:colors.primary,borderRadius:12,padding:14,alignItems:"center",marginTop:4},primaryText:{color:"#fff",fontWeight:"900"},disabled:{opacity:0.45},item:{borderTopWidth:1,borderTopColor:colors.border,paddingTop:13,gap:9},itemHead:{flexDirection:"row",alignItems:"flex-start",gap:10},term:{fontSize:17,fontWeight:"900",color:colors.text},meaning:{fontSize:14,color:colors.textMuted,marginTop:3},delete:{padding:7},deleteText:{fontSize:12,fontWeight:"800",color:colors.danger},example:{fontSize:13,lineHeight:19,color:colors.textMuted,fontStyle:"italic"},statusLabel:{fontSize:11,fontWeight:"800",color:colors.textMuted},statusRow:{flexDirection:"row",gap:7,flexWrap:"wrap"},statusButton:{borderWidth:1,borderColor:colors.border,borderRadius:20,paddingVertical:7,paddingHorizontal:10},statusActive:{backgroundColor:colors.primary,borderColor:colors.primary},statusText:{fontSize:11,fontWeight:"800",color:colors.textMuted},statusTextActive:{color:"#fff"},privacy:{fontSize:11,lineHeight:17,color:colors.textMuted,paddingHorizontal:3},error:{color:colors.danger,fontSize:13},notice:{color:colors.success,fontSize:13}
+ safe:{flex:1,backgroundColor:colors.background},page:{padding:22,paddingBottom:48,gap:14},eyebrow:{fontSize:11,fontWeight:"900",letterSpacing:1.5,color:colors.primary},title:{fontSize:30,fontWeight:"900",color:colors.text},subtitle:{fontSize:14,lineHeight:21,color:colors.textMuted},back:{color:colors.primary,fontWeight:"800",marginBottom:4},card:{backgroundColor:colors.surface,borderRadius:20,padding:17,gap:12,borderWidth:1,borderColor:colors.border},section:{fontSize:18,fontWeight:"900",color:colors.text},hint:{fontSize:13,lineHeight:19,color:colors.textMuted},empty:{fontSize:13,lineHeight:20,color:colors.textMuted,paddingVertical:8},phrase:{borderWidth:1,borderColor:colors.border,borderRadius:13,padding:12,gap:5},selected:{borderColor:colors.primary,backgroundColor:colors.surfaceSoft},phraseTitle:{fontWeight:"800",color:colors.text},phraseBody:{fontSize:13,lineHeight:19,color:colors.textMuted},choose:{fontSize:12,fontWeight:"800",color:colors.primary},form:{gap:9,marginTop:5},label:{fontSize:12,fontWeight:"800",color:colors.text},input:{borderWidth:1,borderColor:colors.border,borderRadius:11,padding:12,color:colors.text,backgroundColor:colors.background,fontSize:14},multiline:{minHeight:76,textAlignVertical:"top"},primary:{backgroundColor:colors.primary,borderRadius:12,padding:14,alignItems:"center",marginTop:4},primaryText:{color:"#fff",fontWeight:"900"},disabled:{opacity:0.45},reviewItem:{borderTopWidth:1,borderTopColor:colors.border,paddingTop:12,gap:9},reveal:{alignSelf:"flex-start",paddingVertical:7,paddingHorizontal:10,borderRadius:10,backgroundColor:colors.surfaceSoft},revealText:{fontSize:12,fontWeight:"800",color:colors.primary},item:{borderTopWidth:1,borderTopColor:colors.border,paddingTop:13,gap:9},itemHead:{flexDirection:"row",alignItems:"flex-start",gap:10},term:{fontSize:17,fontWeight:"900",color:colors.text},meaning:{fontSize:14,color:colors.textMuted,marginTop:3},delete:{padding:7},deleteText:{fontSize:12,fontWeight:"800",color:colors.danger},example:{fontSize:13,lineHeight:19,color:colors.textMuted,fontStyle:"italic"},statusLabel:{fontSize:11,fontWeight:"800",color:colors.textMuted},statusRow:{flexDirection:"row",gap:7,flexWrap:"wrap"},statusButton:{borderWidth:1,borderColor:colors.border,borderRadius:20,paddingVertical:7,paddingHorizontal:10},statusActive:{backgroundColor:colors.primary,borderColor:colors.primary},statusText:{fontSize:11,fontWeight:"800",color:colors.textMuted},statusTextActive:{color:"#fff"},privacy:{fontSize:11,lineHeight:17,color:colors.textMuted,paddingHorizontal:3},error:{color:colors.danger,fontSize:13},notice:{color:colors.success,fontSize:13}
 });
