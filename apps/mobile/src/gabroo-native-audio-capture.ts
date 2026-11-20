@@ -30,6 +30,7 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
  let active=false;
  let starting=false;
  let generation=0;
+ let terminal=false;
 
  const report=(error:unknown)=>{
   const normalized=error instanceof Error?error:new Error("Gabroo microphone capture failed.");
@@ -39,6 +40,7 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
  const onBuffer=(buffer:{data:ArrayBuffer;encoding:"float32"|"int16";sampleRate:number;channels:number})=>{
   if(!active||!options.isForeground())return;
   void options.sender.enqueue(buffer).catch(error=>{
+   if(!active)return;
    report(error);
    void stop("audio_sender_failure");
   });
@@ -46,6 +48,7 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
 
  const stop=async(reason="learner_stop")=>{
   generation+=1;
+  terminal=true;
   active=false;
   starting=false;
   options.sender.close(reason);
@@ -64,6 +67,7 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
   onBuffer,
   async start(input:{consentGranted:true}){
    if(input.consentGranted!==true)throw new Error("Explicit learner consent is required before microphone capture.");
+   if(terminal)throw new Error("Create a new Gabroo capture controller for the next voice turn.");
    if(active||starting)throw new Error("Gabroo microphone capture is already active.");
    if(!options.isForeground())throw new Error("Gabroo voice capture is available only while the tutor screen is active.");
    if(!stream)throw new Error("Gabroo native audio stream is not attached.");
