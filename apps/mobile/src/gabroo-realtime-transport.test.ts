@@ -1,5 +1,5 @@
 import {afterEach,describe,expect,it,vi} from "vitest";
-import {createGabrooRealtimeFrame,openGabrooRealtimeSession,toGabrooRealtimeWebSocketUrl} from "./gabroo-realtime-transport";
+import {connectGabrooRealtimeSocket,createGabrooRealtimeFrame,openGabrooRealtimeSession,toGabrooRealtimeWebSocketUrl} from "./gabroo-realtime-transport";
 
 describe("Gabroo realtime mobile transport helpers",()=>{
  it("converts HTTPS API origins to secure WebSocket URLs",()=>{
@@ -22,6 +22,34 @@ describe("Gabroo realtime mobile transport helpers",()=>{
   expect(()=>createGabrooRealtimeFrame("turn-1","session-1",0,new Uint8Array())).toThrow("empty or exceeds");
   expect(()=>createGabrooRealtimeFrame("turn-1","session-1",-1,new Uint8Array([1]))).toThrow("sequence");
   expect(()=>createGabrooRealtimeFrame("turn-1","session-1",0,new Uint8Array(64*1024+1))).toThrow("empty or exceeds");
+ });
+
+
+ it("connects the bounded PCM sender to ordered WebSocket frames",async()=>{
+  const sent:Array<string|ArrayBuffer>=[];
+  class MockSocket{
+   static CONNECTING=0;static OPEN=1;static CLOSING=2;static CLOSED=3;
+   readyState=1;bufferedAmount=0;
+   onopen:(()=>void)|null=null;onmessage:((event:{data:string})=>void)|null=null;
+   onerror:(()=>void)|null=null;onclose:((event:{code:number;reason:string})=>void)|null=null;
+   constructor(readonly url:string,readonly protocols:string[]){}
+   send(value:string|ArrayBuffer){sent.push(value);}
+   close(){this.readyState=3;}
+  }
+  vi.stubGlobal("WebSocket",Object.assign(MockSocket,{CONNECTING:0,OPEN:1,CLOSING:2,CLOSED:3}));
+  const connection=connectGabrooRealtimeSocket({
+   apiBaseUrl:"https://api.example.com",sessionId:"session-test",connectionTicket:"b".repeat(64)
+  });
+  connection.startTurn("turn-test",{codec:"pcm_s16le",sample_rate_hz:16_000,channels:1});
+  const sender=connection.createAudioSender("turn-test");
+  const samples=new Float32Array(1_600);
+  const data=samples.buffer.slice(samples.byteOffset,samples.byteOffset+samples.byteLength);
+  await sender.enqueue({data,encoding:"float32",sampleRate:16_000,channels:1});
+  const frameMessages=sent.filter(value=>typeof value==="string").map(value=>JSON.parse(value as string)).filter(value=>value.type==="audio.frame");
+  expect(frameMessages.map(value=>value.sequence)).toEqual([0]);
+  expect(sent.filter(value=>value instanceof ArrayBuffer)).toHaveLength(1);
+  expect(sender.nextSequence).toBe(1);
+  connection.close();
  });
 
  afterEach(()=>{vi.unstubAllGlobals();vi.unstubAllEnvs();});
