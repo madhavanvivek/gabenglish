@@ -91,10 +91,10 @@ export async function loginLearner(input:{email:string;password:string}){
  const tokens=await saveTokens(payload);
  return {tokens,email_verified:Boolean(payload.email_verified)};
 }
-async function authorized(path:string,method:"GET"|"POST"|"PATCH"|"DELETE",body?:unknown,signal?:AbortSignal):Promise<unknown>{
+async function authorized(path:string,method:"GET"|"POST"|"PATCH"|"DELETE",body?:unknown,signal?:AbortSignal,extraHeaders:Record<string,string>={}):Promise<unknown>{
  let access=await SecureStore.getItemAsync(ACCESS_KEY);
  if(!access){await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);}
- const send=()=>fetch(baseUrl()+path,{method,headers:{"content-type":"application/json",accept:"application/json",authorization:"Bearer "+access},...(body===undefined?{}:{body:JSON.stringify(body)}),...(signal?{signal}:{})});
+ const send=()=>fetch(baseUrl()+path,{method,headers:{"content-type":"application/json",accept:"application/json",authorization:"Bearer "+access,...extraHeaders},...(body===undefined?{}:{body:JSON.stringify(body)}),...(signal?{signal}:{})});
  let response=await send();
  if(response.status===401){
   await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);response=await send();
@@ -120,6 +120,27 @@ export async function logoutLearner(){
  const refresh=await SecureStore.getItemAsync(REFRESH_KEY);
  try{if(refresh)await post("/api/v1/auth/logout",{refresh_token:refresh});}
  finally{await clearTokens();}
+}
+
+export type GabrooRealtimeSessionTicket={
+ session_id:string;
+ connection_ticket:string;
+ expires_at:string;
+ expires_in_seconds:number;
+ single_use:true;
+ transport:"websocket_handshake_pending";
+};
+
+/** Prepare a one-use realtime connection capability only after explicit learner consent. */
+export async function createGabrooRealtimeSessionTicket(consentGranted:true):Promise<GabrooRealtimeSessionTicket>{
+ if(consentGranted!==true)throw new AuthApiError("Explicit consent is required before starting a Gabroo realtime session.");
+ const payload=await authorized("/api/v1/gabroo/realtime/session-ticket","POST",undefined,undefined,{"x-gabroo-consent":"true"});
+ if(typeof payload!=="object"||payload===null)throw new AuthApiError("The realtime session service returned an invalid response.");
+ const value=payload as Record<string,unknown>;
+ if(typeof value.session_id!=="string"||typeof value.connection_ticket!=="string"||!/^[0-9a-f]{64}$/.test(value.connection_ticket)||typeof value.expires_at!=="string"||value.single_use!==true||value.transport!=="websocket_handshake_pending"||typeof value.expires_in_seconds!=="number"){
+  throw new AuthApiError("The realtime session service returned an invalid ticket.");
+ }
+ return value as GabrooRealtimeSessionTicket;
 }
 
 export type GabrooConversationMode="free_flow"|"gentle_correction"|"detailed_correction"|"topic_practice"|"role_play"|"vocabulary_building"|"confidence_practice";
