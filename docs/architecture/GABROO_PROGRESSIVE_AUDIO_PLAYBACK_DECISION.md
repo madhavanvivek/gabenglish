@@ -62,4 +62,4 @@ The current app's speech endpoint is POST-only and accepts text plus speed in a 
 - CI on 2026-11-20 passed the ticket-index migration and its integration assertion (`8b1ef88`); the transaction-ordering implementation and regression checks passed CI (`dcd0439`, 2026-11-20).
 - End-to-end streaming performance and first-audio latency improvement remain unverified until real provider and physical-device tests pass.
 - Physical Android/iOS playback, cancellation, memory and audio-clock validation remain pending.
-- Expired-ticket cleanup currently runs opportunistically on ticket issuance, in batches of at most 500 rows; a scheduled background cleanup remains pending.
+- Expired-ticket cleanup currently runs opportunistically on ticket issuance, in batches of at most 500 rows. Cleanup failures are logged but do not block ticket issuance; a scheduled background cleanup remains pending.
