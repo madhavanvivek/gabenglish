@@ -350,10 +350,13 @@ describe("API foundation",()=>{
    return {rows:[]};
   }} as any;
   const synthesized:Array<{text:string;speed:number}>=[];
-  const provider={synthesizeStream:async(input:{text:string;speed:number;signal:AbortSignal})=>{
-   synthesized.push({text:input.text,speed:input.speed});
-   return {audio:Readable.from([Buffer.from([4,5]),Buffer.from([6])]),contentType:"audio/mpeg" as const};
-  }};
+  const provider={
+   synthesize:async()=>({audio:new Uint8Array([4,5,6]),contentType:"audio/mpeg" as const}),
+   synthesizeStream:async(input:{text:string;speed:number;signal:AbortSignal})=>{
+    synthesized.push({text:input.text,speed:input.speed});
+    return {audio:Readable.from([Buffer.from([4,5]),Buffer.from([6])]),contentType:"audio/mpeg" as const};
+   }
+  };
   const app=await buildApp(config,async()=>true,pool,undefined,undefined,undefined,provider);
   const headers={authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)};
   const phrase="നമസ്കാരം! Let's practise speaking.";
