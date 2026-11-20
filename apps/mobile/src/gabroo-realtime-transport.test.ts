@@ -60,6 +60,28 @@ describe("Gabroo realtime mobile transport helpers",()=>{
   connection.close();
  });
 
+ it("revokes realtime send permission after the server closes or interrupts a session",()=>{
+  const sent:string[]=[];
+  class MockSocket{
+   static CONNECTING=0;static OPEN=1;static CLOSING=2;static CLOSED=3;
+   readyState=1;bufferedAmount=0;
+   onopen:(()=>void)|null=null;onmessage:((event:{data:string})=>void)|null=null;
+   onerror:(()=>void)|null=null;onclose:((event:{code:number;reason:string})=>void)|null=null;
+   constructor(readonly url:string,readonly protocols:string[]){}
+   send(value:string|ArrayBuffer){if(typeof value==="string")sent.push(value);}
+   close(){this.readyState=3;}
+  }
+  vi.stubGlobal("WebSocket",Object.assign(MockSocket,{CONNECTING:0,OPEN:1,CLOSING:2,CLOSED:3}));
+  const connection=connectGabrooRealtimeSocket({apiBaseUrl:"https://api.example.com",sessionId:"session-test",connectionTicket:"d".repeat(64)});
+  const accepted={protocol_version:1,session_id:"session-test",type:"session.accepted",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1},max_frame_bytes:65536,max_turn_ms:120000};
+  connection.socket.onmessage?.({data:JSON.stringify(accepted)} as MessageEvent);
+  connection.startTurn("turn-test",{codec:"pcm_s16le",sample_rate_hz:16000,channels:1});
+  connection.socket.onmessage?.({data:JSON.stringify({protocol_version:1,session_id:"session-test",type:"session.closed",reason:"learner_stop"})} as MessageEvent);
+  expect(()=>connection.startTurn("turn-next",{codec:"pcm_s16le",sample_rate_hz:16000,channels:1})).toThrow("not been accepted");
+  expect(sent.map(value=>JSON.parse(value).type)).toEqual(["turn.start"]);
+  connection.close();
+ });
+
  it("does not send turn.end when audio draining fails",async()=>{
   const sent:string[]=[];
   class MockSocket{
