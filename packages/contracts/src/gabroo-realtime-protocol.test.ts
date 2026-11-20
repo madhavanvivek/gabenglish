@@ -15,6 +15,7 @@ describe("Gabroo realtime protocol contracts",()=>{
  it("accepts versioned session and turn control messages",()=>{
   expect(gabrooRealtimeClientMessageSchema.parse({...base,type:"session.ready"}).type).toBe("session.ready");
   expect(gabrooRealtimeClientMessageSchema.parse({...base,turn_id,type:"turn.start",audio:{codec:"pcm_s16le",sample_rate_hz:24000,channels:1}}).type).toBe("turn.start");
+  expect(gabrooRealtimeClientMessageSchema.parse({...base,turn_id,type:"audio.frame",sequence:0,byte_length:32}).type).toBe("audio.frame");
   expect(gabrooRealtimeClientMessageSchema.parse({...base,turn_id,type:"turn.end"}).type).toBe("turn.end");
  });
  it("rejects unsupported versions, malformed audio formats and unknown fields",()=>{
