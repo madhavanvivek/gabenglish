@@ -22,6 +22,7 @@ export type GabrooConversationEvent =
  | {type:"learner_turn_started"}
  | {type:"response_speech_started";timeline:GabrooSpeechTimeline}
  | {type:"speech_finished";audio_id:string}
+ | {type:"speech_failed";audio_id:string;reason:string}
  | {type:"learner_barge_in"}
  | {type:"interruption_acknowledged"}
  | {type:"connection_lost";reason:string}
@@ -68,6 +69,12 @@ export function reduceGabrooConversation(
    if(state.activeSpeech?.audio_id!==event.audio_id)return state;
    if(state.phase!=="speaking")return invalidTransition(state,event);
    return {phase:"listening",activeSpeech:null,lastError:null};
+  case "speech_failed":
+   // A decoder/player failure ends only the utterance still owned by this state.
+   // Late failures from interrupted or replaced audio must not affect the learner turn.
+   if(state.activeSpeech?.audio_id!==event.audio_id)return state;
+   if(state.phase!=="speaking")return invalidTransition(state,event);
+   return {phase:"listening",activeSpeech:null,lastError:event.reason.trim().slice(0,300)||"Gabroo audio playback failed."};
   case "learner_barge_in":
    if(state.phase!=="speaking"&&state.phase!=="greeting")return invalidTransition(state,event);
    return {phase:"interrupted",activeSpeech:null,lastError:null};
