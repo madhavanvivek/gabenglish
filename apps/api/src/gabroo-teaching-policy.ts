@@ -35,7 +35,7 @@ export function buildGabrooConversationContinuityGuidance(input:{history?:Array<
   if(lastAssistantIndex>=0&&lastUserIndex>=0)break;
  }
  if(lastAssistantIndex<0)return "This conversation has no earlier Gabroo reply. Begin naturally from the learner's current message; do not pretend to remember a topic that is not in the supplied conversation.";
- if(lastAssistantIndex>lastUserIndex){
+ if(lastAssistantIndex>=0&&lastUserIndex>lastAssistantIndex){
   const previousReply=history[lastAssistantIndex]?.content??"";
   const askedQuestion=previousReply.includes("?")||/(എന്തുകൊണ്ട്|എങ്ങനെ|എപ്പോൾ|എവിടെ|പറഞ്ഞുതരാമോ|ചെയ്യാമോ)/.test(previousReply);
   if(askedQuestion)return "The learner's current message follows Gabroo's previous question. Treat it as an answer to that question: acknowledge a specific detail, respond to the substance and move the same thread forward. Do not repeat the previous question or ask the learner to answer it again.";
