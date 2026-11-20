@@ -51,9 +51,10 @@ describe("word-order sentence construction",()=>{
 
 describe("saved sentence draft records",()=>{
  it("round-trips learner-authored text with a bounded versioned record",()=>{
-  const encoded=encodeSavedSentenceDraft("  I usually walk to work.  ","2026-11-20T10:00:00.000Z");
+  const encoded=encodeSavedSentenceDraft("  I usually walk to work.  ","2026-11-20T10:00:00.000Z","I usually walk to work every morning.");
   expect(encoded).not.toBeNull();
   expect(decodeSavedSentenceDraft(encoded!)?.original).toBe("I usually walk to work.");
+  expect(decodeSavedSentenceDraft(encoded!)?.improved).toBe("I usually walk to work every morning.");
  });
  it("rejects empty, malformed and unsupported records",()=>{
   expect(encodeSavedSentenceDraft("  ","2026-11-20T10:00:00.000Z")).toBeNull();
