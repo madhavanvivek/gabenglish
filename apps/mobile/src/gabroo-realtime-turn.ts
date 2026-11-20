@@ -65,7 +65,7 @@ export function createGabrooRealtimeTurnCoordinator(input:{
 
  const stop=():Promise<{completed:true;reason:"audio_drained"}|{completed:false;reason:"interrupted"|"audio_drain_failed"|"capture_stop_failed"}>=>{
   // Multiple UI stop actions share one drain; do not reject a second tap.
-  if(stopResult)return stopResult;
+  if(state==="stopping"&&stopResult)return stopResult;
   if(state!=="capturing"||!activeTurnId||!capture||!sender)throw new Error("No active Gabroo microphone turn can be stopped.");
   state="stopping";
   const operation=generation;
