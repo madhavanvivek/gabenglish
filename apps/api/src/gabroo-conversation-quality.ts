@@ -46,7 +46,7 @@ export function evaluateGabrooConversationTurn(input:GabrooConversationQualityIn
  const encouragesLearnerToElaborate=hasInvitation(reply);
  const staysConnectedToLearnerWords=learnerWords.size===0||overlap>0;
  const repeatedGenericPrompt=isGenericPrompt(reply)||(input.previousGabrooReplies?.some(previous=>isGenericPrompt(previous))===true&&isGenericPrompt(reply));
- const learnerAskedDirectQuestion=input.learnerMessage.includes("?")||/^(what|why|how|when|where|who|which|can|could|would|will|should|is|are|do|does|did|have|has|may|might)\\b/i.test(input.learnerMessage.trim())||/^(എന്ത്|എന്താണ്|എങ്ങനെ|എന്തുകൊണ്ട്|എപ്പോൾ|എവിടെ|ആര്|ആരാണ്|ചെയ്യാമോ|പറ്റുമോ)/.test(input.learnerMessage.trim());
+ const learnerAskedDirectQuestion=input.learnerMessage.includes("?")||/^(what|why|how|when|where|who|which|can|could|would|will|should|is|are|do|does|did|have|has|may|might)\b/i.test(input.learnerMessage.trim())||/^(എന്ത്|എന്താണ്|എങ്ങനെ|എന്തുകൊണ്ട്|എപ്പോൾ|എവിടെ|ആര്|ആരാണ്|ചെയ്യാമോ|പറ്റുമോ)/.test(input.learnerMessage.trim());
  const shortLearnerAnswer=words(input.learnerMessage).length<=8;
  const missingInvitationAfterShortAnswer=shortLearnerAnswer&&!learnerAskedDirectQuestion&&!encouragesLearnerToElaborate;
  const checks={concise,asksAtMostOneQuestion,encouragesLearnerToElaborate,staysConnectedToLearnerWords,avoidsRepeatedGenericPrompt:!repeatedGenericPrompt};
