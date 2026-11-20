@@ -59,7 +59,10 @@ export function createGabrooSpeechSynthesisProvider(
     const chunks:Uint8Array[]=[];
     let total=0;
     const cancelOnAbort=()=>{void reader.cancel().catch(()=>undefined);};
-    if(input.signal.aborted)throw new Error("Gabroo speech synthesis was cancelled.");
+    if(input.signal.aborted){
+     await reader.cancel().catch(()=>undefined);
+     throw new Error("Gabroo speech synthesis was cancelled.");
+    }
     input.signal.addEventListener("abort",cancelOnAbort,{once:true});
     try{
      while(true){
