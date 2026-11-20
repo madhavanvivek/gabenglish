@@ -101,6 +101,22 @@ describe("Gabroo realtime turn coordinator",()=>{
   expect(x.coordinator.state).toBe("idle");
  });
 
+ it("closes queued audio immediately when interruption arrives during native stop",async()=>{
+  const x=setup();
+  let resolveStop!:(value:{drained:boolean})=>void;
+  x.capture.stop.mockImplementationOnce(()=>new Promise(resolve=>{resolveStop=resolve;}));
+  await x.coordinator.start("turn-stop-interrupt",audio);
+  const stopping=x.coordinator.stop();
+  await Promise.resolve();
+  await x.coordinator.interrupt();
+  expect(x.sender.close).toHaveBeenCalledWith("learner_interrupt");
+  expect(x.connection.interrupt).toHaveBeenCalledWith("turn-stop-interrupt");
+  resolveStop({drained:true});
+  await expect(stopping).resolves.toEqual({completed:false,reason:"interrupted"});
+  expect(x.connection.endTurn).not.toHaveBeenCalled();
+  expect(x.coordinator.state).toBe("idle");
+ });
+
  it("interrupts an active turn without sending turn.end",async()=>{
   const x=setup();
   await x.coordinator.start("turn-6",audio);
