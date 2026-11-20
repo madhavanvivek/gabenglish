@@ -152,6 +152,7 @@ export default function AccountScreen(){
     <TextInput value={profileName} onChangeText={setProfileName} placeholder="How should Gabroo address you?" maxLength={80} style={s.profileInput} editable={!profileBusy}/>
     <Pressable disabled={profileBusy||!profileName.trim()||profileName.trim()===(account.user.display_name??"")} onPress={saveProfile} style={[s.profileSave,(profileBusy||!profileName.trim()||profileName.trim()===(account.user.display_name??""))&&s.disabled]}>{profileBusy?<ActivityIndicator color="#fff"/>:<Text style={s.profileSaveText}>Save profile name</Text>}</Pressable>
    </View>
+   <Link href="/vocabulary" style={{color:colors.primary,fontWeight:"900",marginTop:12,marginBottom:12}}>Open my vocabulary →</Link>
    <Text style={s.section}>Learning preferences</Text>
    <Text style={s.profileLabel}>Explanation language</Text>
    <View style={s.preferenceChoices}>{([{value:"ml",label:"Malayalam"},{value:"en",label:"English"}] as const).map(item=><Pressable key={item.value} disabled={preferenceBusy} onPress={()=>void changeSupportLanguage(item.value)} style={[s.preferenceChoice,account.preferences?.support_language===item.value&&s.preferenceChoiceActive]}><Text style={[s.preferenceChoiceText,account.preferences?.support_language===item.value&&s.preferenceChoiceTextActive]}>{item.label}</Text></Pressable>)}</View>
