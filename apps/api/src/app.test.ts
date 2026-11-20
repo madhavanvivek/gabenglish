@@ -461,8 +461,10 @@ describe("API foundation",()=>{
   const phrase="നമസ്കാരം! Let's practise speaking.";
   const created=await app.inject({method:"POST",url:"/api/v1/gabroo/speech/playback-ticket",headers,payload:{text:phrase,speed:0.85}});
   expect(created.statusCode).toBe(201);
-  expect(ticketIssueSql).toContain("WITH superseded AS");
-  expect(ticketIssueSql).toContain("WHERE user_id=$2 AND consumed_at IS NULL AND expires_at>now()");
+  expect(ticketIssueSql).toContain("WITH learner_lock AS MATERIALIZED");
+  expect(ticketIssueSql).toContain("pg_advisory_xact_lock(hashtextextended($2::text, 0))");
+  expect(ticketIssueSql).toContain("WHERE user_id=$2 AND consumed_at IS NULL");
+  expect(ticketIssueSql).toContain("EXISTS (SELECT 1 FROM learner_lock)");
   const ticket=created.json();
   expect(ticket.method).toBe("GET");
   expect(ticket.expires_at).toBeTruthy();
