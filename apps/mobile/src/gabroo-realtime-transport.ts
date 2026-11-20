@@ -69,6 +69,17 @@ export function connectGabrooRealtimeSocket(input:{
    socket.send(frame.binary);
   },
   endTurn(turnId:string){sendControl({type:"turn.end",turn_id:turnId});},
+  async finishTurn(turnId:string,sender:{finish:()=>Promise<void>}){
+   if(!turnId.trim())throw new Error("A turn ID is required to finish Gabroo audio.");
+   try{
+    await sender.finish();
+    sendControl({type:"turn.end",turn_id:turnId});
+   }catch(error){
+    // Do not tell the server that a turn is complete if accepted audio was lost.
+    try{socket.close(1011,"audio_drain_failed");}catch{}
+    throw error;
+   }
+  },
   interrupt(turnId:string){sendControl({type:"tutor.interrupt",turn_id:turnId});},
   stop(){sendControl({type:"session.stop"});},
   createAudioSender(turnId:string,limits?:Pick<GabrooRealtimeAudioSenderOptions,"maxQueuedBytes"|"highWaterBytes"|"lowWaterBytes"|"drainTimeoutMs">){
