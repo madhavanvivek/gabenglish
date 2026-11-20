@@ -267,6 +267,24 @@ export async function deleteGabrooMemory(id:string){await authorized("/api/v1/ga
 
 export async function clearGabrooMemory(){return await authorized("/api/v1/gabroo/memory","DELETE") as {deleted_count:number};}
 
+export type GabrooVocabularyStatus="learning"|"familiar"|"mastered";
+export type GabrooVocabularyItem={
+ id:string;source_saved_phrase_id:string;term:string;malayalam_meaning:string;example_sentence:string;
+ learning_direction:"ml_to_en"|"en_to_ml";status:GabrooVocabularyStatus;created_at:string;updated_at:string;
+};
+export async function listGabrooVocabulary(){
+ return await authorized("/api/v1/gabroo/vocabulary","GET") as {vocabulary:GabrooVocabularyItem[];privacy:{owner_only:boolean;editable:boolean;deletable:boolean;explicitly_saved_only:boolean}};
+}
+export async function createGabrooVocabulary(input:{source_saved_phrase_id:string;term:string;malayalam_meaning:string;example_sentence?:string;learning_direction?:"ml_to_en"|"en_to_ml"}){
+ return await authorized("/api/v1/gabroo/vocabulary","POST",input) as {vocabulary:GabrooVocabularyItem};
+}
+export async function updateGabrooVocabulary(id:string,input:{term?:string;malayalam_meaning?:string;example_sentence?:string;status?:GabrooVocabularyStatus}){
+ return await authorized("/api/v1/gabroo/vocabulary/"+encodeURIComponent(id),"PATCH",input) as {vocabulary:GabrooVocabularyItem};
+}
+export async function deleteGabrooVocabulary(id:string){
+ await authorized("/api/v1/gabroo/vocabulary/"+encodeURIComponent(id),"DELETE");
+}
+
 export type PublishedLearningLesson={
  id:string;slug:string|null;title:string;version_id:string;version:number|null;
  content:unknown;script_mode:string|null;register:string|null;dialect_scope:string|null;romanisation:string|null;
