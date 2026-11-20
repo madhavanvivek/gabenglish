@@ -1,11 +1,7 @@
 import {z} from "zod";
 import {gabrooSpeechTimelineSchema} from "./gabroo-avatar.js";
 
-/**
- * Versioned, provider-neutral control protocol for a future Gabroo realtime
- * transport. These schemas validate messages; they do not open a socket,
- * authorize a learner, or permit microphone capture.
- */
+/** Versioned, provider-neutral protocol for Gabroo's realtime transport. */
 export const GABROO_REALTIME_PROTOCOL_VERSION=1 as const;
 export const GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES=64*1024;
 export const GABROO_REALTIME_MAX_AUDIO_SEQUENCE=1_000_000;
@@ -16,20 +12,12 @@ const base=z.object({
  session_id:id
 });
 const turnBase=base.extend({turn_id:id});
-const audioFormat=z.object({
+export const gabrooRealtimeAudioFormatSchema=z.object({
  codec:z.enum(["pcm_s16le","opus"]),
  sample_rate_hz:z.union([z.literal(16000),z.literal(24000),z.literal(48000)]),
  channels:z.union([z.literal(1),z.literal(2)])
 }).strict();
-
-export const gabrooRealtimeClientMessageSchema=z.discriminatedUnion("type",[
- base.extend({type:z.literal("session.ready")}).strict(),
- turnBase.extend({type:z.literal("turn.start"),audio:audioFormat}).strict(),
- turnBase.extend({type:z.literal("turn.end")}).strict(),
- turnBase.extend({type:z.literal("tutor.interrupt")}).strict(),
- base.extend({type:z.literal("session.stop")}).strict()
-]);
-export type GabrooRealtimeClientMessage=z.infer<typeof gabrooRealtimeClientMessageSchema>;
+export type GabrooRealtimeAudioFormat=z.infer<typeof gabrooRealtimeAudioFormatSchema>;
 
 export const gabrooRealtimeAudioFrameMetadataSchema=turnBase.extend({
  type:z.literal("audio.frame"),
@@ -38,10 +26,20 @@ export const gabrooRealtimeAudioFrameMetadataSchema=turnBase.extend({
 }).strict();
 export type GabrooRealtimeAudioFrameMetadata=z.infer<typeof gabrooRealtimeAudioFrameMetadataSchema>;
 
+export const gabrooRealtimeClientMessageSchema=z.discriminatedUnion("type",[
+ base.extend({type:z.literal("session.ready")}).strict(),
+ turnBase.extend({type:z.literal("turn.start"),audio:gabrooRealtimeAudioFormatSchema}).strict(),
+ gabrooRealtimeAudioFrameMetadataSchema,
+ turnBase.extend({type:z.literal("turn.end")}).strict(),
+ turnBase.extend({type:z.literal("tutor.interrupt")}).strict(),
+ base.extend({type:z.literal("session.stop")}).strict()
+]);
+export type GabrooRealtimeClientMessage=z.infer<typeof gabrooRealtimeClientMessageSchema>;
+
 export const gabrooRealtimeServerMessageSchema=z.discriminatedUnion("type",[
  base.extend({
   type:z.literal("session.accepted"),
-  audio:audioFormat,
+  audio:gabrooRealtimeAudioFormatSchema,
   max_frame_bytes:z.number().int().positive().max(GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES),
   max_turn_ms:z.number().int().positive().max(120_000)
  }).strict(),
