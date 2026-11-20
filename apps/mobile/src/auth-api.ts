@@ -231,6 +231,15 @@ export async function getGabrooRecognitionStatus(){
 }
 
 export async function getSubscriptionStatus(){return await authorized("/api/v1/subscriptions/current","GET") as SubscriptionStatus;}
+
+export type GabrooSpeechStatus={available:boolean;formats:string[];speed:{minimum:number;maximum:number}};
+export async function getGabrooSpeechStatus(){
+ const payload=await authorized("/api/v1/gabroo/speech/status","GET") as Partial<GabrooSpeechStatus>|null;
+ if(!payload||typeof payload.available!=="boolean"||!Array.isArray(payload.formats)||!payload.speed||typeof payload.speed.minimum!=="number"||typeof payload.speed.maximum!=="number"){
+  throw new AuthApiError("Gabroo speech availability returned an invalid response.");
+ }
+ return payload as GabrooSpeechStatus;
+}
 export async function listGabrooConversations(){return await authorized("/api/v1/gabroo/conversations","GET") as {conversations:GabrooConversation[]};}
 export async function getGabrooConversation(id:string){return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id),"GET") as {conversation:GabrooConversation;messages:GabrooConversationMessage[]};}
 export async function createGabrooConversation(input:{mode?:GabrooConversationMode;support_language?:"ml"|"en";title?:string}={}){
