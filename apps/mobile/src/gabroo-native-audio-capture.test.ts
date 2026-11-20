@@ -119,6 +119,8 @@ describe("Gabroo native capture lifecycle boundary",()=>{
   const starting=x.controller.start({consentGranted:true});
   await Promise.resolve();
   await x.controller.stop();
+  // Native stop is deferred until start settles; avoid racing two native calls.
+  expect(x.stream.stop).not.toHaveBeenCalled();
   finishStart();
   await expect(starting).rejects.toThrow(/cancelled while starting/);
   expect(x.stream.stop).toHaveBeenCalledOnce();
