@@ -46,7 +46,7 @@ export function createGabrooSpeechSynthesisProvider(
  const voice=config.GABROO_TTS_VOICE?.trim();
  // No provider default voice is ever selected: owner-approved voice ID is explicit.
  if(!apiKey||!model||!voice)return undefined;
- const base=config.GABROO_LLM_BASE_URL.replace(/\\/+$/, "");
+ const base=config.GABROO_LLM_BASE_URL.replace(/\/+$/, "");
  async function requestAudio(input:GabrooSpeechSynthesisInput){
   const text=validateInput(input);
   const response=await fetcher(base+"/audio/speech",{
