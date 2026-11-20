@@ -63,3 +63,4 @@ The current app's speech endpoint is POST-only and accepts text plus speed in a 
 - End-to-end streaming performance and first-audio latency improvement remain unverified until real provider and physical-device tests pass.
 - Physical Android/iOS playback, cancellation, memory and audio-clock validation remain pending.
 - Expired-ticket cleanup currently runs opportunistically on ticket issuance, in batches of at most 500 rows. Cleanup failures are logged but do not block ticket issuance; a scheduled background cleanup remains pending.
+- Migration `0022_gabroo_playback_ticket_expiry_index.sql` adds a B-tree index on `expires_at` so bounded cleanup can locate the oldest expired tickets without repeatedly scanning and sorting the full ledger.
