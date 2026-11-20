@@ -1,5 +1,5 @@
-import {describe,expect,it} from "vitest";
-import {createGabrooRealtimeFrame,toGabrooRealtimeWebSocketUrl} from "./gabroo-realtime-transport";
+import {afterEach,describe,expect,it,vi} from "vitest";
+import {createGabrooRealtimeFrame,openGabrooRealtimeSession,toGabrooRealtimeWebSocketUrl} from "./gabroo-realtime-transport";
 
 describe("Gabroo realtime mobile transport helpers",()=>{
  it("converts HTTPS API origins to secure WebSocket URLs",()=>{
@@ -22,5 +22,42 @@ describe("Gabroo realtime mobile transport helpers",()=>{
   expect(()=>createGabrooRealtimeFrame("turn-1","session-1",0,new Uint8Array())).toThrow("empty or exceeds");
   expect(()=>createGabrooRealtimeFrame("turn-1","session-1",-1,new Uint8Array([1]))).toThrow("sequence");
   expect(()=>createGabrooRealtimeFrame("turn-1","session-1",0,new Uint8Array(64*1024+1))).toThrow("empty or exceeds");
+ });
+
+ afterEach(()=>vi.unstubAllGlobals());
+ it("uses the one-use ticket and waits for server session confirmation",async()=>{
+  const sent:string[]=[];
+  class MockWebSocket{
+   static CONNECTING=0;static OPEN=1;static CLOSING=2;static CLOSED=3;
+   readyState=0;
+   onopen:(()=>void)|null=null;
+   onmessage:((event:{data:string})=>void)|null=null;
+   onerror:(()=>void)|null=null;
+   onclose:((event:{code:number;reason:string})=>void)|null=null;
+   constructor(readonly url:string,readonly protocols:string[]){}
+   send(value:string|ArrayBuffer){sent.push(typeof value==="string"?value:"binary");}
+   close(code=1000,reason=""){this.readyState=3;this.onclose?.({code,reason});}
+   open(){
+    this.readyState=1;this.onopen?.();
+    this.onmessage?.({data:JSON.stringify({protocol_version:1,session_id:"session-test",type:"session.connected"})});
+   }
+  }
+  let instance:MockWebSocket|undefined;
+  class CapturingWebSocket extends MockWebSocket{
+   constructor(url:string,protocols:string[]){super(url,protocols);instance=this;}
+  }
+  vi.stubGlobal("WebSocket",Object.assign(CapturingWebSocket,{CONNECTING:0,OPEN:1,CLOSING:2,CLOSED:3}));
+  const connected=openGabrooRealtimeSession({
+   consentGranted:true,
+   ticketProvider:async()=>({session_id:"session-test",connection_ticket:"a".repeat(64)})
+  });
+  await Promise.resolve();
+  instance?.open();
+  const session=await connected;
+  expect(instance?.url).toBe("wss://api.example.com/api/v1/gabroo/realtime/connect");
+  expect(instance?.protocols).toEqual(["gabroo.v1","ticket."+"a".repeat(64)]);
+  expect(sent).toHaveLength(1);
+  expect(JSON.parse(sent[0])).toMatchObject({session_id:"session-test",type:"session.ready"});
+  session.close();
  });
 });
