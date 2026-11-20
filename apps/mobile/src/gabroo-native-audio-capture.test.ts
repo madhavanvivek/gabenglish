@@ -121,7 +121,7 @@ describe("Gabroo native capture lifecycle boundary",()=>{
   await x.controller.stop();
   finishStart();
   await expect(starting).rejects.toThrow(/cancelled while starting/);
-  expect(x.stream.stop).toHaveBeenCalledTimes(2);
+  expect(x.stream.stop).toHaveBeenCalledOnce();
   expect(x.controller.isActive).toBe(false);
  });
 
