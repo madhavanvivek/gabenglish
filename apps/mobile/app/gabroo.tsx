@@ -18,6 +18,7 @@ export default function GabrooScreen(){
  const [subscription,setSubscription]=useState<SubscriptionStatus|null>(null);
  const [recognitionStatus,setRecognitionStatus]=useState<GabrooRecognitionStatus|null>(null);
  const [speechStatus,setSpeechStatus]=useState<GabrooSpeechStatus|null>(null);
+ const [speechStatusRefreshing,setSpeechStatusRefreshing]=useState(false);
  const [conversations,setConversations]=useState<GabrooConversation[]>([]);
  const [active,setActive]=useState<GabrooConversation|null>(null);
  const activeConversationIdRef=useRef<string|null>(null);
@@ -67,6 +68,19 @@ export default function GabrooScreen(){
  const sendInFlightRef=useRef(false);
  const speechPreferenceSequenceRef=useRef(0);
  const playbackStateRef=useRef<GabrooPlaybackState>(initialGabrooPlaybackState);
+ const refreshSpeechStatus=useCallback(async()=>{
+  setSpeechStatusRefreshing(true);
+  try{
+   const status=await getGabrooSpeechStatus();
+   setSpeechStatus(status);
+   setSpeechNotice("");
+  }catch(reason){
+   setSpeechStatus(null);
+   setSpeechNotice(reason instanceof Error?reason.message:"Could not refresh Gabroo voice availability.");
+  }finally{
+   setSpeechStatusRefreshing(false);
+  }
+ },[]);
  const load=useCallback(async(sequence:number)=>{
   setLoading(true);setError("");
   try{
@@ -650,6 +664,7 @@ export default function GabrooScreen(){
     <View style={s.voiceControls}><Text style={s.voiceTitle}>Playback speed · {speechRate.toFixed(2).replace(/0$/,"")}×</Text><Text style={s.captureConsentCopy}>Listen uses the server-configured Gabroo speech provider. The final male Kerala Malayalam voice remains unapproved until the voice audition is completed and you explicitly approve a candidate.</Text><View style={s.voiceSpeedRow}><Pressable accessibilityRole="button" accessibilityLabel="Slow Gabroo speech" disabled={speechRate<=0.75||busy||speechSaving} onPress={()=>void changeSpeechRate(-0.05)} style={s.voiceSpeedButton}><Text style={s.voiceSpeedButtonText}>−</Text></Pressable><Text style={s.voiceSpeedHint}>Applies to the next listen or replay</Text><Pressable accessibilityRole="button" accessibilityLabel="Speed up Gabroo speech" disabled={speechRate>=1.5||busy||speechSaving} onPress={()=>void changeSpeechRate(0.05)} style={s.voiceSpeedButton}><Text style={s.voiceSpeedButtonText}>+</Text></Pressable></View></View><View style={s.recognitionStatusPanel}>
      <Text style={s.captureConsentTitle}>Gabroo voice availability</Text>
      <Text style={s.captureConsentCopy}>{speechStatus===null?"Could not verify Gabroo voice availability. Playback will report an error if the server voice is not configured.":speechStatus.available?"The server speech provider is configured. This does not mean the final Gabroo voice has been approved.":"The server speech provider is not configured yet. No device voice will be substituted."}</Text>
+     <Pressable accessibilityRole="button" accessibilityLabel="Refresh Gabroo voice availability" disabled={speechStatusRefreshing} onPress={()=>void refreshSpeechStatus()} style={s.permissionReset}><Text style={s.permissionResetText}>{speechStatusRefreshing?"Checking voice service…":"Check again"}</Text></Pressable>
     </View><View style={s.voicePermissionPanel}>
      <Text style={s.voiceTitle}>Prepare voice conversations</Text>
      <Text style={s.voicePermissionCopy}>Microphone access is requested only after you agree below. Recording and transcription are separate permissions. Your speech is never uploaded without a separate action.</Text>
