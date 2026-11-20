@@ -8,7 +8,7 @@ describe("Gabroo learner-turn adaptation",()=>{
   expect(guidance).toContain("one small expansion");
  });
  it("answers direct questions before inviting further discussion",()=>{
-  for(const message of ["Why does this happen?","How can I improve my English","എങ്ങനെ ഇത് ചെയ്യാം?"]){
+  for(const message of ["Why does this happen?","How can I improve my English","എങ്ങനെ ഇത് ചെയ്യാം","എങ്ങനെ ഇത് ചെയ്യാം?"]){
    const guidance=buildGabrooLearnerTurnGuidance({latestLearnerMessage:message});
    expect(guidance).toContain("Answer that question clearly first");
    expect(guidance).toContain("Do not withhold the answer");
