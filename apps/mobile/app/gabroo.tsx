@@ -312,6 +312,10 @@ export default function GabrooScreen(){
   if(uri?.startsWith("file://"))await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
  };
  const speakMessage=async(message:GabrooConversationMessage)=>{
+  if(recordingRef.current||transcriptionRecordingRef.current||recordingOperationRef.current||transcriptionOperationRef.current){
+   setSpeechNotice("Finish or discard the active recording before playing Gabroo's voice.");
+   return;
+  }
   if(darkScreenMode&&!darkScreenAudioEnabled)return;
   if(speakingMessageId===message.id){await stopSpeech();return;}
   speechRequestAbortRef.current?.abort();
@@ -451,6 +455,10 @@ export default function GabrooScreen(){
   let recordingStarted=false;
   transcriptionOperationRef.current=true;setTranscriptionBusy(true);setSpeechNotice("");
   try{
+   // Never switch the shared native audio session into recording mode while
+   // Gabroo speech is still playing or being torn down.
+   await stopSpeech();
+   if(operation!==transcriptionSequenceRef.current||!appIsActiveRef.current||!tutorScreenFocusedRef.current)return;
    await Audio.setAudioModeAsync({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
    const created=await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
    if(operation!==transcriptionSequenceRef.current||!appIsActiveRef.current||!tutorScreenFocusedRef.current){
@@ -606,6 +614,10 @@ export default function GabrooScreen(){
   recordingOperationRef.current=true;
   setRecordingBusy(true);setSpeechNotice("");
   try{
+   // The microphone test and Gabroo playback share the native audio session.
+   // Finish speech cleanup before requesting recording mode.
+   await stopSpeech();
+   if(!appIsActiveRef.current||!tutorScreenFocusedRef.current)return;
    await Audio.setAudioModeAsync({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
    const created=await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
    recordingRef.current=created.recording;
