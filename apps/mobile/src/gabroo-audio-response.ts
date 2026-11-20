@@ -8,7 +8,7 @@ export function expectedGabrooAudioLength(contentLength:string|null):number|null
  return length;
 }
 
-function validateGabrooAudioHeaders(contentType:string|null,contentLength:string|null):void{
+export function validateGabrooAudioHeaders(contentType:string|null,contentLength:string|null):void{
  const normalized=contentType?.split(";")[0].trim().toLowerCase();
  if(normalized!=="audio/mpeg")throw new Error("Gabroo returned an unsupported audio format.");
  expectedGabrooAudioLength(contentLength);
