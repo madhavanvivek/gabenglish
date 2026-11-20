@@ -620,6 +620,15 @@ export default function GabrooScreen(){
    if(!appIsActiveRef.current||!tutorScreenFocusedRef.current)return;
    await Audio.setAudioModeAsync({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
    const created=await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+   // Native recording creation is asynchronous. The learner may navigate away
+   // while it is pending, so never publish a handle from a stale screen.
+   if(!appIsActiveRef.current||!tutorScreenFocusedRef.current){
+    created.recording.setOnRecordingStatusUpdate(null);
+    const abandonedUri=created.recording.getURI();
+    await created.recording.stopAndUnloadAsync().catch(()=>undefined);
+    if(abandonedUri)await FileSystem.deleteAsync(abandonedUri,{idempotent:true}).catch(()=>undefined);
+    return;
+   }
    recordingRef.current=created.recording;
    created.recording.setProgressUpdateInterval(250);
    created.recording.setOnRecordingStatusUpdate(status=>{
@@ -641,7 +650,7 @@ export default function GabrooScreen(){
   }finally{
    recordingOperationRef.current=false;
    setRecordingBusy(false);
-   if(!appIsActiveRef.current&&recordingRef.current)void stopAndDiscardLocalCapture();
+   if((!appIsActiveRef.current||!tutorScreenFocusedRef.current)&&recordingRef.current)void stopAndDiscardLocalCapture();
   }
  };
  const stopAndDiscardLocalCapture=async()=>{
