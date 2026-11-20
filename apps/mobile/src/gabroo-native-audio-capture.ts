@@ -97,6 +97,7 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
     }
     starting=false;
     active=false;
+    terminal=true;
     options.sender.close("capture_start_failed");
     report(error);
     throw error;
