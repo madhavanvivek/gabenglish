@@ -11,6 +11,7 @@ describe("Gabroo audio response validation",()=>{
  });
  it("rejects invalid and oversized declared lengths before reading audio",()=>{
   expect(()=>validateGabrooAudioHeaders("audio/mpeg","-1")).toThrow(/invalid audio length/i);
+  expect(()=>validateGabrooAudioHeaders("audio/mpeg","0")).toThrow(/invalid audio response/i);
   expect(()=>validateGabrooAudioHeaders("audio/mpeg","12mb")).toThrow(/invalid audio length/i);
   expect(()=>validateGabrooAudioHeaders("audio/mpeg","+12")).toThrow(/invalid audio length/i);
   expect(()=>validateGabrooAudioHeaders("audio/mpeg","0x10")).toThrow(/invalid audio length/i);
