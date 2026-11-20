@@ -142,9 +142,9 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
       if(!parsedMessage.success||parsedMessage.data.session_id!==sessionId){ws.close(1008,"invalid_session_message");return;}
       const message=parsedMessage.data;
       if(message.type==="session.stop"){activeTurn?.controller.abort();activeTurn?.chunks.splice(0);activeTurn=undefined;for(const controller of pendingRecognitions.values())controller.abort();pendingRecognitions.clear();send({type:"session.closed",reason:"learner_stop"});ws.close(1000,"learner_stop");return;}
-      if(message.type==="tutor.interrupt"){if(activeTurn?.id===message.turn_id){activeTurn.controller.abort();activeTurn.chunks.length=0;activeTurn=undefined;}pendingRecognitions.get(message.turn_id)?.abort();return;}
+      if(message.type==="tutor.interrupt"){if(activeTurn?.id===message.turn_id){activeTurn.controller.abort();activeTurn.chunks.length=0;activeTurn=undefined;}const recognition=pendingRecognitions.get(message.turn_id);if(recognition){recognition.abort();pendingRecognitions.delete(message.turn_id);}return;}
       if(message.type==="turn.start"){
-       if(activeTurn){failTurn(message.turn_id,"TURN_LIMIT","Finish or interrupt the current voice turn first.");return;}
+       if(activeTurn||pendingRecognitions.size>0){failTurn(message.turn_id,"TURN_LIMIT","Finish or interrupt the current voice turn first.");return;}
        if(message.audio.codec!=="pcm_s16le"||message.audio.sample_rate_hz!==16000||message.audio.channels!==1){
         failTurn(message.turn_id,"TRANSPORT_NOT_READY","Only 16 kHz mono PCM audio is currently accepted by the transport.");return;
        }
