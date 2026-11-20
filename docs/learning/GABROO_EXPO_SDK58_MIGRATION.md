@@ -8,7 +8,7 @@ Baseline: `foundation/gabroo-live-avatar-runtime`
 
 Move the mobile app from Expo SDK 53 to a supported SDK that provides the native PCM microphone stream required by Gabroo's realtime voice transport. Keep the existing record-review-confirm voice input working throughout the migration.
 
-This branch is intentionally isolated from the realtime lifecycle hardening branch. Do not merge it until the full mobile CI suite, Android export, native device checks and voice privacy checks pass.
+This branch is intentionally isolated from the realtime lifecycle hardening branch. Upgrade incrementally through SDK 54, 55, 56, 57 and 58, validating each major version before proceeding. Do not merge it until the full mobile CI suite, Android export, native device checks and voice privacy checks pass.
 
 ## Verified target compatibility
 
@@ -53,13 +53,15 @@ SDK 58 provides `useAudioStream(options)` for real-time PCM microphone capture. 
 - Never upload audio merely because microphone permission was granted.
 - Do not enable background microphone capture.
 
-### 1. Upgrade SDK dependencies
+### 1. Upgrade SDK dependencies incrementally
 
-- Set the Expo package to SDK 58.
-- Run `pnpm exec expo install --fix` from `apps/mobile`.
+- First upgrade SDK 53 to SDK 54, then validate and commit that checkpoint.
+- Continue SDK 54 to 55, 55 to 56, 56 to 57, and finally 57 to 58. Do not skip a major version.
+- For each checkpoint, set the Expo package to that SDK's supported range and align React Native, React, and every Expo-managed package to the matching SDK reference.
+- Run `pnpm exec expo install --fix` from `apps/mobile` after each SDK package change.
 - Replace `expo-av` with SDK 58's `expo-audio`; remove the old config plugin only after all old Expo AV use has been migrated.
 - Run `pnpm exec expo-doctor`.
-- Run mobile typecheck, unit tests and Android export before changing voice screen behavior.
+- Run mobile typecheck, unit tests and Android export at every checkpoint before advancing to the next SDK.
 - Address React Native 0.87/0.88 strict type changes and removed APIs. Do not silence type errors with broad casts or disable strict checks.
 - Review the SDK 58 Expo Router migration notes for this app's existing router usage.
 - Verify the CI Node runtime is at least 22.13.
@@ -123,4 +125,4 @@ Do not claim lip-sync, full-duplex conversation or device compatibility until th
 
 ## Current decision
 
-SDK 58 is the target for the migration spike because it is the current stable Expo SDK and documents the PCM `useAudioStream` API needed by Gabroo. This document does not claim that the migration or native integration has already been implemented. Dependency changes and app wiring will be made incrementally on this branch, with each stage gated by CI.
+SDK 58 is the final target for the migration because it is the current stable Expo SDK and documents the PCM `useAudioStream` API needed by Gabroo. The migration begins with SDK 54 as the first compatibility checkpoint, then proceeds one major version at a time. This document does not claim that the migration or native integration has already been implemented. Dependency changes and app wiring will be made incrementally on this branch, with each stage gated by CI.
