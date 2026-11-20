@@ -319,3 +319,8 @@ The final open-response prompt invites the learner to write one or two original 
 ## 22. Learner-owned sentence revision notebook
 
 The Sentence Builder can explicitly save a learner-authored draft as a learning_note in the existing private Gabroo memory store. Each record uses a versioned, validated payload and a dedicated sentence_revision_ key namespace. The mobile screen only lists notes in that namespace whose payload validates; unrelated learning notes are not surfaced or modified. Learners can open a saved draft as a prefilled Gabroo revision request or explicitly delete it. Saving and deletion use the existing authenticated, owner-scoped memory API. No sentence is saved automatically, no automated correction is claimed as authoritative, and no proficiency score is inferred. The saved draft is a learner-authored starting point; any Gabroo feedback remains a separate conversation and requires learner review and send.
+
+
+## 23. Saving an original and Gabroo revision together
+
+When a learner enters Gabroo from a sentence-revision exercise with an original draft, an assistant reply can be explicitly saved as the suggested version paired with that original. The record is stored as a version-1 learning_note using a sentence-revision key; both original and suggested text are bounded to 420 characters. The Sentence Notebook validates the record and displays the two versions distinctly. The save action is visible only in this revision context, is user-triggered, and reports duplicate or save failures. This captures the assistant's reply as a suggested revision, not a guaranteed correction; learners retain responsibility for reviewing its meaning and accuracy. A later revision may replace or supersede it only through an explicit user action.
