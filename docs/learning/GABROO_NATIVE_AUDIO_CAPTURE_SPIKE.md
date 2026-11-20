@@ -48,3 +48,15 @@ The mobile layer now also has a provider/native-module independent PCM sender:
 - fails closed on queue overflow, socket loss, or sustained congestion rather than silently dropping audio.
 
 This sender is a tested transport utility, not a microphone integration. The future native adapter must stop capture when its enqueue promise rejects, and the session coordinator must send `turn.end` only after all accepted buffers have drained. Device testing remains mandatory.
+
+## Follow-on: foreground capture lifecycle controller
+
+A platform-independent capture lifecycle controller now defines the boundary expected from the future Expo AudioStream hook:
+- requires explicit consent and foreground tutor-screen state;
+- requests microphone permission only after the learner starts capture;
+- validates actual stream sample rate and channel count after native start;
+- ignores PCM callbacks unless capture is active and foregrounded;
+- stops native capture on explicit stop or sender/backpressure failure;
+- closes the sender on all failed-start and stop paths.
+
+The controller accepts an injected native stream port. It does not import `expo-audio`, request real device permission itself, or claim microphone capture works on the current SDK 53 app. The React integration and physical-device QA remain gated on the Expo SDK upgrade.
