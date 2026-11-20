@@ -25,8 +25,12 @@ export function validateGabrooAudioBytes(bytes:Uint8Array):void{
  */
 export async function readGabrooAudioBytes(response:Pick<Response,"headers"|"body"|"arrayBuffer">,signal?:AbortSignal):Promise<Uint8Array>{
  validateGabrooAudioHeaders(response.headers.get("content-type"),response.headers.get("content-length"));
- if(signal?.aborted)throw new Error("Gabroo audio reading was cancelled.");
  const reader=response.body?.getReader();
+ if(signal?.aborted){
+  if(reader)await reader.cancel().catch(()=>undefined);
+  else await response.body?.cancel().catch(()=>undefined);
+  throw new Error("Gabroo audio reading was cancelled.");
+ }
  if(!reader){
   const bytes=new Uint8Array(await response.arrayBuffer());
   validateGabrooAudioBytes(bytes);
