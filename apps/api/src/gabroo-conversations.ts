@@ -91,7 +91,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
    if(!snapshot){await client.query("ROLLBACK");return error(reply,request.id,404,"CONVERSATION_NOT_FOUND","This conversation is not available.");}
    if(snapshot.status!=="open"){await client.query("ROLLBACK");return error(reply,request.id,409,"CONVERSATION_CLOSED","This conversation is closed.");}
    const profile=await client.query<{display_name:string|null;learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed"}>(
-    "SELECT p.display_name,up.learning_goal,up.correction_mode FROM user_profiles p JOIN user_preferences up ON up.user_id=p.user_id WHERE p.user_id=$1",[learner.id]);
+    "SELECT p.display_name,up.learning_goal,COALESCE(up.correction_mode,'balanced') AS correction_mode FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id LEFT JOIN user_preferences up ON up.user_id=u.id WHERE u.id=$1",[learner.id]);
    learnerProfile=profile.rows[0];
    const memory=await client.query<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>(
     "SELECT category,memory_key,content FROM gabroo_learner_memory WHERE user_id=$1 ORDER BY updated_at DESC LIMIT 20",[learner.id]);
