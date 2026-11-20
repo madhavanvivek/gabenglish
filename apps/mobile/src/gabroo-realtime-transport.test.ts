@@ -91,6 +91,9 @@ describe("Gabroo realtime mobile transport helpers",()=>{
     this.readyState=1;this.onopen?.();
     this.onmessage?.({data:JSON.stringify({protocol_version:1,session_id:"session-test",type:"session.connected"})});
    }
+   accept(){
+    this.onmessage?.({data:JSON.stringify({protocol_version:1,session_id:"session-test",type:"session.accepted",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1},max_frame_bytes:65536,max_turn_ms:120000})});
+   }
   }
   let instance:MockWebSocket|undefined;
   class CapturingWebSocket extends MockWebSocket{
@@ -104,7 +107,13 @@ describe("Gabroo realtime mobile transport helpers",()=>{
   });
   await Promise.resolve();
   instance?.open();
+  let resolved=false;
+  void connected.then(()=>{resolved=true;});
+  await Promise.resolve();
+  expect(resolved).toBe(false);
+  instance?.accept();
   const session=await connected;
+  expect(resolved).toBe(true);
   expect(instance?.url).toBe("wss://api.example.com/api/v1/gabroo/realtime/connect");
   expect(instance?.protocols).toEqual(["gabroo.v1","ticket."+"a".repeat(64)]);
   expect(sent).toHaveLength(1);
