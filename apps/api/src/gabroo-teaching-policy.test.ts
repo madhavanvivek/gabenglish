@@ -90,7 +90,7 @@ describe("Gabroo learner-turn adaptation",()=>{
    {term:"resilient",needsPractice:true},{term:"curious",needsPractice:true},{term:"ordinary",needsPractice:false}
   ]);
   expect(policy.responseGuidance.join(" ")).toContain("fresh, level-appropriate sentence");
-  expect(policy.responseGuidance.join(" ")).toContain("never announce that the learner struggled");
+  expect(policy.responseGuidance.join(" ")).toContain("Never announce that the learner struggled");
  });
  it("does not add revision coaching when no active word is due or Again-rated",()=>{
   const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",learnerVocabulary:[
