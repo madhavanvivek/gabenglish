@@ -50,6 +50,27 @@ describe("Gabroo conversational placement",()=>{
   expect(response?.json()).not.toHaveProperty("suggested_stage");
   await app.close();
  });
+ it("returns bounded grammar review examples in a completed assessment",async()=>{
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);
+  const start=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",payload:{preferred_language:"en"}});
+  const session=start.json().session_id;
+  let promptId=start.json().prompt_id;
+  let completed:Awaited<ReturnType<typeof app.inject>>|undefined;
+  for(let i=0;i<6;i++){
+   completed=await app.inject({method:"POST",url:"/api/v1/placement/conversation/respond",payload:{session_id:session,turn:{prompt_id:promptId,response:"He go to work every day. Yesterday I did went home. I am study English and I enjoy learning new things with my friends."}}});
+   if(completed.json().is_complete)break;
+   promptId=completed.json().prompt_id;
+  }
+  expect(completed?.json().is_complete).toBe(true);
+  expect(completed?.json().report.grammar_review_items).toEqual(expect.arrayContaining([
+   expect.objectContaining({category:"subject_verb_agreement",example:"He go"}),
+   expect.objectContaining({category:"past_tense_form",example:"did went"}),
+   expect.objectContaining({category:"verb_form",example:"I am study"})
+  ]));
+  expect(completed?.json().evidence[0].grammar_observations.length).toBeLessThanOrEqual(3);
+  await app.close();
+ });
+
  it("uses a gentle clarification instead of escalating after a very brief answer",async()=>{
   const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);
   const start=await app.inject({method:"POST",url:"/api/v1/placement/conversation/start",payload:{preferred_language:"en"}});
