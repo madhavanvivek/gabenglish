@@ -139,6 +139,16 @@ describe("Gabroo native capture lifecycle boundary",()=>{
  });
 
 
+ it("rejects attaching a replacement stream after the controller becomes terminal",async()=>{
+  const x=setup();
+  await x.controller.stop();
+  const replacement:GabrooNativeAudioStream={
+   sampleRate:48_000,channels:1,isStreaming:false,
+   start:vi.fn(async()=>{}),stop:vi.fn(async()=>{})
+  };
+  expect(()=>x.controller.attachStream(replacement)).toThrow(/new Gabroo capture controller/);
+ });
+ 
  it("requires a fresh controller after startup failure closes its sender",async()=>{
   const x=setup();
   vi.mocked(x.stream.start).mockRejectedValueOnce(new Error("native startup failed"));
