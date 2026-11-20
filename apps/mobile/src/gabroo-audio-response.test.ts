@@ -21,6 +21,20 @@ describe("Gabroo audio response validation",()=>{
  it("accepts a non-empty audio body within the size limit",()=>{
   expect(()=>validateGabrooAudioBytes(new Uint8Array([0x49,0x44,0x33]))).not.toThrow();
  });
+ it("rejects streamed MP3 bodies shorter than the declared content length",async()=>{
+  const response=new Response(new ReadableStream<Uint8Array>({
+   start(controller){controller.enqueue(new Uint8Array([0x49,0x44]));controller.close();}
+  }),{headers:{"content-type":"audio/mpeg","content-length":"4"}});
+  await expect(readGabrooAudioBytes(response)).rejects.toThrow(/did not match the declared content length/i);
+ });
+ it("rejects buffered MP3 bodies longer than the declared content length",async()=>{
+  const response={
+   headers:new Headers({"content-type":"audio/mpeg","content-length":"2"}),
+   body:null,
+   arrayBuffer:async()=>new Uint8Array([0x49,0x44,0x33]).buffer
+  };
+  await expect(readGabrooAudioBytes(response)).rejects.toThrow(/did not match the declared content length/i);
+ });
  it("reads a valid streamed MP3 response and joins chunks in order",async()=>{
   const response=new Response(new ReadableStream<Uint8Array>({
    start(controller){
