@@ -1,6 +1,6 @@
 # Gabroo Progressive Audio Playback — Architecture Decision
 
-Status: provider and API route progressive streaming implemented; CI and physical-device end-to-end validation pending.
+Status: provider and API route progressive streaming implemented; CI regression suite passing through commit `44a20ba`; real-provider and physical-device end-to-end validation pending.
 Date: 2026-11-20
 
 ## Context
@@ -54,5 +54,6 @@ The current app's speech endpoint is POST-only and accepts text plus speed in a 
 - Provider-level progressive streaming is implemented with incremental 12 MiB enforcement and content-length verification.
 - The playback GET route prefers the streaming interface and pipes audio with Node stream backpressure and disconnect cancellation.
 - Mobile uses the native remote-URI playback path; confirm first-audio behavior and cancellation on physical Android/iOS devices.
-- Mobile and API cancellation handling has been strengthened and regression-tested.
+- Mobile and API cancellation handling has been strengthened and regression-tested; the route-level client-disconnect regression passed in CI on 2026-11-20.
+- API request logging redacts request URLs and authorization/cookie headers so the opaque one-time playback ticket in the GET path is not written to standard request logs.
 - Authenticated ticket issuance, durable one-time ticket consumption, server GET media route and native remote URI playback are implemented.\n- End-to-end streaming performance and first-audio latency improvement remain unverified until real provider and physical-device tests pass.\n- Physical Android/iOS playback, cancellation, memory and audio-clock validation remain pending.\n- Expired-ticket cleanup scheduling remains pending.
