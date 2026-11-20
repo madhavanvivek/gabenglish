@@ -33,7 +33,6 @@ function validateInput(input:GabrooSpeechSynthesisInput){
  const text=input.text.trim();
  if(!text||text.length>MAX_TEXT_CHARACTERS)throw new Error("Gabroo speech text must contain 1–4000 characters.");
  if(!Number.isFinite(input.speed)||input.speed<0.75||input.speed>1.5)throw new Error("Gabroo speech speed must be between 0.75× and 1.5×.");
- if(input.signal.aborted)throw new Error("Gabroo speech synthesis was cancelled.");
  return text;
 }
 
@@ -85,7 +84,8 @@ export function createGabrooSpeechSynthesisProvider(
     }
    });
    const cancelOnAbort=()=>source.destroy(new Error("Gabroo speech synthesis was cancelled."));
-   input.signal.addEventListener("abort",cancelOnAbort,{once:true});
+   if(input.signal.aborted)source.destroy(new Error("Gabroo speech synthesis was cancelled."));
+   else input.signal.addEventListener("abort",cancelOnAbort,{once:true});
    source.once("close",()=>input.signal.removeEventListener("abort",cancelOnAbort));
    source.once("end",()=>input.signal.removeEventListener("abort",cancelOnAbort));
    source.on("error",()=>input.signal.removeEventListener("abort",cancelOnAbort));
@@ -94,12 +94,36 @@ export function createGabrooSpeechSynthesisProvider(
    return {audio:limiter,contentType:"audio/mpeg",contentLength};
   },
   async synthesize(input){
-   const streamed=await this.synthesizeStream!(input);
-   const chunks:Buffer[]=[];
-   for await(const chunk of streamed.audio)chunks.push(Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk));
-   const audio=Buffer.concat(chunks);
-   if(audio.byteLength===0)throw new Error("Gabroo speech synthesis returned empty audio.");
-   return {audio:new Uint8Array(audio),contentType:"audio/mpeg"};
+   const {body}=await requestAudio(input);
+   const reader=body.getReader();
+   const chunks:Uint8Array[]=[];
+   let total=0;
+   const cancelOnAbort=()=>{void reader.cancel().catch(()=>undefined);};
+   if(input.signal.aborted){
+    await reader.cancel().catch(()=>undefined);
+    throw new Error("Gabroo speech synthesis was cancelled.");
+   }
+   input.signal.addEventListener("abort",cancelOnAbort,{once:true});
+   try{
+    while(true){
+     const part=await reader.read();
+     if(input.signal.aborted)throw new Error("Gabroo speech synthesis was cancelled.");
+     if(part.done)break;
+     total+=part.value.byteLength;
+     if(total>MAX_AUDIO_BYTES)throw new Error("Gabroo speech synthesis response exceeded the audio size limit.");
+     chunks.push(part.value);
+    }
+   }catch(error){
+    await reader.cancel().catch(()=>undefined);
+    throw error;
+   }finally{
+    input.signal.removeEventListener("abort",cancelOnAbort);
+   }
+   if(total===0)throw new Error("Gabroo speech synthesis returned empty audio.");
+   const audio=new Uint8Array(total);
+   let offset=0;
+   for(const chunk of chunks){audio.set(chunk,offset);offset+=chunk.byteLength;}
+   return {audio,contentType:"audio/mpeg"};
   }
  };
 }
