@@ -62,22 +62,28 @@ function rejectUpgrade(socket:Duplex,status:number){
 export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:Pool,config:AppConfig){
  const wss=new WebSocketServer({noServer:true,maxPayload:GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES,perMessageDeflate:false,handleProtocols(protocols){return protocols.has(GABROO_REALTIME_SUBPROTOCOL)?GABROO_REALTIME_SUBPROTOCOL:false;}});
  const activeByUser=new Map<string,{socket:WebSocket;sessionId:string}>();
+ const connectingUsers=new Set<string>();
  const server=app.server;
  const onUpgrade=(request:IncomingMessage,socket:Duplex,head:Buffer)=>{
   try{if(new URL(request.url??"/","http://localhost").pathname!==GABROO_REALTIME_PATH)return;}catch{rejectUpgrade(socket,400);return;}
   const parsed=parseGabrooRealtimeUpgrade(request,config.corsOrigins);
   if(!parsed.ok){rejectUpgrade(socket,parsed.status);return;}
   void (async()=>{
+   let reservedUserId:string|undefined;
    try{
     const consumed=await consumeGabrooRealtimeSessionTicket(pool,parsed.ticket);
     if(!consumed){rejectUpgrade(socket,401);return;}
+    if(activeByUser.has(consumed.userId)||connectingUsers.has(consumed.userId)){rejectUpgrade(socket,503);return;}
+    connectingUsers.add(consumed.userId);
+    reservedUserId=consumed.userId;
     const [entitlement,account]=await Promise.all([
      getActiveSubscriptionEntitlement(pool,consumed.userId),
      pool.query("SELECT id FROM users WHERE id=$1 AND status='active' AND deleted_at IS NULL AND (email_verified_at IS NOT NULL OR phone_verified_at IS NOT NULL)",[consumed.userId])
     ]);
-    if(!entitlement||!account.rows[0]){rejectUpgrade(socket,403);return;}
-    if(activeByUser.has(consumed.userId)){rejectUpgrade(socket,503);return;}
+    if(!entitlement||!account.rows[0]){connectingUsers.delete(consumed.userId);reservedUserId=undefined;rejectUpgrade(socket,403);return;}
     wss.handleUpgrade(request,socket,head,ws=>{
+     connectingUsers.delete(consumed.userId);
+     reservedUserId=undefined;
      activeByUser.set(consumed.userId,{socket:ws,sessionId:consumed.sessionId});
      const sessionId=consumed.sessionId;
      const connectedAt=Date.now();
@@ -150,7 +156,7 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
      ws.once("close",()=>{clearInterval(heartbeat);activeTurn=undefined;if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
      ws.once("error",()=>{clearInterval(heartbeat);activeTurn=undefined;if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
     });
-   }catch{rejectUpgrade(socket,503);}
+   }catch{if(reservedUserId)connectingUsers.delete(reservedUserId);rejectUpgrade(socket,503);}
   })();
  };
  server.on("upgrade",onUpgrade);
