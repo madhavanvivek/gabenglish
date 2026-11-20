@@ -135,6 +135,9 @@ describe("Gabroo realtime WebSocket handshake",()=>{
   client.send(pcm);
   client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-interrupt",type:"turn.end"}));
   await started;
+  const secondTurnRejected=nextMessage(client);
+  client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-too-soon",type:"turn.start",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1}}));
+  expect(await secondTurnRejected).toMatchObject({type:"turn.failed",turn_id:"turn-too-soon",code:"TURN_LIMIT"});
   client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-interrupt",type:"tutor.interrupt"}));
   await aborted;
   const closed=nextMessage(client);
