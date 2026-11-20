@@ -105,6 +105,30 @@ describe("Gabroo speech synthesis provider",()=>{
   expect(streamCancelled).toBe(true);
  });
 
+ it("rejects a streamed response whose bytes do not match its declared content length",async()=>{
+  const provider=createGabrooSpeechSynthesisProvider(config,async()=>new Response(new ReadableStream<Uint8Array>({
+   start(controller){controller.enqueue(new Uint8Array([1,2,3]));controller.close();}
+  }),{status:200,headers:{"content-type":"audio/mpeg","content-length":"4"}}))!;
+  const result=await provider.synthesizeStream!({text:"hello",speed:1,signal:new AbortController().signal});
+  const chunks:Buffer[]=[];
+  await expect((async()=>{
+   for await(const chunk of result.audio)chunks.push(Buffer.from(chunk));
+  })()).rejects.toThrow(/content-length/i);
+  expect(Buffer.concat(chunks)).toEqual(Buffer.from([1,2,3]));
+ });
+
+ it("cancels the upstream response when the downstream audio consumer closes",async()=>{
+  let cancelUpstream!:()=>void;
+  const upstreamCancelled=new Promise<void>(resolve=>{cancelUpstream=resolve;});
+  const provider=createGabrooSpeechSynthesisProvider(config,async()=>new Response(new ReadableStream<Uint8Array>({
+   start(controller){controller.enqueue(new Uint8Array([1,2,3]));},
+   cancel(){cancelUpstream();}
+  }),{status:200,headers:{"content-type":"audio/mpeg"}}))!;
+  const result=await provider.synthesizeStream!({text:"hello",speed:1,signal:new AbortController().signal});
+  result.audio.destroy();
+  await expect(upstreamCancelled).resolves.toBeUndefined();
+ });
+
  it("exposes the first provider audio chunk before synthesis finishes",async()=>{
   let finish!:()=>void;
   const finished=new Promise<void>(resolve=>{finish=resolve;});
