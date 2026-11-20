@@ -84,7 +84,7 @@ describe("Gabroo realtime turn coordinator",()=>{
  it("interrupts an active turn without sending turn.end",async()=>{
   const x=setup();
   await x.coordinator.start("turn-6",audio);
-  x.coordinator.interrupt();
+  await x.coordinator.interrupt();
   expect(x.connection.interrupt).toHaveBeenCalledWith("turn-6");
   expect(x.connection.endTurn).not.toHaveBeenCalled();
   expect(x.sender.close).toHaveBeenCalledWith("learner_interrupt");
