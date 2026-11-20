@@ -433,7 +433,7 @@ describe("API foundation",()=>{
   const config=loadConfig({NODE_ENV:"test"});
   let stored:{digest:string;userId:string;text:string;speed:number;consumed:boolean}|undefined;
   let ticketIssueSql="";
-  const pool={query:async(sql:string,values?:unknown[])=>{
+  const handleQuery=async(sql:string,values?:unknown[])=>{
    if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
    if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
    if(sql.includes("INSERT INTO gabroo_speech_playback_tickets")){
@@ -442,12 +442,20 @@ describe("API foundation",()=>{
     return {rows:[{expires_at:new Date(Date.now()+60_000)}]};
    }
    if(sql.includes("UPDATE gabroo_speech_playback_tickets")){
+    if(sql.includes("SET consumed_at=now() WHERE user_id=")){
+     if(stored)stored.consumed=true;
+     return {rows:[]};
+    }
     if(!stored||stored.digest!==values?.[0]||stored.consumed)return {rows:[]};
     stored.consumed=true;
     return {rows:[{user_id:stored.userId,speech_text:stored.text,speech_speed:stored.speed}]};
    }
    return {rows:[]};
-  }} as any;
+  };
+  const pool={query:handleQuery,connect:async()=>({
+   query:async(sql:string,values?:unknown[])=>handleQuery(sql,values),
+   release:()=>undefined
+  })} as any;
   const synthesized:Array<{text:string;speed:number}>=[];
   const provider={
    synthesize:async()=>({audio:new Uint8Array([4,5,6]),contentType:"audio/mpeg" as const}),
@@ -461,11 +469,9 @@ describe("API foundation",()=>{
   const phrase="നമസ്കാരം! Let's practise speaking.";
   const created=await app.inject({method:"POST",url:"/api/v1/gabroo/speech/playback-ticket",headers,payload:{text:phrase,speed:0.85}});
   expect(created.statusCode).toBe(201);
-  expect(ticketIssueSql).toContain("WITH learner_lock AS MATERIALIZED");
-  expect(ticketIssueSql).toContain("pg_advisory_xact_lock(hashtextextended($2::text, 0))");
-  expect(ticketIssueSql).toContain("WHERE user_id=$2 AND consumed_at IS NULL");
-  expect(ticketIssueSql).toContain("EXISTS (SELECT 1 FROM learner_lock)");
-  expect(ticketIssueSql).toContain("FROM (SELECT count(*) AS invalidated FROM superseded) AS completed");
+  expect(ticketIssueSql).toContain("INSERT INTO gabroo_speech_playback_tickets");
+  expect(ticketIssueSql).toContain("VALUES($1,$2,$3,$4,now()+interval '60 seconds')");
+  expect(ticketIssueSql).not.toContain("WITH learner_lock");
   const ticket=created.json();
   expect(ticket.method).toBe("GET");
   expect(ticket.expires_at).toBeTruthy();
