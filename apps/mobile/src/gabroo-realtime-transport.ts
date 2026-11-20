@@ -86,6 +86,8 @@ export function connectGabrooRealtimeSocket(input:{
   },
   async finishTurn(turnId:string,sender:{finish:()=>Promise<void>}){
    if(!turnId.trim())throw new Error("A turn ID is required to finish Gabroo audio.");
+   if(activeTurnId!==turnId)throw new Error("This Gabroo voice turn is not active.");
+   if(socket.readyState!==WebSocket.OPEN||!sessionAccepted)throw new Error("Gabroo realtime session is not ready to finish audio.");
    try{
     await sender.finish();
     sendControl({type:"turn.end",turn_id:turnId});
