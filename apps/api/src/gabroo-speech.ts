@@ -92,7 +92,7 @@ export async function registerGabrooSpeechRoutes(
   const parsed=speechRequestSchema.safeParse(request.body);
   if(!parsed.success)return sendError(reply,request.id,400,"VALIDATION_ERROR","Please provide text and a speaking speed between 0.75× and 1.5×.");
   if(!provider)return sendError(reply,request.id,503,"PROVIDER_UNAVAILABLE","Gabroo's approved speech voice is not configured yet.");
-  await pool.query("DELETE FROM gabroo_speech_playback_tickets WHERE expires_at < now() - interval '5 minutes'");
+  await pool.query("DELETE FROM gabroo_speech_playback_tickets WHERE ctid IN (SELECT ctid FROM gabroo_speech_playback_tickets WHERE expires_at < now() - interval '5 minutes' ORDER BY expires_at ASC LIMIT 500)");
   const token=randomBytes(32).toString("hex");
   const digest=createHash("sha256").update(token).digest("hex");
   const ticketClient=await pool.connect();
