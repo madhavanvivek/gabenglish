@@ -57,16 +57,18 @@ export function evaluateWordOrderAnswer(exerciseId:string,words:string[]):{corre
 }
 
 
-export type SavedSentenceDraft={version:1;original:string;savedAt:string};
-export function encodeSavedSentenceDraft(original:string,savedAt:string):string|null{
+export type SavedSentenceDraft={version:1;original:string;savedAt:string;improved?:string};
+export function encodeSavedSentenceDraft(original:string,savedAt:string,improved?:string):string|null{
  const value=original.trim().slice(0,420);
  if(!value)return null;
- return JSON.stringify({version:1,original:value,savedAt} satisfies SavedSentenceDraft);
+ const revised=improved?.trim().slice(0,420);
+ return JSON.stringify({version:1,original:value,savedAt,...(revised?{improved:revised}:{})} satisfies SavedSentenceDraft);
 }
 export function decodeSavedSentenceDraft(content:string):SavedSentenceDraft|null{
  try{
   const value=JSON.parse(content) as Partial<SavedSentenceDraft>;
   if(value.version!==1||typeof value.original!=="string"||!value.original.trim()||value.original.length>420||typeof value.savedAt!=="string"||!Number.isFinite(Date.parse(value.savedAt)))return null;
-  return {version:1,original:value.original,savedAt:value.savedAt};
+  if(value.improved!==undefined&&(typeof value.improved!=="string"||value.improved.length>420))return null;
+  return {version:1,original:value.original,savedAt:value.savedAt,...(typeof value.improved==="string"?{improved:value.improved}:{})};
  }catch{return null;}
 }
