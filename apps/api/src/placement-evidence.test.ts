@@ -52,6 +52,8 @@ describe("placement response evidence extraction",()=>{
     expect(result.grammarObservations.length).toBeLessThanOrEqual(3);
     expect(result.observations).toContain("A few grammar patterns may be worth reviewing; automated checks can miss context and valid alternatives.");
     expect(result).not.toHaveProperty("score");
+    const modal=extractResponseEvidence("modal","I can speaks English.");
+    expect(modal.grammarObservations).toEqual([expect.objectContaining({example:"can speaks",suggestion:"can speak"})]);
   });
 
   it("does not flag correct common agreement and verb forms",()=>{
