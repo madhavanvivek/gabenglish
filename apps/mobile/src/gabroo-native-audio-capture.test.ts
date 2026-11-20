@@ -125,4 +125,17 @@ describe("Gabroo native capture lifecycle boundary",()=>{
   expect(x.controller.isActive).toBe(false);
  });
 
+
+ it("stops a native stream when start rejects after partially activating it",async()=>{
+  const x=setup();
+  vi.mocked(x.stream.start).mockImplementationOnce(async()=>{
+   x.stream.isStreaming=true;
+   throw new Error("native start interrupted");
+  });
+  await expect(x.controller.start({consentGranted:true})).rejects.toThrow(/native start interrupted/);
+  expect(x.stream.stop).toHaveBeenCalledOnce();
+  expect(x.stream.isStreaming).toBe(false);
+  expect(x.controller.isActive).toBe(false);
+ });
+
 });
