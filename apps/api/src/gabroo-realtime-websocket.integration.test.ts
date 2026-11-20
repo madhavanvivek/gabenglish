@@ -98,7 +98,7 @@ describe("Gabroo realtime WebSocket handshake",()=>{
   client.send(pcm);
   const transcript=nextMessage(client);
   client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-stt",type:"turn.end"}));
-  expect(await transcript).toMatchObject({type:"transcript.final",turn_id:"turn-stt",text:"હલോ, how are you?",language_detected:"mixed",review_required:true});
+  expect(await transcript).toMatchObject({type:"transcript.final",turn_id:"turn-stt",text:"ഹലോ, how are you?",language_detected:"mixed",review_required:true});
   expect(received).toMatchObject({mimeType:"audio/wav",language:"ml-en",audioBytes:52});
   const closed=new Promise<void>(resolve=>client.once("close",()=>resolve()));
   client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,type:"session.stop"}));
