@@ -57,7 +57,11 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
   if(stream){
    const current=stream;
    stream=undefined;
-   try{await current.stop();}catch(error){report(error);}
+   try{await current.stop();}catch(error){
+    report(error);
+    options.sender.close("native_capture_stop_failed");
+    return {drained:false};
+   }
   }
   // Stop capture first, then drain every already-accepted audio frame before
   // the coordinator sends turn.end. Failure falls back to immediate close.
