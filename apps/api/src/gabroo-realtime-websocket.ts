@@ -165,7 +165,8 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
        activeTurn=undefined;
        if(Date.now()-completed.startedAt>MAX_TURN_MS){failTurn(completed.id,"TURN_LIMIT","This voice turn exceeded the time limit.");return;}
        if(!recognitionProvider){failTurn(completed.id,"TRANSPORT_NOT_READY","Live speech recognition is not configured. Please use the recording and transcript review flow.");return;}
-       pendingRecognitions.set(completed.id,completed.controller);\n       void (async()=>{
+       pendingRecognitions.set(completed.id,completed.controller);
+       void (async()=>{
         try{
          const pcm=Buffer.concat(completed.chunks,completed.totalBytes);
          const wav=pcm16MonoToWav(pcm,completed.audio.sample_rate_hz);
