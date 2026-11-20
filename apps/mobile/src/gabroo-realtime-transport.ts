@@ -85,7 +85,8 @@ export async function openGabrooRealtimeSession(input:{
  callbacks?:GabrooRealtimeSocketCallbacks;
 }){
  if(input.consentGranted!==true)throw new Error("Explicit learner consent is required.");
- const apiBaseUrl=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
+ const configuredApiBaseUrl=process.env.EXPO_PUBLIC_API_BASE_URL?.trim()??"";
+ const apiBaseUrl=configuredApiBaseUrl.endsWith("/")?configuredApiBaseUrl.slice(0,-1):configuredApiBaseUrl;
  if(!apiBaseUrl)throw new Error("The Gabenglish API is not configured.");
  const ticket=await createGabrooRealtimeSessionTicket(true);
  return await new Promise<ReturnType<typeof connectGabrooRealtimeSocket>>((resolve,reject)=>{
