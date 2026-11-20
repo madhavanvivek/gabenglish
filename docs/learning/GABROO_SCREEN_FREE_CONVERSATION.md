@@ -8,33 +8,30 @@ Let a learner practise spoken English with Gabroo without needing to watch or in
 
 The experience is audio-first, not a hidden or unattended recording feature. The learner deliberately starts a session, sees and hears that the microphone is active, and can stop it immediately.
 
-## 2. Learner experience
+## 2. Learner experience — Dark Screen Mode
 
-### Entry
-- Add **Screen-Free Conversation** beside the normal Talk to Gabroo entry.
-- Explain that Gabroo will listen and reply by voice, and that the screen may dim or be turned off.
-- Request microphone permission in context, only when the learner starts voice mode.
-- Check speech service readiness, audio output and network before starting.
-- Offer a short sound check and speaker/headphone choice.
+The first version is deliberately simple: it is a dark overlay on the existing Gabroo conversation screen, not a new background service or a simulated phone lock.
 
-### During the session
-- Gabroo asks one question at a time and waits for the learner.
-- Use voice activity detection (VAD) or explicit push-to-talk as the initial turn boundary. Prefer push-to-talk as a fallback where continuous listening is unreliable.
-- Play Gabroo's response, then return to listening. Stop capture while Gabroo is speaking unless barge-in is intentionally enabled and tested.
-- Keep the screen-free state visually quiet: dark screen, no animation, no scrolling transcript and no reward/streak prompts.
-- Provide optional spoken reminders and a subtle visual state before dimming: "Gabroo is listening", "Gabroo is speaking", "Paused".
-- The learner can pause, resume or end at any time using a large on-screen control before display dimming, headset/media controls where supported, or the persistent Android notification.
-- Never imply Gabroo can hear while microphone permission is denied, the session is paused, or the OS has suspended capture.
+### Entry and display
+- Add a **Dark Screen** action to an active Gabroo conversation.
+- Activating it covers the conversation UI with a pure black, full-screen view.
+- Keep only two visible controls: a single audio toggle (speaker on/off) and **Return to normal mode**.
+- Do not show lesson content, transcript, character animation, rewards, navigation or other distracting UI while dark mode is active.
+- The audio toggle controls Gabroo's audible output. Its state must be clear and accessible; turning audio off stops/blocks Gabroo playback, and turning it on allows playback again.
+- **Return to normal mode** removes the overlay and restores the exact conversation screen and scroll position without resetting or losing the conversation.
+- The mode must not silently end, restart or duplicate the active conversation.
 
-### Session end
-- End on the configured duration, parent limit, explicit learner stop, entitlement expiry, repeated network/audio failure or safety escalation.
-- Give a brief spoken recap and save only the learning data permitted by the learner/parent privacy settings.
-- Return to the regular app with a concise summary, not an incentive to extend screen time.
+### Important behaviour
+- The app remains in the foreground while the black overlay is displayed. This is not the same as turning off or locking the physical display.
+- On OLED displays, black pixels use very little display power; LCD devices may still illuminate the backlight. Do not promise zero screen power or guaranteed screen-time policy bypass.
+- The learner can still use the device's physical power button normally. Actual lock-screen audio continuation is a separate future capability and is not part of this first version.
+- If the app backgrounds or loses focus, follow the existing app lifecycle/audio cancellation behaviour; do not claim the conversation continues invisibly.
+- The audio toggle is not a microphone mute control. Microphone capture, when a real conversational voice session is implemented, must have its own explicit and truthful listening/paused indicator and stop behaviour.
 
-## 3. Two operating modes
+## 3. Scope boundary
 
-1. **Audio-only / display-dim mode (first release):** Keep the session visible only as a minimal dark interface. Let Android dim the display naturally; support the user's normal power-button behaviour only after the background service is implemented and device-tested.
-2. **Screen-off / locked-phone mode (Android follow-up):** A properly declared foreground service owns the active microphone/audio session. The service must show a persistent, truthful notification with a stop action. The app must handle lock/unlock, task switching, audio focus, route changes, process death and permission revocation.
+1. **Dark Screen Mode (first release):** Full-black overlay, audio output toggle and return-to-normal control. Preserve the existing conversation state and underlying screen.
+2. **True screen-off / locked-phone mode (future, optional):** Consider only after real-time voice conversation and a compliant Android foreground audio/microphone service exist. It requires separate platform feasibility, permission, privacy and physical-device QA.
 
 Do not use a black overlay as a fake screen lock, use accessibility APIs to bypass device controls, or claim the app can force the display off. The user controls the device's actual lock and display state.
 
@@ -83,7 +80,7 @@ The child-facing session must not display subscription upsells or prompt to exte
 
 ## 7. Implementation phases
 
-### Phase 1 — Audio-only MVP
+### Phase 1 — Dark Screen Mode UI
 - Build a dedicated screen-free setup and session UI.
 - Reuse authenticated conversation and speech endpoints.
 - Implement turn-based capture, VAD or push-to-talk fallback, audio playback and cancellation.
@@ -129,4 +126,4 @@ The child-facing session must not display subscription upsells or prompt to exte
 
 ## 10. Key product decision
 
-Ship **Audio-only MVP first**, then add Android locked-screen support after native service implementation and physical-device validation. This delivers the screen-time benefit early without making an unsafe promise about background microphone behaviour.
+Ship **Dark Screen Mode first**: a pure-black overlay with one audio toggle and one Return to normal mode control. Keep true screen-off/locked-phone audio as a separate optional future project.
