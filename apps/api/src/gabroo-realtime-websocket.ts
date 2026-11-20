@@ -4,7 +4,7 @@ import type {Duplex} from "node:stream";
 import type {FastifyInstance} from "fastify";
 import type {Pool} from "pg";
 import {WebSocket,WebSocketServer} from "ws";
-import {gabrooRealtimeClientMessageSchema,GABROO_REALTIME_PROTOCOL_VERSION,GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES} from "@gabenglish/contracts";
+import {gabrooRealtimeClientMessageSchema,GABROO_REALTIME_PROTOCOL_VERSION,GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES,validateGabrooRealtimeAudioFrame,type GabrooRealtimeAudioFrameMetadata,type GabrooRealtimeAudioFormat} from "@gabenglish/contracts";
 import {consumeGabrooRealtimeSessionTicket} from "./gabroo-realtime-sessions.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
 import type {AppConfig} from "./config.js";
@@ -13,8 +13,21 @@ export const GABROO_REALTIME_PATH="/api/v1/gabroo/realtime/connect";
 export const GABROO_REALTIME_SUBPROTOCOL="gabroo.v1";
 const TICKET_PREFIX="ticket.";
 const MAX_SESSION_MS=15*60*1000;
+const MAX_TURN_MS=120_000;
+const MAX_TURN_AUDIO_BYTES=5*1024*1024;
+const MAX_FRAMES_PER_SECOND=60;
 const IDLE_TIMEOUT_MS=60*1000;
 const HEARTBEAT_MS=25*1000;
+
+type ActiveTurn={
+ id:string;
+ audio:GabrooRealtimeAudioFormat;
+ startedAt:number;
+ nextSequence:number;
+ totalBytes:number;
+ pendingFrame?:GabrooRealtimeAudioFrameMetadata;
+ frameTimes:number[];
+};
 
 export function parseGabrooRealtimeUpgrade(request:IncomingMessage,allowedOrigins:string[]){
  const rawUrl=request.url??"/";
@@ -70,7 +83,11 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
      const connectedAt=Date.now();
      let lastActivity=connectedAt;
      let lastPong=connectedAt;
+     let activeTurn:ActiveTurn|undefined;
      const send=(message:Record<string,unknown>)=>{if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({protocol_version:GABROO_REALTIME_PROTOCOL_VERSION,session_id:sessionId,...message}));};
+     const failTurn=(turnId:string,code:"TURN_LIMIT"|"RATE_LIMITED"|"TRANSPORT_NOT_READY"|"RECOGNITION_FAILED",message:string)=>{
+      send({type:"turn.failed",turn_id:turnId,code,message});
+     };
      send({type:"session.connected"});
      const heartbeat=setInterval(()=>{
       const now=Date.now();
@@ -81,19 +98,57 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
      ws.on("pong",()=>{lastPong=Date.now();});
      ws.on("message",(data,isBinary)=>{
       lastActivity=Date.now();
-      if(isBinary){send({type:"session.closed",reason:"policy"});ws.close(1003,"audio_streaming_not_enabled");return;}
+      if(isBinary){
+       if(!activeTurn?.pendingFrame){ws.close(1008,"unexpected_audio_frame");return;}
+       const payload=Buffer.isBuffer(data)?data:Array.isArray(data)?Buffer.concat(data):Buffer.from(data as ArrayBuffer);
+       let metadata:GabrooRealtimeAudioFrameMetadata;
+       try{metadata=validateGabrooRealtimeAudioFrame(activeTurn.pendingFrame,payload);}catch{ws.close(1008,"invalid_audio_frame");return;}
+       activeTurn.pendingFrame=undefined;
+       const now=Date.now();
+       activeTurn.frameTimes=activeTurn.frameTimes.filter(time=>now-time<1000);
+       if(activeTurn.frameTimes.length>=MAX_FRAMES_PER_SECOND){failTurn(activeTurn.id,"RATE_LIMITED","Audio frames arrived too quickly. Please retry.");activeTurn=undefined;return;}
+       activeTurn.frameTimes.push(now);
+       activeTurn.totalBytes+=metadata.byte_length;
+       if(activeTurn.totalBytes>MAX_TURN_AUDIO_BYTES){failTurn(activeTurn.id,"TURN_LIMIT","This voice turn exceeded the audio size limit.");activeTurn=undefined;return;}
+       if(now-activeTurn.startedAt>MAX_TURN_MS){failTurn(activeTurn.id,"TURN_LIMIT","This voice turn exceeded the time limit.");activeTurn=undefined;return;}
+       activeTurn.nextSequence+=1;
+       // Audio bytes are validated in memory and intentionally discarded. No provider pipeline is wired yet.
+       return;
+      }
+      if(activeTurn?.pendingFrame){ws.close(1008,"audio_frame_payload_required");return;}
       let payload:unknown;
       try{payload=JSON.parse(data.toString());}catch{ws.close(1007,"invalid_json");return;}
       const parsedMessage=gabrooRealtimeClientMessageSchema.safeParse(payload);
       if(!parsedMessage.success||parsedMessage.data.session_id!==sessionId){ws.close(1008,"invalid_session_message");return;}
       const message=parsedMessage.data;
-      if(message.type==="session.stop"){send({type:"session.closed",reason:"learner_stop"});ws.close(1000,"learner_stop");return;}
+      if(message.type==="session.stop"){activeTurn=undefined;send({type:"session.closed",reason:"learner_stop"});ws.close(1000,"learner_stop");return;}
+      if(message.type==="tutor.interrupt"){if(activeTurn?.id===message.turn_id)activeTurn=undefined;return;}
       if(message.type==="turn.start"){
-       send({type:"turn.failed",turn_id:message.turn_id,code:"TRANSPORT_NOT_READY",message:"Live audio transport is not enabled yet. Please use the recording and transcript review flow."});
+       if(activeTurn){failTurn(message.turn_id,"TURN_LIMIT","Finish or interrupt the current voice turn first.");return;}
+       if(message.audio.codec!=="pcm_s16le"||message.audio.sample_rate_hz!==16000||message.audio.channels!==1){
+        failTurn(message.turn_id,"TRANSPORT_NOT_READY","Only 16 kHz mono PCM audio is currently accepted by the transport.");return;
+       }
+       activeTurn={id:message.turn_id,audio:message.audio,startedAt:Date.now(),nextSequence:0,totalBytes:0,frameTimes:[]};
+       send({type:"turn.accepted",turn_id:message.turn_id,max_turn_ms:MAX_TURN_MS});
+       return;
+      }
+      if(message.type==="audio.frame"){
+       if(!activeTurn||activeTurn.id!==message.turn_id){failTurn(message.turn_id,"TURN_LIMIT","No matching voice turn is active.");return;}
+       if(activeTurn.pendingFrame||message.sequence!==activeTurn.nextSequence){ws.close(1008,"audio_sequence_or_frame_order");return;}
+       if(Date.now()-activeTurn.startedAt>MAX_TURN_MS){failTurn(activeTurn.id,"TURN_LIMIT","This voice turn exceeded the time limit.");activeTurn=undefined;return;}
+       activeTurn.pendingFrame=message;
+       return;
+      }
+      if(message.type==="turn.end"){
+       if(!activeTurn||activeTurn.id!==message.turn_id){failTurn(message.turn_id,"TURN_LIMIT","No matching voice turn is active.");return;}
+       const completed=activeTurn;
+       activeTurn=undefined;
+       if(Date.now()-completed.startedAt>MAX_TURN_MS){failTurn(completed.id,"TURN_LIMIT","This voice turn exceeded the time limit.");return;}
+       failTurn(completed.id,"TRANSPORT_NOT_READY","Audio transport received the frames, but live speech recognition is not connected yet. Please use the recording and transcript review flow.");
       }
      });
-     ws.once("close",()=>{clearInterval(heartbeat);if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
-     ws.once("error",()=>{clearInterval(heartbeat);if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
+     ws.once("close",()=>{clearInterval(heartbeat);activeTurn=undefined;if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
+     ws.once("error",()=>{clearInterval(heartbeat);activeTurn=undefined;if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
     });
    }catch{rejectUpgrade(socket,503);}
   })();
