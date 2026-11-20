@@ -27,11 +27,22 @@ const CONNECTORS = /\b(because|although|however|therefore|while|whereas|for exam
 const PAST_MARKERS = /\b(yesterday|last\s+(?:week|month|year|weekend)|ago|was|were|did|went|had|visited|worked|studied|made|saw)\b/i;
 const REASON_MARKERS = /\b(because|since|the reason|so that|therefore)\b/i;
 
-type GrammarObservation = {category:"subject_verb_agreement"|"verb_form"|"past_tense_form";example:string;note:string;suggestion:string};
+type GrammarObservation = {category:"subject_verb_agreement"|"verb_form"|"past_tense_form";example:string;note:string;supportNoteMl:string;suggestion:string};
+function buildMalayalamGrammarSupport(note:string):string{
+ if(note.startsWith("With he, she or it"))return "Present simple-ൽ he, she, it എന്നിവയോടൊപ്പം ക്രിയയ്ക്ക് സാധാരണയായി -s അല്ലെങ്കിൽ -es ചേർക്കും.";
+ if(note.startsWith("Has normally"))return "I, you, we, they എന്നിവയോടൊപ്പം have ഉപയോഗിക്കുക; he, she, it എന്നിവയോടൊപ്പം has ഉപയോഗിക്കുക.";
+ if(note.startsWith("He, she and it"))return "He, she, it എന്നിവയോടൊപ്പം are-ന് പകരം is ഉപയോഗിക്കുക.";
+ if(note.startsWith("I pairs"))return "I-യോടൊപ്പം am; you, we, they എന്നിവയോടൊപ്പം are ഉപയോഗിക്കുക.";
+ if(note.startsWith("After am"))return "am-ന് ശേഷം ഇപ്പോൾ തുടരുന്ന പ്രവർത്തിക്ക് ക്രിയയുടെ -ing രൂപം ഉപയോഗിക്കുക. agree, know, understand പോലുള്ള ചില ക്രിയകൾ സാധാരണയായി ഈ രൂപത്തിൽ വരില്ല.";
+ if(note.startsWith("After does"))return "does / does not വന്നാൽ പിന്നാലെയുള്ള പ്രധാന ക്രിയയുടെ അടിസ്ഥാനരൂപം ഉപയോഗിക്കുക. ഉദാഹരണം: does not go.";
+ if(note.startsWith("After did"))return "did / did not വന്നാൽ പിന്നാലെയുള്ള പ്രധാന ക്രിയയുടെ അടിസ്ഥാനരൂപം ഉപയോഗിക്കുക. ഉദാഹരണം: did not go.";
+ if(note.startsWith("After a modal"))return "can, should, will പോലുള്ള modal verb-ുകൾക്ക് ശേഷം പ്രധാന ക്രിയയുടെ അടിസ്ഥാനരൂപം ഉപയോഗിക്കുക. ഉദാഹരണം: can speak.";
+ throw new Error("No Malayalam support copy for grammar note: "+note);
+}
 function collectGrammarObservations(value:string):GrammarObservation[]{
  const findings:GrammarObservation[]=[];
  const add=(category:GrammarObservation["category"],example:string,note:string,suggestion:string)=>{
-  if(findings.length<3&&!findings.some(item=>item.category===category&&item.example.toLowerCase()===example.toLowerCase()))findings.push({category,example,note,suggestion});
+  if(findings.length<3&&!findings.some(item=>item.category===category&&item.example.toLowerCase()===example.toLowerCase()))findings.push({category,example,note,supportNoteMl:buildMalayalamGrammarSupport(note),suggestion});
  };
  const verbs="go|work|like|want|need|have|do|play|study|eat|speak|live|watch|make|take|come|know|say|read|write|run|drink|buy|visit|teach|try";
  for(const match of value.matchAll(new RegExp("\\b(he|she|it)\\s+("+verbs+")\\b","gi"))){
