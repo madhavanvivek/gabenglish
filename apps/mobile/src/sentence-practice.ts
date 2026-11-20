@@ -48,8 +48,9 @@ function normaliseWordSequence(words:string[]):string{return words.map(word=>wor
 export function evaluateWordOrderAnswer(exerciseId:string,words:string[]):{correct:boolean;explanationEn:string;explanationMl:string}|null{
  const exercise=wordOrderExercises.find(item=>item.id===exerciseId);
  if(!exercise||!Array.isArray(words)||words.length!==exercise.tiles.length)return null;
- const expectedCounts=new Map<string,number>();for(const tile of exercise.tiles)expectedCounts.set(tile,(expectedCounts.get(tile)??0)+1);
- const submittedCounts=new Map<string,number>();for(const word of words){if(!expectedCounts.has(word))return null;submittedCounts.set(word,(submittedCounts.get(word)??0)+1);}
+ const tileKey=(value:string)=>value.trim().normalize("NFKC").toLocaleLowerCase();
+ const expectedCounts=new Map<string,number>();for(const tile of exercise.tiles){const key=tileKey(tile);expectedCounts.set(key,(expectedCounts.get(key)??0)+1);}
+ const submittedCounts=new Map<string,number>();for(const word of words){const key=tileKey(word);if(!expectedCounts.has(key))return null;submittedCounts.set(key,(submittedCounts.get(key)??0)+1);}
  if([...expectedCounts].some(([tile,count])=>submittedCounts.get(tile)!==count))return null;
  const correct=exercise.acceptedAnswers.some(answer=>normaliseWordSequence(answer)===normaliseWordSequence(words));
  return {correct,explanationEn:exercise.explanationEn,explanationMl:exercise.explanationMl};
