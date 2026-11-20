@@ -2,7 +2,7 @@ name: Gabenglish CI
 on:
   workflow_dispatch:
   push:
-    branches: [main, "foundation/**"]
+    branches: [main, "foundation/**", "chore/**"]
   pull_request:
     branches: [main]
 jobs:
