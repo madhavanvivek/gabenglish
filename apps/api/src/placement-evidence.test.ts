@@ -5,6 +5,11 @@ describe("placement response evidence extraction",()=>{
   it("records observable signals without claiming a proficiency score",()=>{
     const result=extractResponseEvidence("why","I visited my friend last weekend. We went shopping because we needed some things. It was a lovely day together.");
     expect(result.metrics.wordCount).toBeGreaterThan(10);
+    expect(result.metrics.uniqueWordCount).toBeGreaterThan(0);
+    expect(result.metrics.uniqueWordCount).toBeLessThanOrEqual(result.metrics.wordCount);
+    expect(result.metrics.uniqueWordRatio).toBeGreaterThan(0);
+    expect(result.metrics.uniqueWordRatio).toBeLessThanOrEqual(1);
+    expect(result.metrics.averageWordsPerSentence).toBeGreaterThan(0);
     expect(result.metrics.hasPastReference).toBe(true);
     expect(result.metrics.hasReasoningMarker).toBe(true);
     expect(result.observations).toContain("One or more discourse connectors were used.");
@@ -26,6 +31,15 @@ describe("placement response evidence extraction",()=>{
     const result=extractResponseEvidence("voice","I enjoy learning English.", "voice_transcript");
     expect(result.limitations).toContain("Transcript text cannot establish pronunciation quality.");
     expect(result.observedSkills).toEqual([]);
+  });
+
+  it("reports vocabulary repetition descriptively without scoring the learner",()=>{
+    const result=extractResponseEvidence("repeat","I like music and I like reading. Music makes me happy.");
+    expect(result.metrics.wordCount).toBe(11);
+    expect(result.metrics.uniqueWordCount).toBe(8);
+    expect(result.metrics.uniqueWordRatio).toBe(0.73);
+    expect(result.metrics.averageWordsPerSentence).toBe(5.5);
+    expect(result).not.toHaveProperty("score");
   });
 
   it("counts Unicode Malayalam words",()=>{
