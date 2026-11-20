@@ -91,7 +91,7 @@ export function connectGabrooRealtimeSocket(input:{
     ...limits,
     sendFrame:(sequence,payload)=>this.sendAudioFrame(turnId,sequence,payload),
     getBufferedAmount:()=>socket.bufferedAmount,
-    isOpen:()=>socket.readyState===WebSocket.OPEN
+    isOpen:()=>socket.readyState===WebSocket.OPEN&&sessionAccepted
    });
   },
   close(){socket.close(1000,"learner_stop");}
