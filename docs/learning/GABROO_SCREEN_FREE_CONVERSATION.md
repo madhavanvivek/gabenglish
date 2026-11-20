@@ -119,6 +119,9 @@ The child-facing session must not display subscription upsells or prompt to exte
 - Mobile app: Expo SDK 53, React Native 0.79.
 - Android manifest configuration currently declares RECORD_AUDIO only.
 - Existing app configuration uses expo-av; there is no verified foreground microphone service, media-session notification, VAD capture pipeline or locked-screen QA in the current implementation.
+- The current mobile voice-input flow is a consent-gated local recording (maximum 15 seconds), explicit learner-triggered transcription upload, transcript review/edit, and a separate confirmation before text is sent to Gabroo. It is not a live streaming or full-duplex voice session.
+- Voice recording files are temporary. Leaving the tutor screen invalidates pending recognition results; recognition responses received after the app backgrounds or the screen loses focus are discarded rather than surfaced as a transcript.
+- Recognition upload operations use an in-flight guard, and discard cleanup clears the transcription busy state. Learner text and recordings are not sent to Gabroo without the separate confirmation step.
 - Existing MP3 response validation, speech readiness parser and conversation state reducer are reusable foundations.
 - Existing backend conversation endpoint is authenticated and entitlement-aware; speech endpoints issue short-lived playback tickets.
 - Existing Gabroo production voice, streaming Malayalam recognition and live 3D avatar remain separate delivery gates. Screen-Free mode must not imply those unfinished capabilities are complete.
