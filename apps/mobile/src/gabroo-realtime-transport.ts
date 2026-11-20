@@ -43,6 +43,7 @@ export function connectGabrooRealtimeSocket(input:{
  const url=toGabrooRealtimeWebSocketUrl(input.apiBaseUrl);
  const socket=new WebSocket(url,["gabroo.v1","ticket."+input.connectionTicket]);
  let sessionAccepted=false;
+ let activeTurnId:string|undefined;
  socket.onopen=()=>{
   socket.send(JSON.stringify({protocol_version:GABROO_REALTIME_PROTOCOL_VERSION,session_id:input.sessionId,type:"session.ready"}));
   input.callbacks?.onOpen?.();
@@ -53,7 +54,8 @@ export function connectGabrooRealtimeSocket(input:{
   const parsed=gabrooRealtimeServerMessageSchema.safeParse(payload);
   if(!parsed.success||parsed.data.session_id!==input.sessionId){input.callbacks?.onInvalidMessage?.();return;}
   if(parsed.data.type==="session.accepted")sessionAccepted=true;
-  if(parsed.data.type==="session.closed"||parsed.data.type==="session.interrupted")sessionAccepted=false;
+  if(parsed.data.type==="session.closed"||parsed.data.type==="session.interrupted"){sessionAccepted=false;activeTurnId=undefined;}
+  if((parsed.data.type==="turn.completed"||parsed.data.type==="turn.failed")&&activeTurnId===parsed.data.turn_id)activeTurnId=undefined;
   input.callbacks?.onMessage?.(parsed.data);
  };
  socket.onerror=()=>input.callbacks?.onError?.();
@@ -65,14 +67,23 @@ export function connectGabrooRealtimeSocket(input:{
  };
  return {
   socket,
-  startTurn(turnId:string,audio:GabrooRealtimeAudioFormat){sendControl({type:"turn.start",turn_id:turnId,audio});},
+  startTurn(turnId:string,audio:GabrooRealtimeAudioFormat){
+   if(!turnId.trim())throw new Error("A turn ID is required.");
+   if(activeTurnId)throw new Error("A Gabroo voice turn is already active.");
+   sendControl({type:"turn.start",turn_id:turnId,audio});
+   activeTurnId=turnId;
+  },
   sendAudioFrame(turnId:string,sequence:number,payload:Uint8Array){
+   if(activeTurnId!==turnId)throw new Error("This Gabroo voice turn is not active.");
    const frame=createGabrooRealtimeFrame(turnId,input.sessionId,sequence,payload);
    sendControl(frame.metadata);
    if(socket.readyState!==WebSocket.OPEN)throw new Error("Gabroo realtime connection closed before the audio frame payload.");
    socket.send(frame.binary);
   },
-  endTurn(turnId:string){sendControl({type:"turn.end",turn_id:turnId});},
+  endTurn(turnId:string){
+   if(activeTurnId!==turnId)throw new Error("This Gabroo voice turn is not active.");
+   sendControl({type:"turn.end",turn_id:turnId});
+  },
   async finishTurn(turnId:string,sender:{finish:()=>Promise<void>}){
    if(!turnId.trim())throw new Error("A turn ID is required to finish Gabroo audio.");
    try{
@@ -84,7 +95,11 @@ export function connectGabrooRealtimeSocket(input:{
     throw error;
    }
   },
-  interrupt(turnId:string){sendControl({type:"tutor.interrupt",turn_id:turnId});},
+  interrupt(turnId:string){
+   if(activeTurnId!==turnId)return;
+   sendControl({type:"tutor.interrupt",turn_id:turnId});
+   activeTurnId=undefined;
+  },
   stop(){sendControl({type:"session.stop"});},
   createAudioSender(turnId:string,limits?:Pick<GabrooRealtimeAudioSenderOptions,"maxQueuedBytes"|"highWaterBytes"|"lowWaterBytes"|"drainTimeoutMs">){
    if(!turnId.trim())throw new Error("A turn ID is required for audio capture.");
