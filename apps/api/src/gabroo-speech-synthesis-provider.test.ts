@@ -94,4 +94,15 @@ describe("Gabroo speech synthesis provider",()=>{
   expect(streamCancelled).toBe(true);
  });
 
+ it("cancels the response reader when the signal is already aborted before reading",async()=>{
+  const abortController=new AbortController();
+  abortController.abort();
+  let streamCancelled=false;
+  const provider=createGabrooSpeechSynthesisProvider(config,async()=>new Response(new ReadableStream<Uint8Array>({
+   cancel(){streamCancelled=true;}
+  }),{status:200,headers:{"content-type":"audio/mpeg"}}))!;
+  await expect(provider.synthesize({text:"hello",speed:1,signal:abortController.signal})).rejects.toThrow(/cancelled/i);
+  expect(streamCancelled).toBe(true);
+ });
+
 });
