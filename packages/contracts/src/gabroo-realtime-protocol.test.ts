@@ -42,5 +42,6 @@ describe("Gabroo realtime protocol contracts",()=>{
   expect(gabrooRealtimeServerMessageSchema.safeParse({...base,turn_id,type:"turn.failed",code:"TRANSPORT_NOT_READY",message:"Audio is not configured."}).success).toBe(true);
   expect(gabrooRealtimeServerMessageSchema.safeParse({...base,turn_id,type:"transcript.final",text:"  "}).success).toBe(false);
   expect(gabrooRealtimeServerMessageSchema.safeParse({...base,type:"session.closed",reason:"learner_stop"}).success).toBe(true);
+  expect(gabrooRealtimeServerMessageSchema.safeParse({...base,type:"session.closed",reason:"timeout"}).success).toBe(true);
  });
 });
