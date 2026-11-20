@@ -465,6 +465,7 @@ describe("API foundation",()=>{
   expect(ticketIssueSql).toContain("pg_advisory_xact_lock(hashtextextended($2::text, 0))");
   expect(ticketIssueSql).toContain("WHERE user_id=$2 AND consumed_at IS NULL");
   expect(ticketIssueSql).toContain("EXISTS (SELECT 1 FROM learner_lock)");
+  expect(ticketIssueSql).toContain("FROM (SELECT count(*) AS invalidated FROM superseded) AS completed");
   const ticket=created.json();
   expect(ticket.method).toBe("GET");
   expect(ticket.expires_at).toBeTruthy();
