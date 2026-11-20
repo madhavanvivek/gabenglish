@@ -7,6 +7,7 @@ export function expectedGabrooAudioLength(contentLength:string|null):number|null
  if(!/^\d+$/.test(contentLength))throw new Error("Gabroo returned an invalid audio length.");
  const length=Number(contentLength);
  if(!Number.isSafeInteger(length))throw new Error("Gabroo returned an invalid audio length.");
+ if(length===0)throw new Error("Gabroo returned an invalid audio response.");
  if(length>MAX_GABROO_AUDIO_BYTES)throw new Error("Gabroo audio exceeded the permitted size.");
  return length;
 }
@@ -72,6 +73,7 @@ export async function readGabrooAudioBytes(response:Pick<Response,"headers"|"bod
   throw error;
  }finally{
   signal?.removeEventListener("abort",cancelOnAbort);
+  reader.releaseLock();
  }
  const bytes=new Uint8Array(total);
  let offset=0;
