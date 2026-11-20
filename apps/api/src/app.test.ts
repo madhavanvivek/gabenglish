@@ -39,6 +39,23 @@ describe("API foundation",()=>{
   expect(response.json().error.code).toBe("VERIFIED_ACCOUNT_REQUIRED");
   await app.close();
  });
+ it("reports speech availability and supported controls to a paid learner without a provider",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const app=await buildApp(config,async()=>true,recognitionPool(true));
+  const response=await app.inject({method:"GET",url:"/api/v1/gabroo/speech/status",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toEqual({available:false,formats:[],speed:{minimum:0.75,maximum:1.5}});
+  await app.close();
+ });
+ it("reports only the configured MP3 capability and supported speed range to a paid learner",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const provider={synthesize:async()=>({audio:new Uint8Array([1]),contentType:"audio/mpeg" as const})};
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,provider);
+  const response=await app.inject({method:"GET",url:"/api/v1/gabroo/speech/status",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toEqual({available:true,formats:["audio/mpeg"],speed:{minimum:0.75,maximum:1.5}});
+  await app.close();
+ });
  it("does not expose Gabroo speech to a free learner",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   const app=await buildApp(config,async()=>true,recognitionPool(false));
