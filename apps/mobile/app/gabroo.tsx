@@ -286,7 +286,7 @@ export default function GabrooScreen(){
   }finally{sendInFlightRef.current=false;if(turnAbortRef.current===controller){turnAbortRef.current=null;setBusy(false);}}
  };
  const stopSpeech=async()=>{
-  speechRunRef.current+=1;
+  const stopRun=++speechRunRef.current;
   speechRequestAbortRef.current?.abort();speechRequestAbortRef.current=null;
   const finishPendingSegment=speechSegmentResolveRef.current;
   speechSegmentResolveRef.current=null;
@@ -295,11 +295,13 @@ export default function GabrooScreen(){
   if(activePlayback.phase==="speaking"&&activePlayback.playback_id){
    playbackStateRef.current=reduceGabrooPlayback(activePlayback,{type:"interrupted",playback_id:activePlayback.playback_id});
   }
-  // Native speech shutdown can reject on device/audio-route transitions. Still release
-  // the cached sound and file so a failed native stop cannot block the next learner turn.
+  // Native speech shutdown can reject on device/audio-route transitions. A newer
+  // playback may start while this await is pending, so stale shutdowns must not
+  // release the newer playback's sound or cached file.
   await Speech.stop().catch(()=>undefined);
+  if(stopRun!==speechRunRef.current)return;
   await releaseSpeechAudio();
-  setSpeakingMessageId(null);
+  if(stopRun===speechRunRef.current)setSpeakingMessageId(null);
  };
  const releaseSpeechAudio=async()=>{
   const sound=speechSoundRef.current;speechSoundRef.current=null;
