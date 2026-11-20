@@ -93,8 +93,11 @@ describe("Gabroo native capture lifecycle boundary",()=>{
   expect(stream.stop).not.toHaveBeenCalled();
   resolvePermission(true);
   await expect(request).rejects.toThrow(/cancelled/);
+  expect(controller.isStarting).toBe(false);
+  expect(controller.isActive).toBe(false);
   expect(stream.start).not.toHaveBeenCalled();
   expect(stream.stop).not.toHaveBeenCalled();
+  await expect(controller.start({consentGranted:true})).rejects.toThrow(/new Gabroo capture controller/);
  });
 
  it("stops and rejects a native format that becomes unsupported after start",async()=>{
