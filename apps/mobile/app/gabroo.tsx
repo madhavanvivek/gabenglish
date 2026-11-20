@@ -293,7 +293,9 @@ export default function GabrooScreen(){
   if(activePlayback.phase==="speaking"&&activePlayback.playback_id){
    playbackStateRef.current=reduceGabrooPlayback(activePlayback,{type:"interrupted",playback_id:activePlayback.playback_id});
   }
-  await Speech.stop();
+  // Native speech shutdown can reject on device/audio-route transitions. Still release
+  // the cached sound and file so a failed native stop cannot block the next learner turn.
+  await Speech.stop().catch(()=>undefined);
   await releaseSpeechAudio();
   setSpeakingMessageId(null);
  };
