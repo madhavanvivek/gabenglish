@@ -212,11 +212,12 @@ export default function GabrooScreen(){
  };
  const openConversation=async(item:GabrooConversation)=>{
   cancelActiveTurn();
-  speechRunRef.current+=1;speechRequestAbortRef.current?.abort();speechRequestAbortRef.current=null;speechSegmentResolveRef.current?.();speechSegmentResolveRef.current=null;void Speech.stop();void releaseSpeechAudio();setSpeakingMessageId(null);
   conversationMutationSequenceRef.current+=1;
   const requestId=++conversationOpenSequenceRef.current;
   setBusy(true);setError("");
   try{
+   await stopSpeech();
+   if(requestId!==conversationOpenSequenceRef.current)return;
    const result=await getGabrooConversation(item.id);
    if(requestId!==conversationOpenSequenceRef.current)return;
    activeConversationIdRef.current=result.conversation.id;setTurnState(initialGabrooTurnState);setActive(result.conversation);setMode(result.conversation.mode);setMessages(result.messages);setDraft("");setSpeechNotice("");
@@ -228,11 +229,12 @@ export default function GabrooScreen(){
  };
  const start=async()=>{
   cancelActiveTurn();
-  void stopSpeech();
   conversationMutationSequenceRef.current+=1;
   const requestId=++conversationOpenSequenceRef.current;
   setBusy(true);setError("");
   try{
+   await stopSpeech();
+   if(requestId!==conversationOpenSequenceRef.current)return;
    const result=await createGabrooConversation({mode,support_language:"ml"});
    if(requestId!==conversationOpenSequenceRef.current)return;
    activeConversationIdRef.current=result.conversation.id;setTurnState(initialGabrooTurnState);setActive(result.conversation);setMode(result.conversation.mode);setMessages([]);setDraft(hasStructuredSentencePractice?`I want to practise the “${practiceTitle}” pattern. Here is the prompt: “${practicePrompt}”. ${practiceInstruction?`The exercise instruction is: ${practiceInstruction}. `:""}${practiceDraft?`Here is my attempt: “${practiceDraft}”. Please give me kind, specific feedback, preserve my intended meaning, show one improved version and explain the changes in Malayalam and English. `:""}Please explain the pattern simply in Malayalam and English, give me one fresh example, then ask me to make my own sentence.`:hasSentencePractice?`I want to practise this sentence pattern. My original example was: “${practiceOriginal}”. A suggested form is: “${practiceSuggestion}”. ${practiceNote?`The grammar note says: ${practiceNote} `:""}Please explain the difference simply, give me one new example, and let me try making my own sentence.`:practiceTerm?`I would like to practise the English word “${practiceTerm}”. ${practiceMeaning?`Its Malayalam meaning is “${practiceMeaning}”. `:""}${practiceExample?`Here is my example: “${practiceExample}”. `:""}Please help me use it naturally in a conversation.`:"");setSpeechNotice(hasStructuredSentencePractice?`Sentence builder: ${practiceTitle}. Review the suggested message and send it when you are ready.`:hasSentencePractice?`Sentence practice: ${practiceOriginal} → ${practiceSuggestion}. Review the message and send it when you are ready.`:practiceTerm?`Vocabulary practice: ${practiceTerm}. Review the suggested message and send it when you are ready.`:"");setConversations(current=>[result.conversation,...current]);
