@@ -33,6 +33,15 @@ describe("Gabroo Expo AudioStream adapter",()=>{
   expect(stop).toHaveBeenCalledOnce();
  });
 
+ it("propagates native stop failures to the capture controller",async()=>{
+  const nativeStop=new Error("native stream stop failed");
+  let attached:{stop:()=>void|Promise<void>}|undefined;
+  attachGabrooExpoAudioStream({
+   stream:{start:async()=>{},stop:async()=>{throw nativeStop;}},
+   controller:{attachStream:value=>{attached=value;},onBuffer:()=>{}}
+  });
+  await expect(attached?.stop()).rejects.toBe(nativeStop);
+ });
  it("reads the actual native format reported after stream start",async()=>{
   let attached:{start:()=>Promise<void>;sampleRate:number;channels:number}|undefined;
   const native:{sampleRate:number;channels:number;start:()=>Promise<void>;stop:()=>Promise<void>}={
