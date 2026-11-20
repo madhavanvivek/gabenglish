@@ -89,6 +89,7 @@ export function createGabrooSpeechSynthesisProvider(
    source.once("close",()=>input.signal.removeEventListener("abort",cancelOnAbort));
    source.once("end",()=>input.signal.removeEventListener("abort",cancelOnAbort));
    source.on("error",()=>input.signal.removeEventListener("abort",cancelOnAbort));
+   source.on("error",(error)=>limiter.destroy(error));
    source.pipe(limiter);
    return {audio:limiter,contentType:"audio/mpeg",contentLength};
   },
