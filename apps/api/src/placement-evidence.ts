@@ -12,6 +12,9 @@ export type ResponseEvidence = {
   limitations: string[];
   metrics: {
     wordCount: number;
+    uniqueWordCount: number;
+    uniqueWordRatio: number;
+    averageWordsPerSentence: number;
     sentenceCount: number;
     connectorCount: number;
     hasPastReference: boolean;
@@ -39,6 +42,10 @@ export function extractResponseEvidence(
   const clean = response.trim();
   const words = clean.match(/[\p{L}\p{N}][\p{L}\p{M}\p{N}'’-]*/gu) ?? [];
   const sentenceParts = clean.split(/[.!?]+/).map((part) => part.trim()).filter(Boolean);
+  const normalizedWords = words.map((word) => word.toLocaleLowerCase());
+  const uniqueWordCount = new Set(normalizedWords).size;
+  const uniqueWordRatio = words.length === 0 ? 0 : Math.round((uniqueWordCount / words.length) * 100) / 100;
+  const averageWordsPerSentence = sentenceParts.length === 0 ? 0 : Math.round((words.length / sentenceParts.length) * 10) / 10;
   const connectorCount = countMatches(clean, CONNECTORS);
   const hasPastReference = PAST_MARKERS.test(clean);
   const hasReasoningMarker = REASON_MARKERS.test(clean);
@@ -66,6 +73,9 @@ export function extractResponseEvidence(
     limitations,
     metrics: {
       wordCount: words.length,
+      uniqueWordCount,
+      uniqueWordRatio,
+      averageWordsPerSentence,
       sentenceCount: sentenceParts.length,
       connectorCount,
       hasPastReference,
