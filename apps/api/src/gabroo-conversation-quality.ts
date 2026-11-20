@@ -29,7 +29,7 @@ function questionCount(value:string):number{
  return (value.match(/\?/g)??[]).length;
 }
 function hasInvitation(value:string):boolean{
- return /\b(tell me|can you share|could you share|what makes you|why do you|how do you|what do you think|give me an example|can you explain|would you describe|which part|what happened|how did that|what would you|can you think of|try completing|finish this sentence)\b/i.test(value)
+ return /\b(tell me|can you share|could you share|what makes you|why do you|how do you|what do you think|what do you enjoy|what do you like|give me an example|can you explain|would you describe|which part|what happened|how did that|what would you|can you think of|try completing|finish this sentence)\b/i.test(value)
   ||/(കൂടുതൽ പറയൂ|ഒരു ഉദാഹരണം|എന്തുകൊണ്ട്|എങ്ങനെ തോന്നുന്നു|നിങ്ങളുടെ അഭിപ്രായം|പറഞ്ഞുതരാമോ)/.test(value);
 }
 function isGenericPrompt(value:string):boolean{
