@@ -95,7 +95,6 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
     starting=false;
     return {sampleRate:currentStream.sampleRate,channels:currentStream.channels};
    }catch(error){
-    nativeStartInFlight=false;
     if(nativeStartAttempted){
      try{await currentStream.stop();}catch(stopError){report(stopError);}
     }
