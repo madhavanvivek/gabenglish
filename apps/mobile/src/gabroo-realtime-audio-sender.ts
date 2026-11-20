@@ -31,6 +31,7 @@ export function createGabrooRealtimeAudioSender(options:GabrooRealtimeAudioSende
  let queuedBytes=0;
  let sequence=0;
  let closed=false;
+ let accepting=true;
  let pumping:Promise<void>|undefined;
  let failure:Error|undefined;
 
@@ -66,7 +67,7 @@ export function createGabrooRealtimeAudioSender(options:GabrooRealtimeAudioSende
 
  return {
   enqueue(buffer:GabrooNativeAudioBuffer):Promise<void>{
-   if(closed)return Promise.reject(failure??new Error("Gabroo audio sender is closed."));
+   if(closed||!accepting)return Promise.reject(failure??new Error("Gabroo audio sender is closed."));
    let frames:Uint8Array[];
    try{frames=chunkGabrooPcm16(normalizeGabrooPcm16Mono(buffer));}
    catch(error){return Promise.reject(error);}
@@ -80,7 +81,15 @@ export function createGabrooRealtimeAudioSender(options:GabrooRealtimeAudioSende
    queuedBytes+=incomingBytes;
    return flush();
   },
+  async finish(){
+   accepting=false;
+   if(pumping)await pumping;
+   if(failure)throw failure;
+   closed=true;
+   failure=new Error("Gabroo audio sender finished.");
+  },
   close(reason="learner_stop"){
+   accepting=false;
    closed=true;
    queue=[];
    queuedBytes=0;
