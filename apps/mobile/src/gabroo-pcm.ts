@@ -44,7 +44,7 @@ export function normalizeGabrooPcm16Mono(input: GabrooNativeAudioBuffer): Uint8A
       const offset = (frame * input.channels + channel) * bytesPerSample;
       const sample = input.encoding === "float32"
         ? view.getFloat32(offset, true)
-        : view.getInt16(offset, true) / 32_768;
+        : (() => { const value = view.getInt16(offset, true); return value < 0 ? value / 32_768 : value / 32_767; })();
       if (!Number.isFinite(sample)) {
         throw new Error("Gabroo audio contains a non-finite sample.");
       }
