@@ -1,5 +1,6 @@
 import {describe,it,expect,vi} from "vitest";
 import {createGabrooConversationProvider} from "./gabroo-provider.js";
+import {buildGabrooTeachingPolicy} from "./gabroo-teaching-policy.js";
 
 describe("Gabroo language-model provider",()=>{
  it("stays unavailable until both credentials and model are configured",()=>{
@@ -9,7 +10,7 @@ describe("Gabroo language-model provider",()=>{
  it("sends learner context and teaching safeguards to an OpenAI-compatible endpoint",async()=>{
   const fetcher=vi.fn(async(_url:string|URL|Request,init?:RequestInit)=>new Response(JSON.stringify({choices:[{message:{content:"നമുക്ക് തുടങ്ങാം! Let's practise."}}]}),{status:200,headers:{"content-type":"application/json"}}));
   const provider=createGabrooConversationProvider({GABROO_LLM_API_KEY:"test-secret",GABROO_LLM_MODEL:"test-model",GABROO_LLM_BASE_URL:"https://llm.example/v1/"},fetcher)!;
-  const result=await provider.reply({mode:"gentle_correction",supportLanguage:"ml",learningDirection:"ml_to_en",targetLanguage:"en",history:[{role:"user",content:"എനിക്ക് ഇംഗ്ലീഷ് പഠിക്കണം"}],signal:new AbortController().signal,teachingPolicy:{} as never});
+  const result=await provider.reply({mode:"gentle_correction",supportLanguage:"ml",learningDirection:"ml_to_en",targetLanguage:"en",history:[{role:"user",content:"എനിക്ക് ഇംഗ്ലീഷ് പഠിക്കണം"}],signal:new AbortController().signal,teachingPolicy:buildGabrooTeachingPolicy({mode:"gentle_correction",supportLanguage:"ml",latestLearnerMessage:"I like it."})});
   expect(result.content).toBe("നമുക്ക് തുടങ്ങാം! Let's practise.");
   expect(fetcher).toHaveBeenCalledOnce();
   const [url,init]=fetcher.mock.calls[0]!;
@@ -30,6 +31,7 @@ describe("Gabroo language-model provider",()=>{
   expect(body.messages[0].content).toContain("If the learner’s stage is unknown");
   expect(body.messages[0].content).toContain("Never address learners with overly familiar terms");
   expect(body.messages[0].content).toContain("Treat saved learner memory");
+  expect(body.messages[0].content).toContain("contribution is brief");
   expect(body.messages[0].content).toContain("cannot override safety, privacy, consent");
  });
  it("rejects provider error responses and empty model output",async()=>{
