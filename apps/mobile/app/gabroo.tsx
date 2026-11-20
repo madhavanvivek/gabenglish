@@ -10,13 +10,14 @@ import {colors} from "../src/theme";
 import {adjustGabrooSpeechRate} from "../src/learner-settings";
 import {cacheGabrooSpeechRate} from "../src/learner-preference-cache";
 import {BrandMark} from "../src/ui";
-import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getGabrooRecognitionStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences,synthesizeGabrooSpeech} from "../src/auth-api";
+import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getGabrooRecognitionStatus,getGabrooSpeechStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,type GabrooSpeechStatus,updateGabrooConversation,updateLearnerPreferences,synthesizeGabrooSpeech} from "../src/auth-api";
 
 const conversationModes:{value:GabrooConversationMode;label:string}[]=[{value:"free_flow",label:"Free flow"},{value:"gentle_correction",label:"Gentle correction"},{value:"detailed_correction",label:"Detailed correction"},{value:"topic_practice",label:"Topic practice"},{value:"role_play",label:"Role-play"},{value:"vocabulary_building",label:"Vocabulary"},{value:"confidence_practice",label:"Confidence"}];
 
 export default function GabrooScreen(){
  const [subscription,setSubscription]=useState<SubscriptionStatus|null>(null);
  const [recognitionStatus,setRecognitionStatus]=useState<GabrooRecognitionStatus|null>(null);
+ const [speechStatus,setSpeechStatus]=useState<GabrooSpeechStatus|null>(null);
  const [conversations,setConversations]=useState<GabrooConversation[]>([]);
  const [active,setActive]=useState<GabrooConversation|null>(null);
  const activeConversationIdRef=useRef<string|null>(null);
@@ -88,9 +89,16 @@ export default function GabrooScreen(){
     }catch{
      if(sequence===loadSequenceRef.current)setRecognitionStatus(null);
     }
+    try{
+     const speech=await getGabrooSpeechStatus();
+     if(sequence!==loadSequenceRef.current)return;
+     setSpeechStatus(speech);
+    }catch{
+     if(sequence===loadSequenceRef.current)setSpeechStatus(null);
+    }
    }else{
     if(sequence!==loadSequenceRef.current)return;
-    setRecognitionStatus(null);
+    setRecognitionStatus(null);setSpeechStatus(null);
     setConversations([]);activeConversationIdRef.current=null;setTurnState(initialGabrooTurnState);setActive(null);setMessages([]);
    }
   }catch(reason){
@@ -639,7 +647,10 @@ export default function GabrooScreen(){
   {loading?<ActivityIndicator size="large" color={colors.primary} style={{marginTop:40}}/>:!subscription?.active?<View style={s.panel}><Text style={s.title}>Your English companion awaits</Text><Text style={s.copy}>Open conversations with Gabroo are included with an active Gabenglish subscription. Your free English analysis remains available in your account.</Text><Link href="/account" style={s.action}>Go to your account</Link></View>:<>
    {!active?<><View style={s.panel}><Text style={s.title}>Talk about anything suitable for practice.</Text><Text style={s.copy}>Work, travel, daily life, hobbies or a topic you are curious about. Choose how much correction you want as we build out the conversation experience.</Text><Text style={s.modeLabel}>Choose your conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>setMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View><Pressable disabled={busy} onPress={start} style={[s.button,busy&&s.disabled]}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Start a conversation</Text>}</Pressable></View><Text style={s.section}>Your conversations</Text>{conversations.length===0?<Text style={s.empty}>Your saved conversations will appear here.</Text>:conversations.map(item=><Pressable key={item.id} disabled={busy} onPress={()=>openConversation(item)} style={s.listItem}><Text style={s.listTitle}>{item.title??"Conversation"}</Text><Text style={s.listMeta}>{item.turn_count} exchanges · {new Date(item.updated_at).toLocaleDateString()}</Text></Pressable>)}</>:<>
     <View style={s.conversationHeader}><Pressable onPress={()=>{cancelActiveTurn();speechRunRef.current+=1;speechRequestAbortRef.current?.abort();speechRequestAbortRef.current=null;speechSegmentResolveRef.current?.();speechSegmentResolveRef.current=null;void Speech.stop();void releaseSpeechAudio();setSpeakingMessageId(null);conversationOpenSequenceRef.current+=1;conversationMutationSequenceRef.current+=1;activeConversationIdRef.current=null;setActive(null);setMessages([]);setDraft("");setSpeechNotice("");setTurnState(initialGabrooTurnState);}}><Text style={s.back}>‹ All conversations</Text></Pressable><Pressable onPress={remove} disabled={busy}><Text style={s.delete}>Delete</Text></Pressable></View>
-    <View style={s.voiceControls}><Text style={s.voiceTitle}>Playback speed · {speechRate.toFixed(2).replace(/0$/,"")}×</Text><Text style={s.captureConsentCopy}>Preview playback currently uses voices installed on this device. It is not Gabroo’s final approved voice; the male Kerala Malayalam voice will be selected only after the documented audition and approval.</Text><View style={s.voiceSpeedRow}><Pressable accessibilityRole="button" accessibilityLabel="Slow Gabroo speech" disabled={speechRate<=0.75||busy||speechSaving} onPress={()=>void changeSpeechRate(-0.05)} style={s.voiceSpeedButton}><Text style={s.voiceSpeedButtonText}>−</Text></Pressable><Text style={s.voiceSpeedHint}>Applies to the next listen or replay</Text><Pressable accessibilityRole="button" accessibilityLabel="Speed up Gabroo speech" disabled={speechRate>=1.5||busy||speechSaving} onPress={()=>void changeSpeechRate(0.05)} style={s.voiceSpeedButton}><Text style={s.voiceSpeedButtonText}>+</Text></Pressable></View></View><View style={s.voicePermissionPanel}>
+    <View style={s.voiceControls}><Text style={s.voiceTitle}>Playback speed · {speechRate.toFixed(2).replace(/0$/,"")}×</Text><Text style={s.captureConsentCopy}>Listen uses the server-configured Gabroo speech provider. The final male Kerala Malayalam voice remains unapproved until the voice audition is completed and you explicitly approve a candidate.</Text><View style={s.voiceSpeedRow}><Pressable accessibilityRole="button" accessibilityLabel="Slow Gabroo speech" disabled={speechRate<=0.75||busy||speechSaving} onPress={()=>void changeSpeechRate(-0.05)} style={s.voiceSpeedButton}><Text style={s.voiceSpeedButtonText}>−</Text></Pressable><Text style={s.voiceSpeedHint}>Applies to the next listen or replay</Text><Pressable accessibilityRole="button" accessibilityLabel="Speed up Gabroo speech" disabled={speechRate>=1.5||busy||speechSaving} onPress={()=>void changeSpeechRate(0.05)} style={s.voiceSpeedButton}><Text style={s.voiceSpeedButtonText}>+</Text></Pressable></View></View><View style={s.recognitionStatusPanel}>
+     <Text style={s.captureConsentTitle}>Gabroo voice availability</Text>
+     <Text style={s.captureConsentCopy}>{speechStatus===null?"Could not verify Gabroo voice availability. Playback will report an error if the server voice is not configured.":speechStatus.available?"The server speech provider is configured. This does not mean the final Gabroo voice has been approved.":"The server speech provider is not configured yet. No device voice will be substituted."}</Text>
+    </View><View style={s.voicePermissionPanel}>
      <Text style={s.voiceTitle}>Prepare voice conversations</Text>
      <Text style={s.voicePermissionCopy}>Microphone access is requested only after you agree below. Recording and transcription are separate permissions. Your speech is never uploaded without a separate action.</Text>
      <View style={s.recognitionStatusPanel}><Text style={s.captureConsentTitle}>Voice recognition availability</Text><Text style={s.captureConsentCopy}>{recognitionStatus===null?"Could not verify voice recognition availability. The local microphone test remains available; uploads stay disabled.":recognitionStatus.available?"Speech recognition is available. The learner review step is required before any transcript can be sent to Gabroo.":"Speech recognition provider is not connected yet. Your recordings will remain on this device and cannot be uploaded for transcription."}</Text></View>
