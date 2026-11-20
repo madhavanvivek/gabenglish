@@ -59,6 +59,24 @@ describe("placement response evidence extraction",()=>{
     expect(result.grammarObservations).toEqual([]);
   });
 
+  it("provides specific, cautious correction examples for auxiliary and agreement patterns",()=>{
+    const result=extractResponseEvidence("grammar","They is ready. She study every day. He doesn't goes there. I can speaks English.");
+    expect(result.grammarObservations).toEqual(expect.arrayContaining([
+      expect.objectContaining({category:"subject_verb_agreement",example:"They is",suggestion:"They are"}),
+      expect.objectContaining({category:"subject_verb_agreement",example:"She study",suggestion:"She studies"}),
+      expect.objectContaining({category:"verb_form",example:"He doesn't goes",suggestion:"He doesn't go"})
+    ]));
+    expect(result.grammarObservations.every(item=>item.note.length>0&&item.suggestion.length>0)).toBe(true);
+    expect(result).not.toHaveProperty("score");
+  });
+
+  it("suggests a natural simple-present form for stative verbs after am",()=>{
+    const result=extractResponseEvidence("verb","I am agree with you.");
+    expect(result.grammarObservations).toEqual([
+      expect.objectContaining({example:"I am agree",suggestion:"I agree"})
+    ]);
+  });
+
   it("counts Unicode Malayalam words",()=>{
     const result=extractResponseEvidence("ml","എന്റെ പേര് അനു ആണ്. ഞാൻ കോഴിക്കോട് താമസിക്കുന്നു.");
     expect(result.metrics.wordCount).toBeGreaterThan(3);
