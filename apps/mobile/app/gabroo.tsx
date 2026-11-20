@@ -72,7 +72,7 @@ export default function GabrooScreen(){
  const playbackStateRef=useRef<GabrooPlaybackState>(initialGabrooPlaybackState);
  const saveReplyAsPhrase=useCallback(async(message:GabrooConversationMessage)=>{
   if(savingPhraseId||savedPhraseIds.includes(message.id))return;
-  const phrase=message.content.trim().replace(/\\s+/g," ").slice(0,500);
+  const phrase=message.content.trim().replace(/\s+/g," ").slice(0,500);
   if(!phrase)return;
   setSavingPhraseId(message.id);setSpeechNotice("");
   try{
