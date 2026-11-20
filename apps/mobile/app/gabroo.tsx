@@ -213,6 +213,9 @@ export default function GabrooScreen(){
  const stopSpeech=async()=>{
   speechRunRef.current+=1;
   speechRequestAbortRef.current?.abort();speechRequestAbortRef.current=null;
+  const finishPendingSegment=speechSegmentResolveRef.current;
+  speechSegmentResolveRef.current=null;
+  finishPendingSegment?.();
   const activePlayback=playbackStateRef.current;
   if(activePlayback.phase==="speaking"&&activePlayback.playback_id){
    playbackStateRef.current=reduceGabrooPlayback(activePlayback,{type:"interrupted",playback_id:activePlayback.playback_id});
