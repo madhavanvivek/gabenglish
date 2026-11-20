@@ -133,6 +133,10 @@ The child-facing session must not display subscription upsells or prompt to exte
 - Existing backend conversation endpoint is authenticated and entitlement-aware; speech endpoints issue short-lived playback tickets.
 - Existing Gabroo production voice, streaming Malayalam recognition and live 3D avatar remain separate delivery gates. Screen-Free mode must not imply those unfinished capabilities are complete.
 
+## 10. Audio device validation
+
+The physical-device interruption, route-change, rapid-transition and privacy validation cases are maintained in [`GABROO_AUDIO_DEVICE_QA.md`](./GABROO_AUDIO_DEVICE_QA.md). This is a test plan, not evidence that any device scenario has passed. Record device/OS/build details and observed results before treating native audio behaviour as release-ready.
+
 ## 10. Key product decision
 
 Ship **Dark Screen Mode first**: a pure-black overlay with one audio toggle and one Return to normal mode control. Keep true screen-off/locked-phone audio as a separate optional future project.
