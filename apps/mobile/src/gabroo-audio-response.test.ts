@@ -42,4 +42,28 @@ describe("Gabroo audio response validation",()=>{
   await expect(readGabrooAudioBytes(response)).rejects.toThrow(/exceeded/i);
  });
 
+ it("cancels an in-flight mobile audio reader when playback is interrupted",async()=>{
+  const controller=new AbortController();
+  let streamCancelled=false;
+  const response=new Response(new ReadableStream<Uint8Array>({
+   pull(stream){
+    controller.abort();
+    stream.enqueue(new Uint8Array([0x49,0x44,0x33]));
+   },
+   cancel(){streamCancelled=true;}
+  }),{headers:{"content-type":"audio/mpeg"}});
+  await expect(readGabrooAudioBytes(response,controller.signal)).rejects.toThrow(/cancelled/i);
+  expect(streamCancelled).toBe(true);
+ });
+ it("rejects a pre-aborted mobile audio read before consuming the response",async()=>{
+  const controller=new AbortController();
+  controller.abort();
+  let streamCancelled=false;
+  const response=new Response(new ReadableStream<Uint8Array>({
+   cancel(){streamCancelled=true;}
+  }),{headers:{"content-type":"audio/mpeg"}});
+  await expect(readGabrooAudioBytes(response,controller.signal)).rejects.toThrow(/cancelled/i);
+  expect(streamCancelled).toBe(false);
+ });
+
 });
