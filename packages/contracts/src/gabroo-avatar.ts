@@ -119,3 +119,33 @@ export function sampleGabrooAvatarFrame(
   gestureWeight:gesture?.weight??0
  };
 }
+
+
+/**
+ * Adapter boundary for native player status (for example Expo AV's
+ * positionMillis/isPlaying). Avatar motion follows the player's real clock;
+ * paused, stopped, buffering, or completed audio never gets a synthetic
+ * talking pose.
+ */
+export function sampleGabrooAvatarFrameFromPlaybackStatus(
+ timeline:GabrooSpeechTimeline,
+ status:{positionMillis:number;isPlaying:boolean},
+ fadeMs=45
+):GabrooAvatarFrame{
+ if(!Number.isFinite(status.positionMillis)||status.positionMillis<0){
+  throw new Error("Audio playback position must be a finite, non-negative value.");
+ }
+ if(typeof status.isPlaying!=="boolean"){
+  throw new Error("Audio playback status must include a playing state.");
+ }
+ if(!status.isPlaying){
+  return {
+   viseme:{shape:"neutral",weight:0},
+   expression:"neutral",
+   expressionWeight:0,
+   gesture:null,
+   gestureWeight:0
+  };
+ }
+ return sampleGabrooAvatarFrame(timeline,status.positionMillis,fadeMs);
+}
