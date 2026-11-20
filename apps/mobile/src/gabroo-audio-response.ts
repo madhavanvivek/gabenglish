@@ -40,8 +40,12 @@ export async function readGabrooAudioBytes(response:Pick<Response,"headers"|"bod
  const expectedLength=expectedGabrooAudioLength(response.headers.get("content-length"));
  const reader=response.body?.getReader();
  if(signal?.aborted){
-  if(reader)await reader.cancel().catch(()=>undefined);
-  else await response.body?.cancel().catch(()=>undefined);
+  if(reader){
+   await reader.cancel().catch(()=>undefined);
+   reader.releaseLock();
+  }else{
+   await response.body?.cancel().catch(()=>undefined);
+  }
   throw new Error("Gabroo audio reading was cancelled.");
  }
  if(!reader){
