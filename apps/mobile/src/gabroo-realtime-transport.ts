@@ -97,9 +97,11 @@ export function connectGabrooRealtimeSocket(input:{
 
 /**
  * Obtain the authenticated, consent-gated one-use ticket and resolve only after
- * the server confirms that the WebSocket session is connected. This opens no
- * microphone and deliberately leaves audio capture to a separately validated
- * native streaming adapter.
+ * the server accepts the session after the client sends `session.ready`.
+ * The initial socket-open/connected event is not sufficient: callers only
+ * receive a usable transport after `session.accepted`. This opens no microphone
+ * and deliberately leaves audio capture to a separately validated native
+ * streaming adapter.
  */
 export async function openGabrooRealtimeSession(input:{
  consentGranted:true;
@@ -128,7 +130,7 @@ export async function openGabrooRealtimeSession(input:{
     callbacks:{
      onOpen:()=>input.callbacks?.onOpen?.(),
      onMessage:message=>{
-      if(message.type==="session.connected"&&!settled&&connection){settled=true;if(timeout)clearTimeout(timeout);resolve(connection);}
+      if(message.type==="session.accepted"&&!settled&&connection){settled=true;if(timeout)clearTimeout(timeout);resolve(connection);}
       input.callbacks?.onMessage?.(message);
      },
      onInvalidMessage:()=>{input.callbacks?.onInvalidMessage?.();fail("Gabroo returned an invalid realtime message.");},
