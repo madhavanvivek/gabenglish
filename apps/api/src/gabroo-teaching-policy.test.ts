@@ -68,6 +68,23 @@ describe("Gabroo learner-turn adaptation",()=>{
   const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",latestLearnerMessage:"I like it."});
   expect(policy.responseGuidance.join(" ")).toContain("contribution is brief");
  });
+
+ it("uses only a bounded set of learner-approved, non-mastered vocabulary items",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",learnerVocabulary:[
+   {term:"confident",malayalamMeaning:"ആത്മവിശ്വാസമുള്ള",exampleSentence:"I feel confident speaking.",status:"learning"},
+   {term:"improve",malayalamMeaning:"മെച്ചപ്പെടുത്തുക",exampleSentence:"I want to improve my English.",status:"familiar"},
+   {term:"archived",malayalamMeaning:"പഴയത്",status:"mastered"},
+   ...Array.from({length:6},(_,index)=>({term:`word-${index}`,malayalamMeaning:"അർത്ഥം",status:"learning" as const}))
+  ]});
+  expect(policy.learnerVocabulary).toHaveLength(5);
+  expect(policy.learnerVocabulary.map(item=>item.term)).not.toContain("archived");
+  expect(policy.responseGuidance.join(" ")).toContain("do not force a word into an unrelated answer");
+ });
+ it("does not add vocabulary guidance when the learner has no active saved words",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",learnerVocabulary:[{term:"done",malayalamMeaning:"കഴിഞ്ഞു",status:"mastered"}]});
+  expect(policy.learnerVocabulary).toEqual([]);
+  expect(policy.responseGuidance.join(" ")).not.toContain("explicitly saved a small vocabulary list");
+ });
 });
 
 describe("Gabroo teaching policy",()=>{
