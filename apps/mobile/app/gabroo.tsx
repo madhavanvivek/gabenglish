@@ -26,7 +26,8 @@ export default function GabrooScreen(){
  const practiceTitle=typeof params.practiceTitle==="string"?params.practiceTitle.trim().slice(0,120):"";
  const practicePrompt=typeof params.practicePrompt==="string"?params.practicePrompt.trim().slice(0,300):"";
  const practiceInstruction=typeof params.practiceInstruction==="string"?params.practiceInstruction.trim().slice(0,300):"";
- const hasStructuredSentencePractice=Boolean(practiceTitle&&practicePrompt);\n const practiceDraft=typeof params.practiceDraft==="string"?params.practiceDraft.trim().slice(0,1200):"";
+ const hasStructuredSentencePractice=Boolean(practiceTitle&&practicePrompt);
+ const practiceDraft=typeof params.practiceDraft==="string"?params.practiceDraft.trim().slice(0,1200):"";
  const [subscription,setSubscription]=useState<SubscriptionStatus|null>(null);
  const [recognitionStatus,setRecognitionStatus]=useState<GabrooRecognitionStatus|null>(null);
  const [speechStatus,setSpeechStatus]=useState<GabrooSpeechStatus|null>(null);
