@@ -64,7 +64,7 @@ export const gabrooRealtimeServerMessageSchema=z.discriminatedUnion("type",[
  }).strict(),
  base.extend({type:z.literal("session.connected")}).strict(),
  base.extend({type:z.literal("session.interrupted"),reason:z.enum(["network","audio_route","server_restart","entitlement","timeout"])}).strict(),
- base.extend({type:z.literal("session.closed"),reason:z.enum(["learner_stop","expired","server_shutdown","policy"])}).strict()
+ base.extend({type:z.literal("session.closed"),reason:z.enum(["learner_stop","expired","server_shutdown","policy","timeout"])}).strict()
 ]);
 export type GabrooRealtimeServerMessage=z.infer<typeof gabrooRealtimeServerMessageSchema>;
 
