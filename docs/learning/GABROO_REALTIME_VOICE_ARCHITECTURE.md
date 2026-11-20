@@ -92,7 +92,7 @@ Keep recognition, language generation, speech synthesis and alignment as separat
 
 Do not select a generic default voice. The production voice ID must be explicitly approved through Gabroo's voice audition/benchmark process. Natural Kerala Malayalam pronunciation, English code-switching quality, latency and consistency are release gates, not configuration assumptions.
 
-## 4. Proposed control protocol
+## 4. Versioned control protocol contract
 
 Control messages are JSON objects with a version, type, session ID, and where applicable a turn ID and sequence number. Audio travels as binary frames associated with the current turn.
 
@@ -114,7 +114,7 @@ Server → client:
 - `tutor.timeline`: validated viseme/expression/gesture timeline associated with an audio ID.
 - `turn.completed`, `turn.failed`, `session.interrupted`, `session.closed`: terminal lifecycle events.
 
-This is a proposed protocol, not an existing API. Final schema names and payloads must be versioned in `packages/contracts` and validated at both ends before the transport is enabled.
+The versioned message and frame-metadata schemas now live in `packages/contracts/src/gabroo-realtime-protocol.ts`, with contract tests in the adjacent test file. These schemas validate message shape only: no websocket route, session-ticket issuance, microphone capture, audio-frame transport or provider streaming has been implemented. The transport must validate every message at both ends before it is enabled.
 
 ## 5. Privacy, safety and operational rules
 
@@ -139,7 +139,9 @@ This is a proposed protocol, not an existing API. Final schema names and payload
 Exit: written decision on transport/provider feasibility; no production microphone changes.
 
 ### Stage B — contracts and server session foundation
-- Version control/event/audio frame schemas in `packages/contracts`.
+- [x] Define versioned control-event and bounded audio-frame metadata schemas in `packages/contracts`.
+- [x] Add initial contract tests for protocol versioning, malformed audio format, frame bounds, payload-length matching and server event shapes.
+- [ ] Add single-use session ticket issuance/consumption, session ownership, entitlement checks and rate limits.
 - Add single-use session ticket issuance/consumption, session ownership, entitlement checks and rate limits.
 - Add transport lifecycle tests, malformed-frame tests, stale-session tests, cancellation tests and bounded-buffer tests.
 - Keep audio bytes transient and prove no persistence/logging.
