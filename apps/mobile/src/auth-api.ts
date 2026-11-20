@@ -300,6 +300,17 @@ export async function reviewGabrooVocabulary(id:string,rating:GabrooReviewRating
  return await authorized("/api/v1/gabroo/vocabulary/"+encodeURIComponent(id)+"/review","POST",{rating}) as {vocabulary:GabrooVocabularyItem;schedule:GabrooVocabularyReviewSchedule};
 }
 
+export type GabrooSpeakingProgressPeriod={
+ sessions:number;learner_turns:number;learner_words:number;average_words_per_turn:number;
+};
+export type GabrooSpeakingProgress={
+ window_days:7;current:GabrooSpeakingProgressPeriod;previous:GabrooSpeakingProgressPeriod;
+ interpretation:string;
+};
+export async function getGabrooSpeakingProgress(){
+ return await authorized("/api/v1/gabroo/speaking-progress","GET") as GabrooSpeakingProgress;
+}
+
 export type PublishedLearningLesson={
  id:string;slug:string|null;title:string;version_id:string;version:number|null;
  content:unknown;script_mode:string|null;register:string|null;dialect_scope:string|null;romanisation:string|null;
