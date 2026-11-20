@@ -1,5 +1,38 @@
 import {describe,it,expect} from "vitest";
-import {buildGabrooTeachingPolicy} from "./gabroo-teaching-policy.js";
+import {buildGabrooTeachingPolicy,buildGabrooLearnerTurnGuidance} from "./gabroo-teaching-policy.js";
+
+describe("Gabroo learner-turn adaptation",()=>{
+ it("encourages a small expansion after a brief answer",()=>{
+  const guidance=buildGabrooLearnerTurnGuidance({latestLearnerMessage:"I like it."});
+  expect(guidance).toContain("contribution is brief");
+  expect(guidance).toContain("one small expansion");
+ });
+ it("answers direct questions before inviting further discussion",()=>{
+  for(const message of ["Why does this happen?","How can I improve my English","എങ്ങനെ ഇത് ചെയ്യാം?"]){
+   const guidance=buildGabrooLearnerTurnGuidance({latestLearnerMessage:message});
+   expect(guidance).toContain("Answer that question clearly first");
+   expect(guidance).toContain("Do not withhold the answer");
+  }
+ });
+ it("deepens a substantial contribution instead of asking the learner to repeat it",()=>{
+  const message="I believe technology can improve education because students can learn at their own pace, explore difficult subjects in different ways, receive immediate feedback, and practise skills whenever they have time.";
+  const guidance=buildGabrooLearnerTurnGuidance({latestLearnerMessage:message});
+  expect(guidance).toContain("substantial contribution");
+  expect(guidance).toContain("one thoughtful follow-up");
+ });
+ it("uses a relevant follow-up for a moderate contribution",()=>{
+  const guidance=buildGabrooLearnerTurnGuidance({latestLearnerMessage:"I use online lessons because they are flexible for my work schedule."});
+  expect(guidance).toContain("moderate amount");
+  expect(guidance).toContain("moves their idea forward");
+ });
+ it("does not assume an interest before the learner has spoken",()=>{
+  expect(buildGabrooLearnerTurnGuidance({})).toContain("do not assume an interest");
+ });
+ it("adds adaptive guidance to the model policy using the current learner message",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",latestLearnerMessage:"I like it."});
+  expect(policy.responseGuidance.join(" ")).toContain("contribution is brief");
+ });
+});
 
 describe("Gabroo teaching policy",()=>{
  it("prioritises learner participation while allowing concise knowledge contributions in every mode",()=>{
