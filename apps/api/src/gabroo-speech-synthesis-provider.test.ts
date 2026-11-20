@@ -80,4 +80,18 @@ describe("Gabroo speech synthesis provider",()=>{
   await expect(provider.synthesize({text:"hello",speed:1,signal:new AbortController().signal})).rejects.toThrow(/size limit/i);
  });
 
+ it("cancels an in-flight provider stream when the request is aborted",async()=>{
+  const abortController=new AbortController();
+  let streamCancelled=false;
+  const provider=createGabrooSpeechSynthesisProvider(config,async()=>new Response(new ReadableStream<Uint8Array>({
+   pull(controller){
+    abortController.abort();
+    controller.enqueue(new Uint8Array([1,2,3]));
+   },
+   cancel(){streamCancelled=true;}
+  }),{status:200,headers:{"content-type":"audio/mpeg"}}))!;
+  await expect(provider.synthesize({text:"hello",speed:1,signal:abortController.signal})).rejects.toThrow(/cancelled/i);
+  expect(streamCancelled).toBe(true);
+ });
+
 });
