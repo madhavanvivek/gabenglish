@@ -184,6 +184,7 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
          if(!completed.controller.signal.aborted&&ws.readyState===WebSocket.OPEN)failTurn(completed.id,"RECOGNITION_FAILED","Gabroo could not recognise that voice turn. Please try again or use transcript review.");
         }finally{
          completed.chunks.length=0;
+         if(pendingRecognitions.get(completed.id)===completed.controller)pendingRecognitions.delete(completed.id);
         }
        })();
       }
