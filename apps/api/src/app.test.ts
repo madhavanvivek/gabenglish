@@ -433,8 +433,10 @@ describe("API foundation",()=>{
   const config=loadConfig({NODE_ENV:"test"});
   let stored:{digest:string;userId:string;text:string;speed:number;consumed:boolean}|undefined;
   let ticketIssueSql="";
+  let ticketCleanupSql="";
   const ticketTransactionSql:string[]=[];
   const handleQuery=async(sql:string,values?:unknown[])=>{
+   if(sql.startsWith("DELETE FROM gabroo_speech_playback_tickets"))ticketCleanupSql=sql;
    if(["BEGIN","COMMIT","ROLLBACK"].includes(sql)||sql.includes("pg_advisory_xact_lock")||sql.includes("SET consumed_at=now() WHERE user_id=")||sql.includes("INSERT INTO gabroo_speech_playback_tickets"))ticketTransactionSql.push(sql);
    if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
    if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
@@ -471,6 +473,8 @@ describe("API foundation",()=>{
   const phrase="നമസ്കാരം! Let's practise speaking.";
   const created=await app.inject({method:"POST",url:"/api/v1/gabroo/speech/playback-ticket",headers,payload:{text:phrase,speed:0.85}});
   expect(created.statusCode).toBe(201);
+  expect(ticketCleanupSql).toContain("ORDER BY expires_at ASC LIMIT 500");
+  expect(ticketCleanupSql).toContain("expires_at < now() - interval '5 minutes'");
   expect(ticketIssueSql).toContain("INSERT INTO gabroo_speech_playback_tickets");
   expect(ticketIssueSql).toContain("VALUES($1,$2,$3,$4,now()+interval '60 seconds')");
   expect(ticketIssueSql).not.toContain("WITH learner_lock");
