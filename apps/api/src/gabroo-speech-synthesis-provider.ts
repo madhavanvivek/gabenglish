@@ -80,6 +80,7 @@ export function createGabrooSpeechSynthesisProvider(
     },
     flush(callback){
      if(total===0)callback(new Error("Gabroo speech synthesis returned empty audio."));
+     else if(contentLength!==undefined&&total!==contentLength)callback(new Error("Gabroo speech provider audio length did not match its content-length header."));
      else callback();
     }
    });
@@ -90,6 +91,7 @@ export function createGabrooSpeechSynthesisProvider(
    source.once("end",()=>input.signal.removeEventListener("abort",cancelOnAbort));
    source.on("error",()=>input.signal.removeEventListener("abort",cancelOnAbort));
    source.on("error",(error)=>limiter.destroy(error));
+   limiter.once("close",()=>{if(!source.destroyed)source.destroy();});
    source.pipe(limiter);
    return {audio:limiter,contentType:"audio/mpeg",contentLength};
   },
