@@ -56,9 +56,9 @@ export function parseGabrooRealtimeUpgrade(request:IncomingMessage,allowedOrigin
  }
  const raw=request.headers["sec-websocket-protocol"];
  const protocols=(Array.isArray(raw)?raw.join(","):raw??"").split(",").map(x=>x.trim()).filter(Boolean);
- const ticketProtocol=protocols.find(value=>value.startsWith(TICKET_PREFIX));
- const ticket=ticketProtocol?.slice(TICKET_PREFIX.length);
- if(!protocols.includes(GABROO_REALTIME_SUBPROTOCOL)||!ticket||!/^[0-9a-f]{64}$/.test(ticket)){
+ const ticketProtocols=protocols.filter(value=>value.startsWith(TICKET_PREFIX));
+ const ticket=ticketProtocols.length===1?ticketProtocols[0].slice(TICKET_PREFIX.length):undefined;
+ if(protocols.length!==2||protocols.filter(value=>value===GABROO_REALTIME_SUBPROTOCOL).length!==1||ticketProtocols.length!==1||!ticket||!/^[0-9a-f]{64}$/.test(ticket)){
   return {ok:false as const,status:401,reason:"ticket_required"};
  }
  return {ok:true as const,ticket};
