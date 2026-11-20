@@ -690,15 +690,9 @@ export default function GabrooScreen(){
   const subscription=AppState.addEventListener("change",state=>{
    appIsActiveRef.current=state==="active";
    if(state!=="active"){
-    // Do not let device TTS continue after Gabroo leaves the foreground.
-    speechRunRef.current+=1;speechRequestAbortRef.current?.abort();speechRequestAbortRef.current=null;speechSegmentResolveRef.current?.();speechSegmentResolveRef.current=null;
-    const playback=playbackStateRef.current;
-    if(playback.phase==="speaking"&&playback.playback_id){
-     playbackStateRef.current=reduceGabrooPlayback(playback,{type:"interrupted",playback_id:playback.playback_id});
-    }
-    void Speech.stop();
-    void releaseSpeechAudio();
-    setSpeakingMessageId(null);
+    // Use the same generation-guarded teardown as manual stop/navigation.
+    // This prevents a delayed background shutdown from releasing a newer player.
+    void stopSpeech();
     if(recordingRef.current&&!recordingOperationRef.current){
      void stopAndDiscardLocalCapture();
     }
