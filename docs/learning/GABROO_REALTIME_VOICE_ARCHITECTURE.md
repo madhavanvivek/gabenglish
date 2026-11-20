@@ -155,7 +155,8 @@ Exit: written decision on transport/provider feasibility; no production micropho
 - [x] Enforce exact payload lengths, contiguous sequence numbers, 64 KiB frames, 5 MiB/120-second turn bounds and 60 frames/second.
 - [x] Add live integration coverage for valid metadata-plus-binary frames and the buffered recognition review response.
 - [x] Abort in-flight recognition on learner interruption/session teardown and prevent overlapping half-duplex turns.
-- [ ] Add invalid sequence/length, stale-session, cancellation, backpressure and multi-instance tests.
+- [x] Add integration coverage for invalid frame sequence and recognition cancellation.
+- [ ] Add WebSocket invalid-length, stale-session, backpressure and multi-instance tests.
 - Keep audio bytes transient and prove no persistence/logging.
 
 Exit: authenticated test client can connect, stream bounded 16 kHz mono PCM frames, receive a learner-review transcript through the existing complete-file STT adapter, interrupt recognition, and close safely without microphone capture. True streaming STT, mobile device feasibility and provider integration remain outstanding.
