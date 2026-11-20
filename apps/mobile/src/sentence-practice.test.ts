@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {evaluateSentencePracticeAnswer,evaluateWordOrderAnswer,listSentencePracticeExercises,listWordOrderExercises} from "./sentence-practice.js";
+import {decodeSavedSentenceDraft,encodeSavedSentenceDraft,evaluateSentencePracticeAnswer,evaluateWordOrderAnswer,listSentencePracticeExercises,listWordOrderExercises} from "./sentence-practice.js";
 
 describe("sentence construction practice",()=>{
  it("provides a bounded set of reviewed beginner sentence patterns",()=>{
@@ -45,5 +45,20 @@ describe("word-order sentence construction",()=>{
   const result=evaluateWordOrderAnswer("tile-order-02",["do","when","you","get","home","?"]);
   expect(result?.correct).toBe(false);
   expect(result?.explanationMl).toContain("subject");
+ });
+});
+
+
+describe("saved sentence draft records",()=>{
+ it("round-trips learner-authored text with a bounded versioned record",()=>{
+  const encoded=encodeSavedSentenceDraft("  I usually walk to work.  ","2026-11-20T10:00:00.000Z");
+  expect(encoded).not.toBeNull();
+  expect(decodeSavedSentenceDraft(encoded!)?.original).toBe("I usually walk to work.");
+ });
+ it("rejects empty, malformed and unsupported records",()=>{
+  expect(encodeSavedSentenceDraft("  ","2026-11-20T10:00:00.000Z")).toBeNull();
+  expect(decodeSavedSentenceDraft("not json")).toBeNull();
+  expect(decodeSavedSentenceDraft(JSON.stringify({version:2,original:"hello",savedAt:"2026-11-20"}))).toBeNull();
+  expect(decodeSavedSentenceDraft(JSON.stringify({version:1,original:"",savedAt:"2026-11-20"}))).toBeNull();
  });
 });
