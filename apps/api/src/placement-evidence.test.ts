@@ -42,6 +42,23 @@ describe("placement response evidence extraction",()=>{
     expect(result).not.toHaveProperty("score");
   });
 
+  it("flags a small set of high-confidence grammar patterns without grading proficiency",()=>{
+    const result=extractResponseEvidence("grammar","He go to work every day. Yesterday I did went home. I am study English.");
+    expect(result.grammarObservations).toEqual(expect.arrayContaining([
+      expect.objectContaining({category:"subject_verb_agreement",example:"He go"}),
+      expect.objectContaining({category:"past_tense_form",example:"did went"}),
+      expect.objectContaining({category:"verb_form",example:"I am study"})
+    ]));
+    expect(result.grammarObservations.length).toBeLessThanOrEqual(3);
+    expect(result.observations).toContain("A few grammar patterns may be worth reviewing; automated checks can miss context and valid alternatives.");
+    expect(result).not.toHaveProperty("score");
+  });
+
+  it("does not flag correct common agreement and verb forms",()=>{
+    const result=extractResponseEvidence("correct","She goes to work. They have lunch. I am studying. Yesterday I went home.");
+    expect(result.grammarObservations).toEqual([]);
+  });
+
   it("counts Unicode Malayalam words",()=>{
     const result=extractResponseEvidence("ml","എന്റെ പേര് അനു ആണ്. ഞാൻ കോഴിക്കോട് താമസിക്കുന്നു.");
     expect(result.metrics.wordCount).toBeGreaterThan(3);
