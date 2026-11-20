@@ -185,13 +185,8 @@ export default function GabrooScreen(){
    activeConversationIdRef.current=null;
    turnAbortRef.current?.abort();turnAbortRef.current=null;
    setTurnState(initialGabrooTurnState);
-   speechRunRef.current+=1;speechRequestAbortRef.current?.abort();speechRequestAbortRef.current=null;speechSegmentResolveRef.current?.();speechSegmentResolveRef.current=null;
-   const playback=playbackStateRef.current;
-   if(playback.phase==="speaking"&&playback.playback_id){
-    playbackStateRef.current=reduceGabrooPlayback(playback,{type:"interrupted",playback_id:playback.playback_id});
-   }
-   void Speech.stop();
-   void releaseSpeechAudio();
+   // Share the generation-guarded teardown used by explicit stop and app background.
+   void stopSpeech();
    const recording=recordingRef.current;
    recordingRef.current=null;
    if(recording){
