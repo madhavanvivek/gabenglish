@@ -14,6 +14,8 @@ The first release supports Malayalam-to-English learning. Learners enter or conf
 4. The learner attempts recall before revealing the meaning.
 5. The learner chooses Again, Hard, Good or Easy. The choice schedules the next review.
 6. The vocabulary list displays review count and next review date. Learners can independently change the Learning/Familiar/Mastered status or delete the vocabulary item.
+7. A **Practise with Gabroo** action opens a Vocabulary-mode conversation with a suggested, editable first message containing the selected word, learner-entered Malayalam meaning and example. The learner chooses whether to send it.
+8. The progress summary shows saved, Learning, Familiar and Mastered counts, total review attempts, words practised in the last seven days, due count and active items whose latest rating was Again. It is a personal activity summary, not a proficiency score.
 
 Mastered items are excluded from the due queue. A learner can move an item out of Mastered to make it eligible again.
 
@@ -43,12 +45,13 @@ This is a small, transparent, bounded interval scheduler, not a claim of clinica
 - List, review, edit and delete operations are scoped by learner ID.
 - Deleting a source saved phrase cascades to vocabulary entries created from it.
 - No conversation history, profile details or private memory is sent to an external vocabulary provider by this feature.
-- Review history is scheduling metadata, not a public leaderboard or a measure of learner ability.
+- Review history is scheduling metadata, not a public leaderboard or a measure of learner ability. The progress summary is derived only from the learner’s own vocabulary rows; “needs attention” means the latest recorded rating was Again, not a diagnosis of difficulty.
 
 ## API and persistence
 
 - `GET /api/v1/gabroo/vocabulary` — list vocabulary and scheduling metadata.
 - `GET /api/v1/gabroo/vocabulary/review-due` — list up to 50 due, non-mastered items.
+- `GET /api/v1/gabroo/vocabulary/progress` — return learner-owned status counts and bounded review activity summary.
 - `POST /api/v1/gabroo/vocabulary` — create from an owned saved phrase.
 - `POST /api/v1/gabroo/vocabulary/:id/review` — submit a recall rating and calculate next due time.
 - `PATCH /api/v1/gabroo/vocabulary/:id` — edit learner content or learning status.
