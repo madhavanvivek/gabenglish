@@ -1,5 +1,5 @@
 import {describe,it,expect} from "vitest";
-import {advanceGabrooRealtimeHandshake,parseGabrooRealtimeUpgrade,GABROO_REALTIME_PATH,GABROO_REALTIME_SUBPROTOCOL} from "./gabroo-realtime-websocket.js";
+import {advanceGabrooRealtimeHandshake,parseGabrooRealtimeUpgrade,pcm16MonoToWav,GABROO_REALTIME_PATH,GABROO_REALTIME_SUBPROTOCOL} from "./gabroo-realtime-websocket.js";
 
 function request(input:{url?:string;origin?:string;protocols?:string}={}){
  return {
@@ -13,6 +13,30 @@ function request(input:{url?:string;origin?:string;protocols?:string}={}){
 const ticket="a".repeat(64);
 const protocols=GABROO_REALTIME_SUBPROTOCOL+", ticket."+ticket;
 const origins=["https://gabenglish.example","http://localhost:8081"];
+
+
+describe("Gabroo realtime PCM conversion",()=>{
+ it("wraps complete mono PCM16 samples in a valid WAV header",()=>{
+  const pcm=new Uint8Array([0x01,0x00,0xff,0x7f]);
+  const wav=pcm16MonoToWav(pcm,16000);
+  expect(wav.subarray(0,4).toString("ascii")).toBe("RIFF");
+  expect(wav.readUInt32LE(4)).toBe(40);
+  expect(wav.subarray(8,12).toString("ascii")).toBe("WAVE");
+  expect(wav.subarray(12,16).toString("ascii")).toBe("fmt ");
+  expect(wav.readUInt16LE(20)).toBe(1);
+  expect(wav.readUInt16LE(22)).toBe(1);
+  expect(wav.readUInt32LE(24)).toBe(16000);
+  expect(wav.readUInt32LE(28)).toBe(32000);
+  expect(wav.readUInt16LE(32)).toBe(2);
+  expect(wav.readUInt16LE(34)).toBe(16);
+  expect(wav.readUInt32LE(40)).toBe(4);
+  expect(wav.subarray(44)).toEqual(Buffer.from(pcm));
+ });
+ it("rejects empty and incomplete PCM16 samples",()=>{
+  expect(()=>pcm16MonoToWav(new Uint8Array())).toThrow("complete 16-bit");
+  expect(()=>pcm16MonoToWav(new Uint8Array([0x01]))).toThrow("complete 16-bit");
+ });
+});
 
 describe("Gabroo realtime WebSocket upgrade validation",()=>{
  it("accepts a valid one-time ticket in the subprotocol header without a query string",()=>{
