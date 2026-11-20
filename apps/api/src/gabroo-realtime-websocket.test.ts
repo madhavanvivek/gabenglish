@@ -1,5 +1,5 @@
 import {describe,it,expect} from "vitest";
-import {parseGabrooRealtimeUpgrade,GABROO_REALTIME_PATH,GABROO_REALTIME_SUBPROTOCOL} from "./gabroo-realtime-websocket.js";
+import {advanceGabrooRealtimeHandshake,parseGabrooRealtimeUpgrade,GABROO_REALTIME_PATH,GABROO_REALTIME_SUBPROTOCOL} from "./gabroo-realtime-websocket.js";
 
 function request(input:{url?:string;origin?:string;protocols?:string}={}){
  return {
@@ -38,5 +38,24 @@ describe("Gabroo realtime WebSocket upgrade validation",()=>{
  });
  it("rejects an unexpected upgrade path",()=>{
   expect(parseGabrooRealtimeUpgrade(request({url:"/other",protocols}),origins)).toMatchObject({ok:false,status:404,reason:"not_found"});
+ });
+});
+
+
+describe("Gabroo realtime session-ready handshake",()=>{
+ it("accepts session.ready exactly once",()=>{
+  const result=advanceGabrooRealtimeHandshake("awaiting_ready","session.ready");
+  expect(result).toEqual({state:"ready",accepted:true,close:false});
+ });
+ it("rejects audio/control messages before session.ready",()=>{
+  for(const type of ["turn.start","audio.frame","turn.end","session.stop"]){
+   expect(advanceGabrooRealtimeHandshake("awaiting_ready",type).close).toBe(true);
+  }
+ });
+ it("rejects a duplicate session.ready message",()=>{
+  expect(advanceGabrooRealtimeHandshake("ready","session.ready")).toEqual({state:"ready",accepted:false,close:true});
+ });
+ it("allows normal messages after the handshake",()=>{
+  expect(advanceGabrooRealtimeHandshake("ready","turn.start")).toEqual({state:"ready",accepted:false,close:false});
  });
 });
