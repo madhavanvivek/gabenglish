@@ -1,5 +1,6 @@
 import type {FastifyInstance} from "fastify";
 import {z} from "zod";
+import {createHash,randomBytes} from "node:crypto";
 import type {Pool} from "pg";
 import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
@@ -17,6 +18,41 @@ function sendError(reply:any,requestId:string,status:number,code:string,message:
  return reply.code(status).send({error:{code,message,request_id:requestId}});
 }
 
+
+async function synthesizeAndSend(
+ request:any,
+ reply:any,
+ learnerId:string,
+ text:string,
+ speed:number,
+ provider:GabrooSpeechSynthesisProvider
+){
+ if(activeSpeechLearners.has(learnerId))return sendError(reply,request.id,429,"SPEECH_REQUEST_IN_PROGRESS","Please wait for Gabroo to finish preparing the current reply.");
+ activeSpeechLearners.add(learnerId);
+ const controller=new AbortController();
+ const onAborted=()=>controller.abort();
+ const onResponseClosed=()=>{if(!reply.raw.writableEnded)controller.abort();};
+ request.raw.once("aborted",onAborted);
+ reply.raw.once("close",onResponseClosed);
+ try{
+  const result=await provider.synthesize({text,speed,signal:controller.signal});
+  if(controller.signal.aborted)return;
+  reply.header("content-type",result.contentType);
+  reply.header("content-length",String(result.audio.byteLength));
+  reply.header("cache-control","private, no-store");
+  reply.header("x-content-type-options","nosniff");
+  return reply.send(Buffer.from(result.audio));
+ }catch(error){
+  if(controller.signal.aborted)return;
+  request.log.error({request_id:request.id},"Gabroo speech synthesis failed");
+  return sendError(reply,request.id,502,"SPEECH_SYNTHESIS_FAILED","Gabroo could not prepare speech just now. Please try again.");
+ }finally{
+  request.raw.removeListener("aborted",onAborted);
+  reply.raw.removeListener("close",onResponseClosed);
+  activeSpeechLearners.delete(learnerId);
+ }
+}
+
 export async function registerGabrooSpeechRoutes(
  app:FastifyInstance,
  pool:Pool,
@@ -31,6 +67,48 @@ export async function registerGabrooSpeechRoutes(
   return {available:Boolean(provider),formats:provider?["audio/mpeg"]:[],speed:{minimum:0.75,maximum:1.5}};
  });
 
+
+ app.post("/api/v1/gabroo/speech/playback-ticket",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return sendError(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account to prepare Gabroo audio.");
+  const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);
+  if(!entitlement)return sendError(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to use Gabroo speech.");
+  const parsed=speechRequestSchema.safeParse(request.body);
+  if(!parsed.success)return sendError(reply,request.id,400,"VALIDATION_ERROR","Please provide text and a speaking speed between 0.75× and 1.5×.");
+  if(!provider)return sendError(reply,request.id,503,"PROVIDER_UNAVAILABLE","Gabroo's approved speech voice is not configured yet.");
+  const token=randomBytes(32).toString("hex");
+  const digest=createHash("sha256").update(token).digest("hex");
+  const result=await pool.query<{expires_at:Date|string}>(
+   "INSERT INTO gabroo_speech_playback_tickets(token_digest,user_id,speech_text,speech_speed,expires_at) VALUES($1,$2,$3,$4,now()+interval '60 seconds') RETURNING expires_at",
+   [digest,learner.id,parsed.data.text,parsed.data.speed]
+  );
+  const expiresAt=result.rows[0]?.expires_at;
+  if(!expiresAt)return sendError(reply,request.id,500,"PLAYBACK_TICKET_FAILED","Gabroo audio could not be prepared. Please try again.");
+  return reply.code(201).send({
+   playback_url:"/api/v1/gabroo/speech/playback/"+token,
+   expires_at:new Date(expiresAt).toISOString(),
+   method:"GET",
+   headers:{accept:"audio/mpeg"}
+  });
+ });
+
+ app.get("/api/v1/gabroo/speech/playback/:ticket",async(request,reply)=>{
+  const params=request.params as {ticket?:string};
+  if(!params.ticket||!/^[0-9a-f]{64}$/.test(params.ticket))
+   return sendError(reply,request.id,404,"PLAYBACK_TICKET_INVALID","This Gabroo audio link is invalid or has expired.");
+  if(!provider)return sendError(reply,request.id,503,"PROVIDER_UNAVAILABLE","Gabroo's approved speech voice is not configured yet.");
+  const digest=createHash("sha256").update(params.ticket).digest("hex");
+  const consumed=await pool.query<{user_id:string;speech_text:string;speech_speed:number|string}>(
+   "UPDATE gabroo_speech_playback_tickets SET consumed_at=now() WHERE token_digest=$1 AND consumed_at IS NULL AND expires_at>now() RETURNING user_id,speech_text,speech_speed",
+   [digest]
+  );
+  const ticket=consumed.rows[0];
+  if(!ticket)return sendError(reply,request.id,404,"PLAYBACK_TICKET_INVALID","This Gabroo audio link is invalid, expired, or already used.");
+  const entitlement=await getActiveSubscriptionEntitlement(pool,ticket.user_id);
+  if(!entitlement)return sendError(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to use Gabroo speech.");
+  return synthesizeAndSend(request,reply,ticket.user_id,ticket.speech_text,Number(ticket.speech_speed),provider);
+ });
+
  app.post("/api/v1/gabroo/speech",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return sendError(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account to hear Gabroo speech.");
@@ -39,29 +117,6 @@ export async function registerGabrooSpeechRoutes(
   const parsed=speechRequestSchema.safeParse(request.body);
   if(!parsed.success)return sendError(reply,request.id,400,"VALIDATION_ERROR","Please provide text and a speaking speed between 0.75× and 1.5×.");
   if(!provider)return sendError(reply,request.id,503,"PROVIDER_UNAVAILABLE","Gabroo's approved speech voice is not configured yet.");
-  if(activeSpeechLearners.has(learner.id))return sendError(reply,request.id,429,"SPEECH_REQUEST_IN_PROGRESS","Please wait for Gabroo to finish preparing the current reply.");
-  activeSpeechLearners.add(learner.id);
-  const controller=new AbortController();
-  const onAborted=()=>controller.abort();
-  const onResponseClosed=()=>{if(!reply.raw.writableEnded)controller.abort();};
-  request.raw.once("aborted",onAborted);
-  reply.raw.once("close",onResponseClosed);
-  try{
-   const result=await provider.synthesize({...parsed.data,signal:controller.signal});
-   if(controller.signal.aborted)return;
-   reply.header("content-type",result.contentType);
-   reply.header("content-length",String(result.audio.byteLength));
-   reply.header("cache-control","private, no-store");
-   reply.header("x-content-type-options","nosniff");
-   return reply.send(Buffer.from(result.audio));
-  }catch(error){
-   if(controller.signal.aborted)return;
-   request.log.error({request_id:request.id},"Gabroo speech synthesis failed");
-   return sendError(reply,request.id,502,"SPEECH_SYNTHESIS_FAILED","Gabroo could not prepare speech just now. Please try again.");
-  }finally{
-   request.raw.removeListener("aborted",onAborted);
-   reply.raw.removeListener("close",onResponseClosed);
-   activeSpeechLearners.delete(learner.id);
-  }
+  return synthesizeAndSend(request,reply,learner.id,parsed.data.text,parsed.data.speed,provider);
  });
 }
