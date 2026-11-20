@@ -33,6 +33,10 @@ describe("Gabroo realtime WebSocket upgrade validation",()=>{
  it("rejects missing protocol version or ticket",()=>{
   expect(parseGabrooRealtimeUpgrade(request({protocols:GABROO_REALTIME_SUBPROTOCOL}),origins)).toMatchObject({ok:false,status:401,reason:"ticket_required"});
  });
+ it("rejects duplicate or ambiguous ticket subprotocols",()=>{
+  expect(parseGabrooRealtimeUpgrade(request({protocols:protocols+", ticket."+"b".repeat(64)}),origins)).toMatchObject({ok:false,status:401,reason:"ticket_required"});
+  expect(parseGabrooRealtimeUpgrade(request({protocols:protocols+", unexpected"}),origins)).toMatchObject({ok:false,status:401,reason:"ticket_required"});
+ });
  it("rejects malformed ticket values",()=>{
   expect(parseGabrooRealtimeUpgrade(request({protocols:GABROO_REALTIME_SUBPROTOCOL+", ticket.not-a-ticket"}),origins)).toMatchObject({ok:false,status:401,reason:"ticket_required"});
  });
