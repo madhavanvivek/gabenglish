@@ -73,6 +73,7 @@ function rejectUpgrade(socket:Duplex,status:number){
 
 export function pcm16MonoToWav(pcm:Uint8Array,sampleRate=16000){
  if(pcm.byteLength===0||pcm.byteLength%2!==0)throw new Error("PCM audio must contain complete 16-bit mono samples.");
+ if(![16000,24000,48000].includes(sampleRate))throw new Error("PCM sample rate is not supported.");
  const header=Buffer.alloc(44);
  header.write("RIFF",0);header.writeUInt32LE(36+pcm.byteLength,4);header.write("WAVE",8);
  header.write("fmt ",12);header.writeUInt32LE(16,16);header.writeUInt16LE(1,20);header.writeUInt16LE(1,22);
