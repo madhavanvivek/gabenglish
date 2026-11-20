@@ -15,7 +15,7 @@ import {registerGabrooSpeechRoutes} from "./gabroo-speech.js";
 import type {GabrooSpeechSynthesisProvider} from "./gabroo-speech-synthesis-provider.js";
 import type {Pool} from "pg";
 export async function buildApp(config:AppConfig,databaseCheck:()=>Promise<boolean>,pool?:Pool,otpDelivery?:OtpDeliveryAdapter,gabrooProvider?:GabrooConversationProvider,gabrooRecognitionProvider?:GabrooSpeechRecognitionProvider,gabrooSpeechProvider?:GabrooSpeechSynthesisProvider){
- const app=Fastify({logger:config.NODE_ENV!=="test",genReqId:()=>randomUUID(),requestIdHeader:"x-request-id"});
+ const app=Fastify({logger:config.NODE_ENV!=="test"?{redact:{paths:["req.url","req.headers.authorization","req.headers.cookie"],censor:"[REDACTED]"}}:false,genReqId:()=>randomUUID(),requestIdHeader:"x-request-id"});
  await app.register(cors,{origin:config.corsOrigins,credentials:true});
  app.get("/api/v1/health",async(_q,r)=>r.code(200).send({status:"ok",request_id:r.request.id}));
  app.get("/api/v1/ready",async(_q,r)=>{let ok=false;try{ok=await databaseCheck();}catch{ok=false;}return r.code(ok?200:503).send({status:ok?"ok":"degraded",checks:{database:ok?"ok":"unavailable"},capabilities:{gabroo_conversation:gabrooProvider?"configured":"unconfigured",gabroo_recognition:gabrooRecognitionProvider?"configured":"unconfigured",gabroo_speech:gabrooSpeechProvider?"configured":"unconfigured"},request_id:r.request.id});});
