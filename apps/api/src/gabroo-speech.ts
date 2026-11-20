@@ -31,11 +31,27 @@ async function synthesizeAndSend(
  activeSpeechLearners.add(learnerId);
  const controller=new AbortController();
  const onAborted=()=>controller.abort();
- const onResponseClosed=()=>{if(!reply.raw.writableEnded)controller.abort();};
+ const onResponseClosed=()=>{if(!reply.raw.writableEnded)controller.abort();release();};
+ let released=false;
+ const release=()=>{if(released)return;released=true;activeSpeechLearners.delete(learnerId);};
  request.raw.once("aborted",onAborted);
  reply.raw.once("close",onResponseClosed);
  try{
-  const result=await provider.synthesize({text,speed,signal:controller.signal});
+  const input={text,speed,signal:controller.signal};
+  if(provider.synthesizeStream){
+   const result=await provider.synthesizeStream(input);
+   if(controller.signal.aborted){result.audio.destroy();return;}
+   reply.header("content-type",result.contentType);
+   if(result.contentLength!==undefined)reply.header("content-length",String(result.contentLength));
+   reply.header("cache-control","private, no-store");
+   reply.header("x-content-type-options","nosniff");
+   result.audio.once("error",(error)=>request.log.error({request_id:request.id,error},"Gabroo audio stream failed"));
+   result.audio.once("close",release);
+   result.audio.once("end",release);
+   reply.raw.once("finish",release);
+   return reply.send(result.audio);
+  }
+  const result=await provider.synthesize(input);
   if(controller.signal.aborted)return;
   reply.header("content-type",result.contentType);
   reply.header("content-length",String(result.audio.byteLength));
@@ -49,7 +65,7 @@ async function synthesizeAndSend(
  }finally{
   request.raw.removeListener("aborted",onAborted);
   reply.raw.removeListener("close",onResponseClosed);
-  activeSpeechLearners.delete(learnerId);
+  if(!reply.raw.headersSent||reply.raw.writableEnded)release();
  }
 }
 
