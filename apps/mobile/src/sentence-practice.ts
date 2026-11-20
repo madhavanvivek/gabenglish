@@ -26,3 +26,28 @@ export function evaluateSentencePracticeAnswer(exerciseId:string,optionId:string
  if(!exercise||!exercise.options.some(option=>option.id===optionId))return null;
  return {correct:optionId===exercise.correctOptionId,explanationEn:exercise.explanationEn,explanationMl:exercise.explanationMl};
 }
+
+
+export type WordOrderExercise={
+ id:string;
+ title:string;
+ prompt:string;
+ instruction:string;
+ tiles:string[];
+ acceptedAnswers:string[][];
+ explanationEn:string;
+ explanationMl:string;
+};
+const wordOrderExercises:WordOrderExercise[]=[
+ {id:"tile-order-01",title:"Put the words in order",prompt:"ഞാൻ രാവിലെ ആറുമണിക്ക് എഴുന്നേൽക്കും.",instruction:"Tap each word to build a natural English sentence.",tiles:["at","I","six","wake","up","in","the","morning"],acceptedAnswers:[["I","wake","up","at","six","in","the","morning"],["I","wake","up","at","six","in","the","morning."]],explanationEn:"Start with the subject I, then the verb phrase wake up. Put the time phrase after it.",explanationMl:"ആദ്യം subject ആയ I, തുടർന്ന് wake up എന്ന verb phrase. സമയം സൂചിപ്പിക്കുന്ന ഭാഗം അതിന് ശേഷം ചേർക്കാം."},
+ {id:"tile-order-02",title:"Build a question",prompt:"നീ എപ്പോഴാണ് വീട്ടിലെത്തുന്നത്?",instruction:"Tap the words to form the question.",tiles:["do","you","when","get","home","?"],acceptedAnswers:[["When","do","you","get","home","?"],["when","do","you","get","home","?"]],explanationEn:"Begin with When, then do + subject + base verb: When do you get home?",explanationMl:"When ഉപയോഗിച്ച് തുടങ്ങുക. തുടർന്ന് do + subject + ക്രിയയുടെ അടിസ്ഥാനരൂപം: When do you get home?"},
+ {id:"tile-order-03",title:"Make a negative",prompt:"അവൾ ഞായറാഴ്ചകളിൽ ജോലി ചെയ്യാറില്ല.",instruction:"Arrange the words into a correct sentence.",tiles:["doesn't","on","work","She","Sundays"],acceptedAnswers:[["She","doesn't","work","on","Sundays"],["She","doesn't","work","on","Sundays."]],explanationEn:"With she, use doesn't + the base verb work. Do not write works after doesn't.",explanationMl:"She-യോടൊപ്പം doesn't + ക്രിയയുടെ അടിസ്ഥാനരൂപം work ഉപയോഗിക്കുക. doesn't-ന് ശേഷം works എഴുതരുത്."}
+];
+export function listWordOrderExercises():WordOrderExercise[]{return wordOrderExercises.map(item=>({...item,tiles:[...item.tiles],acceptedAnswers:item.acceptedAnswers.map(answer=>[...answer])}));}
+function normaliseWordSequence(words:string[]):string{return words.map(word=>word.trim().normalize("NFKC").toLocaleLowerCase().replace(/[.,!?;:]+$/u,"")).join(" ").replace(/\\s+/g," ").trim();}
+export function evaluateWordOrderAnswer(exerciseId:string,words:string[]):{correct:boolean;explanationEn:string;explanationMl:string}|null{
+ const exercise=wordOrderExercises.find(item=>item.id===exerciseId);
+ if(!exercise||!Array.isArray(words)||words.length!==exercise.tiles.length||words.some(word=>!exercise.tiles.includes(word)))return null;
+ const correct=exercise.acceptedAnswers.some(answer=>normaliseWordSequence(answer)===normaliseWordSequence(words));
+ return {correct,explanationEn:exercise.explanationEn,explanationMl:exercise.explanationMl};
+}
