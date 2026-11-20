@@ -48,9 +48,10 @@ function rejectUpgrade(socket:Duplex,status:number){
 
 export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:Pool,config:AppConfig){
  const wss=new WebSocketServer({noServer:true,maxPayload:GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES,perMessageDeflate:false,handleProtocols(protocols){return protocols.has(GABROO_REALTIME_SUBPROTOCOL)?GABROO_REALTIME_SUBPROTOCOL:false;}});
- const activeByUser=new Map<string,WebSocket>();
+ const activeByUser=new Map<string,{socket:WebSocket;sessionId:string}>();
  const server=app.server;
  const onUpgrade=(request:IncomingMessage,socket:Duplex,head:Buffer)=>{
+  try{if(new URL(request.url??"/","http://localhost").pathname!==GABROO_REALTIME_PATH)return;}catch{rejectUpgrade(socket,400);return;}
   const parsed=parseGabrooRealtimeUpgrade(request,config.corsOrigins);
   if(!parsed.ok){rejectUpgrade(socket,parsed.status);return;}
   void (async()=>{
@@ -64,7 +65,7 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
     if(!entitlement||!account.rows[0]){rejectUpgrade(socket,403);return;}
     if(activeByUser.has(consumed.userId)){rejectUpgrade(socket,503);return;}
     wss.handleUpgrade(request,socket,head,ws=>{
-     activeByUser.set(consumed.userId,ws);
+     activeByUser.set(consumed.userId,{socket:ws,sessionId:consumed.sessionId});
      const sessionId=consumed.sessionId;
      const connectedAt=Date.now();
      let lastActivity=connectedAt;
@@ -91,7 +92,7 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
        send({type:"turn.failed",turn_id:message.turn_id,code:"TRANSPORT_NOT_READY",message:"Live audio transport is not enabled yet. Please use the recording and transcript review flow."});
       }
      });
-     ws.once("close",()=>{clearInterval(heartbeat);if(activeByUser.get(consumed.userId)===ws)activeByUser.delete(consumed.userId);});
+     ws.once("close",()=>{clearInterval(heartbeat);if(activeByUser.get(consumed.userId)?.socket===ws)activeByUser.delete(consumed.userId);});
      ws.once("error",()=>{clearInterval(heartbeat);if(activeByUser.get(consumed.userId)===ws)activeByUser.delete(consumed.userId);});
     });
    }catch{rejectUpgrade(socket,503);}
@@ -100,8 +101,9 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
  server.on("upgrade",onUpgrade);
  app.addHook("onClose",async()=>{
   server.off("upgrade",onUpgrade);
-  for(const ws of activeByUser.values()){
-   if(ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify({protocol_version:GABROO_REALTIME_PROTOCOL_VERSION,session_id:"server",type:"session.closed",reason:"server_shutdown"}));ws.close(1012,"server_shutdown");}
+  for(const entry of activeByUser.values()){
+   const ws=entry.socket;
+   if(ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify({protocol_version:GABROO_REALTIME_PROTOCOL_VERSION,session_id:entry.sessionId,type:"session.closed",reason:"server_shutdown"}));ws.close(1012,"server_shutdown");}
   }
   activeByUser.clear();
   await new Promise<void>(resolve=>wss.close(()=>resolve()));
