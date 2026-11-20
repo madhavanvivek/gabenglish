@@ -1,5 +1,5 @@
 import {GABROO_REALTIME_MAX_AUDIO_FRAME_BYTES,GABROO_REALTIME_PROTOCOL_VERSION,gabrooRealtimeServerMessageSchema,type GabrooRealtimeAudioFormat,type GabrooRealtimeServerMessage} from "@gabenglish/contracts";
-import {createGabrooRealtimeSessionTicket} from "./auth-api";
+
 
 export const GABROO_REALTIME_CONNECT_PATH="/api/v1/gabroo/realtime/connect";
 
@@ -82,13 +82,14 @@ export function connectGabrooRealtimeSocket(input:{
  */
 export async function openGabrooRealtimeSession(input:{
  consentGranted:true;
+ ticketProvider:()=>Promise<{session_id:string;connection_ticket:string}>;
  callbacks?:GabrooRealtimeSocketCallbacks;
 }){
  if(input.consentGranted!==true)throw new Error("Explicit learner consent is required.");
  const configuredApiBaseUrl=process.env.EXPO_PUBLIC_API_BASE_URL?.trim()??"";
  const apiBaseUrl=configuredApiBaseUrl.endsWith("/")?configuredApiBaseUrl.slice(0,-1):configuredApiBaseUrl;
  if(!apiBaseUrl)throw new Error("The Gabenglish API is not configured.");
- const ticket=await createGabrooRealtimeSessionTicket(true);
+ const ticket=await input.ticketProvider();
  return await new Promise<ReturnType<typeof connectGabrooRealtimeSocket>>((resolve,reject)=>{
   let settled=false;
   let timeout:ReturnType<typeof setTimeout>|undefined;
