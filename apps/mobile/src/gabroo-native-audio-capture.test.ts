@@ -78,10 +78,7 @@ describe("Gabroo native capture lifecycle boundary",()=>{
  it("cancels a pending microphone start when the app backgrounds",async()=>{
   let resolvePermission!:(granted:boolean)=>void;
   const permission=new Promise<boolean>(resolve=>{resolvePermission=resolve;});
-  const x=setup();
-  const request=vi.mocked((x.controller as unknown as {start:(input:{consentGranted:true})=>Promise<unknown>}).start);
-  // Replace the permission result with a gate while retaining the controller's
-  // normal native stream and sender wiring.
+  // Hold permission pending to verify that backgrounding cancels before native start.
   const stream:GabrooNativeAudioStream={
    sampleRate:48_000,channels:1,isStreaming:false,
    start:vi.fn(async()=>{}),stop:vi.fn(async()=>{})
@@ -100,8 +97,6 @@ describe("Gabroo native capture lifecycle boundary",()=>{
   expect(controller.isActive).toBe(false);
   expect(controller.isStarting).toBe(false);
   expect(sender.close).toHaveBeenCalledWith("app_background");
-  void request;
-  void x;
  });
 
  it("stops native capture before draining accepted audio frames",async()=>{
