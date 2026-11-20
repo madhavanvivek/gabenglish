@@ -245,10 +245,13 @@ export default function GabrooScreen(){
   if(previousPlayback.phase==="speaking"&&previousPlayback.playback_id){
    playbackStateRef.current=reduceGabrooPlayback(previousPlayback,{type:"interrupted",playback_id:previousPlayback.playback_id});
   }
-  await Speech.stop();
-  await releaseSpeechAudio();
-  setSpeakingMessageId(null);setSpeechNotice("");
   try{
+   await Speech.stop();
+   await releaseSpeechAudio();
+   // A newer tap may start while native stop/unload is still pending.
+   // Never let this older request update UI or begin synthesis afterwards.
+   if(run!==speechRunRef.current||requestController.signal.aborted)return;
+   setSpeakingMessageId(null);setSpeechNotice("");
    const text=message.content.trim();
    if(!text)return;
    const segments=chunkGabrooSpeechSegments(splitGabrooSpeechText(text),600);
@@ -307,7 +310,13 @@ export default function GabrooScreen(){
     }
    },speechRate,()=>run!==speechRunRef.current||requestController.signal.aborted);
    if(run===speechRunRef.current){
-    if(completed>0&&playbackStarted){
+    // Count only segments whose playback promise completed without a stop.
+    // The queue returns this count after its final cancellation check.
+    const current=playbackStateRef.current;
+    if(playbackStarted&&current.phase==="speaking"&&current.playback_id===playbackId){
+     for(let index=0;index<completed;index+=1){
+      playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"segment_completed",playback_id:playbackId});
+     }
      playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"finished",playback_id:playbackId});
     }
     setSpeakingMessageId(null);
