@@ -23,7 +23,7 @@ A short learner message without an invitation is flagged for review. The evaluat
 - Keyword overlap is not semantic understanding. A response can share a word and still misunderstand the learner.
 - Invitation phrase detection is intentionally small and will miss valid phrasings in English or Malayalam.
 - Question marks are not a perfect count of questions in every language or writing style.
-- A short answer may be a complete answer, a direct question, a boundary or a sign that the learner wants to pause. The score must never force a follow-up or override learner intent.
+- A short answer may be a complete answer, a direct question, a boundary or a sign that the learner wants to pause. The score must never force a follow-up or override learner intent. Direct learner questions are excluded from the short-answer invitation flag; answer them first and respect a natural stopping point.
 - The score is not a learner proficiency, fluency, confidence or pronunciation score.
 - Do not use this heuristic to block a response, penalise a learner, change subscription access or make placement decisions.
 - Learner messages and replies are processed in memory only by this helper. Do not persist evaluation text or add transcript logging for scoring.
