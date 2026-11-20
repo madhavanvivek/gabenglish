@@ -30,7 +30,7 @@ function recognitionPool(hasEntitlement:boolean){
 
 describe("API foundation",()=>{
  it("serves liveness",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);const r=await app.inject({method:"GET",url:"/api/v1/health"});expect(r.statusCode).toBe(200);expect(r.json().status).toBe("ok");expect(r.json().capabilities).toBeUndefined();await app.close();});
- it("reports ready when database check passes",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true);const r=await app.inject({method:"GET",url:"/api/v1/ready"});expect(r.statusCode).toBe(200);expect(r.json().capabilities).toEqual({gabroo_conversation:"unconfigured",gabroo_recognition:"unconfigured",gabroo_speech:"unconfigured"});await app.close();});
+ it("reports ready when database check passes",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true);const r=await app.inject({method:"GET",url:"/api/v1/ready"});expect(r.statusCode).toBe(200);expect(r.json().capabilities).toEqual({gabroo_conversation:"unconfigured",gabroo_recognition:"unconfigured",gabroo_realtime_recognition:"unconfigured",gabroo_speech:"unconfigured"});await app.close();});
  it("returns 503 when database is unavailable",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);const r=await app.inject({method:"GET",url:"/api/v1/ready"});expect(r.statusCode).toBe(503);await app.close();});
  it("requires an authenticated learner to inspect Gabroo speech availability",async()=>{
   const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,recognitionPool(true));
@@ -115,6 +115,16 @@ describe("API foundation",()=>{
   expect(retry.statusCode).toBe(200);
   await app.close();
  });
+ it("reports realtime recognition separately from uploaded-audio recognition",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const provider={transcribe:async()=>({text:"hello",languageDetected:"en" as const})};
+  const app=await buildApp(config,async()=>true,undefined,undefined,undefined,undefined,undefined,provider);
+  const response=await app.inject({method:"GET",url:"/api/v1/ready"});
+  expect(response.json().capabilities.gabroo_recognition).toBe("unconfigured");
+  expect(response.json().capabilities.gabroo_realtime_recognition).toBe("configured");
+  await app.close();
+ });
+
  it("reports Gabroo speech capability only when a synthesis provider is injected",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   const provider={synthesize:async()=>({audio:new Uint8Array([1]),contentType:"audio/mpeg" as const})};
