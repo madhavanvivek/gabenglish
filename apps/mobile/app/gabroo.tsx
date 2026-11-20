@@ -9,6 +9,7 @@ import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
 import {adjustGabrooSpeechRate} from "../src/learner-settings";
 import {cacheGabrooSpeechRate} from "../src/learner-preference-cache";
+import {createGabrooAudioModeQueue} from "../src/gabroo-audio-mode";
 import {BrandMark} from "../src/ui";
 import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getGabrooRecognitionStatus,getGabrooSpeechStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,type GabrooSpeechStatus,deleteGabrooMemory,updateGabrooConversation,updateLearnerPreferences,synthesizeGabrooSpeech,createGabrooMemory} from "../src/auth-api";
 
@@ -87,14 +88,9 @@ export default function GabrooScreen(){
  const sendInFlightRef=useRef(false);
  const speechPreferenceSequenceRef=useRef(0);
  const playbackStateRef=useRef<GabrooPlaybackState>(initialGabrooPlaybackState);
- const audioModeQueueRef=useRef<Promise<void>>(Promise.resolve());
- const setGabrooAudioMode=async(mode:Parameters<typeof Audio.setAudioModeAsync>[0])=>{
-  // Expo AV exposes one process-wide audio mode. Serialize changes so a
-  // delayed playback-mode request cannot overtake a later recording-mode switch.
-  const operation=audioModeQueueRef.current.catch(()=>undefined).then(()=>Audio.setAudioModeAsync(mode));
-  audioModeQueueRef.current=operation;
-  await operation;
- };
+ const audioModeQueueRef=useRef(createGabrooAudioModeQueue());
+ const setGabrooAudioMode=(mode:Parameters<typeof Audio.setAudioModeAsync>[0])=>
+  audioModeQueueRef.current.enqueue(()=>Audio.setAudioModeAsync(mode));
  const saveReplyAsPhrase=useCallback(async(message:GabrooConversationMessage)=>{
   if(savingPhraseId||savedPhraseIds.includes(message.id))return;
   const phrase=message.content.trim().replace(/\s+/g," ").slice(0,500);
