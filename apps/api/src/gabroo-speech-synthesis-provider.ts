@@ -51,7 +51,32 @@ export function createGabrooSpeechSynthesisProvider(
     if(!Number.isSafeInteger(declaredLength)||declaredLength<0)throw new Error("Gabroo speech provider returned an invalid audio length.");
     if(declaredLength>MAX_AUDIO_BYTES)throw new Error("Gabroo speech synthesis response exceeded the audio size limit.");
    }
-   const audio=new Uint8Array(await response.arrayBuffer());
+   const reader=response.body?.getReader();
+   let audio:Uint8Array;
+   if(!reader){
+    audio=new Uint8Array(await response.arrayBuffer());
+   }else{
+    const chunks:Uint8Array[]=[];
+    let total=0;
+    try{
+     while(true){
+      const part=await reader.read();
+      if(part.done)break;
+      total+=part.value.byteLength;
+      if(total>MAX_AUDIO_BYTES){
+       await reader.cancel().catch(()=>undefined);
+       throw new Error("Gabroo speech synthesis response exceeded the audio size limit.");
+      }
+      chunks.push(part.value);
+     }
+    }catch(error){
+     await reader.cancel().catch(()=>undefined);
+     throw error;
+    }
+    audio=new Uint8Array(total);
+    let offset=0;
+    for(const chunk of chunks){audio.set(chunk,offset);offset+=chunk.byteLength;}
+   }
    if(audio.byteLength===0)throw new Error("Gabroo speech synthesis returned empty audio.");
    if(audio.byteLength>MAX_AUDIO_BYTES)throw new Error("Gabroo speech synthesis response exceeded the audio size limit.");
    return {audio,contentType:"audio/mpeg"};
