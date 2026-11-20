@@ -57,6 +57,7 @@ A platform-independent capture lifecycle controller now defines the boundary exp
 - validates actual stream sample rate and channel count after native start;
 - ignores PCM callbacks unless capture is active and foregrounded;
 - stops native capture on explicit stop or sender/backpressure failure;
+- treats a failed or cancelled startup as terminal because its sender is closed; a retry must create a fresh controller and sender, preventing capture from restarting against a permanently closed transport;
 - closes the sender on all failed-start and stop paths.
 
 The controller accepts an injected native stream port. It does not import `expo-audio`, request real device permission itself, or claim microphone capture works on the current SDK 53 app. The React integration and physical-device QA remain gated on the Expo SDK upgrade.
