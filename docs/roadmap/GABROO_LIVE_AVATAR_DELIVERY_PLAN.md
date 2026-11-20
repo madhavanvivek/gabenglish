@@ -68,7 +68,7 @@ Keep separate adapters for microphone capture/permissions, VAD/end-of-turn, stre
 
 | Gate | Required evidence |
 |---|---|
-| Identity | Owner confirms all model views/expressions match approved Concept C |
+| Identity | Owner selects a concept and confirms the production model, views and expressions match the selected approved master |
 | Voice | Kerala Malayalam reviewers pass blind benchmark; owner approves canonical voice |
 | Speech | Malayalam/code-switching and teachable English are natural and clear |
 | Lip-sync | M/B/P, F/V, vowels, silence and interruption visibly correct; no obvious drift |
