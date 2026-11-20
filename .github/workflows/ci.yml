@@ -48,6 +48,9 @@ jobs:
         with:
           node-version: 22
       - run: pnpm install --no-frozen-lockfile
+      - name: Check Expo SDK dependency alignment
+        working-directory: apps/mobile
+        run: pnpm exec expo install --check
       - run: pnpm --filter @gabenglish/mobile typecheck
       - name: Mobile unit tests
         run: pnpm --filter @gabenglish/mobile test
