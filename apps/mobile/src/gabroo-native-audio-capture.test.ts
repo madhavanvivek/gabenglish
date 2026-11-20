@@ -64,6 +64,46 @@ describe("Gabroo native capture lifecycle boundary",()=>{
   await expect(x.controller.start({consentGranted:true})).rejects.toThrow(/new Gabroo capture controller/);
  });
 
+ it("stops the native microphone and drains audio when the app backgrounds",async()=>{
+  const x=setup();
+  await x.controller.start({consentGranted:true});
+  await expect(x.controller.onAppBackground()).resolves.toEqual({drained:true});
+  expect(x.stream.stop).toHaveBeenCalledOnce();
+  expect(x.sender.finish).toHaveBeenCalledOnce();
+  expect(x.controller.isActive).toBe(false);
+  expect(x.controller.isStarting).toBe(false);
+  await expect(x.controller.start({consentGranted:true})).rejects.toThrow(/new Gabroo capture controller/);
+ });
+
+ it("cancels a pending microphone start when the app backgrounds",async()=>{
+  let resolvePermission!:(granted:boolean)=>void;
+  const permission=new Promise<boolean>(resolve=>{resolvePermission=resolve;});
+  const x=setup();
+  const request=vi.mocked((x.controller as unknown as {start:(input:{consentGranted:true})=>Promise<unknown>}).start);
+  // Replace the permission result with a gate while retaining the controller's
+  // normal native stream and sender wiring.
+  const stream:GabrooNativeAudioStream={
+   sampleRate:48_000,channels:1,isStreaming:false,
+   start:vi.fn(async()=>{}),stop:vi.fn(async()=>{})
+  };
+  const sender={enqueue:vi.fn(async()=>{}),finish:vi.fn(async()=>{}),close:vi.fn()};
+  const controller=createGabrooNativeAudioCaptureController({
+   requestPermission:()=>permission,sender,isForeground:()=>true
+  });
+  controller.attachStream(stream);
+  const starting=controller.start({consentGranted:true});
+  await Promise.resolve();
+  await controller.onAppBackground();
+  resolvePermission(true);
+  await expect(starting).rejects.toThrow(/cancelled/);
+  expect(stream.start).not.toHaveBeenCalled();
+  expect(controller.isActive).toBe(false);
+  expect(controller.isStarting).toBe(false);
+  expect(sender.close).toHaveBeenCalledWith("app_background");
+  void request;
+  void x;
+ });
+
  it("stops native capture before draining accepted audio frames",async()=>{
   const x=setup();
   await x.controller.start({consentGranted:true});
