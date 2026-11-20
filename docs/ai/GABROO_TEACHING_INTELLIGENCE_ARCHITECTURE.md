@@ -218,3 +218,13 @@ The API now provides a learner-owned private memory store with four intentionall
 Only learner-saved entries enter this store in the current implementation. The system does not automatically extract facts from transcripts, infer sensitive personal attributes, or promote conversation content into shared curriculum. The provider receives at most the 20 most recently updated saved entries as bounded structured context. This context is separate from the current conversation history and from the shared lesson library.
 
 The mobile account screen now exposes the learner's saved memory, category selection, create/edit/delete controls and an explanation of what is used. A confirmed clear-all control is also available. A separate disable-personalisation toggle and a more explicit memory settings policy remain follow-up work. Account deletion cascades the memory records. No raw transcript or hidden model reasoning is stored as memory.
+
+## 15. Current-affairs and learner-selected topic intelligence
+
+The dedicated [Gabroo Topic Intelligence System](./GABROO_TOPIC_INTELLIGENCE_SPEC.md) extends the knowledge retrieval layer with two distinct paths: curated topic suggestions and learner-requested public-source research.
+
+This is an optional research capability, not a replacement for the teaching orchestrator. The learner's chosen safe topic remains in control; the research service supplies a bounded, dated and cited evidence pack. Gabroo then turns that evidence into a level-appropriate conversation and English-learning opportunity.
+
+The research service must follow the topic specification's source-quality, neutrality, privacy, prompt-injection, safety, freshness and citation rules. Retrieved web content is untrusted data and cannot modify Gabroo's policies. Do not expose search credentials to mobile clients or send learner identity/private memory to research providers.
+
+Do not claim the capability is live until the API adapter, policy gates, source verification, citations, mobile experience and adversarial tests have been implemented and passed.
