@@ -307,3 +307,10 @@ The conservative placement grammar patterns now include a bounded, reviewed Mala
 ## 20. Guided sentence-construction practice
 
 The mobile sentence builder contains a small curated beginner set covering basic word order, present-simple agreement, question formation, negatives, past-tense forms, modal verbs, reason clauses and frequency-adverb placement. Each multiple-choice item includes an English explanation and a Malayalam support explanation. Answer checking is deterministic against an explicit answer key; unknown exercise IDs or option IDs are rejected. The result is a local practice-set tally only, never a proficiency score, and attempts are not persisted to the learner account. Learners can open Gabroo with the current pattern and prompt prefilled for a voluntary conversation; the learner must review and send the message. This starter set is not a complete curriculum and requires review by English and Kerala Malayalam educators before broader release.
+
+
+## 21. Active sentence construction and learner-authored drafts
+
+After the curated multiple-choice round, the learner can arrange word tiles into three short sentence patterns: a daily routine, a question and a negative sentence. Tile evaluation checks complete arrangements against explicit accepted patterns; incomplete or duplicated/unknown tile submissions are rejected. Feedback includes English and Malayalam explanations. This is a bounded exercise set, not an exhaustive grammar evaluator.
+
+The final open-response prompt invites the learner to write one or two original weekend sentences. A sample answer is optional and is labelled as one possible response, not a universal answer key. The learner can request Gabroo feedback: their draft is prefilled into a new message, never auto-submitted. Gabroo is asked to preserve intended meaning, give specific kind feedback, offer one improved version and explain changes in both languages. The draft is bounded before routing and is not scored or persisted by the exercise screen. Learner review and explicit send remain required.
