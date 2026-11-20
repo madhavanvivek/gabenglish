@@ -41,9 +41,10 @@ describe("Gabroo realtime WebSocket handshake",()=>{
   await new Promise<void>((resolve,reject)=>{client.once("open",resolve);client.once("error",reject);});
   expect(await connected).toMatchObject({protocol_version:1,session_id:SESSION_ID,type:"session.connected"});
   const closed=nextMessage(client);
+  const ended=new Promise<void>(resolve=>client.once("close",()=>resolve()));
   client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,type:"session.stop"}));
   expect(await closed).toMatchObject({protocol_version:1,session_id:SESSION_ID,type:"session.closed",reason:"learner_stop"});
-  await new Promise<void>(resolve=>client.once("close",()=>resolve()));
+  await ended;
   await app.close();
  });
 });
