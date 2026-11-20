@@ -733,4 +733,42 @@ integration("PostgreSQL placement session integration",()=>{
   expect(response.json().error.code).toBe("SESSION_EXPIRED");
   await app.close();
  });
+
+ it("keeps vocabulary learner-owned and only creates it from an explicitly saved Gabroo phrase",async()=>{
+  if(!pool||!migrationApplied)return;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const firstEmail="vocabulary-owner-"+randomUUID()+"@example.test";
+  const secondEmail="vocabulary-other-"+randomUUID()+"@example.test";
+  try{
+   const firstToken=await createVerifiedTestSession(app,firstEmail,pool);
+   const secondToken=await createVerifiedTestSession(app,secondEmail,pool);
+   const firstHeaders={authorization:"Bearer "+firstToken};
+   const secondHeaders={authorization:"Bearer "+secondToken};
+   const saved=await app.inject({method:"POST",url:"/api/v1/gabroo/memory",headers:firstHeaders,payload:{category:"saved_phrase",memory_key:"make up your mind",content:"You should make up your mind before Friday."}});
+   expect(saved.statusCode).toBe(201);
+   const phraseId=saved.json().memory.id as string;
+   const created=await app.inject({method:"POST",url:"/api/v1/gabroo/vocabulary",headers:firstHeaders,payload:{source_saved_phrase_id:phraseId,term:"make up your mind",malayalam_meaning:"ഒരു തീരുമാനം എടുക്കുക",example_sentence:"I need to make up my mind.",learning_direction:"ml_to_en"}});
+   expect(created.statusCode).toBe(201);
+   expect(created.json().vocabulary).toMatchObject({source_saved_phrase_id:phraseId,status:"learning",learning_direction:"ml_to_en"});
+   const duplicate=await app.inject({method:"POST",url:"/api/v1/gabroo/vocabulary",headers:firstHeaders,payload:{source_saved_phrase_id:phraseId,term:"make up your mind",malayalam_meaning:"തീരുമാനിക്കുക"}});
+   expect(duplicate.statusCode).toBe(409);
+   const vocabularyId=created.json().vocabulary.id as string;
+   const otherList=await app.inject({method:"GET",url:"/api/v1/gabroo/vocabulary",headers:secondHeaders});
+   expect(otherList.statusCode).toBe(200);
+   expect(otherList.json().vocabulary).toHaveLength(0);
+   const crossAccount=await app.inject({method:"PATCH",url:"/api/v1/gabroo/vocabulary/"+vocabularyId,headers:secondHeaders,payload:{status:"mastered"}});
+   expect(crossAccount.statusCode).toBe(404);
+   const updated=await app.inject({method:"PATCH",url:"/api/v1/gabroo/vocabulary/"+vocabularyId,headers:firstHeaders,payload:{status:"mastered"}});
+   expect(updated.statusCode).toBe(200);
+   expect(updated.json().vocabulary.status).toBe("mastered");
+   const deleted=await app.inject({method:"DELETE",url:"/api/v1/gabroo/vocabulary/"+vocabularyId,headers:firstHeaders});
+   expect(deleted.statusCode).toBe(204);
+   const remaining=await app.inject({method:"GET",url:"/api/v1/gabroo/vocabulary",headers:firstHeaders});
+   expect(remaining.json().vocabulary).toHaveLength(0);
+  }finally{
+   await pool.query("DELETE FROM users WHERE email_normalized=ANY($1::text[])",[[firstEmail,secondEmail]]);
+   await app.close();
+  }
+ });
+
 });
