@@ -75,4 +75,35 @@ describe("Gabroo realtime WebSocket handshake",()=>{
   await app.close();
  });
 
+ it("returns a learner-review transcript after recognition without submitting a conversation turn",async()=>{
+  const received:{mimeType?:string;language?:string;audioBytes?:number}={};
+  const provider={transcribe:async(input:{audio:Uint8Array;mimeType:string;language:string;signal:AbortSignal})=>{
+   received.mimeType=input.mimeType;received.language=input.language;received.audioBytes=input.audio.byteLength;
+   return {text:"ഹലോ, how are you?",languageDetected:"mixed" as const};
+  }};
+  const config=loadConfig({NODE_ENV:"test"});
+  const app=await buildApp(config,async()=>true,pool(),undefined,undefined,undefined,undefined,provider as any);
+  await app.listen({host:"127.0.0.1",port:0});
+  const address=app.server.address();
+  if(!address||typeof address==="string")throw new Error("Test server did not bind a TCP port");
+  const client=new WebSocket("ws://127.0.0.1:"+address.port+GABROO_REALTIME_PATH,[GABROO_REALTIME_SUBPROTOCOL,"ticket."+TICKET],{headers:{Origin:"http://localhost:8081"}});
+  const connected=nextMessage(client);
+  await new Promise<void>((resolve,reject)=>{client.once("open",resolve);client.once("error",reject);});
+  await connected;
+  const accepted=nextMessage(client);
+  client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-stt",type:"turn.start",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1}}));
+  await accepted;
+  const pcm=Buffer.from([0,0,1,0,2,0,3,0]);
+  client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-stt",type:"audio.frame",sequence:0,byte_length:pcm.byteLength}));
+  client.send(pcm);
+  const transcript=nextMessage(client);
+  client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-stt",type:"turn.end"}));
+  expect(await transcript).toMatchObject({type:"transcript.final",turn_id:"turn-stt",text:"હલോ, how are you?",language_detected:"mixed",review_required:true});
+  expect(received).toMatchObject({mimeType:"audio/wav",language:"ml-en",audioBytes:52});
+  const closed=new Promise<void>(resolve=>client.once("close",()=>resolve()));
+  client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,type:"session.stop"}));
+  await closed;
+  await app.close();
+ });
+
 });
