@@ -33,6 +33,7 @@ export async function readGabrooAudioBytes(response:Pick<Response,"headers"|"bod
  }
  if(!reader){
   const bytes=new Uint8Array(await response.arrayBuffer());
+  if(signal?.aborted)throw new Error("Gabroo audio reading was cancelled.");
   validateGabrooAudioBytes(bytes);
   return bytes;
  }
