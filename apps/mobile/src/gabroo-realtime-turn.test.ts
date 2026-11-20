@@ -45,7 +45,7 @@ describe("Gabroo realtime turn coordinator",()=>{
   const x=setup();
   await x.coordinator.start("turn-stop-complete",audio);
   await x.coordinator.stop();
-  await expect(x.coordinator.stop()).rejects.toThrow(/No active Gabroo microphone turn/);
+  expect(()=>x.coordinator.stop()).toThrow(/No active Gabroo microphone turn/);
   expect(x.capture.stop).toHaveBeenCalledOnce();
  });
  it("never sends turn.end when native capture reports a failed audio drain",async()=>{
