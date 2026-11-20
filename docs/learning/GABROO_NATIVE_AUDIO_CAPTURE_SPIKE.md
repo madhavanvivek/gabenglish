@@ -60,3 +60,13 @@ A platform-independent capture lifecycle controller now defines the boundary exp
 - closes the sender on all failed-start and stop paths.
 
 The controller accepts an injected native stream port. It does not import `expo-audio`, request real device permission itself, or claim microphone capture works on the current SDK 53 app. The React integration and physical-device QA remain gated on the Expo SDK upgrade.
+
+## Follow-on: Expo AudioStream adapter seam
+
+A dependency-free adapter now maps the documented `expo-audio` stream shape into the tested capture controller:
+- delegates native `start()` and `stop()`;
+- forwards each `onBuffer` payload with its actual sample rate, channel count and encoding;
+- deliberately does not trust the requested stream format as the actual device format;
+- leaves normalization, bounded queueing, consent and foreground policy to the existing tested modules.
+
+This bridge can be used by a component calling `useAudioStream({ channels: 1, encoding: 'float32', sampleRate: 48000, onBuffer })` after the SDK migration. It intentionally has no direct `expo-audio` import yet, so the SDK 53 production app remains buildable and its existing Expo AV voice flows remain untouched.
