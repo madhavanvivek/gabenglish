@@ -11,7 +11,7 @@ CREATE TABLE gabroo_vocabulary (
   status text NOT NULL DEFAULT 'learning' CHECK (status IN ('learning','familiar','mastered')),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(user_id,source_saved_phrase_id,term),
+  UNIQUE(user_id,source_saved_phrase_id,term)
 );
 CREATE INDEX gabroo_vocabulary_user_status_updated_idx
   ON gabroo_vocabulary(user_id,status,updated_at DESC);
