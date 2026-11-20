@@ -286,6 +286,13 @@ export async function updateGabrooVocabulary(id:string,input:{term?:string;malay
 export async function deleteGabrooVocabulary(id:string){
  await authorized("/api/v1/gabroo/vocabulary/"+encodeURIComponent(id),"DELETE");
 }
+export type GabrooVocabularyProgress={
+ total:number;learning:number;familiar:number;mastered:number;due_now:number;total_reviews:number;
+ recently_reviewed:number;needs_attention:number;window_days:7;
+};
+export async function getGabrooVocabularyProgress(){
+ return await authorized("/api/v1/gabroo/vocabulary/progress","GET") as {progress:GabrooVocabularyProgress};
+}
 export async function getGabrooVocabularyDue(){
  return await authorized("/api/v1/gabroo/vocabulary/review-due","GET") as {items:GabrooVocabularyItem[];reviewed_due_count:number};
 }
