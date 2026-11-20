@@ -49,6 +49,11 @@ describe("Gabroo realtime mobile transport helpers",()=>{
   expect(frameMessages.map(value=>value.sequence)).toEqual([0]);
   expect(sent.filter(value=>value instanceof ArrayBuffer)).toHaveLength(1);
   expect(sender.nextSequence).toBe(1);
+  let drained=false;
+  await connection.finishTurn("turn-test",{finish:async()=>{drained=true;}});
+  const endMessage=sent.filter(value=>typeof value==="string").map(value=>JSON.parse(value as string)).find(value=>value.type==="turn.end");
+  expect(drained).toBe(true);
+  expect(endMessage).toMatchObject({turn_id:"turn-test",type:"turn.end"});
   connection.close();
  });
 
