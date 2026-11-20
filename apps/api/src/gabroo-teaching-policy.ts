@@ -24,6 +24,25 @@ const policyByMode:Record<GabrooConversationMode,Omit<GabrooTeachingPolicy,"mode
   confidence_practice:{correction:"gentle",primaryGoal:"build_confidence",responseGuidance:["Make participation feel safe and achievable.","Praise specific communication successes without exaggeration.","Choose easy next steps and avoid correcting every mistake."]}
 };
 
+
+export function buildGabrooConversationContinuityGuidance(input:{history?:Array<{role:"user"|"assistant";content:string}>}):string{
+ const history=input.history??[];
+ let lastAssistantIndex=-1;
+ let lastUserIndex=-1;
+ for(let index=history.length-1;index>=0;index--){
+  if(lastAssistantIndex<0&&history[index]?.role==="assistant")lastAssistantIndex=index;
+  if(lastUserIndex<0&&history[index]?.role==="user")lastUserIndex=index;
+  if(lastAssistantIndex>=0&&lastUserIndex>=0)break;
+ }
+ if(lastAssistantIndex<0)return "This conversation has no earlier Gabroo reply. Begin naturally from the learner's current message; do not pretend to remember a topic that is not in the supplied conversation.";
+ if(lastAssistantIndex>lastUserIndex){
+  const previousReply=history[lastAssistantIndex]?.content??"";
+  const askedQuestion=previousReply.includes("?")||/(എന്തുകൊണ്ട്|എങ്ങനെ|എപ്പോൾ|എവിടെ|പറഞ്ഞുതരാമോ|ചെയ്യാമോ)/.test(previousReply);
+  if(askedQuestion)return "The learner's current message follows Gabroo's previous question. Treat it as an answer to that question: acknowledge a specific detail, respond to the substance and move the same thread forward. Do not repeat the previous question or ask the learner to answer it again.";
+ }
+ return "Continue from the existing conversation instead of restarting: avoid repeated greetings, recap only when useful, preserve the learner's chosen topic and do not repeat a question already answered.";
+}
+
 export function buildGabrooLearnerTurnGuidance(input:{latestLearnerMessage?:string|null}):string{
  const message=input.latestLearnerMessage?.trim()??"";
  if(!message)return "No learner message is available yet: invite the learner to choose a topic or share what they would like to practise; do not assume an interest.";
@@ -39,7 +58,7 @@ export function buildGabrooLearnerTurnGuidance(input:{latestLearnerMessage?:stri
  return "The learner has contributed a moderate amount. Respond to one specific detail, add a concise useful thought if it helps, and ask one relevant follow-up that moves their idea forward rather than restarting the topic.";
 }
 
-export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection?:"ml_to_en"|"en_to_ml";targetLanguage?:"ml"|"en";stage?:1|2|3|4|5;preferredName?:string|null;learningGoal?:string|null;profileCorrectionPreference?:"gentle"|"balanced"|"detailed";latestLearnerMessage?:string|null;learnerMemory?:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>}):GabrooTeachingPolicy{
+export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection?:"ml_to_en"|"en_to_ml";targetLanguage?:"ml"|"en";stage?:1|2|3|4|5;preferredName?:string|null;learningGoal?:string|null;profileCorrectionPreference?:"gentle"|"balanced"|"detailed";latestLearnerMessage?:string|null;conversationHistory?:Array<{role:"user"|"assistant";content:string}>;learnerMemory?:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>}):GabrooTeachingPolicy{
  const selected=policyByMode[input.mode];
  const learningDirection=input.learningDirection??"ml_to_en";
  const targetLanguage=input.targetLanguage??(learningDirection==="ml_to_en"?"en":"ml");
@@ -68,7 +87,7 @@ export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;sup
   learningDirection,
   targetLanguage,
   ...selected,
-  responseGuidance:[...selected.responseGuidance,buildGabrooLearnerTurnGuidance({latestLearnerMessage:input.latestLearnerMessage}),"Keep the learner’s participation as the main objective: Gabroo may share useful knowledge, but should use it to help the learner express more of their own ideas.","Use a listen–contribute–invite–listen rhythm: acknowledge the learner, add at most one concise relevant fact/example or language model when useful, then return the floor with one open, specific follow-up.","When an answer is very short, warmly invite elaboration with one natural prompt (for example, ask why, ask for an example, or ask how the learner sees it); if they struggle, simplify the question or offer a sentence starter.","Follow the learner’s chosen thread across multiple turns. Do not lecture, stack questions, interrogate, pressure personal disclosure, or change topics just to keep talking.","Weave brief language coaching into the discussion, then let the learner continue in their own words. Do not correct every sentence or make the learner feel examined.",learningDirection==="ml_to_en"?"The learner is learning English; Malayalam is the support language unless their preference says otherwise. Keep English as the learning target and give useful English examples.":"The learner is learning Malayalam; English is the support language unless their preference says otherwise. Keep Malayalam as the learning target, show Malayalam script, optionally add readable romanisation, and explain register and politeness in English. Never assume casual slang is appropriate."],
+  responseGuidance:[...selected.responseGuidance,buildGabrooConversationContinuityGuidance({history:input.conversationHistory}),buildGabrooLearnerTurnGuidance({latestLearnerMessage:input.latestLearnerMessage}),"Keep the learner’s participation as the main objective: Gabroo may share useful knowledge, but should use it to help the learner express more of their own ideas.","Use a listen–contribute–invite–listen rhythm: acknowledge the learner, add at most one concise relevant fact/example or language model when useful, then return the floor with one open, specific follow-up.","When an answer is very short, warmly invite elaboration with one natural prompt (for example, ask why, ask for an example, or ask how the learner sees it); if they struggle, simplify the question or offer a sentence starter.","Follow the learner’s chosen thread across multiple turns. Do not lecture, stack questions, interrogate, pressure personal disclosure, or change topics just to keep talking.","Weave brief language coaching into the discussion, then let the learner continue in their own words. Do not correct every sentence or make the learner feel examined.",learningDirection==="ml_to_en"?"The learner is learning English; Malayalam is the support language unless their preference says otherwise. Keep English as the learning target and give useful English examples.":"The learner is learning Malayalam; English is the support language unless their preference says otherwise. Keep Malayalam as the learning target, show Malayalam script, optionally add readable romanisation, and explain register and politeness in English. Never assume casual slang is appropriate."],
   addressPolicy:"Use the learner's explicitly chosen name if available, otherwise use respectful neutral language. Never use 'eda', 'edi' or similar overfamiliar address by default. Do not infer that a learner welcomes slang from age, gender or writing style.",
   stageGuidance,
   learnerContext:{
