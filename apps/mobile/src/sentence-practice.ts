@@ -47,7 +47,10 @@ export function listWordOrderExercises():WordOrderExercise[]{return wordOrderExe
 function normaliseWordSequence(words:string[]):string{return words.map(word=>word.trim().normalize("NFKC").toLocaleLowerCase().replace(/[.,!?;:]+$/u,"")).join(" ").replace(/\s+/g," ").trim();}
 export function evaluateWordOrderAnswer(exerciseId:string,words:string[]):{correct:boolean;explanationEn:string;explanationMl:string}|null{
  const exercise=wordOrderExercises.find(item=>item.id===exerciseId);
- if(!exercise||!Array.isArray(words)||words.length!==exercise.tiles.length||words.some(word=>!exercise.tiles.includes(word)))return null;
+ if(!exercise||!Array.isArray(words)||words.length!==exercise.tiles.length)return null;
+ const expectedCounts=new Map<string,number>();for(const tile of exercise.tiles)expectedCounts.set(tile,(expectedCounts.get(tile)??0)+1);
+ const submittedCounts=new Map<string,number>();for(const word of words){if(!expectedCounts.has(word))return null;submittedCounts.set(word,(submittedCounts.get(word)??0)+1);}
+ if([...expectedCounts].some(([tile,count])=>submittedCounts.get(tile)!==count))return null;
  const correct=exercise.acceptedAnswers.some(answer=>normaliseWordSequence(answer)===normaliseWordSequence(words));
  return {correct,explanationEn:exercise.explanationEn,explanationMl:exercise.explanationMl};
 }
