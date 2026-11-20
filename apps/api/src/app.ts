@@ -15,7 +15,6 @@ import type {GabrooSpeechRecognitionProvider} from "@gabenglish/contracts";
 import {registerGabrooSpeechRoutes} from "./gabroo-speech.js";
 import {registerGabrooRealtimeSessionRoutes} from "./gabroo-realtime-sessions.js";
 import {registerGabrooRealtimeWebSocket} from "./gabroo-realtime-websocket.js";
-import type {GabrooSpeechRecognitionProvider} from "@gabenglish/contracts";
 import type {GabrooSpeechSynthesisProvider} from "./gabroo-speech-synthesis-provider.js";
 import type {Pool} from "pg";
 export async function buildApp(config:AppConfig,databaseCheck:()=>Promise<boolean>,pool?:Pool,otpDelivery?:OtpDeliveryAdapter,gabrooProvider?:GabrooConversationProvider,gabrooRecognitionProvider?:GabrooSpeechRecognitionProvider,gabrooSpeechProvider?:GabrooSpeechSynthesisProvider,gabrooRealtimeRecognitionProvider?:GabrooSpeechRecognitionProvider){
