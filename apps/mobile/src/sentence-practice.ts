@@ -44,7 +44,7 @@ const wordOrderExercises:WordOrderExercise[]=[
  {id:"tile-order-03",title:"Make a negative",prompt:"അവൾ ഞായറാഴ്ചകളിൽ ജോലി ചെയ്യാറില്ല.",instruction:"Arrange the words into a correct sentence.",tiles:["doesn't","on","work","She","Sundays"],acceptedAnswers:[["She","doesn't","work","on","Sundays"],["She","doesn't","work","on","Sundays."]],explanationEn:"With she, use doesn't + the base verb work. Do not write works after doesn't.",explanationMl:"She-യോടൊപ്പം doesn't + ക്രിയയുടെ അടിസ്ഥാനരൂപം work ഉപയോഗിക്കുക. doesn't-ന് ശേഷം works എഴുതരുത്."}
 ];
 export function listWordOrderExercises():WordOrderExercise[]{return wordOrderExercises.map(item=>({...item,tiles:[...item.tiles],acceptedAnswers:item.acceptedAnswers.map(answer=>[...answer])}));}
-function normaliseWordSequence(words:string[]):string{return words.map(word=>word.trim().normalize("NFKC").toLocaleLowerCase().replace(/[.,!?;:]+$/u,"")).join(" ").replace(/\\s+/g," ").trim();}
+function normaliseWordSequence(words:string[]):string{return words.map(word=>word.trim().normalize("NFKC").toLocaleLowerCase().replace(/[.,!?;:]+$/u,"")).join(" ").replace(/\s+/g," ").trim();}
 export function evaluateWordOrderAnswer(exerciseId:string,words:string[]):{correct:boolean;explanationEn:string;explanationMl:string}|null{
  const exercise=wordOrderExercises.find(item=>item.id===exerciseId);
  if(!exercise||!Array.isArray(words)||words.length!==exercise.tiles.length||words.some(word=>!exercise.tiles.includes(word)))return null;
