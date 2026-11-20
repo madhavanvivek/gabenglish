@@ -41,6 +41,13 @@ describe("Gabroo realtime turn coordinator",()=>{
   await expect(Promise.all([first,second])).resolves.toEqual([{completed:true,reason:"audio_drained"},{completed:true,reason:"audio_drained"}]);
   expect(x.connection.endTurn).toHaveBeenCalledOnce();
  });
+ it("does not reuse a completed stop result for a later idle stop",async()=>{
+  const x=setup();
+  await x.coordinator.start("turn-stop-complete",audio);
+  await x.coordinator.stop();
+  await expect(x.coordinator.stop()).rejects.toThrow(/No active Gabroo microphone turn/);
+  expect(x.capture.stop).toHaveBeenCalledOnce();
+ });
  it("never sends turn.end when native capture reports a failed audio drain",async()=>{
   const x=setup(false);
   await x.coordinator.start("turn-2",audio);
