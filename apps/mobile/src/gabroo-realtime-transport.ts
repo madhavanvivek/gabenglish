@@ -90,7 +90,7 @@ export async function openGabrooRealtimeSession(input:{
  const ticket=await createGabrooRealtimeSessionTicket(true);
  return await new Promise<ReturnType<typeof connectGabrooRealtimeSocket>>((resolve,reject)=>{
   let settled=false;
-  let connection:ReturnType<typeof connectGabrooRealtimeSocket>;
+  let connection:ReturnType<typeof connectGabrooRealtimeSocket>|undefined;
   const fail=(message:string)=>{
    if(settled)return;
    settled=true;
@@ -103,7 +103,7 @@ export async function openGabrooRealtimeSession(input:{
     callbacks:{
      onOpen:()=>input.callbacks?.onOpen?.(),
      onMessage:message=>{
-      if(message.type==="session.connected"&&!settled){settled=true;resolve(connection);}
+      if(message.type==="session.connected"&&!settled&&connection){settled=true;resolve(connection);}
       input.callbacks?.onMessage?.(message);
      },
      onInvalidMessage:()=>{input.callbacks?.onInvalidMessage?.();fail("Gabroo returned an invalid realtime message.");},
