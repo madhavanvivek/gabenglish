@@ -107,6 +107,27 @@ describe("Gabroo realtime mobile transport helpers",()=>{
   connection.close();
  });
 
+ it("rejects stale turn completion before draining queued audio",async()=>{
+  const sent:string[]=[];
+  class MockSocket{
+   static CONNECTING=0;static OPEN=1;static CLOSING=2;static CLOSED=3;
+   readyState=1;bufferedAmount=0;
+   onopen:(()=>void)|null=null;onmessage:((event:{data:string})=>void)|null=null;
+   onerror:(()=>void)|null=null;onclose:((event:{code:number;reason:string})=>void)|null=null;
+   constructor(readonly url:string,readonly protocols:string[]){}
+   send(value:string|ArrayBuffer){if(typeof value==="string")sent.push(value);}
+   close(){this.readyState=3;}
+  }
+  vi.stubGlobal("WebSocket",Object.assign(MockSocket,{CONNECTING:0,OPEN:1,CLOSING:2,CLOSED:3}));
+  const connection=connectGabrooRealtimeSocket({apiBaseUrl:"https://api.example.com",sessionId:"session-test",connectionTicket:"f".repeat(64)});
+  let drained=false;
+  await expect(connection.finishTurn("stale-turn",{finish:async()=>{drained=true;}})).rejects.toThrow("not active");
+  expect(drained).toBe(false);
+  expect(sent).toEqual([]);
+  expect(connection.socket.readyState).toBe(1);
+  connection.close();
+ });
+
  it("does not send turn.end when audio draining fails",async()=>{
   const sent:string[]=[];
   class MockSocket{
