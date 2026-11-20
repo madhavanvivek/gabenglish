@@ -51,14 +51,13 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
   generation+=1;
   terminal=true;
   active=false;
-  starting=false;
   options.sender.close(reason);
+  // Preserve the starting flag while native start is pending. The start()
+  // catch path clears it and stops the stream after the native promise settles.
+  if(starting&&nativeStartInFlight)return;
+  starting=false;
   if(stream){
    const current=stream;
-   // If native start is still resolving, let the start() catch path stop it
-   // after the native promise settles. Calling stop concurrently can race
-   // native startup and leave the device stream active.
-   if(starting&&nativeStartInFlight)return;
    stream=undefined;
    try{await current.stop();}catch(error){report(error);}
   }
