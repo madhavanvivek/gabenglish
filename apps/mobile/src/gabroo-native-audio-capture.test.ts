@@ -12,7 +12,7 @@ function setup(){
   start:vi.fn(async()=>{calls.push("start");stream.isStreaming=true;}),
   stop:vi.fn(async()=>{calls.push("stop");stream.isStreaming=false;})
  };
- const sender={enqueue:vi.fn(async()=>{}),close:vi.fn((reason?:string)=>calls.push("close:"+reason))};
+ const sender={enqueue:vi.fn(async()=>{}),finish:vi.fn(async()=>{calls.push("finish");}),close:vi.fn((reason?:string)=>calls.push("close:"+reason))};
  const controller=createGabrooNativeAudioCaptureController({
   requestPermission:vi.fn(async()=>permission),
   sender,
@@ -64,6 +64,15 @@ describe("Gabroo native capture lifecycle boundary",()=>{
   await expect(x.controller.start({consentGranted:true})).rejects.toThrow(/new Gabroo capture controller/);
  });
 
+ it("stops native capture before draining accepted audio frames",async()=>{
+  const x=setup();
+  await x.controller.start({consentGranted:true});
+  await x.controller.stop();
+  expect(x.calls.indexOf("stop")).toBeLessThan(x.calls.indexOf("finish"));
+  expect(x.sender.finish).toHaveBeenCalledOnce();
+  expect(x.sender.close).not.toHaveBeenCalled();
+ });
+ 
  it("stops capture when sender backpressure fails",async()=>{
   const x=setup();
   x.sender.enqueue.mockRejectedValueOnce(new Error("queue full"));
