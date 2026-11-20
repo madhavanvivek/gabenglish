@@ -90,6 +90,9 @@ export function connectGabrooRealtimeSocket(input:{
    if(socket.readyState!==WebSocket.OPEN||!sessionAccepted)throw new Error("Gabroo realtime session is not ready to finish audio.");
    try{
     await sender.finish();
+    // An interrupt or terminal event may arrive while the sender drains. Recheck
+    // ownership after the await so a stale completion cannot end a newer turn.
+    if(activeTurnId!==turnId)throw new Error("This Gabroo voice turn is no longer active.");
     sendControl({type:"turn.end",turn_id:turnId});
    }catch(error){
     // Do not tell the server that a turn is complete if accepted audio was lost.
