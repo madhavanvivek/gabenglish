@@ -87,6 +87,14 @@ export default function GabrooScreen(){
  const sendInFlightRef=useRef(false);
  const speechPreferenceSequenceRef=useRef(0);
  const playbackStateRef=useRef<GabrooPlaybackState>(initialGabrooPlaybackState);
+ const audioModeQueueRef=useRef<Promise<void>>(Promise.resolve());
+ const setGabrooAudioMode=async(mode:Parameters<typeof Audio.setAudioModeAsync>[0])=>{
+  // Expo AV exposes one process-wide audio mode. Serialize changes so a
+  // delayed playback-mode request cannot overtake a later recording-mode switch.
+  const operation=audioModeQueueRef.current.catch(()=>undefined).then(()=>Audio.setAudioModeAsync(mode));
+  audioModeQueueRef.current=operation;
+  await operation;
+ };
  const saveReplyAsPhrase=useCallback(async(message:GabrooConversationMessage)=>{
   if(savingPhraseId||savedPhraseIds.includes(message.id))return;
   const phrase=message.content.trim().replace(/\s+/g," ").slice(0,500);
@@ -194,7 +202,7 @@ export default function GabrooScreen(){
     const uri=recording.getURI();
     void recording.stopAndUnloadAsync().catch(()=>undefined).then(async()=>{
      if(uri?.startsWith("file://"))await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
-    }).finally(()=>Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined));
+    }).finally(()=>setGabrooAudioMode({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined));
    }
   };
  },[load]));
@@ -328,7 +336,7 @@ export default function GabrooScreen(){
    // Recording mode is explicitly disabled before tutor playback. This also
    // enables playback through the iOS silent switch and applies Android
    // audio ducking consistently, including on a fresh app launch.
-   await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true,shouldDuckAndroid:true});
+   await setGabrooAudioMode({allowsRecordingIOS:false,playsInSilentModeIOS:true,shouldDuckAndroid:true});
    if(run!==speechRunRef.current||requestController.signal.aborted)return;
    await Speech.stop();
    await releaseSpeechAudio();
@@ -441,7 +449,7 @@ export default function GabrooScreen(){
    await recording.stopAndUnloadAsync().catch(()=>undefined);
   }
   if(uri)await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
-  await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
+  await setGabrooAudioMode({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
   setTranscriptionRecording(false);
   setTranscriptionBusy(false);
   setTranscript(null);setReviewedTranscript("");
@@ -456,7 +464,7 @@ export default function GabrooScreen(){
    // Gabroo speech is still playing or being torn down.
    await stopSpeech();
    if(operation!==transcriptionSequenceRef.current||!appIsActiveRef.current||!tutorScreenFocusedRef.current)return;
-   await Audio.setAudioModeAsync({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
+   await setGabrooAudioMode({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
    const created=await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
    if(operation!==transcriptionSequenceRef.current||!appIsActiveRef.current||!tutorScreenFocusedRef.current){
     created.recording.setOnRecordingStatusUpdate(null);
@@ -483,7 +491,7 @@ export default function GabrooScreen(){
   }finally{
    transcriptionOperationRef.current=false;
    if(operation===transcriptionSequenceRef.current)setTranscriptionBusy(false);
-   if(!recordingStarted)await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
+   if(!recordingStarted)await setGabrooAudioMode({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
    // Keep the recording audio session active until stopTranscriptionCapture/discardTranscriptionAudio.
    // If the app backgrounded while native recording creation was pending,
    // discard the capture as soon as the native handle becomes available.
@@ -520,7 +528,7 @@ export default function GabrooScreen(){
     setSpeechNotice(reason instanceof Error?reason.message:"Could not finish the recording.");
    }
   }finally{
-   await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
+   await setGabrooAudioMode({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
    if(operation===transcriptionSequenceRef.current){
     transcriptionOperationRef.current=false;setTranscriptionBusy(false);
     // A recording stopped while backgrounded or after navigation is unreviewed local audio.
@@ -616,7 +624,7 @@ export default function GabrooScreen(){
    // Finish speech cleanup before requesting recording mode.
    await stopSpeech();
    if(!appIsActiveRef.current||!tutorScreenFocusedRef.current)return;
-   await Audio.setAudioModeAsync({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
+   await setGabrooAudioMode({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
    const created=await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
    // Native recording creation is asynchronous. The learner may navigate away
    // while it is pending, so never publish a handle from a stale screen.
@@ -645,11 +653,11 @@ export default function GabrooScreen(){
    }
    setVoiceSessionState("error");
    setSpeechNotice(reason instanceof Error?reason.message:"Could not start the microphone test.");
-   await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
+   await setGabrooAudioMode({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
   }finally{
    recordingOperationRef.current=false;
    setRecordingBusy(false);
-   if(!captureStarted)await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
+   if(!captureStarted)await setGabrooAudioMode({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
    if((!appIsActiveRef.current||!tutorScreenFocusedRef.current)&&recordingRef.current)void stopAndDiscardLocalCapture();
   }
  };
@@ -676,7 +684,7 @@ export default function GabrooScreen(){
    setSpeechNotice(reason instanceof Error?reason.message:"Could not safely finish and discard the recording. Please check device storage.");
   }finally{
    if(uri&&!deleted)await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
-   await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
+   await setGabrooAudioMode({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
    recordingOperationRef.current=false;
    setRecordingBusy(false);
   }
