@@ -422,12 +422,14 @@ export default function GabrooScreen(){
    await recording.stopAndUnloadAsync().catch(()=>undefined);
   }
   if(uri)await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+  await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
   setTranscriptionRecording(false);
   setTranscript(null);setReviewedTranscript("");
  };
  const startTranscriptionCapture=async()=>{
   if(!transcriptionConsent||!recognitionStatus?.available||voicePermissionStatus!=="granted"||transcriptionOperationRef.current||transcriptionRecordingRef.current||recordingRef.current)return;
   const operation=++transcriptionSequenceRef.current;
+  let recordingStarted=false;
   transcriptionOperationRef.current=true;setTranscriptionBusy(true);setSpeechNotice("");
   try{
    await Audio.setAudioModeAsync({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
@@ -440,6 +442,7 @@ export default function GabrooScreen(){
     return;
    }
    transcriptionRecordingRef.current=created.recording;
+   recordingStarted=true;
    created.recording.setProgressUpdateInterval(250);
    created.recording.setOnRecordingStatusUpdate(status=>{
     if(status.isRecording&&status.durationMillis>=GABROO_LOCAL_CAPTURE_MAX_MS){
@@ -456,7 +459,8 @@ export default function GabrooScreen(){
   }finally{
    transcriptionOperationRef.current=false;
    if(operation===transcriptionSequenceRef.current)setTranscriptionBusy(false);
-   await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
+   if(!recordingStarted)await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
+   // Keep the recording audio session active until stopTranscriptionCapture/discardTranscriptionAudio.
    // If the app backgrounded while native recording creation was pending,
    // discard the capture as soon as the native handle becomes available.
    if((!appIsActiveRef.current||!tutorScreenFocusedRef.current)&&(transcriptionRecordingRef.current||transcriptionUriRef.current)){
