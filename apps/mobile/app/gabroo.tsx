@@ -510,13 +510,17 @@ export default function GabrooScreen(){
  };
  const reviewAndTranscribe=async()=>{
   const uri=transcriptionUriRef.current;
-  if(!uri||!transcriptionConsent||!recognitionStatus?.available||transcriptionBusy)return;
+  if(!uri||!transcriptionConsent||!recognitionStatus?.available||transcriptionBusy||!appIsActiveRef.current||!tutorScreenFocusedRef.current)return;
   const operation=++transcriptionSequenceRef.current;
   transcriptionOperationRef.current=true;
   setTranscriptionBusy(true);setSpeechNotice("");
   try{
    const result=await recognizeGabrooAudio({uri,mimeType:"audio/mp4",language:recognitionLanguage,consentGranted:true});
    if(operation!==transcriptionSequenceRef.current)return;
+   if(!appIsActiveRef.current||!tutorScreenFocusedRef.current){
+    await discardTranscriptionAudio();
+    return;
+   }
    setTranscript(result.transcript);setReviewedTranscript(result.transcript.text);
    if(transcriptionUriRef.current===uri){
     transcriptionUriRef.current=null;
