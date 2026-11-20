@@ -16,6 +16,8 @@ Gabenglish is an Android-first English-learning product for Malayalam-speaking l
 
 Read the consolidated source of truth: [Product decisions and implementation status](docs/product/PRODUCT_DECISIONS_AND_IMPLEMENTATION_STATUS.md).
 
+Speech architecture and provider decision: [Gabroo Google Cloud TTS Integration Plan](docs/ai/GABROO_GOOGLE_TTS_INTEGRATION_PLAN.md).
+
 A screen-free, audio-first conversation mode for learners and families is specified in [Gabroo Screen-Free Conversation Mode](docs/learning/GABROO_SCREEN_FREE_CONVERSATION.md). The first release is audio-only; Android locked-screen microphone support is a later native foreground-service phase and is not yet implemented.
 
 ## Repository layout
