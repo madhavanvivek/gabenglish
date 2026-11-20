@@ -112,6 +112,31 @@ describe("Gabroo realtime WebSocket handshake",()=>{
   await app.close();
  });
 
+ it("rejects an empty realtime turn before invoking speech recognition",async()=>{
+  let recognitionCalls=0;
+  const provider={transcribe:async()=>{recognitionCalls+=1;return {text:"unexpected",languageDetected:"en" as const};}};
+  const config=loadConfig({NODE_ENV:"test"});
+  const app=await buildApp(config,async()=>true,pool(),undefined,undefined,undefined,undefined,provider as any);
+  await app.listen({host:"127.0.0.1",port:0});
+  const address=app.server.address();
+  if(!address||typeof address==="string")throw new Error("Test server did not bind a TCP port");
+  const client=new WebSocket("ws://127.0.0.1:"+address.port+GABROO_REALTIME_PATH,[GABROO_REALTIME_SUBPROTOCOL,"ticket."+TICKET],{headers:{Origin:"http://localhost:8081"}});
+  const connected=nextMessage(client);
+  await new Promise<void>((resolve,reject)=>{client.once("open",resolve);client.once("error",reject);});
+  await connected;
+  const accepted=nextMessage(client);
+  client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-empty",type:"turn.start",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1}}));
+  await accepted;
+  const failed=nextMessage(client);
+  client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-empty",type:"turn.end"}));
+  expect(await failed).toMatchObject({type:"turn.failed",turn_id:"turn-empty",code:"TURN_LIMIT"});
+  expect(recognitionCalls).toBe(0);
+  const closed=new Promise<void>(resolve=>client.once("close",()=>resolve()));
+  client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,type:"session.stop"}));
+  await closed;
+  await app.close();
+ });
+
  it("aborts in-flight speech recognition when the learner interrupts after turn.end",async()=>{
   let startedResolve!:()=>void;
   let abortedResolve!:()=>void;
