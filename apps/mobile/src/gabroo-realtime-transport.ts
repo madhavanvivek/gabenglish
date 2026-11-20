@@ -42,6 +42,7 @@ export function connectGabrooRealtimeSocket(input:{
  if(!input.sessionId.trim()||!/^[0-9a-f]{64}$/.test(input.connectionTicket))throw new Error("A valid realtime session ticket is required.");
  const url=toGabrooRealtimeWebSocketUrl(input.apiBaseUrl);
  const socket=new WebSocket(url,["gabroo.v1","ticket."+input.connectionTicket]);
+ let sessionAccepted=false;
  socket.onopen=()=>{
   socket.send(JSON.stringify({protocol_version:GABROO_REALTIME_PROTOCOL_VERSION,session_id:input.sessionId,type:"session.ready"}));
   input.callbacks?.onOpen?.();
@@ -51,12 +52,14 @@ export function connectGabrooRealtimeSocket(input:{
   try{payload=JSON.parse(String(event.data));}catch{input.callbacks?.onInvalidMessage?.();return;}
   const parsed=gabrooRealtimeServerMessageSchema.safeParse(payload);
   if(!parsed.success||parsed.data.session_id!==input.sessionId){input.callbacks?.onInvalidMessage?.();return;}
+  if(parsed.data.type==="session.accepted")sessionAccepted=true;
   input.callbacks?.onMessage?.(parsed.data);
  };
  socket.onerror=()=>input.callbacks?.onError?.();
  socket.onclose=event=>input.callbacks?.onClose?.(event.code,event.reason);
  const sendControl=(message:Record<string,unknown>)=>{
   if(socket.readyState!==WebSocket.OPEN)throw new Error("Gabroo realtime connection is not open.");
+  if(!sessionAccepted)throw new Error("Gabroo realtime session has not been accepted by the server.");
   socket.send(JSON.stringify({protocol_version:GABROO_REALTIME_PROTOCOL_VERSION,session_id:input.sessionId,...message}));
  };
  return {
