@@ -47,7 +47,7 @@ function collectGrammarObservations(value:string):GrammarObservation[]{
   const suggestion=["agree","understand","know","have","want","need","like"].includes(verb)?match[0].replace(/\bam\s+/i,""):match[0].replace(new RegExp("\\b"+verb+"$","i"),verb.endsWith("e")?verb.slice(0,-1)+"ing":verb+"ing");
   add("verb_form",match[0],"After am, use an -ing form for an action in progress. Verbs such as agree, know and understand are usually not used in this continuous form.",suggestion);
  }
- for(const match of value.matchAll(/\b(does(?:\s+not|n't))\s+(goes|works|likes|wants|needs|has|does|plays|studies|eats|speaks|lives|watches|makes|takes|comes|knows|says)\b/gi)){
+ for(const match of value.matchAll(/\b((?:(?:he|she|it|i|you|we|they)\s+)?does(?:\s+not|n't))\s+(goes|works|likes|wants|needs|has|does|plays|studies|eats|speaks|lives|watches|makes|takes|comes|knows|says)\b/gi)){
   const form=match[2]!.toLowerCase();
   const base=form==="has"?"have":form==="does"?"do":form==="goes"?"go":form==="studies"?"study":form.replace(/s$/,"");
   add("verb_form",match[0],"After does or doesn't, use the base form of the main verb.",match[0].replace(new RegExp(form+"$","i"),base));
