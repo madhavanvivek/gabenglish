@@ -55,6 +55,8 @@ export default function GabrooScreen(){
  const [speechNotice,setSpeechNotice]=useState("");
  const [savingPhraseId,setSavingPhraseId]=useState<string|null>(null);
  const [savedPhraseIds,setSavedPhraseIds]=useState<string[]>([]);
+ const [savingRevisionId,setSavingRevisionId]=useState<string|null>(null);
+ const [savedRevisionIds,setSavedRevisionIds]=useState<string[]>([]);
  const [speechSaving,setSpeechSaving]=useState(false);
  const [voiceConsent,setVoiceConsent]=useState(false);
  const [voicePermissionStatus,setVoicePermissionStatus]=useState<"not_requested"|"granted"|"denied">("not_requested");
@@ -96,6 +98,20 @@ export default function GabrooScreen(){
    setSpeechNotice(reason instanceof AuthApiError&&reason.status===409?"This phrase is already in your saved memory.":"Could not save this phrase. Please try again.");
   }finally{setSavingPhraseId(null);}
  },[savingPhraseId,savedPhraseIds]);
+ const saveImprovedSentence=useCallback(async(message:GabrooConversationMessage)=>{
+  if(!practiceDraft||savingRevisionId||savedRevisionIds.includes(message.id))return;
+  const improved=message.content.trim().replace(/\s+/g," ").slice(0,420);
+  if(!improved)return;
+  setSavingRevisionId(message.id);setSpeechNotice("");
+  try{
+   const content=JSON.stringify({version:1,original:practiceDraft.slice(0,420),improved,savedAt:new Date().toISOString()});
+   await createGabrooMemory({category:"learning_note",memory_key:"sentence_revision_"+message.id.slice(0,64),content});
+   setSavedRevisionIds(current=>[...current,message.id]);
+   setSpeechNotice("Saved both sentence versions to your private Sentence Notebook.");
+  }catch(reason){
+   setSpeechNotice(reason instanceof AuthApiError&&reason.status===409?"This revision is already saved in your Sentence Notebook.":"Could not save this revision. Please try again.");
+  }finally{setSavingRevisionId(null);}
+ },[practiceDraft,savingRevisionId,savedRevisionIds]);
  const refreshSpeechStatus=useCallback(async()=>{
   setSpeechStatusRefreshing(true);
   try{
@@ -744,7 +760,7 @@ export default function GabrooScreen(){
       {voicePermissionStatus!=="not_requested"?<Pressable disabled={recordingActive||recordingBusy} onPress={resetVoiceConsent} style={s.permissionReset}><Text style={s.permissionResetText}>Clear in-app consent</Text></Pressable>:null}
      </View>
     </View>
-    <Text style={s.modeLabel}>Conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>void changeMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View>{messages.length===0?<View style={s.emptyPanel}><Text style={s.title}>Hi! I'm Gabroo.</Text><Text style={s.copy}>Let's have a natural conversation. What's on your mind today?</Text></View>:messages.map(message=><View key={message.id} style={[s.bubble,message.role==="user"?s.userBubble:s.gabrooBubble]}><Text style={s.speaker}>{message.role==="user"?"YOU":"GABROO"}</Text><Text style={s.message}>{message.content}</Text>{message.role==="assistant"?<View style={s.replyActions}><Pressable accessibilityRole="button" onPress={()=>void speakMessage(message)} style={s.listenButton}><Text style={s.listenButtonText}>{speakingMessageId===message.id?"Stop speaking":"Listen to Gabroo"}</Text></Pressable><Pressable accessibilityRole="button" disabled={savingPhraseId!==null||savedPhraseIds.includes(message.id)} onPress={()=>void saveReplyAsPhrase(message)} style={[s.savePhraseButton,(savingPhraseId!==null||savedPhraseIds.includes(message.id))&&s.disabled]}><Text style={s.savePhraseText}>{savingPhraseId===message.id?"Saving…":savedPhraseIds.includes(message.id)?"Saved to memory":"Save useful phrase"}</Text></Pressable></View>:null}</View>)}
+    <Text style={s.modeLabel}>Conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>void changeMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View>{messages.length===0?<View style={s.emptyPanel}><Text style={s.title}>Hi! I'm Gabroo.</Text><Text style={s.copy}>Let's have a natural conversation. What's on your mind today?</Text></View>:messages.map(message=><View key={message.id} style={[s.bubble,message.role==="user"?s.userBubble:s.gabrooBubble]}><Text style={s.speaker}>{message.role==="user"?"YOU":"GABROO"}</Text><Text style={s.message}>{message.content}</Text>{message.role==="assistant"?<View style={s.replyActions}><Pressable accessibilityRole="button" onPress={()=>void speakMessage(message)} style={s.listenButton}><Text style={s.listenButtonText}>{speakingMessageId===message.id?"Stop speaking":"Listen to Gabroo"}</Text></Pressable><Pressable accessibilityRole="button" disabled={savingPhraseId!==null||savedPhraseIds.includes(message.id)} onPress={()=>void saveReplyAsPhrase(message)} style={[s.savePhraseButton,(savingPhraseId!==null||savedPhraseIds.includes(message.id))&&s.disabled]}><Text style={s.savePhraseText}>{savingPhraseId===message.id?"Saving…":savedPhraseIds.includes(message.id)?"Saved to memory":"Save useful phrase"}</Text></Pressable>{practiceDraft?<Pressable accessibilityRole="button" disabled={savingRevisionId!==null||savedRevisionIds.includes(message.id)} onPress={()=>void saveImprovedSentence(message)} style={[s.savePhraseButton,(savingRevisionId!==null||savedRevisionIds.includes(message.id))&&s.disabled]}><Text style={s.savePhraseText}>{savingRevisionId===message.id?"Saving revision…":savedRevisionIds.includes(message.id)?"Revision saved":"Save improved sentence"}</Text></Pressable>:null}</View>:null}</View>)}
     {turnState.phase==="thinking"?<Text accessibilityLiveRegion="polite" style={s.turnStatus}>Gabroo is thinking…</Text>:null}
     <TextInput value={draft} onChangeText={setDraft} placeholder="Write your message…" multiline style={s.input} editable={!busy}/>
     <Pressable disabled={!draft.trim()||busy} onPress={send} style={[s.button,(!draft.trim()||busy)&&s.disabled]}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Send message</Text>}</Pressable>
