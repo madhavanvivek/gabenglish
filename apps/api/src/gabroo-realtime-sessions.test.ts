@@ -49,9 +49,15 @@ describe("Gabroo realtime session ticket API",()=>{
   const response=await app.inject({method:"POST",url:"/api/v1/gabroo/realtime/session-ticket",headers:{authorization:authHeader(config.AUTH_TOKEN_SECRET)}});
   expect(response.statusCode).toBe(403);expect(response.json().error.code).toBe("PAID_SUBSCRIPTION_REQUIRED");expect(calls.some(x=>x.sql.includes("INSERT INTO gabroo_realtime_session_tickets"))).toBe(false);await app.close();
  });
+ it("requires explicit voice-session consent before issuing a ticket",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});const {pool,calls}=makePool();const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"POST",url:"/api/v1/gabroo/realtime/session-ticket",headers:{authorization:authHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(400);expect(response.json().error.code).toBe("CONSENT_REQUIRED");
+  expect(calls.some(x=>x.sql.includes("INSERT INTO gabroo_realtime_session_tickets"))).toBe(false);await app.close();
+ });
  it("issues a short-lived ticket without storing the raw capability or caching the response",async()=>{
   const config=loadConfig({NODE_ENV:"test"});const {pool,calls,insertParams}=makePool();const app=await buildApp(config,async()=>true,pool);
-  const response=await app.inject({method:"POST",url:"/api/v1/gabroo/realtime/session-ticket",headers:{authorization:authHeader(config.AUTH_TOKEN_SECRET)}});
+  const response=await app.inject({method:"POST",url:"/api/v1/gabroo/realtime/session-ticket",headers:{authorization:authHeader(config.AUTH_TOKEN_SECRET),"x-gabroo-consent":"true"}});
   expect(response.statusCode).toBe(201);expect(response.headers["cache-control"]).toBe("private, no-store");
   const body=response.json();expect(body).toMatchObject({expires_in_seconds:60,single_use:true,transport:"websocket_handshake_pending"});
   expect(body.connection_ticket).toMatch(/^[0-9a-f]{64}$/);expect(body.session_id).toMatch(/^[0-9a-f-]{36}$/);
