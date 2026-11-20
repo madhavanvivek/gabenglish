@@ -261,3 +261,8 @@ The API loads the latest 20 saved conversation messages and passes them to the m
 This is a bounded recent-turn mechanism, not an unlimited transcript memory or a generated session summary. It must not invent interests, preferences, learning progress or personal facts. The separate learner-memory store remains learner-owned, bounded and distinct from conversation history. Future phrase-review or vocabulary-recall features should use explicit saved learning items and consent-aware controls rather than silently promoting arbitrary conversation text into permanent memory.
 
 The continuity helper is heuristic. It detects obvious question punctuation and a small set of Malayalam question forms; it does not semantically determine whether a question was fully answered. Human review and conversation fixtures remain necessary.
+
+
+## Learner-controlled phrase capture
+
+The account screen already provides owner-controlled CRUD for saved goals, interests, phrases and learning notes. Gabroo's conversation UI now adds an explicit **Save useful phrase** action to each assistant reply. A learner must tap the action; replies are never silently promoted into permanent memory. The action stores a bounded phrase (up to 500 characters) as a `saved_phrase` item, reports duplicate saves, and confirms where the learner can edit or delete it. The existing memory list remains private to the learner and is injected into the teaching policy only as bounded context. This is phrase capture, not automatic vocabulary extraction or spaced-repetition scheduling.
