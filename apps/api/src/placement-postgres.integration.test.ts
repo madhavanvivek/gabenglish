@@ -753,6 +753,14 @@ integration("PostgreSQL placement session integration",()=>{
    const duplicate=await app.inject({method:"POST",url:"/api/v1/gabroo/vocabulary",headers:firstHeaders,payload:{source_saved_phrase_id:phraseId,term:"make up your mind",malayalam_meaning:"തീരുമാനിക്കുക"}});
    expect(duplicate.statusCode).toBe(409);
    const vocabularyId=created.json().vocabulary.id as string;
+   const otherProgress=await app.inject({method:"GET",url:"/api/v1/gabroo/vocabulary/progress",headers:secondHeaders});
+   expect(otherProgress.statusCode).toBe(200);
+   expect(otherProgress.json().progress).toMatchObject({total:0,learning:0,familiar:0,mastered:0,total_reviews:0});
+   const reviewed=await app.inject({method:"POST",url:"/api/v1/gabroo/vocabulary/"+vocabularyId+"/review",headers:firstHeaders,payload:{rating:"again"}});
+   expect(reviewed.statusCode).toBe(200);
+   const progress=await app.inject({method:"GET",url:"/api/v1/gabroo/vocabulary/progress",headers:firstHeaders});
+   expect(progress.statusCode).toBe(200);
+   expect(progress.json().progress).toMatchObject({total:1,learning:1,familiar:0,mastered:0,total_reviews:1,recently_reviewed:1,needs_attention:1,window_days:7});
    const otherList=await app.inject({method:"GET",url:"/api/v1/gabroo/vocabulary",headers:secondHeaders});
    expect(otherList.statusCode).toBe(200);
    expect(otherList.json().vocabulary).toHaveLength(0);
