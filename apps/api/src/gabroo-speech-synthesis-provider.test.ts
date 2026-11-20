@@ -117,12 +117,12 @@ describe("Gabroo speech synthesis provider",()=>{
    }
   }),{status:200,headers:{"content-type":"audio/mpeg"}}))!;
   const result=await provider.synthesizeStream!({text:"hello",speed:1,signal:new AbortController().signal});
-  const reader=result.audio.getReader();
-  const first=await reader.read();
+  const iterator=result.audio[Symbol.asyncIterator]();
+  const first=await iterator.next();
   expect(first.value).toEqual(Buffer.from([7,8]));
   expect(first.done).toBe(false);
   finish();
-  expect(await reader.read()).toMatchObject({done:false});
-  expect(await reader.read()).toMatchObject({done:true});
+  expect(await iterator.next()).toMatchObject({done:false});
+  expect(await iterator.next()).toMatchObject({done:true});
  });
 });
