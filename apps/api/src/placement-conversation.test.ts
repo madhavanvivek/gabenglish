@@ -41,6 +41,9 @@ describe("Gabroo conversational placement",()=>{
   expect(response?.json().evidence.map((item:{prompt_id:string})=>item.prompt_id)).toEqual(["intro","routine","past","reason","opinion","scenario"]);
   expect(response?.json().report).toMatchObject({status:"provisional",recommendation_status:"not_yet_available",assessment_mode:"text",response_count:6});
   expect(response?.json().report.extended_samples).toBeGreaterThan(0);
+  expect(response?.json().report.response_metrics.average_words_per_response).toBeGreaterThan(0);
+  expect(response?.json().report.response_metrics.average_unique_word_ratio).toBeGreaterThan(0);
+  expect(response?.json().report.response_metrics.average_unique_word_ratio).toBeLessThanOrEqual(1);
   expect(response?.json().report.limitations).toContain("Text does not provide evidence of pronunciation or spoken fluency.");
   expect(response?.json().gabroo_explanation).toContain("not going to guess your English level");
   expect(response?.json()).not.toHaveProperty("score");
