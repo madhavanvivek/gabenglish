@@ -36,3 +36,15 @@ Before using `useAudioStream` in production:
 5. Keep transcript review/confirmation until partial and final recognition behaviour is tested and the product explicitly approves the transcript submission policy.
 
 No background microphone, always-on listening, automatic transcript submission, or full-duplex claim is introduced by this spike.
+
+## Follow-on: bounded mobile frame sender
+
+The mobile layer now also has a provider/native-module independent PCM sender:
+- normalizes each native callback and splits it into 100 ms PCM frames;
+- preserves strict monotonically increasing sequence numbers;
+- serializes frame sends through one pump;
+- monitors WebSocket `bufferedAmount` with high/low watermarks;
+- bounds pending microphone audio to 256 KiB by default;
+- fails closed on queue overflow, socket loss, or sustained congestion rather than silently dropping audio.
+
+This sender is a tested transport utility, not a microphone integration. The future native adapter must stop capture when its enqueue promise rejects, and the session coordinator must send `turn.end` only after all accepted buffers have drained. Device testing remains mandatory.
