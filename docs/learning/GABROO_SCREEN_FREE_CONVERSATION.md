@@ -37,6 +37,8 @@ Do not use a black overlay as a fake screen lock, use accessibility APIs to bypa
 
 ## 4. Architecture
 
+The proposed streaming voice design, server protocol, provider boundaries and staged delivery gates are documented in [Gabroo Real-Time Voice Architecture](./GABROO_REALTIME_VOICE_ARCHITECTURE.md). That document describes a future architecture; it does not mean streaming or full-duplex capture is implemented.
+
 Keep the learning domain provider-neutral and reuse the existing Gabroo conversation state machine and speech contracts.
 
 - **Session coordinator:** Owns explicit session start/stop, phase, elapsed time, learner turn and cancellation.
