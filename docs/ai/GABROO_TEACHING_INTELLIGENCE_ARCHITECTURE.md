@@ -266,3 +266,10 @@ The continuity helper is heuristic. It detects obvious question punctuation and 
 ## Learner-controlled phrase capture
 
 The account screen already provides owner-controlled CRUD for saved goals, interests, phrases and learning notes. Gabroo's conversation UI now adds an explicit **Save useful phrase** action to each assistant reply. A learner must tap the action; replies are never silently promoted into permanent memory. The action stores a bounded phrase (up to 500 characters) as a `saved_phrase` item, reports duplicate saves, and confirms where the learner can edit or delete it. The existing memory list remains private to the learner and is injected into the teaching policy only as bounded context. This is phrase capture, not automatic vocabulary extraction or spaced-repetition scheduling.
+
+
+## Revision-aware vocabulary context
+
+Gabroo conversation requests may receive up to five active, learner-owned vocabulary entries. Context selection prioritises entries last rated Again, then entries whose review date is due, followed by other Learning/Familiar entries. The teaching policy receives only bounded term, Malayalam meaning, example, status and a derived practice-needed signal.
+
+A due or Again-rated word may receive gentle extra practice when it fits the learner's current thread: a fresh, level-appropriate model sentence and an optional invitation to use it. Gabroo must not announce difficulty, imply failure, force an unrelated word, interrupt a direct question or turn free-flow conversation into a quiz. Conversation exposure does not count as a spaced-repetition rating and never changes mastery status automatically. These signals are private to the learner and do not become shared curriculum data.
