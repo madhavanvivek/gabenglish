@@ -126,7 +126,7 @@ export default function GabrooScreen(){
     recording.setOnRecordingStatusUpdate(null);
     const uri=recording.getURI();
     void recording.stopAndUnloadAsync().catch(()=>undefined).then(async()=>{
-     if(uri)await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+     if(uri?.startsWith("file://"))if(uri.startsWith("file://"))await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
     }).finally(()=>Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined));
    }
   };
@@ -232,7 +232,7 @@ export default function GabrooScreen(){
    await sound.stopAsync().catch(()=>undefined);
    await sound.unloadAsync().catch(()=>undefined);
   }
-  if(uri)await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+  if(uri?.startsWith("file://"))await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
  };
  const speakMessage=async(message:GabrooConversationMessage)=>{
   if(speakingMessageId===message.id){await stopSpeech();return;}
