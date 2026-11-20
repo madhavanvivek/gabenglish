@@ -80,6 +80,24 @@ describe("Gabroo learner-turn adaptation",()=>{
   expect(policy.learnerVocabulary.map(item=>item.term)).not.toContain("archived");
   expect(policy.responseGuidance.join(" ")).toContain("do not force a word into an unrelated answer");
  });
+ it("marks overdue and Again-rated vocabulary for gentle contextual practice",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",learnerVocabulary:[
+   {term:"resilient",malayalamMeaning:"പ്രതിസന്ധികളെ അതിജീവിക്കുന്ന",status:"learning",isDue:false,lastReviewRating:"again"},
+   {term:"curious",malayalamMeaning:"കൗതുകമുള്ള",status:"familiar",isDue:true,lastReviewRating:"good"},
+   {term:"ordinary",malayalamMeaning:"സാധാരണ",status:"learning",isDue:false,lastReviewRating:null}
+  ]});
+  expect(policy.learnerVocabulary.map(item=>({term:item.term,needsPractice:item.needsPractice}))).toEqual([
+   {term:"resilient",needsPractice:true},{term:"curious",needsPractice:true},{term:"ordinary",needsPractice:false}
+  ]);
+  expect(policy.responseGuidance.join(" ")).toContain("fresh, level-appropriate sentence");
+  expect(policy.responseGuidance.join(" ")).toContain("never announce that the learner struggled");
+ });
+ it("does not add revision coaching when no active word is due or Again-rated",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",learnerVocabulary:[
+   {term:"steady",malayalamMeaning:"സ്ഥിരതയുള്ള",status:"learning",isDue:false,lastReviewRating:"good"}
+  ]});
+  expect(policy.responseGuidance.join(" ")).not.toContain("Some saved words are due for revision");
+ });
  it("does not add vocabulary guidance when the learner has no active saved words",()=>{
   const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",learnerVocabulary:[{term:"done",malayalamMeaning:"കഴിഞ്ഞു",status:"mastered"}]});
   expect(policy.learnerVocabulary).toEqual([]);
