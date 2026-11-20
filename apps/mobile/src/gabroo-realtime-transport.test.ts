@@ -47,6 +47,7 @@ describe("Gabroo realtime mobile transport helpers",()=>{
    constructor(url:string,protocols:string[]){super(url,protocols);instance=this;}
   }
   vi.stubGlobal("WebSocket",Object.assign(CapturingWebSocket,{CONNECTING:0,OPEN:1,CLOSING:2,CLOSED:3}));
+  vi.stubEnv("EXPO_PUBLIC_API_BASE_URL","https://api.example.com");
   const connected=openGabrooRealtimeSession({
    consentGranted:true,
    ticketProvider:async()=>({session_id:"session-test",connection_ticket:"a".repeat(64)})
