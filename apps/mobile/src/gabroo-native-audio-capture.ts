@@ -32,6 +32,7 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
  let starting=false;
  let generation=0;
  let terminal=false;
+ let stopResult:Promise<{drained:boolean}>|undefined;
 
  const report=(error:unknown)=>{
   const normalized=error instanceof Error?error:new Error("Gabroo microphone capture failed.");
@@ -47,33 +48,35 @@ export function createGabrooNativeAudioCaptureController(options:GabrooNativeAud
   });
  };
 
- const stop=async(reason="learner_stop"):Promise<{drained:boolean}>=>{
-  generation+=1;
-  terminal=true;
-  active=false;
-  // Do not call native stop while permission or native start is pending.
-  // The start() catch path owns cleanup after the awaited operation settles.
-  if(starting){options.sender.close(reason);return {drained:false};}
-  if(stream){
-   const current=stream;
-   stream=undefined;
-   try{await current.stop();}catch(error){
+ const stop=(reason="learner_stop"):Promise<{drained:boolean}>=>{
+  // Repeated callers share one terminal native-stop and sender-drain operation.
+  if(stopResult)return stopResult;
+  stopResult=(async()=>{
+   generation+=1;
+   terminal=true;
+   active=false;
+   // The start() catch path owns cleanup while permission or native start is pending.
+   if(starting){options.sender.close(reason);return {drained:false};}
+   if(stream){
+    const current=stream;
+    stream=undefined;
+    try{await current.stop();}catch(error){
+     report(error);
+     options.sender.close("native_capture_stop_failed");
+     return {drained:false};
+    }
+   }
+   try{
+    if(options.sender.finish)await options.sender.finish();
+    else options.sender.close(reason);
+    return {drained:true};
+   }catch(error){
+    options.sender.close("audio_sender_drain_failed");
     report(error);
-    options.sender.close("native_capture_stop_failed");
     return {drained:false};
    }
-  }
-  // Stop capture first, then drain every already-accepted audio frame before
-  // the coordinator sends turn.end. Failure falls back to immediate close.
-  try{
-   if(options.sender.finish)await options.sender.finish();
-   else options.sender.close(reason);
-   return {drained:true};
-  }catch(error){
-   options.sender.close("audio_sender_drain_failed");
-   report(error);
-   return {drained:false};
-  }
+  })();
+  return stopResult;
  };
 
  return {
