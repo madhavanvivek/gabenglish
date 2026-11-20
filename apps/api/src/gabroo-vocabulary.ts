@@ -26,6 +26,28 @@ const columns="id,source_saved_phrase_id,term,malayalam_meaning,example_sentence
 const reviewSchema=z.object({rating:z.enum(["again","hard","good","easy"])}).strict();
 
 export async function registerGabrooVocabularyRoutes(app:FastifyInstance,pool:Pool,config:AppConfig){
+ app.get("/api/v1/gabroo/vocabulary/progress",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return fail(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
+  const result=await pool.query<{
+   total:string;learning:string;familiar:string;mastered:string;due_now:string;total_reviews:string;recently_reviewed:string;needs_attention:string
+  }>(`SELECT
+   count(*)::text AS total,
+   count(*) FILTER(WHERE status='learning')::text AS learning,
+   count(*) FILTER(WHERE status='familiar')::text AS familiar,
+   count(*) FILTER(WHERE status='mastered')::text AS mastered,
+   count(*) FILTER(WHERE status<>'mastered' AND review_due_at<=now())::text AS due_now,
+   COALESCE(sum(review_count),0)::text AS total_reviews,
+   count(*) FILTER(WHERE last_reviewed_at>=now()-interval '7 days')::text AS recently_reviewed,
+   count(*) FILTER(WHERE status<>'mastered' AND last_review_rating='again')::text AS needs_attention
+   FROM gabroo_vocabulary WHERE user_id=$1`,[learner.id]);
+  const row=result.rows[0]!;
+  return {progress:{
+   total:Number(row.total),learning:Number(row.learning),familiar:Number(row.familiar),mastered:Number(row.mastered),
+   due_now:Number(row.due_now),total_reviews:Number(row.total_reviews),recently_reviewed:Number(row.recently_reviewed),
+   needs_attention:Number(row.needs_attention),window_days:7
+  }};
+ });
  app.get("/api/v1/gabroo/vocabulary/review-due",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return fail(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
