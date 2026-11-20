@@ -64,6 +64,18 @@ describe("Gabroo live conversation state machine",()=>{
   })).toEqual(speaking);
  });
 
+ it("ignores a late greeting completion after the learner interrupts",()=>{
+  const greeting=reduceGabrooConversation(initialGabrooConversationState,{type:"begin_greeting"});
+  const interrupted=reduceGabrooConversation(greeting,{type:"learner_barge_in"});
+  expect(reduceGabrooConversation(interrupted,{type:"greeting_finished"})).toEqual(interrupted);
+ });
+
+ it("ignores a late greeting completion after connection loss",()=>{
+  const greeting=reduceGabrooConversation(initialGabrooConversationState,{type:"begin_greeting"});
+  const recovering=reduceGabrooConversation(greeting,{type:"connection_lost",reason:"network disconnected"});
+  expect(reduceGabrooConversation(recovering,{type:"greeting_finished"})).toEqual(recovering);
+ });
+
  it("clears active audio immediately when the learner interrupts",()=>{
   const speaking=move(initialGabrooConversationState,
    {type:"begin_greeting"},{type:"greeting_finished"},
