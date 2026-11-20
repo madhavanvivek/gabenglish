@@ -263,7 +263,6 @@ export default function GabrooScreen(){
  };
  const send=async()=>{
   const text=draft.trim();if(!text||!active||busy||sendInFlightRef.current)return;
-  void stopSpeech();
   sendInFlightRef.current=true;
   setBusy(true);setError("");
   const conversationId=active.id;
@@ -271,6 +270,8 @@ export default function GabrooScreen(){
   const controller=new AbortController();turnAbortRef.current=controller;
   setTurnState(current=>reduceGabrooTurn(current,{type:"submitted",turn_id:turnId}));
   try{
+   await stopSpeech();
+   if(controller.signal.aborted||activeConversationIdRef.current!==conversationId)return;
    const result=await sendGabrooMessage(conversationId,text,controller.signal);
    if(activeConversationIdRef.current!==conversationId)return;
    setMessages(current=>[...current,...result.messages]);
@@ -530,7 +531,6 @@ export default function GabrooScreen(){
  };
  const sendReviewedTranscript=async()=>{
   if(!active||!transcript||!reviewedTranscript.trim()||busy||sendInFlightRef.current)return;
-  void stopSpeech();
   sendInFlightRef.current=true;
   setBusy(true);setError("");
   const conversationId=active.id;
@@ -538,6 +538,8 @@ export default function GabrooScreen(){
   const controller=new AbortController();turnAbortRef.current=controller;
   setTurnState(current=>reduceGabrooTurn(current,{type:"submitted",turn_id:turnId}));
   try{
+   await stopSpeech();
+   if(controller.signal.aborted||activeConversationIdRef.current!==conversationId)return;
    const confirmed=confirmGabrooTranscript({providerTranscript:transcript,reviewedText:reviewedTranscript,confirmed:true});
    const result=await sendGabrooMessage(conversationId,confirmed.text,controller.signal);
    if(activeConversationIdRef.current!==conversationId)return;
