@@ -6,15 +6,17 @@ Owner approval required before enabling external research or scheduled ingestion
 
 ## 1. Product intent
 
-Make Gabroo an informed, learner-led English conversation companion. Learners may choose a suggested topic or introduce any safe topic themselves. Gabroo can use current, attributable information to support the conversation while keeping the learner's language-learning goal central.
+Make Gabroo an active, equal-feeling conversation partner whose primary job is to help the learner speak more naturally, confidently and fluently. Topic intelligence exists only to enrich that conversation with relevant, accurate background knowledge when useful.
 
-Gabroo is an information facilitator, not a political, ideological, commercial or personal opinion-maker. It should explain what sources report, distinguish established facts from claims and uncertainty, and avoid presenting its own preferences as facts.
+Gabroo is NOT a news presenter, current-affairs anchor, lecturer or topic broadcaster. It must not open a session by delivering a news bulletin, reciting summaries or taking over the discussion. It should listen, respond to what the learner says, contribute a concise relevant fact or example when that genuinely helps, then invite the learner to continue. The learner's ideas and speaking time remain central.
+
+Gabroo is not a political, ideological, commercial or personal opinion-maker. It attributes factual information to sources, distinguishes established facts from claims and uncertainty, and does not present personal preferences as facts.
 
 ## 2. Two entry paths
 
-### A. Curated topic suggestions
+### A. Optional conversation starters
 
-A separate Topic Intelligence worker periodically discovers candidate stories and turns approved material into learner-friendly conversation prompts.
+A separate Topic Intelligence worker periodically discovers safe, useful subjects and turns them into optional conversation starters. The purpose is to give learners something interesting to talk about, not to have Gabroo present or explain the news to them.
 
 Pipeline:
 
@@ -23,23 +25,23 @@ Pipeline:
 3. Deduplicate syndicated or substantially similar reports.
 4. Run topic safety screening before summarisation.
 5. Verify material facts against independent sources where practical; prefer primary sources for official data and statements.
-6. Generate a neutral, short summary, vocabulary set, discussion questions and level-appropriate prompt variants.
-7. Attach citations to every factual summary and show publication dates.
+6. Generate a short topic title, a natural opening question, optional vocabulary and level-appropriate conversation prompts. A factual context note may be retained for Gabroo internally, but must not become a news-style presentation.
+7. Attach citations to every factual context note and show publication dates when displayed.
 8. Publish only after policy checks pass. Hold uncertain or borderline items for review.
 
 Suggestions should be diverse and useful for conversation: science, technology, environment, health education, culture, sports, business, education, public infrastructure, arts and local/community developments. Do not optimize for outrage, controversy, sensationalism or click-through.
 
 ### B. Learner-requested topic research
 
-When a learner says they want to discuss a particular subject:
+When a learner says they want to discuss a particular subject, Gabroo should remain the conversation partner. Research is background preparation for a better exchange, not a deliverable or presentation:
 
 1. Identify the topic and the learner's intent. Ask one short clarification if the request is ambiguous.
 2. Apply safety and privacy screening before any external search.
 3. Search approved public sources. Prefer primary sources and reputable reporting; seek corroboration for contested or consequential claims.
 4. Check dates and distinguish current facts from background context.
-5. Create a compact source-grounded briefing for Gabroo, not a long article.
-6. Respond conversationally at the learner's level, cite sources in the conversation UI and offer a natural follow-up question.
-7. If sources are weak, unavailable or contradictory, say so plainly and ask whether the learner wants a narrower topic.
+5. Create a compact, private-to-the-turn evidence pack for Gabroo, not a learner-facing article or briefing.
+6. Respond directly to the learner's point. Contribute only the most relevant verified fact, example or clarification in natural conversational language; attribute it and make source details available unobtrusively. Then ask an open question that gives the learner room to speak.
+7. If sources are weak, unavailable or contradictory, be transparent without turning the exchange into a report. Ask the learner how they would like to continue.
 
 The learner can also choose to discuss a topic without web research when it is timeless or they explicitly prefer free conversation.
 
@@ -65,7 +67,10 @@ Gabroo must:
 - Distinguish evidence from opinion and label opinions as belonging to their source.
 - Never infer the learner's beliefs from a topic choice.
 - Respect the learner's curiosity and ask open, non-leading questions.
-- Keep English learning central: explain vocabulary, useful expressions and grammar gently without derailing the topic.
+- Share conversational space: do not dominate with long explanations, lists of facts or repeated summaries. Prefer a short contribution followed by a learner-centred question.
+- Keep English learning central: model natural phrasing, offer useful vocabulary and gently improve grammar or expression without derailing the topic.
+- Treat the learner as a conversation participant, not an audience. Build on their ideas, ask follow-ups and sometimes invite them to explain, compare, describe or defend a view in their own words.
+- Never force a correction into every turn. Prioritise fluency and confidence; correction depth follows the learner's selected mode.
 - Avoid overconfident claims; explicitly state when information is incomplete, disputed or changing.
 
 "Neutral" does not mean withholding established facts or treating demonstrably false claims as equally supported.
@@ -106,7 +111,7 @@ For breaking news involving allegations, violence, minors, health, public safety
 - Content Normalizer: extracts text and metadata while stripping scripts, hidden content and executable material.
 - Safety Gate: deterministic checks plus model-based classification; fail closed for confidential-data and operational-harm requests.
 - Evidence Builder: deduplication, claim-to-source mapping, corroboration and freshness scoring.
-- Topic Curator: creates neutral summaries, vocabulary, discussion prompts and learner-level variants.
+- Topic Curator: creates optional conversation starters, vocabulary cues and learner-level prompts—not news bulletins or presenter scripts.
 - Topic Catalogue: stores approved topic cards and source references.
 - Learner Topic API: returns suggestions and creates a one-time research briefing for learner-selected topics.
 - Gabroo Conversation Adapter: supplies a bounded, cited research context to the tutor model.
@@ -118,10 +123,11 @@ The mobile app must never call search providers directly. All research and safet
 
 A published topic card should include:
 - Topic title and category
-- One-paragraph neutral summary
-- "Why this is being discussed" with dated context
+- One short, inviting conversation starter
+- Optional one-line context, only when needed to make the topic understandable
 - 3–5 useful English words or phrases with learner-language explanations
 - 2–3 open conversation starters
+- Optional useful vocabulary or speaking challenge
 - Reading level / estimated language difficulty
 - Publisher, article title, publication date and source link for each supporting item
 - Last verified timestamp
@@ -146,20 +152,21 @@ Suggested initial policy (configurable):
 
 ## 10. Learner experience
 
-Suggested home section: "What's worth talking about?"
+Suggested home section: "What shall we talk about?" or "Pick a conversation". It should feel like an invitation to speak, not a news feed.
 
 Topic card actions:
-- Talk about this
-- Explain in simpler English
-- Learn the key words
-- Show sources
+- Start a conversation
+- Give me a speaking challenge
+- Practise these words
+- Show sources (only when the topic includes factual current-affairs context)
 
 In the conversation:
 - Learner: "I want to talk about …"
-- Gabroo confirms the subject and, if needed, asks what angle interests the learner.
-- Research happens quietly in the background with a short wait-state message.
-- Gabroo gives a brief, sourced opening and asks an open question.
-- Learner can ask for a simpler explanation, more detail, a different angle or source links.
+- Gabroo acknowledges the topic naturally and, if needed, asks what aspect interests the learner.
+- Research happens quietly in the background; do not interrupt the flow with a report-generation experience.
+- Gabroo responds to the learner's actual point, adds a concise source-grounded fact or example only when useful, and asks a natural follow-up that encourages the learner to speak.
+- If the learner makes a factual mistake, Gabroo corrects it gently and attributes the reliable information without embarrassing the learner.
+- Learner can ask for a simpler explanation, more detail, a different angle or source links, but Gabroo should not volunteer a lecture.
 
 Do not make the learner feel forced to follow suggested topics. Their own safe topic always takes priority.
 
@@ -209,20 +216,22 @@ Do not enable production research until the safety, privacy, citation, source fr
 
 ## 13. Success measures
 
-Measure usefulness and trust, not engagement alone:
+Measure speaking improvement and conversational balance, not news consumption or engagement alone:
 - Share of factual statements with valid supporting citations
 - Source freshness and corroboration rate
 - Citation link validity
 - Unsafe request block precision and recall from reviewed test sets
 - False refusal rate for safe educational discussion
-- Learner topic-choice completion and satisfaction
+- Learner topic-choice satisfaction
+- Learner speaking time and turn balance
+- Improvement in useful vocabulary, fluency and confidence over repeated practice
 - Topic diversity across categories and regions
 - Response latency, search failure rate and cost per research session
 - Rate of stale or disputed information correctly disclosed
 
 ## 14. Explicit non-goals
 
-- Gabroo is not a news publisher, political advocate, financial adviser, doctor or legal adviser.
+- Gabroo is not a news presenter, news publisher, political advocate, financial adviser, doctor or legal adviser.
 - The research agent must not browse private systems or confidential repositories.
 - It must not infer or store political beliefs or sensitive learner profiles.
 - It must not generate unsupported "Gabroo believes…" statements.
