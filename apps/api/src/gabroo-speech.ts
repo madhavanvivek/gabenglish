@@ -95,11 +95,30 @@ export async function registerGabrooSpeechRoutes(
   await pool.query("DELETE FROM gabroo_speech_playback_tickets WHERE expires_at < now() - interval '5 minutes'");
   const token=randomBytes(32).toString("hex");
   const digest=createHash("sha256").update(token).digest("hex");
-  const result=await pool.query<{expires_at:Date|string}>(
-   "WITH learner_lock AS MATERIALIZED (SELECT pg_advisory_xact_lock(hashtextextended($2::text, 0))), superseded AS (UPDATE gabroo_speech_playback_tickets SET consumed_at=now() WHERE user_id=$2 AND consumed_at IS NULL AND EXISTS (SELECT 1 FROM learner_lock) RETURNING token_digest) INSERT INTO gabroo_speech_playback_tickets(token_digest,user_id,speech_text,speech_speed,expires_at) SELECT $1,$2,$3,$4,now()+interval '60 seconds' FROM (SELECT count(*) AS invalidated FROM superseded) AS completed RETURNING expires_at",
-   [digest,learner.id,parsed.data.text,parsed.data.speed]
-  );
-  const expiresAt=result.rows[0]?.expires_at;
+  const ticketClient=await pool.connect();
+  let expiresAt:Date|string|undefined;
+  try{
+   await ticketClient.query("BEGIN");
+   // Acquire the per-learner lock in its own statement so the following
+   // UPDATE receives a fresh READ COMMITTED snapshot after any lock wait.
+   await ticketClient.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))",[learner.id]);
+   await ticketClient.query(
+    "UPDATE gabroo_speech_playback_tickets SET consumed_at=now() WHERE user_id=$1 AND consumed_at IS NULL",
+    [learner.id]
+   );
+   const result=await ticketClient.query<{expires_at:Date|string}>(
+    "INSERT INTO gabroo_speech_playback_tickets(token_digest,user_id,speech_text,speech_speed,expires_at) VALUES($1,$2,$3,$4,now()+interval '60 seconds') RETURNING expires_at",
+    [digest,learner.id,parsed.data.text,parsed.data.speed]
+   );
+   expiresAt=result.rows[0]?.expires_at;
+   if(!expiresAt)throw new Error("Playback ticket insert returned no expiry");
+   await ticketClient.query("COMMIT");
+  }catch(error){
+   await ticketClient.query("ROLLBACK");
+   throw error;
+  }finally{
+   ticketClient.release();
+  }
   if(!expiresAt)return sendError(reply,request.id,500,"PLAYBACK_TICKET_FAILED","Gabroo audio could not be prepared. Please try again.");
   return reply.code(201).send({
    playback_url:"/api/v1/gabroo/speech/playback/"+token,
