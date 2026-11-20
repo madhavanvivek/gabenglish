@@ -107,4 +107,22 @@ describe("Gabroo native capture lifecycle boundary",()=>{
   expect(x.sender.close).toHaveBeenCalledWith("capture_start_failed");
  });
 
+
+ it("stops a native stream that finishes starting after the learner cancels",async()=>{
+  let finishStart!:()=>void;
+  const startGate=new Promise<void>(resolve=>{finishStart=resolve;});
+  const x=setup();
+  vi.mocked(x.stream.start).mockImplementationOnce(async()=>{
+   await startGate;
+   x.stream.isStreaming=true;
+  });
+  const starting=x.controller.start({consentGranted:true});
+  await Promise.resolve();
+  await x.controller.stop();
+  finishStart();
+  await expect(starting).rejects.toThrow(/cancelled while starting/);
+  expect(x.stream.stop).toHaveBeenCalledTimes(2);
+  expect(x.controller.isActive).toBe(false);
+ });
+
 });
