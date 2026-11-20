@@ -13,7 +13,7 @@ export const placementEvidenceSchema=z.object({
   observations:z.array(z.string()),
   sample_size:z.enum(["brief","extended"]),
   limitations:z.array(z.string()),
-  metrics:z.object({word_count:z.number().int().nonnegative(),sentence_count:z.number().int().nonnegative(),connector_count:z.number().int().nonnegative(),has_past_reference:z.boolean(),has_reasoning_marker:z.boolean()})
+  metrics:z.object({word_count:z.number().int().nonnegative(),unique_word_count:z.number().int().nonnegative(),unique_word_ratio:z.number().min(0).max(1),average_words_per_sentence:z.number().nonnegative(),sentence_count:z.number().int().nonnegative(),connector_count:z.number().int().nonnegative(),has_past_reference:z.boolean(),has_reasoning_marker:z.boolean()})
 });
 export const placementSkillFindingSchema=z.object({skill:placementSkillSchema,finding:z.string(),confidence:z.enum(["low","medium","high"]),evidence:z.array(z.string())});
 export const placementReportSchema=z.object({
