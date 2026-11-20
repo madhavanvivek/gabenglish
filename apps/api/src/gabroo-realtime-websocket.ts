@@ -140,7 +140,7 @@ export async function registerGabrooRealtimeWebSocket(app:FastifyInstance,pool:P
       const parsedMessage=gabrooRealtimeClientMessageSchema.safeParse(payload);
       if(!parsedMessage.success||parsedMessage.data.session_id!==sessionId){ws.close(1008,"invalid_session_message");return;}
       const message=parsedMessage.data;
-      if(message.type==="session.stop"){activeTurn=undefined;send({type:"session.closed",reason:"learner_stop"});ws.close(1000,"learner_stop");return;}
+      if(message.type==="session.stop"){activeTurn?.controller.abort();activeTurn?.chunks.splice(0);activeTurn=undefined;send({type:"session.closed",reason:"learner_stop"});ws.close(1000,"learner_stop");return;}
       if(message.type==="tutor.interrupt"){if(activeTurn?.id===message.turn_id){activeTurn.controller.abort();activeTurn=undefined;}return;}
       if(message.type==="turn.start"){
        if(activeTurn){failTurn(message.turn_id,"TURN_LIMIT","Finish or interrupt the current voice turn first.");return;}
