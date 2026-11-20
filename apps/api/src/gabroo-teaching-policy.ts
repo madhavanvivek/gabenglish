@@ -97,6 +97,6 @@ export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;sup
    ...(input.profileCorrectionPreference?{profileCorrectionPreference:input.profileCorrectionPreference}:{})
   },
   learnerMemory:(input.learnerMemory??[]).slice(0,20).map(item=>({category:item.category,memoryKey:item.memoryKey.slice(0,80),content:item.content.slice(0,500)})),
-  learnerVocabulary:(input.learnerVocabulary??[]).filter(item=>item.status==="learning"||item.status==="familiar").slice(0,5).map(item=>({term:item.term.trim().slice(0,120),malayalamMeaning:item.malayalamMeaning.trim().slice(0,300),exampleSentence:(item.exampleSentence??"").trim().slice(0,500),status:item.status}))
+  learnerVocabulary:(input.learnerVocabulary??[]).filter(item=>item.status==="learning"||item.status==="familiar").slice(0,5).map(item=>({term:item.term.trim().slice(0,120),malayalamMeaning:item.malayalamMeaning.trim().slice(0,300),exampleSentence:(item.exampleSentence??"").trim().slice(0,500),status:item.status as "learning"|"familiar"}))
  };
 }
