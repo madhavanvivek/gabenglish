@@ -612,6 +612,7 @@ export default function GabrooScreen(){
  const startLocalCapture=async()=>{
   if(!voiceCaptureConsent||voiceSessionState!=="ready"||recordingOperationRef.current||recordingRef.current||transcriptionRecordingRef.current||transcriptionUriRef.current)return;
   recordingOperationRef.current=true;
+  let captureStarted=false;
   setRecordingBusy(true);setSpeechNotice("");
   try{
    // The microphone test and Gabroo playback share the native audio session.
@@ -630,6 +631,7 @@ export default function GabrooScreen(){
     return;
    }
    recordingRef.current=created.recording;
+   captureStarted=true;
    created.recording.setProgressUpdateInterval(250);
    created.recording.setOnRecordingStatusUpdate(status=>{
     if(status.isRecording&&status.durationMillis>=GABROO_LOCAL_CAPTURE_MAX_MS){
@@ -650,6 +652,7 @@ export default function GabrooScreen(){
   }finally{
    recordingOperationRef.current=false;
    setRecordingBusy(false);
+   if(!captureStarted)await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
    if((!appIsActiveRef.current||!tutorScreenFocusedRef.current)&&recordingRef.current)void stopAndDiscardLocalCapture();
   }
  };
