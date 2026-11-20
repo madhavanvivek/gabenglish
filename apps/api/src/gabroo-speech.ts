@@ -96,7 +96,7 @@ export async function registerGabrooSpeechRoutes(
   const token=randomBytes(32).toString("hex");
   const digest=createHash("sha256").update(token).digest("hex");
   const result=await pool.query<{expires_at:Date|string}>(
-   "INSERT INTO gabroo_speech_playback_tickets(token_digest,user_id,speech_text,speech_speed,expires_at) VALUES($1,$2,$3,$4,now()+interval '60 seconds') RETURNING expires_at",
+   "WITH superseded AS (UPDATE gabroo_speech_playback_tickets SET consumed_at=now() WHERE user_id=$2 AND consumed_at IS NULL AND expires_at>now() RETURNING token_digest) INSERT INTO gabroo_speech_playback_tickets(token_digest,user_id,speech_text,speech_speed,expires_at) VALUES($1,$2,$3,$4,now()+interval '60 seconds') RETURNING expires_at",
    [digest,learner.id,parsed.data.text,parsed.data.speed]
   );
   const expiresAt=result.rows[0]?.expires_at;
