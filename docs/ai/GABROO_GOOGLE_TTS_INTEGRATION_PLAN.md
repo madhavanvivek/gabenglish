@@ -1,9 +1,9 @@
 # Gabroo Google Cloud Text-to-Speech Integration Plan
 
-Status: **approved initial provider candidate; implementation and voice approval pending**
-Decision scope: Google Cloud Text-to-Speech is the first TTS provider to evaluate and integrate behind the Gabenglish-owned Speech Gateway. This does not approve a canonical Gabroo voice, avatar, or unrestricted production spend.
+Status: **Google adapter implemented; credentials, audition and voice approval pending**
+Decision scope: Google Cloud Text-to-Speech is the first speech provider to evaluate behind the Gabenglish-owned API. This does not approve a canonical Gabroo voice, avatar, or unrestricted production spend.
 
-Last reviewed: 2026-11-21
+Last reviewed: 2026-11-22
 
 ## 1. Decision
 
@@ -125,9 +125,9 @@ No candidate is automatically selected because it is the default or cheapest.
 
 ## 7. Security and privacy
 
-- Use a server-side service identity with least-privilege permissions; prefer workload identity/application default credentials over a long-lived JSON key where deployment supports it.
+- The current audition adapter uses a server-side API key for the native REST endpoint. Restrict that key to the Cloud Text-to-Speech API and, where practical, restrict its source/network use. Treat it as a secret; never place it in Expo public configuration or source control.
+- Before production, prefer a service identity and short-lived credentials supported by the deployment environment; do not rely on an unrestricted API key.
 - Store secrets only in the deployment secret manager.
-- Never commit credentials or put them in Expo public environment variables.
 - Send only the text required for synthesis.
 - Review Google's current data processing, retention and service terms before production.
 - Do not send passwords, authentication tokens, private profile details or unrelated personal data to TTS.
@@ -135,13 +135,13 @@ No candidate is automatically selected because it is the default or cheapest.
 
 ## 8. Implementation sequence
 
-1. Inspect current API structure, environment conventions, auth and subscription/usage contracts.
-2. Add provider-neutral speech contracts and validation.
-3. Add a Google TTS adapter with server-side credential loading.
-4. Add an authenticated API endpoint and rate/usage limits.
-5. Add test doubles and unit/integration tests; tests must not require live Google credentials.
-6. Add a restricted audition command or internal-only endpoint for candidate voice IDs.
-7. Add mobile playback integration through Gabenglish API, never direct Google calls.
+1. Inspect current API structure, environment conventions, auth and subscription/usage contracts. **Done.**
+2. Add a native Google TTS adapter behind the existing provider interface. **Done.**
+3. Add explicit server-side configuration, mutually exclusive provider selection and test doubles. **Done.**
+4. Reuse the existing authenticated speech API and one-time playback-ticket flow. **Already present; Google adapter is wired into server startup.**
+5. Add durable usage metering, quotas, timeout policy and a production kill switch. **Pending.**
+6. Add a restricted audition command or internal-only endpoint for candidate voice IDs. **Pending.**
+7. Add/verify mobile playback integration through Gabenglish API, never direct Google calls. **Pending verification.**
 8. Run staging tests only after credentials and billing are separately authorized.
 9. Capture audition samples and technical scorecard for owner review.
 10. After explicit voice approval, lock canonical voice/model/settings in the voice protocol.
@@ -150,11 +150,11 @@ No candidate is automatically selected because it is the default or cheapest.
 
 - Mobile app contains no Google credential and no direct Google TTS request.
 - Provider can be replaced through server configuration/adapter without mobile changes.
-- Authentication, authorization, rate limits and subscription usage controls are enforced.
-- Tests cover invalid input, provider timeout, provider failure, quota exhaustion, unsupported voice controls and successful audio response.
-- Streaming behavior is measured and documented; do not claim streaming if the implementation buffers full responses.
-- Standard/WaveNet controls and Chirp 3 HD limitations are handled separately.
-- Cost metering and hard usage limits are verified.
+- Authentication and subscription entitlement checks are enforced by the existing speech routes.
+- Durable per-user usage metering, rate limits, quotas and hard cost ceilings must be added before production use.
+- Tests cover invalid input, provider failure, malformed/empty/oversized audio and successful audio response; timeout and quota tests remain pending.
+- The Google adapter uses synchronous synthesis and buffers the returned MP3. It does **not** claim provider streaming.
+- Standard/WaveNet controls and Chirp 3 HD limitations must be handled separately before broad voice auditions.
 - No production voice is selected without explicit owner approval.
 - No paid production deployment is enabled without explicit authorization.
 
@@ -162,10 +162,11 @@ No candidate is automatically selected because it is the default or cheapest.
 
 - Architecture decision: approved.
 - Google Cloud TTS as initial candidate: approved for evaluation/integration.
-- Candidate voice IDs: identified for audition, not selected.
-- Google Cloud project/API credentials: not configured by this change.
+- Native Google REST adapter: implemented; not yet live-tested.
+- Existing API auth, active-subscription checks and single-use playback tickets: present.
+- Google Cloud project/API credentials: not configured.
 - Billing: not enabled by this change.
-- Speech Gateway implementation: pending code changes and tests.
-- Audition samples: pending authorized Google Cloud access.
+- Usage metering, durable quotas, rate limiting across instances and cost kill switch: pending.
+- Voice audition samples: pending authorized Google Cloud access.
 - Final Gabroo voice: **not approved**.
 - Production use: **not authorized yet**.
