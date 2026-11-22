@@ -11,7 +11,10 @@ const schema=z.object({
  GABROO_LLM_MODEL:z.string().optional(),
  GABROO_STT_MODEL:z.string().default("whisper-1"),
  GABROO_TTS_MODEL:z.string().optional(),
- GABROO_TTS_VOICE:z.string().optional()
+ GABROO_TTS_VOICE:z.string().optional(),
+ GABROO_GOOGLE_TTS_API_KEY:z.string().optional(),
+ GABROO_GOOGLE_TTS_VOICE:z.string().optional(),
+ GABROO_GOOGLE_TTS_LANGUAGE_CODE:z.string().default("ml-IN")
 }).superRefine((value,ctx)=>{
  if(value.NODE_ENV==="production"&&value.AUTH_TOKEN_SECRET==="gabenglish-local-development-secret-change-before-deploy"){
   ctx.addIssue({code:"custom",path:["AUTH_TOKEN_SECRET"],message:"AUTH_TOKEN_SECRET must be replaced before production."});
@@ -27,6 +30,15 @@ const schema=z.object({
  }
  if(Boolean(value.GABROO_LLM_API_KEY)!==Boolean(value.GABROO_LLM_MODEL)){
   ctx.addIssue({code:"custom",path:["GABROO_LLM_MODEL"],message:"GABROO_LLM_API_KEY and GABROO_LLM_MODEL must be configured together."});
+ }
+ if(Boolean(value.GABROO_GOOGLE_TTS_API_KEY)!==Boolean(value.GABROO_GOOGLE_TTS_VOICE)){
+  ctx.addIssue({code:"custom",path:["GABROO_GOOGLE_TTS_VOICE"],message:"Google TTS API key and explicit voice ID must be configured together."});
+ }
+ if(value.GABROO_GOOGLE_TTS_VOICE&&!value.GABROO_GOOGLE_TTS_VOICE.startsWith(value.GABROO_GOOGLE_TTS_LANGUAGE_CODE+"-")){
+  ctx.addIssue({code:"custom",path:["GABROO_GOOGLE_TTS_VOICE"],message:"Google TTS voice must match GABROO_GOOGLE_TTS_LANGUAGE_CODE."});
+ }
+ if(value.GABROO_GOOGLE_TTS_API_KEY&&value.GABROO_TTS_MODEL){
+  ctx.addIssue({code:"custom",path:["GABROO_GOOGLE_TTS_API_KEY"],message:"Configure only one Gabroo speech synthesis provider at a time."});
  }
 });
 export function loadConfig(source:NodeJS.ProcessEnv=process.env){
