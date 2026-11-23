@@ -83,6 +83,27 @@ export async function registerGabrooSpeechRoutes(
  config:AppConfig,
  provider?:GabrooSpeechSynthesisProvider
 ){
+ app.get("/api/v1/gabroo/speech/usage",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return sendError(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account to view Gabroo speech usage.");
+  const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);
+  if(!entitlement)return sendError(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to view Gabroo speech usage.");
+  const result=await pool.query<{bucket_type:"day"|"month";characters_used:string;requests_count:string;bucket_start:string}>(
+   "SELECT bucket_type,characters_used::text,requests_count::text,bucket_start::text FROM gabroo_speech_usage_buckets WHERE user_id=$1 AND ((bucket_type='day' AND bucket_start=timezone('Asia/Kolkata',now())::date) OR (bucket_type='month' AND bucket_start=date_trunc('month',timezone('Asia/Kolkata',now()))::date))",
+   [learner.id]
+  );
+  const usage={day:{characters_used:0,requests_count:0,character_limit:config.GABROO_TTS_DAILY_CHARACTER_LIMIT},month:{characters_used:0,requests_count:0,character_limit:config.GABROO_TTS_MONTHLY_CHARACTER_LIMIT}};
+  for(const row of result.rows){
+   const target=usage[row.bucket_type];
+   target.characters_used=Number(row.characters_used);
+   target.requests_count=Number(row.requests_count);
+  }
+  return {timezone:"Asia/Kolkata",usage:{
+   day:{...usage.day,characters_remaining:Math.max(0,usage.day.character_limit-usage.day.characters_used)},
+   month:{...usage.month,characters_remaining:Math.max(0,usage.month.character_limit-usage.month.characters_used)}
+  }};
+ });
+
  app.get("/api/v1/gabroo/speech/status",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return sendError(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account to check Gabroo speech availability.");
