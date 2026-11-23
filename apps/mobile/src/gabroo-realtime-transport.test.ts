@@ -200,6 +200,8 @@ describe("Gabroo realtime mobile transport helpers",()=>{
   }
   vi.stubGlobal("WebSocket",Object.assign(MockSocket,{CONNECTING:0,OPEN:1,CLOSING:2,CLOSED:3}));
   const connection=connectGabrooRealtimeSocket({apiBaseUrl:"https://api.example.com",sessionId:"session-test",connectionTicket:"c".repeat(64)});
+  connection.socket.onmessage?.({data:JSON.stringify({protocol_version:1,session_id:"session-test",type:"session.accepted",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1},max_frame_bytes:65536,max_turn_ms:120000})} as MessageEvent);
+  connection.startTurn("turn-test",{codec:"pcm_s16le",sample_rate_hz:16000,channels:1});
   await expect(connection.finishTurn("turn-test",{finish:async()=>{throw new Error("audio drain failed");}})).rejects.toThrow(/audio drain failed/);
   expect(sent.map(value=>JSON.parse(value).type)).not.toContain("turn.end");
  });
