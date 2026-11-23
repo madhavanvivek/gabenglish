@@ -8,6 +8,7 @@ import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
 import {runMigrations} from "./migrate.js";
 import {activateVerifiedSubscriptionPayment} from "./subscription-entitlements.js";
+import {GabrooSpeechQuotaExceededError,reserveGabrooSpeechUsage} from "./gabroo-speech-usage.js";
 
 const databaseUrl=process.env.DATABASE_URL;
 const integration=databaseUrl?describe:describe.skip;
@@ -788,5 +789,23 @@ integration("PostgreSQL placement session integration",()=>{
    await app.close();
   }
  });
+ it("enforces durable Gabroo daily/monthly quotas under concurrent reservations",async()=>{
+  if(!pool||!migrationApplied)return;
+  const email="speech-quota-"+randomUUID()+"@example.test";
+  const inserted=await pool.query<{id:string}>("INSERT INTO users(email,email_normalized,status,email_verified_at) VALUES($1,$1,'active',now()) RETURNING id",[email]);
+  const userId=inserted.rows[0]!.id;
+  try{
+   const attempts=await Promise.allSettled(Array.from({length:5},()=>reserveGabrooSpeechUsage({pool:pool!,userId,characters:100,dailyLimit:250,monthlyLimit:1_000})));
+   expect(attempts.filter(item=>item.status==="fulfilled")).toHaveLength(2);
+   const daily=await pool.query<{characters_used:string;requests_count:string}>("SELECT characters_used::text,requests_count::text FROM gabroo_speech_usage_buckets WHERE user_id=$1 AND bucket_type='day'",[userId]);
+   const monthly=await pool.query<{characters_used:string;requests_count:string}>("SELECT characters_used::text,requests_count::text FROM gabroo_speech_usage_buckets WHERE user_id=$1 AND bucket_type='month'",[userId]);
+   expect(daily.rows[0]).toEqual({characters_used:"200",requests_count:"2"});
+   expect(monthly.rows[0]).toEqual({characters_used:"200",requests_count:"2"});
+   await expect(reserveGabrooSpeechUsage({pool:pool!,userId,characters:100,dailyLimit:250,monthlyLimit:150})).rejects.toBeInstanceOf(GabrooSpeechQuotaExceededError);
+   const afterRollback=await pool.query<{characters_used:string}>("SELECT characters_used::text FROM gabroo_speech_usage_buckets WHERE user_id=$1 AND bucket_type='day'",[userId]);
+   expect(afterRollback.rows[0]?.characters_used).toBe("200");
+  }finally{await pool.query("DELETE FROM users WHERE id=$1",[userId]);}
+ });
+
 
 });
