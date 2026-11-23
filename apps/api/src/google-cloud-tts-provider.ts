@@ -26,6 +26,8 @@ export function createGoogleCloudTtsProvider(
  if(!apiKey||!voice)return undefined;
  if(!/^[a-z]{2,3}-[A-Z]{2,4}$/.test(languageCode))throw new Error("Google TTS language code is invalid.");
  if(!voice.startsWith(languageCode+"-"))throw new Error("Google TTS voice must match the configured language code.");
+ // This adapter sends speakingRate, which is supported by Standard/WaveNet but not Chirp 3 HD.
+ if(!/^[a-z]{2,3}-[A-Z]{2,4}-(Standard|Wavenet)-[A-Z]$/.test(voice))throw new Error("Google TTS audition adapter currently supports Standard and WaveNet voice IDs only.");
  return {
   async synthesize(input:GabrooSpeechSynthesisInput):Promise<GabrooSpeechSynthesisResult>{
    const text=input.text.trim();
