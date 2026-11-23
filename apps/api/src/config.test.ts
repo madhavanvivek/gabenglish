@@ -7,6 +7,7 @@ describe("Gabenglish runtime configuration",()=>{
   expect(config.GABROO_LLM_API_KEY).toBeUndefined();
   expect(config.GABROO_LLM_MODEL).toBeUndefined();
   expect(config.GABROO_STT_MODEL).toBe("whisper-1");
+  expect(config.GABROO_TTS_ENABLED).toBe(true);
   expect(config.GABROO_TTS_MODEL).toBeUndefined();
   expect(config.GABROO_TTS_VOICE).toBeUndefined();
   expect(config.GABROO_GOOGLE_TTS_API_KEY).toBeUndefined();
@@ -15,6 +16,11 @@ describe("Gabenglish runtime configuration",()=>{
   expect(config.GABROO_TTS_DAILY_CHARACTER_LIMIT).toBe(10_000);
   expect(config.GABROO_TTS_MONTHLY_CHARACTER_LIMIT).toBe(100_000);
   expect(config.GABROO_LLM_BASE_URL).toBe("https://api.openai.com/v1");
+ });
+ it("supports an explicit operational speech kill switch",()=>{
+  expect(loadConfig({NODE_ENV:"test",GABROO_TTS_ENABLED:"false"}).GABROO_TTS_ENABLED).toBe(false);
+  expect(loadConfig({NODE_ENV:"test",GABROO_TTS_ENABLED:"true"}).GABROO_TTS_ENABLED).toBe(true);
+  expect(()=>loadConfig({NODE_ENV:"test",GABROO_TTS_ENABLED:"off"})).toThrow("Invalid environment configuration");
  });
  it("requires the API key and model to be configured together",()=>{
   expect(()=>loadConfig({NODE_ENV:"test",GABROO_LLM_API_KEY:"secret"})).toThrow("Invalid environment configuration");
