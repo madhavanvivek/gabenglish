@@ -29,6 +29,12 @@ function nextMessage(client:WebSocket){
  });
 }
 
+async function acceptSession(client:WebSocket){
+ const accepted=nextMessage(client);
+ client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,type:"session.ready"}));
+ expect(await accepted).toMatchObject({protocol_version:1,session_id:SESSION_ID,type:"session.accepted",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1}});
+}
+
 describe("Gabroo realtime WebSocket handshake",()=>{
  it("consumes the one-time ticket, establishes an owner-scoped control session and closes cleanly",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
@@ -40,6 +46,7 @@ describe("Gabroo realtime WebSocket handshake",()=>{
   const connected=nextMessage(client);
   await new Promise<void>((resolve,reject)=>{client.once("open",resolve);client.once("error",reject);});
   expect(await connected).toMatchObject({protocol_version:1,session_id:SESSION_ID,type:"session.connected"});
+  await acceptSession(client);
   const accepted=nextMessage(client);
   client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-1",type:"turn.start",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1}}));
   expect(await accepted).toMatchObject({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-1",type:"turn.accepted",max_turn_ms:120000});
@@ -69,6 +76,7 @@ describe("Gabroo realtime WebSocket handshake",()=>{
   const connected=nextMessage(client);
   await new Promise<void>((resolve,reject)=>{client.once("open",resolve);client.once("error",reject);});
   await connected;
+  await acceptSession(client);
   const accepted=nextMessage(client);
   client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-sequence",type:"turn.start",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1}}));
   await accepted;
@@ -93,6 +101,7 @@ describe("Gabroo realtime WebSocket handshake",()=>{
   const connected=nextMessage(client);
   await new Promise<void>((resolve,reject)=>{client.once("open",resolve);client.once("error",reject);});
   await connected;
+  await acceptSession(client);
   const accepted=nextMessage(client);
   client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-stt",type:"turn.start",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1}}));
   await accepted;
@@ -124,6 +133,7 @@ describe("Gabroo realtime WebSocket handshake",()=>{
   const connected=nextMessage(client);
   await new Promise<void>((resolve,reject)=>{client.once("open",resolve);client.once("error",reject);});
   await connected;
+  await acceptSession(client);
   const accepted=nextMessage(client);
   client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-empty",type:"turn.start",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1}}));
   await accepted;
@@ -158,6 +168,7 @@ describe("Gabroo realtime WebSocket handshake",()=>{
   const connected=nextMessage(client);
   await new Promise<void>((resolve,reject)=>{client.once("open",resolve);client.once("error",reject);});
   await connected;
+  await acceptSession(client);
   const accepted=nextMessage(client);
   client.send(JSON.stringify({protocol_version:1,session_id:SESSION_ID,turn_id:"turn-interrupt",type:"turn.start",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1}}));
   await accepted;
