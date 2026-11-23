@@ -481,6 +481,7 @@ describe("API foundation",()=>{
   let ticketCleanupSql="";
   const ticketTransactionSql:string[]=[];
   const handleQuery=async(sql:string,values?:unknown[])=>{
+   if(sql.includes("INSERT INTO gabroo_speech_usage_buckets"))return {rows:[{characters_used: String(values?.[1]??0)}],rowCount:1};
    if(sql.startsWith("DELETE FROM gabroo_speech_playback_tickets")){ticketCleanupSql=sql;throw new Error("simulated cleanup outage");}
    if(["BEGIN","COMMIT","ROLLBACK"].includes(sql)||sql.includes("pg_advisory_xact_lock")||sql.includes("SET consumed_at=now() WHERE user_id=")||sql.includes("INSERT INTO gabroo_speech_playback_tickets"))ticketTransactionSql.push(sql);
    if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
