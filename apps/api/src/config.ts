@@ -14,7 +14,9 @@ const schema=z.object({
  GABROO_TTS_VOICE:z.string().optional(),
  GABROO_GOOGLE_TTS_API_KEY:z.string().optional(),
  GABROO_GOOGLE_TTS_VOICE:z.string().optional(),
- GABROO_GOOGLE_TTS_LANGUAGE_CODE:z.string().default("ml-IN")
+ GABROO_GOOGLE_TTS_LANGUAGE_CODE:z.string().default("ml-IN"),
+ GABROO_TTS_DAILY_CHARACTER_LIMIT:z.coerce.number().int().min(1).max(10_000_000).default(10_000),
+ GABROO_TTS_MONTHLY_CHARACTER_LIMIT:z.coerce.number().int().min(1).max(100_000_000).default(100_000)
 }).superRefine((value,ctx)=>{
  if(value.NODE_ENV==="production"&&value.AUTH_TOKEN_SECRET==="gabenglish-local-development-secret-change-before-deploy"){
   ctx.addIssue({code:"custom",path:["AUTH_TOKEN_SECRET"],message:"AUTH_TOKEN_SECRET must be replaced before production."});
@@ -36,6 +38,9 @@ const schema=z.object({
  }
  if(value.GABROO_GOOGLE_TTS_VOICE&&!value.GABROO_GOOGLE_TTS_VOICE.startsWith(value.GABROO_GOOGLE_TTS_LANGUAGE_CODE+"-")){
   ctx.addIssue({code:"custom",path:["GABROO_GOOGLE_TTS_VOICE"],message:"Google TTS voice must match GABROO_GOOGLE_TTS_LANGUAGE_CODE."});
+ }
+ if(value.GABROO_TTS_MONTHLY_CHARACTER_LIMIT<value.GABROO_TTS_DAILY_CHARACTER_LIMIT){
+  ctx.addIssue({code:"custom",path:["GABROO_TTS_MONTHLY_CHARACTER_LIMIT"],message:"Monthly Gabroo speech character limit must be at least the daily limit."});
  }
  if(value.GABROO_GOOGLE_TTS_API_KEY&&value.GABROO_TTS_MODEL){
   ctx.addIssue({code:"custom",path:["GABROO_GOOGLE_TTS_API_KEY"],message:"Configure only one Gabroo speech synthesis provider at a time."});
