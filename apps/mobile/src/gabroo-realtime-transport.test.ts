@@ -41,7 +41,7 @@ describe("Gabroo realtime mobile transport helpers",()=>{
    apiBaseUrl:"https://api.example.com",sessionId:"session-test",connectionTicket:"b".repeat(64)
   });
   expect(()=>connection.startTurn("turn-test",{codec:"pcm_s16le",sample_rate_hz:16_000,channels:1})).toThrow("not been accepted");
-  connection.socket.onopen?.();
+  connection.socket.onopen?.(new Event("open"));
   connection.socket.onmessage?.({data:JSON.stringify({protocol_version:1,session_id:"session-test",type:"session.accepted",audio:{codec:"pcm_s16le",sample_rate_hz:16000,channels:1},max_frame_bytes:65536,max_turn_ms:120000})} as MessageEvent);
   connection.startTurn("turn-test",{codec:"pcm_s16le",sample_rate_hz:16_000,channels:1});
   const sender=connection.createAudioSender("turn-test");
