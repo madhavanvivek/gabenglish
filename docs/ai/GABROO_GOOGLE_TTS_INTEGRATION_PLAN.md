@@ -44,7 +44,7 @@ The live Google voice catalogue is the source of truth for availability, voice g
 ### Capability differences to account for
 - Standard and WaveNet support SSML controls and speaking-rate/pitch parameters, subject to voice/API support.
 - Chirp 3 HD does not support SSML input or speaking-rate/pitch-audio parameters. It has its own streaming and audio-control capabilities.
-- Do not apply one shared settings profile to every voice family. The adapter must validate and map supported controls per model.
+- Do not apply one shared settings profile to every voice family. The adapter must validate and map supported controls per model. The current implementation intentionally accepts Standard and WaveNet IDs only because it sends `speakingRate`; Chirp 3 HD remains excluded until a separate adapter supports its control contract.
 
 ## 3. Speech Gateway architecture
 
