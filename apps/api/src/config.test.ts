@@ -12,6 +12,8 @@ describe("Gabenglish runtime configuration",()=>{
   expect(config.GABROO_GOOGLE_TTS_API_KEY).toBeUndefined();
   expect(config.GABROO_GOOGLE_TTS_VOICE).toBeUndefined();
   expect(config.GABROO_GOOGLE_TTS_LANGUAGE_CODE).toBe("ml-IN");
+  expect(config.GABROO_TTS_DAILY_CHARACTER_LIMIT).toBe(10_000);
+  expect(config.GABROO_TTS_MONTHLY_CHARACTER_LIMIT).toBe(100_000);
   expect(config.GABROO_LLM_BASE_URL).toBe("https://api.openai.com/v1");
  });
  it("requires the API key and model to be configured together",()=>{
@@ -40,6 +42,11 @@ describe("Gabenglish runtime configuration",()=>{
  });
  it("prevents two TTS providers from being configured simultaneously",()=>{
   expect(()=>loadConfig({NODE_ENV:"test",GABROO_GOOGLE_TTS_API_KEY:"secret",GABROO_GOOGLE_TTS_VOICE:"ml-IN-Standard-B",GABROO_LLM_API_KEY:"secret",GABROO_LLM_MODEL:"chat",GABROO_TTS_MODEL:"tts",GABROO_TTS_VOICE:"voice"})).toThrow("Invalid environment configuration");
+ });
+ it("validates configurable daily and monthly speech quotas",()=>{
+  expect(loadConfig({NODE_ENV:"test",GABROO_TTS_DAILY_CHARACTER_LIMIT:"5000",GABROO_TTS_MONTHLY_CHARACTER_LIMIT:"50000"}).GABROO_TTS_DAILY_CHARACTER_LIMIT).toBe(5000);
+  expect(()=>loadConfig({NODE_ENV:"test",GABROO_TTS_DAILY_CHARACTER_LIMIT:"0"})).toThrow("Invalid environment configuration");
+  expect(()=>loadConfig({NODE_ENV:"test",GABROO_TTS_DAILY_CHARACTER_LIMIT:"5000",GABROO_TTS_MONTHLY_CHARACTER_LIMIT:"4000"})).toThrow("Invalid environment configuration");
  });
  it("accepts a complete OpenAI-compatible provider configuration",()=>{
   const config=loadConfig({NODE_ENV:"test",GABROO_LLM_API_KEY:"secret",GABROO_LLM_MODEL:"model",GABROO_LLM_BASE_URL:"https://llm.example/v1"});
