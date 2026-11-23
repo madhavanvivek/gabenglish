@@ -60,8 +60,9 @@ Gateway responsibilities:
 - Input validation, text length limits and request timeouts.
 - Streaming response where supported; otherwise bounded response delivery.
 - Audio format normalization and metadata.
-- Per-user and per-subscription usage metering.
-- Daily/monthly quotas and hard cost ceilings.
+- Durable per-user character reservations in PostgreSQL, partitioned by India-local day and month.
+- Configurable daily/monthly character quotas, enforced transactionally before provider requests; provider failures are conservatively counted because upstream processing may already have occurred.
+- Continue to add subscription-tier policy mapping and a separate operational cost kill switch before production.
 - Request IDs, structured logs and latency/error metrics.
 - Provider fallback only when it does not silently change an owner-approved voice; otherwise return a controlled error.
 - Optional caching for approved, non-personalized repeated lesson content. Do not cache learner-specific or sensitive text by default.
@@ -140,7 +141,7 @@ No candidate is automatically selected because it is the default or cheapest.
 2. Add a native Google TTS adapter behind the existing provider interface. **Done.**
 3. Add explicit server-side configuration, mutually exclusive provider selection and test doubles. **Done.**
 4. Reuse the existing authenticated speech API and one-time playback-ticket flow. **Already present; Google adapter is wired into server startup.**
-5. Add durable usage metering, quotas, timeout policy and a production kill switch. **Pending.**
+5. Add durable usage metering, quotas and timeout policy. **Initial implementation done:** PostgreSQL day/month buckets, atomic reservations, configurable 10,000 daily / 100,000 monthly character defaults, and quota rejection responses. Subscription-plan-specific quota mapping, retention cleanup and a separate operational cost kill switch remain pending.
 6. Add a restricted audition command or internal-only endpoint for candidate voice IDs. **Pending.**
 7. Add/verify mobile playback integration through Gabenglish API, never direct Google calls. **Pending verification.**
 8. Run staging tests only after credentials and billing are separately authorized.
@@ -152,7 +153,7 @@ No candidate is automatically selected because it is the default or cheapest.
 - Mobile app contains no Google credential and no direct Google TTS request.
 - Provider can be replaced through server configuration/adapter without mobile changes.
 - Authentication and subscription entitlement checks are enforced by the existing speech routes.
-- Durable per-user usage metering, rate limits, quotas and hard cost ceilings must be added before production use.
+- Durable per-user character metering and atomic daily/monthly quotas are implemented. Subscription-plan-specific policy mapping, request-rate controls, retention cleanup and a separate operational cost kill switch remain required before production use.
 - Tests cover invalid input, provider failure, malformed/empty/oversized audio, successful audio response and caller cancellation. The provider enforces a 15-second request timeout; durable quota tests remain pending.
 - The Google adapter uses synchronous synthesis and buffers the returned MP3. It does **not** claim provider streaming.
 - Standard/WaveNet controls and Chirp 3 HD limitations must be handled separately before broad voice auditions.
@@ -167,7 +168,7 @@ No candidate is automatically selected because it is the default or cheapest.
 - Existing API auth, active-subscription checks and single-use playback tickets: present.
 - Google Cloud project/API credentials: not configured.
 - Billing: not enabled by this change.
-- Usage metering, durable quotas, rate limiting across instances and cost kill switch: pending.
+- Usage metering and atomic daily/monthly character quotas: implemented in migration 0026; defaults are 10,000/day and 100,000/month and are configurable. Subscription-specific quota policy, request-rate controls, usage retention cleanup and cost kill switch: pending.
 - Voice audition samples: pending authorized Google Cloud access.
 - Final Gabroo voice: **not approved**.
 - Production use: **not authorized yet**.
