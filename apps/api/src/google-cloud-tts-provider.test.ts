@@ -34,6 +34,9 @@ describe("Google Cloud TTS provider",()=>{
  it("rejects a voice that does not match the configured locale",()=>{
   expect(()=>createGoogleCloudTtsProvider({...config,GABROO_GOOGLE_TTS_VOICE:"en-US-Standard-C"})).toThrow(/match the configured language/i);
  });
+ it("rejects Chirp 3 HD until its different control contract has a dedicated adapter",()=>{
+  expect(()=>createGoogleCloudTtsProvider({...config,GABROO_GOOGLE_TTS_VOICE:"ml-IN-Chirp3-HD-Charon"})).toThrow(/Standard and WaveNet/i);
+ });
  it("rejects invalid input before making a network request",async()=>{
   const fetcher=vi.fn();
   const provider=createGoogleCloudTtsProvider(config,fetcher)!;
