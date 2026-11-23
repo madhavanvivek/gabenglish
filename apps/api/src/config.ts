@@ -10,6 +10,7 @@ const schema=z.object({
  GABROO_LLM_BASE_URL:z.string().url().default("https://api.openai.com/v1"),
  GABROO_LLM_MODEL:z.string().optional(),
  GABROO_STT_MODEL:z.string().default("whisper-1"),
+ GABROO_TTS_ENABLED:z.enum(["true","false"]).default("true").transform(value=>value==="true"),
  GABROO_TTS_MODEL:z.string().optional(),
  GABROO_TTS_VOICE:z.string().optional(),
  GABROO_GOOGLE_TTS_API_KEY:z.string().optional(),
