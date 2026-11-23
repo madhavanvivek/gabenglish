@@ -67,6 +67,11 @@ describe("API foundation",()=>{
   const speech=await app.inject({method:"POST",url:"/api/v1/gabroo/speech",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{text:"Hello Gabroo",speed:1}});
   expect(speech.statusCode).toBe(503);
   expect(speech.json().error.code).toBe("SPEECH_TEMPORARILY_DISABLED");
+  const ticket=await app.inject({method:"POST",url:"/api/v1/gabroo/speech/playback-ticket",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{text:"Hello Gabroo",speed:1}});
+  expect(ticket.statusCode).toBe(503);
+  expect(ticket.json().error.code).toBe("SPEECH_TEMPORARILY_DISABLED");
+  const readiness=await app.inject({method:"GET",url:"/api/v1/ready"});
+  expect(readiness.json().capabilities.gabroo_speech).toBe("disabled");
   await app.close();
  });
  it("reports speech availability and supported controls to a paid learner without a provider",async()=>{
