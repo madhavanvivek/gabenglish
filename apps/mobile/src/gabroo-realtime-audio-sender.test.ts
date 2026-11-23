@@ -80,11 +80,12 @@ describe("Gabroo realtime audio sender",()=>{
    highWaterBytes:100,lowWaterBytes:20,drainTimeoutMs:1_000
   });
   const enqueue=sender.enqueue(native(Array.from({length:1_600},()=>0.2)));
+  const enqueueRejection=expect(enqueue).rejects.toThrow(/closed: learner_interrupt/);
   expect(sender.queuedBytes).toBe(3_200);
   sender.close("learner_interrupt");
   expect(sender.queuedBytes).toBe(0);
   await vi.advanceTimersByTimeAsync(20);
-  await expect(enqueue).rejects.toThrow(/closed: learner_interrupt/);
+  await enqueueRejection;
   expect(sent).toEqual([]);
   expect(sender.isClosed).toBe(true);
  });
