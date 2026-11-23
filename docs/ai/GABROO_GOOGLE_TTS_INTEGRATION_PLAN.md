@@ -1,6 +1,6 @@
 # Gabroo Google Cloud Text-to-Speech Integration Plan
 
-Status: **Google adapter implemented; credentials, audition and voice approval pending**
+Status: **Google adapter implemented with bounded timeout/cancellation; credentials, audition and voice approval pending**
 Decision scope: Google Cloud Text-to-Speech is the first speech provider to evaluate behind the Gabenglish-owned API. This does not approve a canonical Gabroo voice, avatar, or unrestricted production spend.
 
 Last reviewed: 2026-11-22
@@ -54,7 +54,8 @@ The mobile client must never call Google TTS directly and must never contain a G
 
 Gateway responsibilities:
 - Provider-neutral synthesis request/response contract.
-- Server-side Google authentication.
+- Server-side Google authentication. The audition adapter sends the restricted API key in the `x-goog-api-key` header rather than the URL query string.
+- A 15-second provider request timeout combined with caller cancellation; learner interruption can abort an in-flight request.
 - Voice/model allow-list.
 - Input validation, text length limits and request timeouts.
 - Streaming response where supported; otherwise bounded response delivery.
@@ -125,7 +126,7 @@ No candidate is automatically selected because it is the default or cheapest.
 
 ## 7. Security and privacy
 
-- The current audition adapter uses a server-side API key for the native REST endpoint. Restrict that key to the Cloud Text-to-Speech API and, where practical, restrict its source/network use. Treat it as a secret; never place it in Expo public configuration or source control.
+- The current audition adapter uses a server-side API key in the `x-goog-api-key` request header for the native REST endpoint. Restrict that key to the Cloud Text-to-Speech API and, where practical, restrict its source/network use. Treat it as a secret; never place it in Expo public configuration or source control. Before production, replace the API-key approach with a service identity and short-lived credentials supported by the deployment environment.
 - Before production, prefer a service identity and short-lived credentials supported by the deployment environment; do not rely on an unrestricted API key.
 - Store secrets only in the deployment secret manager.
 - Send only the text required for synthesis.
@@ -152,7 +153,7 @@ No candidate is automatically selected because it is the default or cheapest.
 - Provider can be replaced through server configuration/adapter without mobile changes.
 - Authentication and subscription entitlement checks are enforced by the existing speech routes.
 - Durable per-user usage metering, rate limits, quotas and hard cost ceilings must be added before production use.
-- Tests cover invalid input, provider failure, malformed/empty/oversized audio and successful audio response; timeout and quota tests remain pending.
+- Tests cover invalid input, provider failure, malformed/empty/oversized audio, successful audio response and caller cancellation. The provider enforces a 15-second request timeout; durable quota tests remain pending.
 - The Google adapter uses synchronous synthesis and buffers the returned MP3. It does **not** claim provider streaming.
 - Standard/WaveNet controls and Chirp 3 HD limitations must be handled separately before broad voice auditions.
 - No production voice is selected without explicit owner approval.
