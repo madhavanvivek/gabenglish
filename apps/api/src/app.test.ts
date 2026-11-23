@@ -57,6 +57,18 @@ describe("API foundation",()=>{
   expect(response.statusCode).toBe(403);
   await app.close();
  });
+ it("reports speech as unavailable when the operational kill switch is off",async()=>{
+  const config=loadConfig({NODE_ENV:"test",GABROO_TTS_ENABLED:"false"});
+  const provider={synthesize:async()=>({audio:new Uint8Array([1]),contentType:"audio/mpeg" as const})};
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,provider);
+  const status=await app.inject({method:"GET",url:"/api/v1/gabroo/speech/status",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(status.statusCode).toBe(200);
+  expect(status.json()).toEqual({available:false,formats:[],speed:{minimum:0.75,maximum:1.5}});
+  const speech=await app.inject({method:"POST",url:"/api/v1/gabroo/speech",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{text:"Hello Gabroo",speed:1}});
+  expect(speech.statusCode).toBe(503);
+  expect(speech.json().error.code).toBe("SPEECH_TEMPORARILY_DISABLED");
+  await app.close();
+ });
  it("reports speech availability and supported controls to a paid learner without a provider",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   const app=await buildApp(config,async()=>true,recognitionPool(true));
