@@ -196,10 +196,14 @@ export async function registerAdminRoutes(app:FastifyInstance,pool:Pool,config:A
   const query=z.object({period:z.enum(["day","month"]).default("day"),from:dateSchema.optional(),to:dateSchema.optional()}).strict().safeParse(request.query);
   if(!query.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Check the speech usage date filters.",request_id:request.id}});
   const period=query.data.period;
-  const from=query.data.from??new Date(Date.now()-29*86400000).toISOString().slice(0,10);
-  const to=query.data.to??new Date().toISOString().slice(0,10);
-  const fromTime=Date.parse(from+"T00:00:00Z"),toTime=Date.parse(to+"T00:00:00Z");
+  const requestedFrom=query.data.from??new Date(Date.now()-29*86400000).toISOString().slice(0,10);
+  const requestedTo=query.data.to??new Date().toISOString().slice(0,10);
+  const fromTime=Date.parse(requestedFrom+"T00:00:00Z"),toTime=Date.parse(requestedTo+"T00:00:00Z");
   if(fromTime>toTime||toTime-fromTime>366*86400000)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Choose a valid date range of at most 366 days.",request_id:request.id}});
+  // Monthly buckets are stored on the first day of each month. Normalize
+  // partial-month date filters so a request for any day includes that month.
+  const from=period==="month"?requestedFrom.slice(0,7)+"-01":requestedFrom;
+  const to=period==="month"?requestedTo.slice(0,7)+"-01":requestedTo;
   const result=await pool.query<{bucket_start:string;characters_used:string;requests_count:string;active_learners:string}>(
    "SELECT bucket_start::text, sum(characters_used)::text AS characters_used, sum(requests_count)::text AS requests_count, count(*) FILTER (WHERE characters_used>0 OR requests_count>0)::text AS active_learners FROM gabroo_speech_usage_buckets WHERE bucket_type=$1 AND bucket_start >= $2::date AND bucket_start <= $3::date GROUP BY bucket_start ORDER BY bucket_start",
    [period,from,to]
