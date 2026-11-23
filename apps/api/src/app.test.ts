@@ -25,7 +25,7 @@ function recognitionPool(hasEntitlement:boolean){
    return {rows:hasEntitlement?[{id:"entitlement-1"}]:[]};
   }
   return {rows:[]};
- }} as any;
+ },connect:async()=>({query:async(sql:string)=>({rowCount:sql.includes("INSERT INTO gabroo_speech_usage_buckets")?1:0,rows:[]}),release:()=>{}})} as any;
 }
 
 describe("API foundation",()=>{
