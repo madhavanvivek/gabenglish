@@ -44,6 +44,7 @@ export function createGabrooRealtimeAudioSender(options:GabrooRealtimeAudioSende
    if(options.getBufferedAmount()>highWaterBytes){
     if(Date.now()-started>drainTimeoutMs)throw new Error("Gabroo audio transport is congested; microphone capture must stop.");
     await wait();
+    if(closed)throw failure??new Error("Gabroo audio sender is closed.");
     if(options.getBufferedAmount()>lowWaterBytes)continue;
    }
    const frame=queue.shift()!;
