@@ -10,10 +10,10 @@ function adminHeader(secret:string){
  const token=payload+"."+createHmac("sha256",secret).update(payload).digest("base64url");
  return "Bearer "+token;
 }
-function adminPool(){
+function adminPool(roles=["superadmin"]){
  return {query:async(sql:string)=>{
   if(sql.includes("UPDATE admin_sessions SET last_seen_at"))return {rows:[{admin_account_id:adminId}]};
-  if(sql.includes("SELECT a.id,a.email_normalized"))return {rows:[{id:adminId,email_normalized:"admin@example.com",roles:["superadmin"]}]};
+  if(sql.includes("SELECT a.id,a.email_normalized"))return {rows:[{id:adminId,email_normalized:"admin@example.com",roles}]};
   if(sql.includes("FROM gabroo_speech_usage_buckets"))return {rows:[
    {bucket_start:"2026-11-22",characters_used:"1200",requests_count:"8",active_learners:"3"},
    {bucket_start:"2026-11-23",characters_used:"800",requests_count:"5",active_learners:"2"}
@@ -29,7 +29,7 @@ describe("Superadmin Gabroo speech usage report",()=>{
   expect(response.statusCode).toBe(401);
   await app.close();
  });
- it("returns aggregate speech metrics without learner or speech content",async()=>{
+ it("denies aggregate speech usage to non-superadmins",async()=>{\n  const config=loadConfig({NODE_ENV:"test"});\n  const app=await buildApp(config,async()=>true,adminPool(["support"]));\n  const response=await app.inject({method:"GET",url:"/api/v1/admin/gabroo/speech-usage",headers:{authorization:adminHeader(config.AUTH_TOKEN_SECRET)}});\n  expect(response.statusCode).toBe(403);\n  expect(response.json().error.code).toBe("SUPERADMIN_REQUIRED");\n  await app.close();\n });\n it("normalizes partial-month filters to stored month bucket starts",async()=>{\n  const config=loadConfig({NODE_ENV:"test"});\n  let values:unknown[]|undefined;\n  const pool={query:async(sql:string,params?:unknown[])=>{if(sql.includes("UPDATE admin_sessions SET last_seen_at"))return {rows:[{admin_account_id:adminId}]};if(sql.includes("SELECT a.id,a.email_normalized"))return {rows:[{id:adminId,email_normalized:"admin@example.com",roles:["superadmin"]}]};if(sql.includes("FROM gabroo_speech_usage_buckets")){values=params;return {rows:[]};}return {rows:[]};}} as any;\n  const app=await buildApp(config,async()=>true,pool);\n  const response=await app.inject({method:"GET",url:"/api/v1/admin/gabroo/speech-usage?period=month&from=2026-10-19&to=2026-11-23",headers:{authorization:adminHeader(config.AUTH_TOKEN_SECRET)}});\n  expect(response.statusCode).toBe(200);\n  expect(values).toEqual(["month","2026-10-01","2026-11-01"]);\n  await app.close();\n });\n it("returns aggregate speech metrics without learner or speech content",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   const app=await buildApp(config,async()=>true,adminPool());
   const response=await app.inject({method:"GET",url:"/api/v1/admin/gabroo/speech-usage?period=day&from=2026-11-22&to=2026-11-23",headers:{authorization:adminHeader(config.AUTH_TOKEN_SECRET)}});
