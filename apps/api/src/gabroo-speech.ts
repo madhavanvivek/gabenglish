@@ -6,6 +6,7 @@ import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
 import type {GabrooSpeechSynthesisProvider} from "./gabroo-speech-synthesis-provider.js";
+import {GabrooSpeechQuotaExceededError,reserveGabrooSpeechUsage} from "./gabroo-speech-usage.js";
 
 const activeSpeechLearners=new Set<string>();
 
@@ -25,7 +26,9 @@ async function synthesizeAndSend(
  learnerId:string,
  text:string,
  speed:number,
- provider:GabrooSpeechSynthesisProvider
+ provider:GabrooSpeechSynthesisProvider,
+ pool:Pool,
+ config:AppConfig
 ){
  if(activeSpeechLearners.has(learnerId))return sendError(reply,request.id,429,"SPEECH_REQUEST_IN_PROGRESS","Please wait for Gabroo to finish preparing the current reply.");
  activeSpeechLearners.add(learnerId);
@@ -38,6 +41,7 @@ async function synthesizeAndSend(
  request.raw.once("aborted",onAborted);
  reply.raw.once("close",onResponseClosed);
  try{
+  await reserveGabrooSpeechUsage({pool,userId:learnerId,characters:[...text].length,dailyLimit:config.GABROO_TTS_DAILY_CHARACTER_LIMIT,monthlyLimit:config.GABROO_TTS_MONTHLY_CHARACTER_LIMIT});
   const input={text,speed,signal:controller.signal};
   if(provider.synthesizeStream){
    const result=await provider.synthesizeStream(input);
@@ -61,6 +65,10 @@ async function synthesizeAndSend(
   reply.header("x-content-type-options","nosniff");
   return reply.send(Buffer.from(result.audio));
  }catch(error){
+  if(error instanceof GabrooSpeechQuotaExceededError){
+   const period=error.period;
+   return sendError(reply,request.id,429,period==="day"?"SPEECH_DAILY_QUOTA_EXCEEDED":"SPEECH_MONTHLY_QUOTA_EXCEEDED",period==="day"?"You have reached the daily Gabroo speech allowance. Please try again tomorrow.":"You have reached the monthly Gabroo speech allowance. Your allowance will reset next month.");
+  }
   if(controller.signal.aborted)return;
   request.log.error({request_id:request.id},"Gabroo speech synthesis failed");
   return sendError(reply,request.id,502,"SPEECH_SYNTHESIS_FAILED","Gabroo could not prepare speech just now. Please try again.");
@@ -146,7 +154,7 @@ export async function registerGabrooSpeechRoutes(
   if(!ticket)return sendError(reply,request.id,404,"PLAYBACK_TICKET_INVALID","This Gabroo audio link is invalid, expired, or already used.");
   const entitlement=await getActiveSubscriptionEntitlement(pool,ticket.user_id);
   if(!entitlement)return sendError(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to use Gabroo speech.");
-  return synthesizeAndSend(request,reply,ticket.user_id,ticket.speech_text,Number(ticket.speech_speed),provider);
+  return synthesizeAndSend(request,reply,ticket.user_id,ticket.speech_text,Number(ticket.speech_speed),provider,pool,config);
  });
 
  app.post("/api/v1/gabroo/speech",async(request,reply)=>{
@@ -157,6 +165,6 @@ export async function registerGabrooSpeechRoutes(
   const parsed=speechRequestSchema.safeParse(request.body);
   if(!parsed.success)return sendError(reply,request.id,400,"VALIDATION_ERROR","Please provide text and a speaking speed between 0.75× and 1.5×.");
   if(!provider)return sendError(reply,request.id,503,"PROVIDER_UNAVAILABLE","Gabroo's approved speech voice is not configured yet.");
-  return synthesizeAndSend(request,reply,learner.id,parsed.data.text,parsed.data.speed,provider);
+  return synthesizeAndSend(request,reply,learner.id,parsed.data.text,parsed.data.speed,provider,pool,config);
  });
 }
