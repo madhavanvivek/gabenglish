@@ -109,7 +109,7 @@ export async function registerGabrooSpeechRoutes(
   if(!learner)return sendError(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account to check Gabroo speech availability.");
   const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);
   if(!entitlement)return sendError(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to use Gabroo speech.");
-  return {available:Boolean(provider),formats:provider?["audio/mpeg"]:[],speed:{minimum:0.75,maximum:1.5}};
+  return {available:config.GABROO_TTS_ENABLED&&Boolean(provider),formats:config.GABROO_TTS_ENABLED&&provider?["audio/mpeg"]:[],speed:{minimum:0.75,maximum:1.5}};
  });
 
 
@@ -120,6 +120,7 @@ export async function registerGabrooSpeechRoutes(
   if(!entitlement)return sendError(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to use Gabroo speech.");
   const parsed=speechRequestSchema.safeParse(request.body);
   if(!parsed.success)return sendError(reply,request.id,400,"VALIDATION_ERROR","Please provide text and a speaking speed between 0.75× and 1.5×.");
+  if(!config.GABROO_TTS_ENABLED)return sendError(reply,request.id,503,"SPEECH_TEMPORARILY_DISABLED","Gabroo speech is temporarily unavailable. Please try again later.");
   if(!provider)return sendError(reply,request.id,503,"PROVIDER_UNAVAILABLE","Gabroo's approved speech voice is not configured yet.");
   try{
    await pool.query("DELETE FROM gabroo_speech_playback_tickets WHERE ctid IN (SELECT ctid FROM gabroo_speech_playback_tickets WHERE expires_at < now() - interval '5 minutes' ORDER BY expires_at ASC LIMIT 500)");
@@ -165,6 +166,7 @@ export async function registerGabrooSpeechRoutes(
   const params=request.params as {ticket?:string};
   if(!params.ticket||!/^[0-9a-f]{64}$/.test(params.ticket))
    return sendError(reply,request.id,404,"PLAYBACK_TICKET_INVALID","This Gabroo audio link is invalid or has expired.");
+  if(!config.GABROO_TTS_ENABLED)return sendError(reply,request.id,503,"SPEECH_TEMPORARILY_DISABLED","Gabroo speech is temporarily unavailable. Please try again later.");
   if(!provider)return sendError(reply,request.id,503,"PROVIDER_UNAVAILABLE","Gabroo's approved speech voice is not configured yet.");
   const digest=createHash("sha256").update(params.ticket).digest("hex");
   const consumed=await pool.query<{user_id:string;speech_text:string;speech_speed:number|string}>(
