@@ -184,4 +184,28 @@ export async function registerAdminRoutes(app:FastifyInstance,pool:Pool,config:A
    return {offer:{...row,standard_amount_minor:Number(row.standard_amount_minor),currency:String(row.currency).trim()}};
   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
  });
+
+ app.get("/api/v1/admin/gabroo/speech-usage",async(request,reply)=>{
+  const admin=await authenticateAdmin(request,pool,secret);
+  if(!admin)return reply.code(401).send({error:{code:"ADMIN_UNAUTHENTICATED",message:"Please sign in again.",request_id:request.id}});
+  if(!admin.roles.includes("superadmin"))return reply.code(403).send({error:{code:"SUPERADMIN_REQUIRED",message:"Superadmin access is required.",request_id:request.id}});
+  const dateSchema=z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value=>{
+   const parsed=new Date(value+"T00:00:00.000Z");
+   return Number.isFinite(parsed.getTime())&&parsed.toISOString().slice(0,10)===value;
+  });
+  const query=z.object({period:z.enum(["day","month"]).default("day"),from:dateSchema.optional(),to:dateSchema.optional()}).strict().safeParse(request.query);
+  if(!query.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Check the speech usage date filters.",request_id:request.id}});
+  const period=query.data.period;
+  const from=query.data.from??new Date(Date.now()-29*86400000).toISOString().slice(0,10);
+  const to=query.data.to??new Date().toISOString().slice(0,10);
+  const fromTime=Date.parse(from+"T00:00:00Z"),toTime=Date.parse(to+"T00:00:00Z");
+  if(fromTime>toTime||toTime-fromTime>366*86400000)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Choose a valid date range of at most 366 days.",request_id:request.id}});
+  const result=await pool.query<{bucket_start:string;characters_used:string;requests_count:string;active_learners:string}>(
+   "SELECT bucket_start::text, sum(characters_used)::text AS characters_used, sum(requests_count)::text AS requests_count, count(*) FILTER (WHERE characters_used>0 OR requests_count>0)::text AS active_learners FROM gabroo_speech_usage_buckets WHERE bucket_type=$1 AND bucket_start >= $2::date AND bucket_start <= $3::date GROUP BY bucket_start ORDER BY bucket_start",
+   [period,from,to]
+  );
+  const series=result.rows.map(row=>({bucket_start:row.bucket_start,characters_used:Number(row.characters_used??0),requests_count:Number(row.requests_count??0),active_learners:Number(row.active_learners??0)}));
+  return {timezone:"Asia/Kolkata",period,from,to,totals:series.reduce((total,row)=>({characters_used:total.characters_used+row.characters_used,requests_count:total.requests_count+row.requests_count,active_learner_buckets:total.active_learner_buckets+row.active_learners}),{characters_used:0,requests_count:0,active_learner_buckets:0}),series};
+ });
+
 }
