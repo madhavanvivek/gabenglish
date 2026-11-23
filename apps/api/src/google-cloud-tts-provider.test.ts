@@ -18,7 +18,8 @@ describe("Google Cloud TTS provider",()=>{
   await expect(provider.synthesize({text:"നമസ്കാരം! Let's practise.",speed:0.9,signal:controller.signal})).resolves.toEqual({
    audio:new Uint8Array([1,2,3]),contentType:"audio/mpeg"
   });
-  expect(captured?.url.origin+captured?.url.pathname).toBe("https://texttospeech.googleapis.com/v1/text:synthesize");
+  if(!captured)throw new Error("Google TTS request was not captured.");
+  expect(captured.url.href.split("?")[0]).toBe("https://texttospeech.googleapis.com/v1/text:synthesize");
   expect(captured?.url.searchParams.get("key")).toBe("server-only-test-key");
   expect(captured?.init.signal).toBe(controller.signal);
   expect(JSON.parse(String(captured?.init.body))).toEqual({
