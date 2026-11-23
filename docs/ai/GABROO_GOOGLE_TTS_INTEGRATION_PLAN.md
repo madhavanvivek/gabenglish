@@ -172,3 +172,6 @@ No candidate is automatically selected because it is the default or cheapest.
 - Voice audition samples: pending authorized Google Cloud access.
 - Final Gabroo voice: **not approved**.
 - Production use: **not authorized yet**.
+
+
+Learner usage endpoint: `GET /api/v1/gabroo/speech/usage` returns authenticated India-local daily/monthly character usage and remaining allowance. It does not expose speech content.
