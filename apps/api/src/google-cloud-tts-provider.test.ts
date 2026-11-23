@@ -20,8 +20,11 @@ describe("Google Cloud TTS provider",()=>{
   });
   if(!captured)throw new Error("Google TTS request was not captured.");
   expect(captured.url.href.split("?")[0]).toBe("https://texttospeech.googleapis.com/v1/text:synthesize");
-  expect(captured?.url.searchParams.get("key")).toBe("server-only-test-key");
-  expect(captured?.init.signal).toBe(controller.signal);
+  expect(captured.url.search).toBe("");
+  expect(new Headers(captured.init.headers).get("x-goog-api-key")).toBe("server-only-test-key");
+  expect(captured.init.signal).not.toBe(controller.signal);
+  controller.abort();
+  expect(captured.init.signal?.aborted).toBe(true);
   expect(JSON.parse(String(captured?.init.body))).toEqual({
    input:{text:"നമസ്കാരം! Let's practise."},
    voice:{languageCode:"ml-IN",name:"ml-IN-Standard-B"},
