@@ -39,6 +39,24 @@ describe("API foundation",()=>{
   expect(response.json().error.code).toBe("VERIFIED_ACCOUNT_REQUIRED");
   await app.close();
  });
+ it("returns zeroed India-local Gabroo speech usage to a paid learner",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const app=await buildApp(config,async()=>true,recognitionPool(true));
+  const response=await app.inject({method:"GET",url:"/api/v1/gabroo/speech/usage",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toEqual({timezone:"Asia/Kolkata",usage:{
+   day:{characters_used:0,requests_count:0,character_limit:10_000,characters_remaining:10_000},
+   month:{characters_used:0,requests_count:0,character_limit:100_000,characters_remaining:100_000}
+  }});
+  await app.close();
+ });
+ it("does not expose Gabroo speech usage to a free learner",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const app=await buildApp(config,async()=>true,recognitionPool(false));
+  const response=await app.inject({method:"GET",url:"/api/v1/gabroo/speech/usage",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(403);
+  await app.close();
+ });
  it("reports speech availability and supported controls to a paid learner without a provider",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   const app=await buildApp(config,async()=>true,recognitionPool(true));
