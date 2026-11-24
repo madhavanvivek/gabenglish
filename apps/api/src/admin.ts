@@ -204,12 +204,18 @@ export async function registerAdminRoutes(app:FastifyInstance,pool:Pool,config:A
   // partial-month date filters so a request for any day includes that month.
   const from=period==="month"?requestedFrom.slice(0,7)+"-01":requestedFrom;
   const to=period==="month"?requestedTo.slice(0,7)+"-01":requestedTo;
-  const result=await pool.query<{bucket_start:string;characters_used:string;requests_count:string;active_learners:string}>(
-   "SELECT bucket_start::text, sum(characters_used)::text AS characters_used, sum(requests_count)::text AS requests_count, count(*) FILTER (WHERE characters_used>0 OR requests_count>0)::text AS active_learners FROM gabroo_speech_usage_buckets WHERE bucket_type=$1 AND bucket_start >= $2::date AND bucket_start <= $3::date GROUP BY bucket_start ORDER BY bucket_start",
-   [period,from,to]
-  );
+  const [result,uniqueLearners]=await Promise.all([
+   pool.query<{bucket_start:string;characters_used:string;requests_count:string;active_learners:string}>(
+    "SELECT bucket_start::text, sum(characters_used)::text AS characters_used, sum(requests_count)::text AS requests_count, count(*) FILTER (WHERE characters_used>0 OR requests_count>0)::text AS active_learners FROM gabroo_speech_usage_buckets WHERE bucket_type=$1 AND bucket_start >= $2::date AND bucket_start <= $3::date GROUP BY bucket_start ORDER BY bucket_start",
+    [period,from,to]
+   ),
+   pool.query<{unique_learners:string}>(
+    "SELECT count(DISTINCT user_id)::text AS unique_learners FROM gabroo_speech_usage_buckets WHERE bucket_type=$1 AND bucket_start >= $2::date AND bucket_start <= $3::date AND (characters_used>0 OR requests_count>0)",
+    [period,from,to]
+   )
+  ]);
   const series=result.rows.map(row=>({bucket_start:row.bucket_start,characters_used:Number(row.characters_used??0),requests_count:Number(row.requests_count??0),active_learners:Number(row.active_learners??0)}));
-  return {timezone:"Asia/Kolkata",period,from,to,totals:series.reduce((total,row)=>({characters_used:total.characters_used+row.characters_used,requests_count:total.requests_count+row.requests_count,active_learner_buckets:total.active_learner_buckets+row.active_learners}),{characters_used:0,requests_count:0,active_learner_buckets:0}),series};
+  return {timezone:"Asia/Kolkata",period,from,to,totals:{...series.reduce((total,row)=>({characters_used:total.characters_used+row.characters_used,requests_count:total.requests_count+row.requests_count,active_learner_buckets:total.active_learner_buckets+row.active_learners}),{characters_used:0,requests_count:0,active_learner_buckets:0}),unique_learners:Number(uniqueLearners.rows[0]?.unique_learners??0)},series};
  });
 
 }
