@@ -23,7 +23,7 @@ describe("GLIM rubric evidence adapter",()=>{
  it("accepts pronunciation and fluency only from audio-capable evaluation",()=>{
   const result=mapGabrooRubricResults([
    task({skill:"pronunciation",method:"audio_analysis"}),
-   task({skill:"fluency",method:"human_audio_review"})
+   task({skill:"fluency",method:"audio_analysis"})
   ],"placement_assessment");
   expect(result.map(item=>item.skill)).toEqual(["pronunciation"]);
  });
