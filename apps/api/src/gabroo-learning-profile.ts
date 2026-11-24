@@ -7,7 +7,7 @@ import {chooseGabrooLearningDecision,estimateGabrooSkills,type GabrooSkillEviden
 import {buildGabrooLessonBlueprint} from "./gabroo-lesson-planner.js";
 
 const skillSchema=z.enum(["grammar","vocabulary","pronunciation","fluency","comprehension","confidence"]);
-const sourceSchema=z.enum(["placement_assessment","conversation","learner_review","human_review"]);
+const sourceSchema=z.enum(["placement_assessment","lesson_exercise","conversation","learner_review","human_review"]);
 const evidenceSchema=z.object({
  skill:skillSchema,
  score:z.number().min(0).max(1),
