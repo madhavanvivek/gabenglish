@@ -110,4 +110,25 @@ describe("Superadmin Gabroo speech usage report",()=>{
   expect(response.statusCode).toBe(400);
   await app.close();
  });
+
+ it("uses Asia/Kolkata calendar dates for the default reporting window",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const queryValues:unknown[][]=[];
+  const pool={query:async(sql:string,params?:unknown[])=>{
+   if(sql.includes("UPDATE admin_sessions SET last_seen_at"))return {rows:[{admin_account_id:adminId}]};
+   if(sql.includes("SELECT a.id,a.email_normalized"))return {rows:[{id:adminId,email_normalized:"admin@example.com",roles:["superadmin"]}]};
+   if(sql.includes("FROM gabroo_speech_usage_buckets")){queryValues.push(params??[]);return {rows:[]};}
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"GET",url:"/api/v1/admin/gabroo/speech-usage",headers:{authorization:adminHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(200);
+  const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+  const start=new Date(Date.parse(today+"T00:00:00Z")-29*86400000).toISOString().slice(0,10);
+  expect(response.json()).toMatchObject({from:start,to:today,timezone:"Asia/Kolkata"});
+  expect(queryValues).toHaveLength(2);
+  expect(queryValues[0]).toEqual(["day",start,today]);
+  await app.close();
+ });
+
 });
