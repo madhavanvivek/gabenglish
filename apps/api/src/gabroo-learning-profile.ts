@@ -61,13 +61,15 @@ export async function registerGabrooLearningProfileRoutes(app:FastifyInstance,po
   const decision=chooseGabrooLearningDecision({
    evidence,learningDirection,dueVocabularyCount:Number(due.rows[0]?.count??0)
   });
+  const nextActivity=buildGabrooLessonBlueprint(decision);
   return {
    model:{name:"Gabroo Learning Intelligence Model",version:"1.0.0"},
    learning_direction:learningDirection,
    target_language:decision.targetLanguage,
    support_language:decision.supportLanguage,
    skill_estimates:estimates,
-   next_learning_decision:decision,\n   next_activity:nextActivity,
+   next_learning_decision:decision,
+   next_activity:nextActivity,
    evidence_summary:{observations:evidence.length,skills_with_evidence:estimates.length,window_days:180},
    limitations:[
     "A missing skill estimate means no qualifying evidence was recorded; it does not mean poor ability.",
