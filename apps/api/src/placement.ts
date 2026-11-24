@@ -4,15 +4,12 @@ import type {Pool,PoolClient} from "pg";
 import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {z} from "zod";
-import {placementSessionStartSchema,placementConversationRequestSchema} from "@gabenglish/contracts";
+import {placementSessionStartSchema,placementConversationRequestSchema,authenticatedPlacementSubmissionSchema} from "@gabenglish/contracts";
 import {extractResponseEvidence, type ResponseEvidence} from "./placement-evidence.js";
 import {buildObjectivePlacementRubricResults,mapGabrooRubricResults} from "./gabroo-assessment-evaluator.js";
 
 const legacySubmission=z.object({answers:z.array(z.object({question_id:z.string(),option_id:z.string()})).min(1).max(20)});
-const authenticatedSubmission=z.object({
- idempotency_key:z.string().uuid(),
- answers:z.array(z.object({question_id:z.enum(["q1","q2","q3","q4","q5"]),option_id:z.enum(["a","b","c"])})).length(5)
-}).strict().refine(value=>new Set(value.answers.map(answer=>answer.question_id)).size===5,{message:"Answer each placement question exactly once."});
+
 
 const quiz=[{id:"q1",prompt:"Choose the correct sentence.",options:[{id:"a",text:"She go to work every day."},{id:"b",text:"She goes to work every day."},{id:"c",text:"She going to work every day."}],correct:"b"},{id:"q2",prompt:"Complete: I have lived here ___ 2020.",options:[{id:"a",text:"since"},{id:"b",text:"for"},{id:"c",text:"from"}],correct:"a"},{id:"q3",prompt:"Which sounds most natural?",options:[{id:"a",text:"I am having 25 years."},{id:"b",text:"I have 25 years old."},{id:"c",text:"I am 25 years old."}],correct:"c"},{id:"q4",prompt:"Choose the best response: “Would you mind opening the window?”",options:[{id:"a",text:"Not at all."},{id:"b",text:"Yes, I would mind."},{id:"c",text:"I don't mind to."}],correct:"a"},{id:"q5",prompt:"Choose the correct sentence.",options:[{id:"a",text:"If I knew, I would tell you."},{id:"b",text:"If I know, I would told you."},{id:"c",text:"If I had know, I tell you."}],correct:"a"}] as const;
 
@@ -175,7 +172,7 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
   if(!pool)return reply.code(503).send({error:{code:"DATABASE_UNAVAILABLE",message:"Your assessment could not be saved. Please try again later.",request_id:request.id}});
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return reply.code(401).send({error:{code:"VERIFIED_ACCOUNT_REQUIRED",message:"Please sign in with your verified account before submitting your assessment.",request_id:request.id}});
-  const parsed=authenticatedSubmission.safeParse(request.body);
+  const parsed=authenticatedPlacementSubmissionSchema.safeParse(request.body);
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Answer all five placement questions once before submitting.",request_id:request.id}});
   const answers=parsed.data.answers;
   const answerMap=new Map(answers.map(answer=>[answer.question_id,answer.option_id]));
