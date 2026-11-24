@@ -57,3 +57,35 @@ export function mapGabrooRubricResults(
  }
  return mapped;
 }
+
+const objectivePlacementItems=[
+ {questionId:"q1",skill:"grammar",confidence:0.8},
+ {questionId:"q2",skill:"grammar",confidence:0.8},
+ {questionId:"q3",skill:"grammar",confidence:0.8},
+ {questionId:"q4",skill:"comprehension",confidence:0.7},
+ {questionId:"q5",skill:"grammar",confidence:0.8}
+] as const;
+
+/**
+ * Scores only server-defined, objectively keyed placement items. The caller
+ * supplies the verified answer key outcome, never a client-provided score.
+ * Confidence is a provisional item-reliability weight, not learner ability.
+ */
+export function buildObjectivePlacementRubricResults(input:{
+ answers:readonly {questionId:string;correct:boolean}[];
+ observedAt:string;
+}):GabrooRubricResult[]{
+ const answerMap=new Map(input.answers.map(answer=>[answer.questionId,answer.correct]));
+ return objectivePlacementItems.flatMap(item=>{
+  const correct=answerMap.get(item.questionId);
+  if(correct===undefined)return [];
+  return [{
+   skill:item.skill,
+   score:correct?1:0,
+   confidence:item.confidence,
+   taskId:"placement-pilot-1:"+item.questionId,
+   observedAt:input.observedAt,
+   method:"objective_task" as const
+  }];
+ });
+}
