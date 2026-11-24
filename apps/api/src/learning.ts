@@ -123,7 +123,16 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   if(!safeContent)return failure(reply,request.id,503,"LESSON_CONTENT_UNAVAILABLE","This lesson is being prepared and is not available yet.");
   const [attempts,outcomes]=await Promise.all([
    pool.query<{exercise_id:string}>("SELECT DISTINCT exercise_id FROM learner_exercise_attempts WHERE user_id=$1 AND lesson_version_id=$2",[learner.id,lesson.version_id]),
-   pool.query<{skill:GabrooExerciseOutcome["skill"];correct:boolean;difficulty:number|null;observed_at:Date}>(`SELECT DISTINCT ON (a.lesson_version_id,a.exercise_id) block->>'skill' AS skill,a.is_correct AS correct,CASE WHEN block->>'difficulty' ~ '^[1-5]`,[learner.id])
+   pool.query<{skill:GabrooExerciseOutcome["skill"];correct:boolean;difficulty:number|null;observed_at:Date}>(`SELECT DISTINCT ON (a.lesson_version_id,a.exercise_id)
+    block->>'skill' AS skill,a.is_correct AS correct,
+    CASE WHEN block->>'difficulty' ~ '^[1-5]$' THEN (block->>'difficulty')::int ELSE NULL END AS difficulty,
+    a.created_at AS observed_at
+    FROM learner_exercise_attempts a
+    JOIN lesson_versions lv ON lv.id=a.lesson_version_id
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(lv.content->'blocks')='array' THEN lv.content->'blocks' ELSE '[]'::jsonb END) AS blocks(block)
+    WHERE a.user_id=$1 AND block->>'type'='exercise' AND block->>'id'=a.exercise_id
+      AND block->>'skill' IN ('grammar','vocabulary','comprehension')
+    ORDER BY a.lesson_version_id,a.exercise_id,a.created_at DESC LIMIT 100`,[learner.id])
   ]);
   const adaptivePractice=buildGabrooAdaptivePractice(outcomes.rows.map(row=>({skill:row.skill,correct:row.correct,difficulty:row.difficulty??undefined,observedAt:row.observed_at.toISOString()})));
   const selection=selectGabrooNextExercise({content:safeContent,attemptedExerciseIds:attempts.rows.map(row=>row.exercise_id),adaptivePractice});
