@@ -6,7 +6,7 @@ import {authenticateLearner} from "./auth.js";
 import {z} from "zod";
 import {placementSessionStartSchema,placementConversationRequestSchema,authenticatedPlacementSubmissionSchema} from "@gabenglish/contracts";
 import {extractResponseEvidence, type ResponseEvidence} from "./placement-evidence.js";
-import {buildObjectivePlacementRubricResults,mapGabrooRubricResults} from "./gabroo-assessment-evaluator.js";
+import {buildObjectivePlacementRubricResults,mapGabrooRubricResults,aggregatePlacementEvidenceBySkill} from "./gabroo-assessment-evaluator.js";
 
 const legacySubmission=z.object({answers:z.array(z.object({question_id:z.string(),option_id:z.string()})).min(1).max(20)});
 
@@ -205,11 +205,11 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
     answers:quiz.map(question=>({questionId:question.id,correct:answerMap.get(question.id)===question.correct})),
     observedAt
    });
-   const skillEvidence=mapGabrooRubricResults(rubricResults,"placement_assessment");
+   const skillEvidence=aggregatePlacementEvidenceBySkill(mapGabrooRubricResults(rubricResults,"placement_assessment"),attemptId+":placement-pilot-1");
    for(const item of skillEvidence){
     await client.query(
      "INSERT INTO gabroo_skill_evidence(user_id,skill,score,confidence,source,task_id,observed_at) VALUES($1,$2,$3,$4,'placement_assessment',$5,$6) ON CONFLICT(user_id,skill,source,task_id) DO NOTHING",
-     [learner.id,item.skill,item.score,item.confidence,attemptId+":"+item.taskId,item.observedAt]
+     [learner.id,item.skill,item.score,item.confidence,item.taskId,item.observedAt]
     );
    }
    const result={
