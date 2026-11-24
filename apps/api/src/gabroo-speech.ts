@@ -187,6 +187,7 @@ export async function registerGabrooSpeechRoutes(
   if(!entitlement)return sendError(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to use Gabroo speech.");
   const parsed=speechRequestSchema.safeParse(request.body);
   if(!parsed.success)return sendError(reply,request.id,400,"VALIDATION_ERROR","Please provide text and a speaking speed between 0.75× and 1.5×.");
+  if(!config.GABROO_TTS_ENABLED)return sendError(reply,request.id,503,"SPEECH_TEMPORARILY_DISABLED","Gabroo speech is temporarily unavailable. Please try again later.");
   if(!provider)return sendError(reply,request.id,503,"PROVIDER_UNAVAILABLE","Gabroo's approved speech voice is not configured yet.");
   return synthesizeAndSend(request,reply,learner.id,parsed.data.text,parsed.data.speed,provider,pool,config);
  });
