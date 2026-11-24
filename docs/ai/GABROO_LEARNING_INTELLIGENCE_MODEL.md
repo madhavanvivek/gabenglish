@@ -121,3 +121,11 @@ This is a curriculum blueprint, not a claim that a lesson player, audio evaluato
 Published exercise authoring now supports an optional explicit skill tag for grammar, vocabulary or comprehension. The learner exercise submission endpoint requires a UUID idempotency key and persists the evaluated attempt and its GLIM evidence in one database transaction. Replaying the same key and answer returns the original result; reusing the key with a different answer returns a conflict. A successful new attempt contributes one task-linked `lesson_exercise` observation with a provisional 0.75 observation-confidence weight. The score is the authored answer-key outcome, not a transcript heuristic.
 
 Exercises without a supported skill tag still save their result but do not affect GLIM. The current authored schema intentionally does not map free-text or ordinary multiple-choice results to pronunciation, fluency or confidence. Those skills require the separate audio-evaluation or learner-review pathways. Migration `0022_lesson_exercise_evidence.sql` adds nullable idempotency keys for backward compatibility and expands the evidence provenance constraint.
+
+## Adaptive next-exercise delivery
+
+`GET /api/v1/learning/lessons/:id/next-exercise` now selects the next learner-safe exercise from the currently published lesson. It requires a verified learner and active subscription, respects the learner's language direction and the Malayalam educator-approval gate, and reads only the published lesson version.
+
+The selector uses recent authored exercise outcomes to prioritize an unseen exercise in the skill that needs reinforcement, then falls back to the next unseen exercise. When all exercises have been attempted, it offers a review exercise. The response is projected through the learner-safe lesson schema, so answer keys and accepted-answer rubrics are never returned.
+
+This is skill-aware sequencing, not yet difficulty-tier adaptation: authored exercises do not currently carry calibrated difficulty metadata. The selector does not invent exercises or claim that a harder exercise exists. Actual challenge progression requires authored difficulty levels and reviewed content at each level.
