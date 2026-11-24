@@ -50,9 +50,9 @@ export function connectGabrooRealtimeSocket(input:{
  };
  socket.onmessage=event=>{
   let payload:unknown;
-  try{payload=JSON.parse(String(event.data));}catch{input.callbacks?.onInvalidMessage?.();return;}
+  try{payload=JSON.parse(String(event.data));}catch{input.callbacks?.onInvalidMessage?.();socket.close(1008,"invalid_server_message");return;}
   const parsed=gabrooRealtimeServerMessageSchema.safeParse(payload);
-  if(!parsed.success||parsed.data.session_id!==input.sessionId){input.callbacks?.onInvalidMessage?.();return;}
+  if(!parsed.success||parsed.data.session_id!==input.sessionId){input.callbacks?.onInvalidMessage?.();socket.close(1008,"invalid_server_message");return;}
   if(parsed.data.type==="session.accepted")sessionAccepted=true;
   if(parsed.data.type==="session.closed"||parsed.data.type==="session.interrupted"){sessionAccepted=false;activeTurnId=undefined;}
   if((parsed.data.type==="turn.completed"||parsed.data.type==="turn.failed")&&activeTurnId===parsed.data.turn_id)activeTurnId=undefined;
