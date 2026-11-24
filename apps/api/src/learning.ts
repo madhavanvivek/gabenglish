@@ -1,4 +1,3 @@
-import {randomUUID} from "node:crypto";
 import {z} from "zod";
 import {evaluateAuthoredExercise} from "@gabenglish/contracts";
 import {projectLearnerLessonContent} from "@gabenglish/contracts";
