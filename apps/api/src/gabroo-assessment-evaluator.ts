@@ -89,3 +89,27 @@ export function buildObjectivePlacementRubricResults(input:{
   }];
  });
 }
+
+/** Collapse item outcomes so one sitting contributes at most one signal per skill. */
+export function aggregatePlacementEvidenceBySkill(
+ results:readonly GabrooSkillEvidence[],
+ assessmentTaskId:string
+):GabrooSkillEvidence[]{
+ const grouped=new Map<GabrooSkill,GabrooSkillEvidence[]>();
+ for(const item of results){
+  const items=grouped.get(item.skill)??[];
+  items.push(item);
+  grouped.set(item.skill,items);
+ }
+ return [...grouped.entries()].map(([skill,items])=>{
+  const weight=items.reduce((sum,item)=>sum+item.confidence,0);
+  const score=items.reduce((sum,item)=>sum+item.score*item.confidence,0)/weight;
+  return {
+   skill,score:Math.round(score*1000)/1000,
+   confidence:Math.min(1,weight/items.length),
+   source:"placement_assessment" as const,
+   taskId:assessmentTaskId+":"+skill,
+   observedAt:items.map(item=>item.observedAt).sort().at(-1)!
+  };
+ });
+}
