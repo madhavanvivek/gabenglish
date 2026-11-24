@@ -30,6 +30,14 @@ describe("Gabroo adaptive exercise sequencing",()=>{
   const [result]=buildGabrooAdaptivePractice(outcomes([false,false,false], "grammar", 4));
   expect(result).toMatchObject({action:"reinforce_current_pattern",current_difficulty:4,target_difficulty:3});
  });
+ it("never advances beyond the highest authored difficulty",()=>{
+  const [result]=buildGabrooAdaptivePractice(outcomes([true,true,true,true,true], "grammar", 5));
+  expect(result).toMatchObject({action:"introduce_next_challenge",current_difficulty:5,target_difficulty:5});
+ });
+ it("never drops below the foundational difficulty",()=>{
+  const [result]=buildGabrooAdaptivePractice(outcomes([false,false,false], "grammar", 1));
+  expect(result).toMatchObject({action:"reinforce_current_pattern",current_difficulty:1,target_difficulty:1});
+ });
  it("keeps difficulty unchanged when metadata is absent",()=>{
   const [result]=buildGabrooAdaptivePractice([{skill:"grammar",correct:true,observedAt:"2026-11-24T10:00:00.000Z"}]);
   expect(result).toMatchObject({current_difficulty:null,target_difficulty:null});
