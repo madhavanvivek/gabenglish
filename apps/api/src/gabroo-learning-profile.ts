@@ -53,8 +53,8 @@ export async function registerGabrooLearningProfileRoutes(app:FastifyInstance,po
     SELECT count(*)::text AS count FROM gabroo_vocabulary
     WHERE user_id=$1 AND status<>'mastered' AND review_due_at<=now()
    `,[learner.id]),
-   pool.query<{skill:GabrooExerciseOutcome["skill"];correct:boolean;observed_at:Date}>(`
-    SELECT block->>'skill' AS skill,a.is_correct AS correct,a.created_at AS observed_at
+   pool.query<{skill:GabrooExerciseOutcome["skill"];correct:boolean;difficulty:number|null;observed_at:Date}>(`
+    SELECT block->>'skill' AS skill,a.is_correct AS correct,(block->>'difficulty')::int AS difficulty,a.created_at AS observed_at
     FROM learner_exercise_attempts a
     JOIN lesson_versions lv ON lv.id=a.lesson_version_id
     CROSS JOIN LATERAL jsonb_array_elements(lv.content->'blocks') AS blocks(block)
@@ -74,7 +74,7 @@ export async function registerGabrooLearningProfileRoutes(app:FastifyInstance,po
    evidence,learningDirection,dueVocabularyCount:Number(due.rows[0]?.count??0)
   });
   const nextActivity=buildGabrooLessonBlueprint(decision);
-  const adaptivePractice=buildGabrooAdaptivePractice(exerciseOutcomes.rows.map(row=>({skill:row.skill,correct:row.correct,observedAt:row.observed_at.toISOString()})));
+  const adaptivePractice=buildGabrooAdaptivePractice(exerciseOutcomes.rows.map(row=>({skill:row.skill,correct:row.correct,difficulty:row.difficulty??undefined,observedAt:row.observed_at.toISOString()})));
   return {
    model:{name:"Gabroo Learning Intelligence Model",version:"1.0.0"},
    learning_direction:learningDirection,
