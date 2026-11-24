@@ -1,0 +1,45 @@
+import {describe,it,expect} from "vitest";
+import {mapGabrooRubricResults} from "./gabroo-assessment-evaluator.js";
+
+const task=(overrides:Record<string,unknown>={})=>({
+ skill:"grammar",score:0.7,confidence:0.85,taskId:"placement-q1",
+ observedAt:"2026-11-24T10:00:00.000Z",method:"objective_task",...overrides
+});
+
+describe("GLIM rubric evidence adapter",()=>{
+ it("maps explicit objective placement outcomes without deriving scores",()=>{
+  const result=mapGabrooRubricResults([task()], "placement_assessment");
+  expect(result).toEqual([{
+   skill:"grammar",score:0.7,confidence:0.85,source:"placement_assessment",
+   taskId:"placement-q1",observedAt:"2026-11-24T10:00:00.000Z"
+  }]);
+ });
+ it("does not convert text heuristics or objective text tasks into pronunciation evidence",()=>{
+  expect(mapGabrooRubricResults([
+   task({skill:"pronunciation",method:"objective_task"}),
+   task({skill:"fluency",method:"objective_task"})
+  ],"placement_assessment")).toEqual([]);
+ });
+ it("accepts pronunciation and fluency only from audio-capable evaluation",()=>{
+  const result=mapGabrooRubricResults([
+   task({skill:"pronunciation",method:"audio_analysis"}),
+   task({skill:"fluency",method:"human_audio_review"})
+  ],"placement_assessment");
+  expect(result.map(item=>item.skill)).toEqual(["pronunciation"]);
+ });
+ it("requires learner-review provenance for self-reported evidence",()=>{
+  const item=task({skill:"confidence",method:"learner_review"});
+  expect(mapGabrooRubricResults([item],"placement_assessment")).toEqual([]);
+  expect(mapGabrooRubricResults([item],"learner_review")).toHaveLength(1);
+ });
+ it("requires human-review provenance for human assessments",()=>{
+  const item=task({skill:"comprehension",method:"human_language_review"});
+  expect(mapGabrooRubricResults([item],"placement_assessment")).toEqual([]);
+  expect(mapGabrooRubricResults([item],"human_review")).toHaveLength(1);
+ });
+ it("drops malformed or untraceable rubric outcomes",()=>{
+  expect(mapGabrooRubricResults([
+   task({score:1.4}),task({taskId:" "}),task({confidence:0})
+  ],"placement_assessment")).toEqual([]);
+ });
+});
