@@ -42,4 +42,19 @@ describe("GLIM rubric evidence adapter",()=>{
    task({score:1.4}),task({taskId:" "}),task({confidence:0})
   ],"placement_assessment")).toEqual([]);
  });
+
+ it("rejects incompatible evaluator methods for a skill",()=>{
+  expect(mapGabrooRubricResults([
+   task({skill:"confidence",method:"objective_task"}),
+   task({skill:"grammar",method:"audio_analysis"}),
+   task({skill:"pronunciation",method:"human_language_review"})
+  ],"human_review")).toEqual([]);
+ });
+ it("keeps only one observation per skill and task in a batch",()=>{
+  const result=mapGabrooRubricResults([
+   task({score:0.6}),task({score:0.95})
+  ],"placement_assessment");
+  expect(result).toHaveLength(1);
+  expect(result[0]?.score).toBe(0.6);
+ });
 });
