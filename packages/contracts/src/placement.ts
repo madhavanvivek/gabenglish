@@ -41,3 +41,12 @@ export const placementSubmissionSchema=z.object({answers:z.array(placementAnswer
 export type PlacementSubmission=z.infer<typeof placementSubmissionSchema>;
 export const placementResultSchema=z.object({score:z.number().int().min(0),total:z.number().int().positive(),percentage:z.number().min(0).max(100),suggested_stage:placementStageSchema,notice:z.string()});
 export type PlacementResult=z.infer<typeof placementResultSchema>;
+
+export const authenticatedPlacementSubmissionSchema=z.object({
+ idempotency_key:z.string().uuid(),
+ answers:z.array(placementAnswerSchema.extend({
+  question_id:z.enum(["q1","q2","q3","q4","q5"]),
+  option_id:z.enum(["a","b","c"])
+ })).length(5)
+}).strict().refine(value=>new Set(value.answers.map(answer=>answer.question_id)).size===5,{message:"Answer each placement question exactly once."});
+export type AuthenticatedPlacementSubmission=z.infer<typeof authenticatedPlacementSubmissionSchema>;
