@@ -15,7 +15,7 @@ export const GABROO_SKILLS = [
 ] as const;
 
 export type GabrooSkill = typeof GABROO_SKILLS[number];
-export type GabrooEvidenceSource = "placement_assessment" | "conversation" | "learner_review" | "human_review";
+export type GabrooEvidenceSource = "placement_assessment" | "lesson_exercise" | "conversation" | "learner_review" | "human_review";
 export type GabrooSkillEvidence = {
   skill: GabrooSkill;
   /** Normalised observed result from 0 to 1; must be grounded in an actual task. */
