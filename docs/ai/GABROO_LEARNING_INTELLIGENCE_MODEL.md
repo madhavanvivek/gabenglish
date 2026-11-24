@@ -107,3 +107,10 @@ The scoring response exposes these observations for review, but does not persist
 A separate `POST /api/v1/placement/assessments/submit` endpoint now requires a verified learner session, all five unique pilot answers, and a client-generated UUID idempotency key. The server validates against its own answer key, creates a versioned attempt record, and writes GLIM evidence in one database transaction. Replaying the same key and same answers returns the stored result; reusing the key with different answers returns a conflict. A new attempt uses a new attempt ID, so retakes remain distinct and auditable.
 
 One sitting contributes at most one aggregated observation per skill, even when several questions assess that skill. This prevents four grammar questions in one sitting from satisfying GLIM's repeated-evidence threshold by themselves. A later independent assessment attempt is required to create another grammar observation. The older unauthenticated pilot score endpoint remains for compatibility and does not write learner evidence.
+
+
+## Adaptive lesson blueprint
+
+`apps/api/src/gabroo-lesson-planner.ts` converts the GLIM decision into a versioned, skill-specific lesson blueprint exposed as `next_activity` on the learner profile. It defines an objective, activity format, ordered teaching steps, completion check, language direction and explicit scoring boundary. It supports diagnostic placement, balanced conversation, grammar example-to-recall, vocabulary spaced retrieval, comprehension checks, confidence warm-ups and audio-gated speaking practice.
+
+This is a curriculum blueprint, not a claim that a lesson player, audio evaluator or generated exercise renderer is already live. The client/tutor runtime must execute the steps, and only a trusted evaluator may produce evidence. Pronunciation and fluency plans explicitly require consented validated audio; confidence uses learner self-report; conversation volume and transcript statistics are never proficiency scores.
