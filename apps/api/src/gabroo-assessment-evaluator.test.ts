@@ -1,5 +1,5 @@
 import {describe,it,expect} from "vitest";
-import {mapGabrooRubricResults} from "./gabroo-assessment-evaluator.js";
+import {mapGabrooRubricResults,aggregatePlacementEvidenceBySkill} from "./gabroo-assessment-evaluator.js";
 
 const task=(overrides:Record<string,unknown>={})=>({
  skill:"grammar",score:0.7,confidence:0.85,taskId:"placement-q1",
@@ -56,5 +56,17 @@ describe("GLIM rubric evidence adapter",()=>{
   ],"placement_assessment");
   expect(result).toHaveLength(1);
   expect(result[0]?.score).toBe(0.6);
+ });
+
+ it("collapses multiple items into one skill observation per assessment sitting",()=>{
+  const mapped=mapGabrooRubricResults([
+   task({taskId:"q1",score:1}),task({taskId:"q2",score:0})
+  ],"placement_assessment");
+  const aggregated=aggregatePlacementEvidenceBySkill(mapped,"attempt-123");
+  expect(aggregated).toHaveLength(1);
+  expect(aggregated[0]).toMatchObject({
+   skill:"grammar",score:0.5,confidence:0.8,
+   source:"placement_assessment",taskId:"attempt-123:grammar"
+  });
  });
 });
