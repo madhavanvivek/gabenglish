@@ -624,3 +624,13 @@ Next implementation sequence:
 - The session inventory excludes expired/revoked sessions and sessions belonging to suspended administrator accounts. Session revocation is audited.
 - This is an initial functional static console prototype, not a production security sign-off. MFA, invitations/recovery, CSP/idle-timeout hardening, audit export, hosted browser QA and penetration testing remain outstanding.
 - The latest console commits have not yet been verified by a reported CI run. Do not treat this UI as CI-validated or production-ready. The PR remains draft and unmerged; no deployment has been performed.
+
+
+## 23. Gabroo speech operations reporting and India-local date handling (2026-11-24)
+
+- Added the Superadmin-only aggregate endpoint `GET /api/v1/admin/gabroo/speech-usage`, with daily/monthly buckets, inclusive date filters, Asia/Kolkata timezone metadata, character totals, request counts and active-learner counts.
+- Added `unique_learners` as a distinct learner count across the entire selected range so it is not confused with the sum of active learner buckets.
+- Corrected the default 30-day filter to use Asia/Kolkata calendar dates rather than UTC dates. Added a regression test for the default window and retained month-start normalization for monthly reports.
+- The report intentionally excludes learner identifiers, email addresses, transcripts and audio. It is not a quota-management interface or provider-spend report.
+- CI run #1964 (`45361526265`) passed API typecheck/tests, shared-contract typecheck/tests, mobile typecheck/unit tests and Android production-bundle smoke test for commit `8aaa571`.
+- India-local date correction commits `46e8cb7` and `b73eae9` are awaiting their own CI completion. The feature branch and draft PR remain unmerged; no deployment or physical Android device QA has been performed.
