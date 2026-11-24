@@ -4,6 +4,7 @@ import {z} from "zod";
 import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {chooseGabrooLearningDecision,estimateGabrooSkills,type GabrooSkillEvidence,type GabrooSkill} from "./gabroo-learning-model.js";
+import {buildGabrooLessonBlueprint} from "./gabroo-lesson-planner.js";
 
 const skillSchema=z.enum(["grammar","vocabulary","pronunciation","fluency","comprehension","confidence"]);
 const sourceSchema=z.enum(["placement_assessment","conversation","learner_review","human_review"]);
@@ -66,7 +67,7 @@ export async function registerGabrooLearningProfileRoutes(app:FastifyInstance,po
    target_language:decision.targetLanguage,
    support_language:decision.supportLanguage,
    skill_estimates:estimates,
-   next_learning_decision:decision,
+   next_learning_decision:decision,\n   next_activity:nextActivity,
    evidence_summary:{observations:evidence.length,skills_with_evidence:estimates.length,window_days:180},
    limitations:[
     "A missing skill estimate means no qualifying evidence was recorded; it does not mean poor ability.",
