@@ -13,7 +13,7 @@ const guidance=(skill:"grammar"|"vocabulary"|"comprehension",action:"reinforce_c
 
 describe("Gabroo next exercise selector",()=>{
  it("chooses the recommended skill among unseen published exercises",()=>{
-  const result=selectGabrooNextExercise({content:lesson,attemptedExerciseIds:["grammar-1"],adaptivePractice:[guidance("grammar","reinforce_current_pattern")]});
+  const result=selectGabrooNextExercise({content:lesson,attemptedExerciseIds:["vocab-1","comp-1"],adaptivePractice:[guidance("grammar","reinforce_current_pattern")]});
   expect(result).toMatchObject({exercise:{id:"grammar-1"},reason:"targeted_skill"});
  });
  it("chooses a skill-matched unseen exercise first",()=>{
