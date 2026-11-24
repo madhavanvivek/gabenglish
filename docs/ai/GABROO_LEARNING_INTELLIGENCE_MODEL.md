@@ -129,3 +129,10 @@ Exercises without a supported skill tag still save their result but do not affec
 The selector uses recent authored exercise outcomes to prioritize an unseen exercise in the skill that needs reinforcement, then falls back to the next unseen exercise. When all exercises have been attempted, it offers a review exercise. The response is projected through the learner-safe lesson schema, so answer keys and accepted-answer rubrics are never returned.
 
 This is skill-aware sequencing, not yet difficulty-tier adaptation: authored exercises do not currently carry calibrated difficulty metadata. The selector does not invent exercises or claim that a harder exercise exists. Actual challenge progression requires authored difficulty levels and reviewed content at each level.
+## Authored exercise difficulty bands
+
+Authored exercises may now carry an optional integer difficulty from 1 (supported/foundational) through 5 (most challenging in the current curriculum). The field is learner-safe metadata; answer keys remain authoring-only. Existing lessons without difficulty continue to work unchanged.
+
+Adaptive practice derives a target band only when recent attempts have authored difficulty metadata. Five or more recent outcomes with at least 80% correct can move the target up one band; three or more with at most 40% correct can move it down one band; otherwise the current band is retained. The target is bounded to 1–5 and is a content-selection hint, not a proficiency score.
+
+The next-exercise selector prefers an unseen exercise in the recommended skill and closest to the target band. If no exercise exists at that band, it falls back to another authored exercise for that skill rather than fabricating content. Curriculum authors must provide reviewed content across bands before learners can experience a complete progression.
