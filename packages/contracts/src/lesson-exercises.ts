@@ -1,7 +1,7 @@
 import {z} from "zod";
 
 export const authoredChoiceExerciseSchema=z.object({
- type:z.literal("exercise"),id:z.string().regex(/^[a-z0-9_-]{1,64}$/i),
+ type:z.literal("exercise"),skill:z.enum(["grammar","vocabulary","comprehension"]).optional(),difficulty:z.number().int().min(1).max(5).optional(),id:z.string().regex(/^[a-z0-9_-]{1,64}$/i),
  instruction:z.string().trim().min(1).max(500),prompt:z.string().trim().min(1).max(1000),
  response_type:z.literal("single_choice"),
  options:z.array(z.object({id:z.string().regex(/^[a-z0-9_-]{1,32}$/i),label:z.string().trim().min(1).max(300)})).min(2).max(8),
