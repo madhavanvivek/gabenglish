@@ -6,6 +6,7 @@ import {authenticateLearner} from "./auth.js";
 import {z} from "zod";
 import {placementSessionStartSchema,placementConversationRequestSchema} from "@gabenglish/contracts";
 import {extractResponseEvidence, type ResponseEvidence} from "./placement-evidence.js";
+import {buildObjectivePlacementRubricResults,mapGabrooRubricResults} from "./gabroo-assessment-evaluator.js";
 
 const legacySubmission=z.object({answers:z.array(z.object({question_id:z.string(),option_id:z.string()})).min(1).max(20)});
 const quiz=[{id:"q1",prompt:"Choose the correct sentence.",options:[{id:"a",text:"She go to work every day."},{id:"b",text:"She goes to work every day."},{id:"c",text:"She going to work every day."}],correct:"b"},{id:"q2",prompt:"Complete: I have lived here ___ 2020.",options:[{id:"a",text:"since"},{id:"b",text:"for"},{id:"c",text:"from"}],correct:"a"},{id:"q3",prompt:"Which sounds most natural?",options:[{id:"a",text:"I am having 25 years."},{id:"b",text:"I have 25 years old."},{id:"c",text:"I am 25 years old."}],correct:"c"},{id:"q4",prompt:"Choose the best response: “Would you mind opening the window?”",options:[{id:"a",text:"Not at all."},{id:"b",text:"Yes, I would mind."},{id:"c",text:"I don't mind to."}],correct:"a"},{id:"q5",prompt:"Choose the correct sentence.",options:[{id:"a",text:"If I knew, I would tell you."},{id:"b",text:"If I know, I would told you."},{id:"c",text:"If I had know, I tell you."}],correct:"a"}] as const;
@@ -170,6 +171,6 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Submit between 1 and 20 valid answers.",request_id:request.id}});
   const answerMap=new Map(parsed.data.answers.map(a=>[a.question_id,a.option_id]));const score=quiz.filter(q=>answerMap.get(q.id)===q.correct).length;const percentage=Math.round(score/quiz.length*100);
   const suggested_stage=percentage<40?"malayalam_mode":percentage<80?"mixed_mode":"english_practice";
-  return {assessment_version:"pilot-1",score,total:quiz.length,percentage,suggested_stage,notice:"This short pilot assessment is a starting-point suggestion, not a formal certification."};
+  const observedAt=new Date().toISOString();const rubricResults=buildObjectivePlacementRubricResults({answers:quiz.map(question=>({questionId:question.id,correct:answerMap.get(question.id)===question.correct})).filter(answer=>answerMap.has(answer.questionId)),observedAt});const skillEvidence=mapGabrooRubricResults(rubricResults,"placement_assessment");return {assessment_version:"pilot-1",score,total:quiz.length,percentage,suggested_stage,rubric_observations:skillEvidence.map(item=>({skill:item.skill,score:item.score,confidence:item.confidence,task_id:item.taskId,observed_at:item.observedAt})),notice:"This short pilot assessment is a starting-point suggestion, not a formal certification. Rubric observations are provisional item-level evidence and are not yet persisted to your learning profile."};
  });
 }
