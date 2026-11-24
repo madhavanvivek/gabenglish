@@ -6,6 +6,8 @@ import type {Pool} from "pg";
 import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
+import {buildGabrooAdaptivePractice,type GabrooExerciseOutcome} from "./gabroo-adaptive-practice.js";
+import {selectGabrooNextExercise} from "./gabroo-exercise-selector.js";
 
 type Direction="ml_to_en"|"en_to_ml";
 type CatalogRow={
@@ -104,6 +106,28 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   const safeContent=projectLearnerLessonContent(lesson.content);
   if(!safeContent){request.log.error({request_id:request.id,lesson_id:id},"Published lesson content does not match the learner-safe schema");return failure(reply,request.id,503,"LESSON_CONTENT_UNAVAILABLE","This lesson is being prepared and is not available yet.");}
   return {lesson:{id:lesson.lesson_id,slug:lesson.slug,title:lesson.title,version_id:lesson.version_id,version:lesson.version_number,learning_direction:lesson.learning_direction,source_language:lesson.source_language,target_language:lesson.target_language,support_language:lesson.support_language,content:safeContent,script_mode:lesson.script_mode,register:lesson.register,dialect_scope:lesson.dialect_scope,romanisation:lesson.romanisation},progress:lesson.progress_status?{status:lesson.progress_status,progress_percent:Number(lesson.progress_percent),updated_at:lesson.progress_updated_at}:null};
+ });
+ app.get("/api/v1/learning/lessons/:id/next-exercise",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to get your next exercise.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to access exercises.");
+  const id=(request.params as {id?:string}).id??"";
+  if(!lessonIdPattern.test(id))return failure(reply,request.id,400,"INVALID_LESSON_ID","This lesson link is invalid.");
+  const found=await pool.query<{version_id:string;content:unknown}>(
+   `SELECT lv.id AS version_id,lv.content FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id WHERE l.id=$1 AND l.status='published' AND c.status='published' AND lv.status='published' AND c.learning_direction=COALESCE((SELECT learning_direction FROM user_preferences WHERE user_id=$2),'ml_to_en') AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')`,
+   [id,learner.id]
+  );
+  const lesson=found.rows[0];
+  if(!lesson)return failure(reply,request.id,404,"LESSON_NOT_FOUND","This lesson is not published for your selected learning direction.");
+  const safeContent=projectLearnerLessonContent(lesson.content);
+  if(!safeContent)return failure(reply,request.id,503,"LESSON_CONTENT_UNAVAILABLE","This lesson is being prepared and is not available yet.");
+  const [attempts,outcomes]=await Promise.all([
+   pool.query<{exercise_id:string}>("SELECT DISTINCT exercise_id FROM learner_exercise_attempts WHERE user_id=$1 AND lesson_version_id=$2",[learner.id,lesson.version_id]),
+   pool.query<{skill:GabrooExerciseOutcome["skill"];correct:boolean;observed_at:Date}>(`SELECT block->>'skill' AS skill,a.is_correct AS correct,a.created_at AS observed_at FROM learner_exercise_attempts a JOIN lesson_versions lv ON lv.id=a.lesson_version_id CROSS JOIN LATERAL jsonb_array_elements(lv.content->'blocks') AS blocks(block) WHERE a.user_id=$1 AND block->>'type'='exercise' AND block->>'id'=a.exercise_id AND block->>'skill' IN ('grammar','vocabulary','comprehension') ORDER BY a.created_at DESC LIMIT 100`,[learner.id])
+  ]);
+  const adaptivePractice=buildGabrooAdaptivePractice(outcomes.rows.map(row=>({skill:row.skill,correct:row.correct,observedAt:row.observed_at.toISOString()})));
+  const selection=selectGabrooNextExercise({content:safeContent,attemptedExerciseIds:attempts.rows.map(row=>row.exercise_id),adaptivePractice});
+  return {lesson_id:id,selection};
  });
  app.post("/api/v1/learning/lessons/:id/progress",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
