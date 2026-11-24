@@ -191,7 +191,7 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
      "SELECT answers,result FROM gabroo_placement_attempts WHERE user_id=$1 AND idempotency_key=$2 FOR UPDATE",
      [learner.id,parsed.data.idempotency_key]
     );
-    const normalize=(value:unknown)=>JSON.stringify(Array.isArray(value)?[...value].sort((a:any,b:any)=>String(a.question_id).localeCompare(String(b.question_id))):value);
+    const normalize=(value:unknown)=>JSON.stringify(Array.isArray(value)?[...value].sort((a,b)=>String((a as {question_id?:string}).question_id).localeCompare(String((b as {question_id?:string}).question_id))):value);
     if(!prior.rows[0]||normalize(prior.rows[0].answers)!==normalize(answers)){
      await client.query("ROLLBACK");
      return reply.code(409).send({error:{code:"IDEMPOTENCY_KEY_REUSED",message:"This submission key was already used for a different set of answers.",request_id:request.id}});
