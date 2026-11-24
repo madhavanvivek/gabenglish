@@ -56,7 +56,18 @@ export async function registerGabrooLearningProfileRoutes(app:FastifyInstance,po
    pool.query<{skill:GabrooExerciseOutcome["skill"];correct:boolean;difficulty:number|null;observed_at:Date}>(`
     SELECT DISTINCT ON (a.lesson_version_id,a.exercise_id)
       block->>'skill' AS skill,a.is_correct AS correct,
-      CASE WHEN block->>'difficulty' ~ '^[1-5]
+      CASE WHEN block->>'difficulty' ~ '^[1-5]$' THEN (block->>'difficulty')::int ELSE NULL END AS difficulty,
+      a.created_at AS observed_at
+    FROM learner_exercise_attempts a
+    JOIN lesson_versions lv ON lv.id=a.lesson_version_id
+    CROSS JOIN LATERAL jsonb_array_elements(
+      CASE WHEN jsonb_typeof(lv.content->'blocks')='array' THEN lv.content->'blocks' ELSE '[]'::jsonb END
+    ) AS blocks(block)
+    WHERE a.user_id=$1 AND block->>'type'='exercise'
+      AND block->>'id'=a.exercise_id
+      AND block->>'skill' IN ('grammar','vocabulary','comprehension')
+    ORDER BY a.lesson_version_id,a.exercise_id,a.created_at DESC
+    LIMIT 100
    `,[learner.id])
   ]);
   const evidence:GabrooSkillEvidence[]=observations.rows.map(row=>({
