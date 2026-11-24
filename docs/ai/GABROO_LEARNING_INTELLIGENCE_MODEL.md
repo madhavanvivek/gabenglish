@@ -93,3 +93,10 @@ The profile will remain at `needs_placement` until a trusted evaluator records t
 `apps/api/src/gabroo-assessment-evaluator.ts` is the boundary between explicit evaluator output and persisted GLIM evidence. It accepts only schema-valid, task-linked rubric outcomes; it does not calculate scores from response length, vocabulary counts, transcript heuristics or grammar hints. Objective task outcomes are accepted only for placement assessments, learner self-reviews only for learner-review provenance, and human review outcomes only for human-review provenance. Pronunciation and fluency require an audio-analysis or human-audio-review method; text-only outcomes are discarded for those dimensions.
 
 The adapter is intentionally not called by the current free-form placement conversation: that flow has not yet produced validated rubric scores. Its unit tests cover provenance, modality restrictions, malformed results and task traceability. Integration is permitted only when a real evaluator emits the explicit rubric contract.
+
+
+## Objective placement pilot integration
+
+The keyed multiple-choice pilot now emits item-level rubric observations for answered questions. The server owns the answer key and maps grammar items (q1, q2, q3, q5) and one pragmatic-response comprehension item (q4) to separate task identifiers. Correct answers receive 1 and incorrect answers 0; the item reliability weight is explicitly provisional (0.8 for grammar items and 0.7 for q4) and is not a learner ability score.
+
+The scoring response exposes these observations for review, but does not persist them to the learner profile: this legacy scoring endpoint is not yet bound to an authenticated learner identity. The conversational placement flow also remains observation-only. A later authenticated assessment submission must bind results to the verified learner and apply consent, task-versioning, retake and idempotency rules before calling the internal evidence writer. This pilot is not a calibrated proficiency test and does not justify a CEFR label or a definitive learning-stage assignment.
