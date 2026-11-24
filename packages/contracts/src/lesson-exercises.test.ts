@@ -3,7 +3,7 @@ import {authoredExerciseSchema,evaluateAuthoredExercise} from "./lesson-exercise
 
 describe("authored exercise evaluation",()=>{
  const choice={type:"exercise",id:"greeting",instruction:"Choose the greeting",prompt:"Morning",response_type:"single_choice",options:[{id:"morning",label:"Good morning"},{id:"night",label:"Good night"}],correct_option_id:"morning",correct_feedback:"Exactly right.",incorrect_feedback:"Try the time-of-day clue."};
- it("validates choice answer keys against available options",()=>{
+ it("accepts explicit supported skill attribution for GLIM",()=>{\n  expect(authoredExerciseSchema.safeParse({...choice,skill:"grammar"}).success).toBe(true);\n  expect(authoredExerciseSchema.safeParse({...choice,skill:"pronunciation"}).success).toBe(false);\n });\n it("validates choice answer keys against available options",()=>{
   expect(authoredExerciseSchema.safeParse(choice).success).toBe(true);
   expect(authoredExerciseSchema.safeParse({...choice,correct_option_id:"missing"}).success).toBe(false);
  });
