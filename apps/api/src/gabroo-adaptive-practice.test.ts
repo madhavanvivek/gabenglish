@@ -26,7 +26,15 @@ describe("Gabroo adaptive exercise sequencing",()=>{
   expect(result.find(item=>item.skill==="grammar")?.action).toBe("introduce_next_challenge");
   expect(result.find(item=>item.skill==="vocabulary")?.action).toBe("reinforce_current_pattern");
  });
- it("moves down one difficulty band after repeated difficulty",()=>{\n  const [result]=buildGabrooAdaptivePractice(outcomes([false,false,false], "grammar", 4));\n  expect(result).toMatchObject({action:"reinforce_current_pattern",current_difficulty:4,target_difficulty:3});\n });\n it("keeps difficulty unchanged when metadata is absent",()=>{\n  const [result]=buildGabrooAdaptivePractice([{skill:"grammar",correct:true,observedAt:"2026-11-24T10:00:00.000Z"}]);\n  expect(result).toMatchObject({current_difficulty:null,target_difficulty:null});\n });\n it("ignores malformed timestamps",()=>{
+ it("moves down one difficulty band after repeated difficulty",()=>{
+  const [result]=buildGabrooAdaptivePractice(outcomes([false,false,false], "grammar", 4));
+  expect(result).toMatchObject({action:"reinforce_current_pattern",current_difficulty:4,target_difficulty:3});
+ });
+ it("keeps difficulty unchanged when metadata is absent",()=>{
+  const [result]=buildGabrooAdaptivePractice([{skill:"grammar",correct:true,observedAt:"2026-11-24T10:00:00.000Z"}]);
+  expect(result).toMatchObject({current_difficulty:null,target_difficulty:null});
+ });
+ it("ignores malformed timestamps",()=>{
   expect(buildGabrooAdaptivePractice([{skill:"grammar",correct:true,observedAt:"invalid"}])).toEqual([]);
  });
 });
