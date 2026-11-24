@@ -77,3 +77,12 @@ Learning evidence must be minimised, purpose-limited and access-controlled. Lear
 - GLIM v1: transparent skill evidence and conservative next-practice decisions.
 - Future versions must include a versioned decision contract, migration strategy, evaluation results and rollback path.
 - Changes to scoring thresholds or decision rules require regression tests and benchmark review.
+
+
+## Persisted learner profile API
+
+The API now persists task-linked skill evidence in `gabroo_skill_evidence` (migration `0020_gabroo_skill_evidence.sql`). `recordGabrooSkillEvidence()` is an internal service boundary for trusted assessment, conversation and review evaluators; it is not exposed as an endpoint that lets a learner submit arbitrary proficiency scores. Duplicate observations for the same learner, skill, source and task are ignored rather than overwriting history.
+
+Authenticated learners can read `GET /api/v1/gabroo/learning-profile`. The response contains the current 180-day evidence window, evidence-backed skill estimates, a conservative next-practice decision, target/support language, limitations and privacy flags. Learners cannot read another learner's evidence. Raw audio and transcripts are not returned or used for training.
+
+The profile will remain at `needs_placement` until a trusted evaluator records task evidence. Conversation text length, word count and transcript-only pronunciation guesses must not be written as skill evidence. The next integration step is to connect validated placement and activity evaluators to the internal evidence writer.
