@@ -86,3 +86,10 @@ The API now persists task-linked skill evidence in `gabroo_skill_evidence` (migr
 Authenticated learners can read `GET /api/v1/gabroo/learning-profile`. The response contains the current 180-day evidence window, evidence-backed skill estimates, a conservative next-practice decision, target/support language, limitations and privacy flags. Learners cannot read another learner's evidence. Raw audio and transcripts are not returned or used for training.
 
 The profile will remain at `needs_placement` until a trusted evaluator records task evidence. Conversation text length, word count and transcript-only pronunciation guesses must not be written as skill evidence. The next integration step is to connect validated placement and activity evaluators to the internal evidence writer.
+
+
+## Trusted rubric adapter
+
+`apps/api/src/gabroo-assessment-evaluator.ts` is the boundary between explicit evaluator output and persisted GLIM evidence. It accepts only schema-valid, task-linked rubric outcomes; it does not calculate scores from response length, vocabulary counts, transcript heuristics or grammar hints. Objective task outcomes are accepted only for placement assessments, learner self-reviews only for learner-review provenance, and human review outcomes only for human-review provenance. Pronunciation and fluency require an audio-analysis or human-audio-review method; text-only outcomes are discarded for those dimensions.
+
+The adapter is intentionally not called by the current free-form placement conversation: that flow has not yet produced validated rubric scores. Its unit tests cover provenance, modality restrictions, malformed results and task traceability. Integration is permitted only when a real evaluator emits the explicit rubric contract.
