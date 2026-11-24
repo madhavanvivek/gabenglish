@@ -1,6 +1,6 @@
 import type {FastifyInstance} from "fastify";
 import {randomUUID} from "node:crypto";
-import type {Pool} from "pg";
+import type {Pool,PoolClient} from "pg";
 import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {z} from "zod";
@@ -9,6 +9,11 @@ import {extractResponseEvidence, type ResponseEvidence} from "./placement-eviden
 import {buildObjectivePlacementRubricResults,mapGabrooRubricResults} from "./gabroo-assessment-evaluator.js";
 
 const legacySubmission=z.object({answers:z.array(z.object({question_id:z.string(),option_id:z.string()})).min(1).max(20)});
+const authenticatedSubmission=z.object({
+ idempotency_key:z.string().uuid(),
+ answers:z.array(z.object({question_id:z.enum(["q1","q2","q3","q4","q5"]),option_id:z.enum(["a","b","c"])})).length(5)
+}).strict().refine(value=>new Set(value.answers.map(answer=>answer.question_id)).size===5,{message:"Answer each placement question exactly once."});
+
 const quiz=[{id:"q1",prompt:"Choose the correct sentence.",options:[{id:"a",text:"She go to work every day."},{id:"b",text:"She goes to work every day."},{id:"c",text:"She going to work every day."}],correct:"b"},{id:"q2",prompt:"Complete: I have lived here ___ 2020.",options:[{id:"a",text:"since"},{id:"b",text:"for"},{id:"c",text:"from"}],correct:"a"},{id:"q3",prompt:"Which sounds most natural?",options:[{id:"a",text:"I am having 25 years."},{id:"b",text:"I have 25 years old."},{id:"c",text:"I am 25 years old."}],correct:"c"},{id:"q4",prompt:"Choose the best response: “Would you mind opening the window?”",options:[{id:"a",text:"Not at all."},{id:"b",text:"Yes, I would mind."},{id:"c",text:"I don't mind to."}],correct:"a"},{id:"q5",prompt:"Choose the correct sentence.",options:[{id:"a",text:"If I knew, I would tell you."},{id:"b",text:"If I know, I would told you."},{id:"c",text:"If I had know, I tell you."}],correct:"a"}] as const;
 
 type Prompt={id:string;band:number;text:string};
@@ -165,6 +170,66 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
   await persistCompletedReport(session,result);
   return result;
  });
+
+ app.post("/api/v1/placement/assessments/submit",async(request,reply)=>{
+  if(!pool)return reply.code(503).send({error:{code:"DATABASE_UNAVAILABLE",message:"Your assessment could not be saved. Please try again later.",request_id:request.id}});
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return reply.code(401).send({error:{code:"VERIFIED_ACCOUNT_REQUIRED",message:"Please sign in with your verified account before submitting your assessment.",request_id:request.id}});
+  const parsed=authenticatedSubmission.safeParse(request.body);
+  if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Answer all five placement questions once before submitting.",request_id:request.id}});
+  const answers=parsed.data.answers;
+  const answerMap=new Map(answers.map(answer=>[answer.question_id,answer.option_id]));
+  const score=quiz.filter(question=>answerMap.get(question.id)===question.correct).length;
+  const percentage=Math.round(score/quiz.length*100);
+  const suggested_stage=percentage<40?"malayalam_mode":percentage<80?"mixed_mode":"english_practice";
+  const client:PoolClient=await pool.connect();
+  try{
+   await client.query("BEGIN");
+   const inserted=await client.query<{id:string}>(
+    "INSERT INTO gabroo_placement_attempts(user_id,idempotency_key,assessment_version,answers,result) VALUES($1,$2,'pilot-1',$3::jsonb,'{}'::jsonb) ON CONFLICT(user_id,idempotency_key) DO NOTHING RETURNING id",
+    [learner.id,parsed.data.idempotency_key,JSON.stringify(answers)]
+   );
+   if(!inserted.rows[0]){
+    const prior=await client.query<{answers:unknown;result:Record<string,unknown>}>(
+     "SELECT answers,result FROM gabroo_placement_attempts WHERE user_id=$1 AND idempotency_key=$2 FOR UPDATE",
+     [learner.id,parsed.data.idempotency_key]
+    );
+    const normalize=(value:unknown)=>JSON.stringify(Array.isArray(value)?[...value].sort((a:any,b:any)=>String(a.question_id).localeCompare(String(b.question_id))):value);
+    if(!prior.rows[0]||normalize(prior.rows[0].answers)!==normalize(answers)){
+     await client.query("ROLLBACK");
+     return reply.code(409).send({error:{code:"IDEMPOTENCY_KEY_REUSED",message:"This submission key was already used for a different set of answers.",request_id:request.id}});
+    }
+    await client.query("COMMIT");
+    return {...prior.rows[0].result,idempotent_replay:true};
+   }
+   const attemptId=inserted.rows[0].id;
+   const observedAt=new Date().toISOString();
+   const rubricResults=buildObjectivePlacementRubricResults({
+    answers:quiz.map(question=>({questionId:question.id,correct:answerMap.get(question.id)===question.correct})),
+    observedAt
+   });
+   const skillEvidence=mapGabrooRubricResults(rubricResults,"placement_assessment");
+   for(const item of skillEvidence){
+    await client.query(
+     "INSERT INTO gabroo_skill_evidence(user_id,skill,score,confidence,source,task_id,observed_at) VALUES($1,$2,$3,$4,'placement_assessment',$5,$6) ON CONFLICT(user_id,skill,source,task_id) DO NOTHING",
+     [learner.id,item.skill,item.score,item.confidence,attemptId+":"+item.taskId,item.observedAt]
+    );
+   }
+   const result={
+    assessment_id:attemptId,assessment_version:"pilot-1",score,total:quiz.length,percentage,suggested_stage,
+    rubric_observations:skillEvidence.map(item=>({skill:item.skill,score:item.score,confidence:item.confidence,task_id:item.taskId,observed_at:item.observedAt})),
+    learning_profile_updated:skillEvidence.length>0,
+    notice:"This short pilot assessment is a starting-point suggestion, not a formal certification."
+   };
+   await client.query("UPDATE gabroo_placement_attempts SET result=$2::jsonb WHERE id=$1",[attemptId,JSON.stringify(result)]);
+   await client.query("COMMIT");
+   return result;
+  }catch(error){
+   await client.query("ROLLBACK");
+   throw error;
+  }finally{client.release();}
+ });
+
  app.get("/api/v1/placement/questions",async()=>({assessment_version:"pilot-1",questions:quiz.map(({correct,...q})=>q)}));
  app.post("/api/v1/placement/score",async(request,reply)=>{
   const parsed=legacySubmission.safeParse(request.body);
