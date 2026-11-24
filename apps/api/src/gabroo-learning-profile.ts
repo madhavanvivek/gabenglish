@@ -54,14 +54,51 @@ export async function registerGabrooLearningProfileRoutes(app:FastifyInstance,po
     WHERE user_id=$1 AND status<>'mastered' AND review_due_at<=now()
    `,[learner.id]),
    pool.query<{skill:GabrooExerciseOutcome["skill"];correct:boolean;difficulty:number|null;observed_at:Date}>(`
-    SELECT block->>'skill' AS skill,a.is_correct AS correct,(block->>'difficulty')::int AS difficulty,a.created_at AS observed_at
+    SELECT DISTINCT ON (a.lesson_version_id,a.exercise_id)
+      block->>'skill' AS skill,a.is_correct AS correct,
+      CASE WHEN block->>'difficulty' ~ '^[1-5]
+   `,[learner.id])
+  ]);
+  const evidence:GabrooSkillEvidence[]=observations.rows.map(row=>({
+   skill:row.skill,score:Number(row.score),confidence:Number(row.confidence),
+   source:row.source,taskId:row.task_id,observedAt:row.observed_at.toISOString()
+  }));
+  const estimates=estimateGabrooSkills(evidence);
+  const decision=chooseGabrooLearningDecision({
+   evidence,learningDirection,dueVocabularyCount:Number(due.rows[0]?.count??0)
+  });
+  const nextActivity=buildGabrooLessonBlueprint(decision);
+  const adaptivePractice=buildGabrooAdaptivePractice(exerciseOutcomes.rows.map(row=>({skill:row.skill,correct:row.correct,difficulty:row.difficulty??undefined,observedAt:row.observed_at.toISOString()})));
+  return {
+   model:{name:"Gabroo Learning Intelligence Model",version:"1.0.0"},
+   learning_direction:learningDirection,
+   target_language:decision.targetLanguage,
+   support_language:decision.supportLanguage,
+   skill_estimates:estimates,
+   next_learning_decision:decision,
+   next_activity:nextActivity,
+   adaptive_practice:adaptivePractice,
+   evidence_summary:{observations:evidence.length,skills_with_evidence:estimates.length,window_days:180},
+   limitations:[
+    "A missing skill estimate means no qualifying evidence was recorded; it does not mean poor ability.",
+    "Pronunciation and fluency are not scored from transcript text alone.",
+    "Activity and word counts are not proficiency scores."
+   ],
+   privacy:{owner_only:true,raw_audio_excluded:true,transcripts_excluded:true,training_use:false}
+  };
+ });
+}
+ THEN (block->>'difficulty')::int ELSE NULL END AS difficulty,
+      a.created_at AS observed_at
     FROM learner_exercise_attempts a
     JOIN lesson_versions lv ON lv.id=a.lesson_version_id
-    CROSS JOIN LATERAL jsonb_array_elements(lv.content->'blocks') AS blocks(block)
+    CROSS JOIN LATERAL jsonb_array_elements(
+      CASE WHEN jsonb_typeof(lv.content->'blocks')='array' THEN lv.content->'blocks' ELSE '[]'::jsonb END
+    ) AS blocks(block)
     WHERE a.user_id=$1 AND block->>'type'='exercise'
       AND block->>'id'=a.exercise_id
       AND block->>'skill' IN ('grammar','vocabulary','comprehension')
-    ORDER BY a.created_at DESC
+    ORDER BY a.lesson_version_id,a.exercise_id,a.created_at DESC
     LIMIT 100
    `,[learner.id])
   ]);
