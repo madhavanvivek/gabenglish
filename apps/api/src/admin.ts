@@ -5,6 +5,12 @@ import {z} from "zod";
 import type {AppConfig} from "./config.js";
 
 const ADMIN_SESSION_TTL_DAYS=8;
+function indiaLocalDate(offsetDays=0){
+ const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
+ const values=Object.fromEntries(parts.map(part=>[part.type,part.value]));
+ const date=new Date(Date.UTC(Number(values.year),Number(values.month)-1,Number(values.day)+offsetDays));
+ return date.toISOString().slice(0,10);
+}
 type AdminClaims={sub:string;sid:string;exp:number;iss:"gabenglish-admin";aud:"gabenglish-console"};
 type AdminAccount={id:string;email_normalized:string;password_hash:string|null;status:"invited"|"active"|"suspended";failed_login_attempts:number;locked_until:Date|null};
 type AdminIdentity={id:string;email_normalized:string;roles:string[]};
@@ -196,8 +202,8 @@ export async function registerAdminRoutes(app:FastifyInstance,pool:Pool,config:A
   const query=z.object({period:z.enum(["day","month"]).default("day"),from:dateSchema.optional(),to:dateSchema.optional()}).strict().safeParse(request.query);
   if(!query.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Check the speech usage date filters.",request_id:request.id}});
   const period=query.data.period;
-  const requestedFrom=query.data.from??new Date(Date.now()-29*86400000).toISOString().slice(0,10);
-  const requestedTo=query.data.to??new Date().toISOString().slice(0,10);
+  const requestedFrom=query.data.from??indiaLocalDate(-29);
+  const requestedTo=query.data.to??indiaLocalDate();
   const fromTime=Date.parse(requestedFrom+"T00:00:00Z"),toTime=Date.parse(requestedTo+"T00:00:00Z");
   if(fromTime>toTime||toTime-fromTime>366*86400000)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Choose a valid date range of at most 366 days.",request_id:request.id}});
   // Monthly buckets are stored on the first day of each month. Normalize
