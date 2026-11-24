@@ -20,4 +20,16 @@ describe("placement pilot API",()=>{
   expect(r.json().notice).toContain("not yet persisted");
   await app.close();
  });
+
+ it("requires a verified learner for persisted placement submissions",async()=>{
+  const pool={query:async()=>({rows:[]})} as unknown as import("pg").Pool;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const r=await app.inject({method:"POST",url:"/api/v1/placement/assessments/submit",payload:{
+   idempotency_key:"2f4f1e1e-4e9d-4ad4-ae3d-1cbb7d4c9f4a",
+   answers:["q1","q2","q3","q4","q5"].map(question_id=>({question_id,option_id:"a"}))
+  }});
+  expect(r.statusCode).toBe(401);
+  expect(r.json().error.code).toBe("VERIFIED_ACCOUNT_REQUIRED");
+  await app.close();
+ });
 });
