@@ -17,25 +17,35 @@ export type GabrooAssessmentSource="placement_assessment"|"learner_review"|"huma
 /**
  * Converts explicit rubric outcomes into GLIM evidence. This adapter never
  * derives scores from transcript length, lexical counts or heuristic hints.
- * Audio-only skills require an audio-capable evaluator or human audio review.
+ * Each evaluation method is restricted to the skills it can validly assess.
  */
 export function mapGabrooRubricResults(
  results:readonly unknown[],
  source:GabrooAssessmentSource
 ):GabrooSkillEvidence[]{
  const mapped:GabrooSkillEvidence[]=[];
+ const seen=new Set<string>();
  for(const raw of results){
   const parsed=rubricResultSchema.safeParse(raw);
   if(!parsed.success)continue;
   const item=parsed.data;
   const audioSkill=item.skill==="pronunciation"||item.skill==="fluency";
-  const audioMethod=item.method==="audio_analysis"||item.method==="human_audio_review";
-  if(audioSkill&&!audioMethod)continue;
+  const allowedByMethod=
+   item.method==="objective_task"
+    ? !audioSkill&&item.skill!=="confidence"
+    : item.method==="learner_review"
+     ? item.skill==="confidence"
+     : item.method==="audio_analysis"||item.method==="human_audio_review"
+      ? audioSkill
+      : !audioSkill;
+  if(!allowedByMethod)continue;
   if(item.method==="learner_review"&&source!=="learner_review")continue;
-  if(item.method==="human_audio_review"||item.method==="human_language_review"){
-   if(source!=="human_review")continue;
-  }
+  if((item.method==="human_audio_review"||item.method==="human_language_review")&&source!=="human_review")continue;
   if(item.method==="objective_task"&&source!=="placement_assessment")continue;
+  if(item.method==="audio_analysis"&&source!=="placement_assessment")continue;
+  const identity=item.skill+"|"+item.taskId;
+  if(seen.has(identity))continue;
+  seen.add(identity);
   mapped.push({
    skill:item.skill as GabrooSkill,
    score:item.score,
