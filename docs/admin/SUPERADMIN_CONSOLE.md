@@ -8,6 +8,7 @@ The static, dependency-free console is at `apps/admin-console/index.html`. It us
 - Monthly and yearly discount percentage, enable/disable and optional offer-window editing.
 - Active administrator session inventory, current-session identification and revocation of other sessions.
 - Redacted audit history with action filtering and bounded pagination.
+- Aggregate Gabroo speech-usage reporting with daily/monthly buckets, date filters, character/request totals, unique learners and an activity trend. The report never displays learner identities, transcripts or audio.
 
 The console does not provision administrator accounts, display secrets, process payments or grant subscription access. The first Superadmin must be provisioned out-of-band using [the bootstrap runbook](../security/ADMIN_PORTAL_BOOTSTRAP.md).
 
@@ -52,5 +53,7 @@ The API enforces a 30-minute inactivity timeout for administrator sessions. Ever
 4. Configure invalid offer dates and verify the API rejects them.
 5. Open the session list, identify the current session, revoke a second session and verify that token is rejected on its next API call.
 6. Filter audit history by `admin.session.revoked` and `subscription.offer.updated`.
-7. Sign out and verify the current token is revoked.
-8. Confirm a learner token and a non-Superadmin account cannot access these endpoints.
+7. Open Gabroo speech usage, switch between daily and monthly buckets, apply a valid date range and verify totals/series load.
+8. Confirm the unique-learner total is distinct across the selected range and is not confused with active learner buckets.
+9. Sign out and verify the current token is revoked.
+10. Confirm a learner token and a non-Superadmin account cannot access these endpoints.
