@@ -5,6 +5,7 @@ import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {chooseGabrooLearningDecision,estimateGabrooSkills,type GabrooSkillEvidence,type GabrooSkill} from "./gabroo-learning-model.js";
 import {buildGabrooLessonBlueprint} from "./gabroo-lesson-planner.js";
+import {buildGabrooAdaptivePractice,type GabrooExerciseOutcome} from "./gabroo-adaptive-practice.js";
 
 const skillSchema=z.enum(["grammar","vocabulary","pronunciation","fluency","comprehension","confidence"]);
 const sourceSchema=z.enum(["placement_assessment","lesson_exercise","conversation","learner_review","human_review"]);
@@ -40,7 +41,7 @@ export async function registerGabrooLearningProfileRoutes(app:FastifyInstance,po
    "SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]
   );
   const learningDirection=preferences.rows[0]?.learning_direction??"ml_to_en";
-  const [observations,due]=await Promise.all([
+  const [observations,due,exerciseOutcomes]=await Promise.all([
    pool.query<{skill:GabrooSkill;score:string;confidence:string;source:GabrooSkillEvidence["source"];task_id:string;observed_at:Date}>(`
     SELECT skill,score::text,confidence::text,source,task_id,observed_at
     FROM gabroo_skill_evidence
@@ -51,6 +52,17 @@ export async function registerGabrooLearningProfileRoutes(app:FastifyInstance,po
    pool.query<{count:string}>(`
     SELECT count(*)::text AS count FROM gabroo_vocabulary
     WHERE user_id=$1 AND status<>'mastered' AND review_due_at<=now()
+   `,[learner.id]),
+   pool.query<{skill:GabrooExerciseOutcome["skill"];correct:boolean;observed_at:Date}>(`
+    SELECT block->>'skill' AS skill,a.is_correct AS correct,a.created_at AS observed_at
+    FROM learner_exercise_attempts a
+    JOIN lesson_versions lv ON lv.id=a.lesson_version_id
+    CROSS JOIN LATERAL jsonb_array_elements(lv.content->'blocks') AS block
+    WHERE a.user_id=$1 AND block->>'type'='exercise'
+      AND block->>'id'=a.exercise_id
+      AND block->>'skill' IN ('grammar','vocabulary','comprehension')
+    ORDER BY a.created_at DESC
+    LIMIT 100
    `,[learner.id])
   ]);
   const evidence:GabrooSkillEvidence[]=observations.rows.map(row=>({
@@ -62,6 +74,7 @@ export async function registerGabrooLearningProfileRoutes(app:FastifyInstance,po
    evidence,learningDirection,dueVocabularyCount:Number(due.rows[0]?.count??0)
   });
   const nextActivity=buildGabrooLessonBlueprint(decision);
+  const adaptivePractice=buildGabrooAdaptivePractice(exerciseOutcomes.rows.map(row=>({skill:row.skill,correct:row.correct,observedAt:row.observed_at.toISOString()})));
   return {
    model:{name:"Gabroo Learning Intelligence Model",version:"1.0.0"},
    learning_direction:learningDirection,
@@ -70,6 +83,7 @@ export async function registerGabrooLearningProfileRoutes(app:FastifyInstance,po
    skill_estimates:estimates,
    next_learning_decision:decision,
    next_activity:nextActivity,
+   adaptive_practice:adaptivePractice,
    evidence_summary:{observations:evidence.length,skills_with_evidence:estimates.length,window_days:180},
    limitations:[
     "A missing skill estimate means no qualifying evidence was recorded; it does not mean poor ability.",
