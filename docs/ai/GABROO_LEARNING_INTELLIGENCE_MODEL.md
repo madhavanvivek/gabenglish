@@ -114,3 +114,10 @@ One sitting contributes at most one aggregated observation per skill, even when 
 `apps/api/src/gabroo-lesson-planner.ts` converts the GLIM decision into a versioned, skill-specific lesson blueprint exposed as `next_activity` on the learner profile. It defines an objective, activity format, ordered teaching steps, completion check, language direction and explicit scoring boundary. It supports diagnostic placement, balanced conversation, grammar example-to-recall, vocabulary spaced retrieval, comprehension checks, confidence warm-ups and audio-gated speaking practice.
 
 This is a curriculum blueprint, not a claim that a lesson player, audio evaluator or generated exercise renderer is already live. The client/tutor runtime must execute the steps, and only a trusted evaluator may produce evidence. Pronunciation and fluency plans explicitly require consented validated audio; confidence uses learner self-report; conversation volume and transcript statistics are never proficiency scores.
+
+
+## Lesson exercise evidence loop
+
+Published exercise authoring now supports an optional explicit skill tag for grammar, vocabulary or comprehension. The learner exercise submission endpoint requires a UUID idempotency key and persists the evaluated attempt and its GLIM evidence in one database transaction. Replaying the same key and answer returns the original result; reusing the key with a different answer returns a conflict. A successful new attempt contributes one task-linked `lesson_exercise` observation with a provisional 0.75 observation-confidence weight. The score is the authored answer-key outcome, not a transcript heuristic.
+
+Exercises without a supported skill tag still save their result but do not affect GLIM. The current authored schema intentionally does not map free-text or ordinary multiple-choice results to pronunciation, fluency or confidence. Those skills require the separate audio-evaluation or learner-review pathways. Migration `0022_lesson_exercise_evidence.sql` adds nullable idempotency keys for backward compatibility and expands the evidence provenance constraint.
