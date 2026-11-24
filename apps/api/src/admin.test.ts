@@ -22,6 +22,7 @@ function adminPool(roles=["superadmin"]){
  return {query:async(sql:string)=>{
   if(sql.includes("UPDATE admin_sessions SET last_seen_at"))return {rows:[{admin_account_id:adminId}]};
   if(sql.includes("SELECT a.id,a.email_normalized"))return {rows:[{id:adminId,email_normalized:"admin@example.com",roles}]};
+  if(sql.includes("count(DISTINCT user_id)"))return {rows:[{unique_learners:"4"}]};
   if(sql.includes("FROM gabroo_speech_usage_buckets"))return {rows:[
    {bucket_start:"2026-11-22",characters_used:"1200",requests_count:"8",active_learners:"3"},
    {bucket_start:"2026-11-23",characters_used:"800",requests_count:"5",active_learners:"2"}
@@ -88,7 +89,7 @@ describe("Superadmin Gabroo speech usage report",()=>{
    period:"day",
    from:"2026-11-22",
    to:"2026-11-23",
-   totals:{characters_used:2000,requests_count:13,active_learner_buckets:5},
+   totals:{characters_used:2000,requests_count:13,active_learner_buckets:5,unique_learners:4},
    series:[
     {bucket_start:"2026-11-22",characters_used:1200,requests_count:8,active_learners:3},
     {bucket_start:"2026-11-23",characters_used:800,requests_count:5,active_learners:2}
