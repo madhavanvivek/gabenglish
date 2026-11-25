@@ -16,7 +16,7 @@ function learnerSavedPhrase(item:SavedPracticePhrase):PracticePhrase{
 const challengeBank:Record<string,Array<{title:string;focus:string;prompt:string}>>={
  sentence_formation:[
   {title:"Make it clearer",focus:"Build a complete sentence",prompt:"Tell Gabroo about something you did yesterday. Use three complete sentences. Try connecting them with “because”, “then” or “so”."},
-  {title:"Explain your choice",focus:"Give a reason",prompt:"Describe one decision you made recently and explain why you made it. Try using “I decided to…” and “because…”.}
+  {title:"Explain your choice",focus:"Give a reason",prompt:"Describe one decision you made recently and explain why you made it. Try using “I decided to…” and “because…”."},
  ],
  grammar:[
   {title:"Past and present",focus:"Use time clearly",prompt:"Talk about your usual morning routine, then explain one thing that was different yesterday. Pay attention to present and past tense."},
