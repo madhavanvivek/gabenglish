@@ -42,9 +42,9 @@ describe("Gabroo speech alignment provider boundary",()=>{
   const audio=Buffer.from([1,2,3,4]);
   const text="ഹായ് Gabroo 😊";
   const exactIdentity=createGabrooSynthesizedAudioIdentity({audio,text,durationMs:900,audioId:"verified-audio"});
-  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio,text,identity:exactIdentity})).not.toThrow();
-  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio:Buffer.from([1,2,3,5]),text,identity:exactIdentity})).toThrow(/exact audio bytes/i);
-  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio,text:"മറ്റൊരു വാചകം",identity:exactIdentity})).toThrow(/exact audio bytes and source text/i);
+  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio,text,language:"en",identity:exactIdentity})).not.toThrow();
+  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio:Buffer.from([1,2,3,5]),text,language:"en",identity:exactIdentity})).toThrow(/exact audio bytes/i);
+  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio,text:"മറ്റൊരു വാചകം",language:"ml",identity:exactIdentity})).toThrow(/exact audio bytes and source text/i);
  });
 
  it("runs providers only after verifying input identity and validates their response",async()=>{
