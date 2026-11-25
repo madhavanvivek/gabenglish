@@ -5,6 +5,7 @@ import type { GabrooAvatarRendererGate } from "./avatar-renderer-gate";
 
 import { isGabrooPlayableAudioUri, toGabrooNativePlayerSnapshot } from "./expo-av-playback-status";
 import { prepareGabrooPlaybackAsset } from "./playback-asset-validation";
+import { cacheGabrooSpeechAudioWithExpo, type GabrooCachedAudio } from "./secure-audio-cache";
 
 export interface GabrooExpoAvSoundLike {
   playAsync(): Promise<unknown>;
@@ -34,6 +35,7 @@ export async function createGabrooExpoAvPlayback(input: {
   gate: GabrooAvatarRendererGate;
   onError?: (error: Error) => void;
   nowMs?: number;
+  cacheAudio?: (input: { remoteUri: string; audioSha256: string }) => Promise<GabrooCachedAudio>;
   createSound?: (
     source: { uri: string },
     initialStatus: { shouldPlay: boolean; progressUpdateIntervalMillis: number },
@@ -46,6 +48,14 @@ export async function createGabrooExpoAvPlayback(input: {
   }
   const identity = prepared.identity;
   const validatedTimeline = prepared.timeline;
+  const cachedAudio = await (input.cacheAudio ?? cacheGabrooSpeechAudioWithExpo)({
+    remoteUri: prepared.uri,
+    audioSha256: identity.audioSha256,
+  });
+  if (cachedAudio.audioSha256.toLowerCase() !== identity.audioSha256.toLowerCase()
+    || !isGabrooPlayableAudioUri(cachedAudio.uri)) {
+    throw new Error("Gabroo cached audio failed its playback integrity check.");
+  }
   const reportError = (error: Error) => {
     try { input.onError?.(error); } catch { /* Consumer callbacks must not escape native status dispatch. */ }
   };
@@ -68,7 +78,7 @@ export async function createGabrooExpoAvPlayback(input: {
 
   try {
     const created = await createSound(
-      { uri: prepared.uri },
+      { uri: cachedAudio.uri },
       { shouldPlay: false, progressUpdateIntervalMillis: 40 },
       status => {
         if (closed) return;
