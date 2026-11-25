@@ -4,7 +4,7 @@ export interface GabrooCacheFileInfo { exists: boolean; size?: number; isDirecto
 export interface GabrooCacheDownloadResult { uri: string; status?: number }
 export interface GabrooAudioCacheFileSystem {
   getInfoAsync(uri: string): Promise<GabrooCacheFileInfo>;
-  downloadAsync(remoteUri: string, localUri: string): Promise<GabrooCacheDownloadResult>;
+  downloadAsync(remoteUri: string, localUri: string, maxBytes: number): Promise<GabrooCacheDownloadResult>;
   readAsBase64Async(uri: string): Promise<string>;
   moveAsync(input: { from: string; to: string }): Promise<void>;
   deleteAsync(uri: string, options?: { idempotent?: boolean }): Promise<void>;
@@ -82,7 +82,7 @@ export async function cacheGabrooSpeechAudio(input: {
   const tempUri = `${input.cacheDirectory.replace(/\/$/, "")}/gabroo-${input.audioSha256.toLowerCase()}-${suffix}.part`;
   try {
     await input.fileSystem.deleteAsync(tempUri, { idempotent: true });
-    const result = await input.fileSystem.downloadAsync(input.remoteUri, tempUri);
+    const result = await input.fileSystem.downloadAsync(input.remoteUri, tempUri, limit);
     if (typeof result.status === "number" && result.status !== 200) {
       throw new Error(`Gabroo audio download failed with HTTP ${result.status}.`);
     }
@@ -122,8 +122,21 @@ export async function cacheGabrooSpeechAudioWithExpo(input: {
     cacheDirectory: fs.cacheDirectory,
     fileSystem: {
       getInfoAsync: fs.getInfoAsync,
-      downloadAsync: async (url, destination) => {
-        const result = await fs.downloadAsync(url, destination);
+      downloadAsync: async (url, destination, maxBytes) => {
+        let resumable: ReturnType<typeof fs.createDownloadResumable>;
+        let exceededLimit = false;
+        resumable = fs.createDownloadResumable(url, destination, {}, progress => {
+          if (!exceededLimit && (
+            progress.totalBytesWritten > maxBytes
+            || (progress.totalBytesExpectedToWrite > maxBytes && progress.totalBytesExpectedToWrite >= 0)
+          )) {
+            exceededLimit = true;
+            void resumable.pauseAsync();
+          }
+        });
+        const result = await resumable.downloadAsync();
+        if (exceededLimit) throw new Error("Gabroo audio download exceeded the transfer limit.");
+        if (!result) throw new Error("Gabroo audio download was interrupted.");
         return { uri: result.uri, status: result.status };
       },
       readAsBase64Async: uri => fs.readAsStringAsync(uri, { encoding: fs.EncodingType.Base64 }),
