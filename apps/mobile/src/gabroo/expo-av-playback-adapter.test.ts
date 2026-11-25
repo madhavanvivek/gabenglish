@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toGabrooNativePlayerSnapshot, type ExpoPlaybackStatusLike } from "./expo-av-playback-adapter";
+import { toGabrooNativePlayerSnapshot, type ExpoPlaybackStatusLike } from "./expo-av-playback-status";
 
 describe("Expo AV playback status mapping", () => {
   it("maps only loaded native playback state into the clock snapshot", () => {
