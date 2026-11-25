@@ -198,7 +198,7 @@ The shared contract `@gabenglish/contracts` exports `gabrooVoiceAuditionReviewSc
 
 The summary preserves each reviewer's weighted score and the score range. A candidate is marked `eligibleForOwnerReview` only when at least three distinct reviewers have submitted scorecards and no rejection gate has been recorded. This is an evidence-completeness gate, not a voice approval or ranking. A high weighted score never overrides a rejection gate.
 
-Duplicate reviewer submissions for the same blind code are rejected. Ratings outside 1–5, unknown blind codes, unknown rejection gates and unexpected fields are rejected by schema validation. Keep provider identity separate from blind scorecards until independent scoring is complete.
+Duplicate reviewer submissions for the same blind code are rejected. Ratings outside 1–5, unknown blind codes, unknown rejection gates and unexpected fields are rejected by schema validation. Keep provider identity separate from blind scorecards until independent scoring is complete. The contract also requires a dimension-specific evidence note for every rating of 1, 2 or 5, and a written explanation whenever a rejection gate is selected. This prevents extreme scores and veto decisions from being submitted without an auditable observation.
 
 The owner must still inspect the anonymised samples, individual scorecards, evidence notes, technical results and commercial/privacy evidence and explicitly approve the canonical voice. No automated score can make that decision.
 
