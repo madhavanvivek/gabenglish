@@ -160,12 +160,7 @@ describe("Gabroo Expo AV playback lifecycle", () => {
 describe("Gabroo playback cancellation", () => {
   it("unloads a native sound if cancellation races native player creation", async () => {
     const controller = new AbortController();
-    let resolveCreate!: (value: { sound: {
-      playAsync(): Promise<void>;
-      pauseAsync(): Promise<void>;
-      stopAsync(): Promise<void>;
-      unloadAsync(): Promise<void>;
-    } }) => void;
+    let resolveCreate!: (value: { sound: typeof sound }) => void;
     const sound = {
       playAsync: vi.fn(async () => undefined),
       pauseAsync: vi.fn(async () => undefined),
