@@ -14,7 +14,7 @@ export const gabrooPhonemeEventSchema=z.object({
 export const gabrooPhonemeAlignmentSchema=z.object({
  audio_id:z.string().trim().min(1).max(160),
  duration_ms:z.number().finite().positive().max(10*60*1000),
- phonemes:z.array(gabrooPhonemeEventSchema).max(8192)
+ phonemes:z.array(gabrooPhonemeEventSchema).max(4096)
 }).strict().superRefine((alignment,ctx)=>{
  alignment.phonemes.forEach((event,index)=>{
   if(event.end_ms>alignment.duration_ms){
