@@ -235,7 +235,7 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
     assessment_id:attemptId,assessment_version:"pilot-1",score,total:quiz.length,percentage,recommendation_status:"not_yet_available",assessment_coverage:pilotAssessmentCoverage,
     rubric_observations:skillEvidence.map(item=>({skill:item.skill,score:item.score,confidence:item.confidence,task_id:item.taskId,observed_at:item.observedAt})),
     learning_profile_updated:skillEvidence.length>0,
-    notice:"This short pilot assessment is a starting-point suggestion, not a formal certification."
+    notice:"This short pilot is a limited knowledge check, not a proficiency diagnosis, stage recommendation or formal certification."
    };
    await client.query("UPDATE gabroo_placement_attempts SET result=$2::jsonb WHERE id=$1",[attemptId,JSON.stringify(result)]);
    await client.query("COMMIT");
