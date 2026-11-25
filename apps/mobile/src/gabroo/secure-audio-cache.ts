@@ -74,12 +74,15 @@ export async function cacheGabrooSpeechAudio(input: {
   if (existing.exists) {
     try {
       if (typeof existing.size === "number" && existing.size > 0 && existing.size <= limit) {
-        const bytes = decodeBase64(await input.fileSystem.readAsBase64Async(finalUri));
+        const encoded = await input.fileSystem.readAsBase64Async(finalUri);
+        throwIfAborted(input.signal);
+        const bytes = decodeBase64(encoded);
         if (bytes.length === existing.size && sha256Hex(bytes) === input.audioSha256.toLowerCase()) {
           return { uri: finalUri, audioSha256: input.audioSha256.toLowerCase(), bytes: bytes.length };
         }
       }
     } catch {
+      if (input.signal?.aborted) throw new Error("Gabroo audio download was cancelled.");
       // A corrupt cache entry is disposable; fetch and verify a clean copy below.
     }
     throwIfAborted(input.signal);
