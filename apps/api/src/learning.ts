@@ -337,17 +337,19 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
    `SELECT l.id AS lesson_id,l.title AS lesson_title,lv.id AS lesson_version_id,
       item->>'id' AS vocabulary_item_id,item->>'term' AS term,item->>'meaning' AS meaning,
       item->>'pronunciation' AS pronunciation,item->>'example' AS example,
-      r.due_at,r.repetitions,r.interval_days
-    FROM learner_vocabulary_reviews r
-    JOIN lessons l ON l.id=r.lesson_id AND l.status='published'
-    JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id AND c.status='published'
-    JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.id=r.lesson_version_id AND lv.status='published'
+      COALESCE(r.due_at,now()) AS due_at,COALESCE(r.repetitions,0)::int AS repetitions,
+      COALESCE(r.interval_days,0)::int AS interval_days
+    FROM lessons l
+    JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
+    JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id
     CROSS JOIN LATERAL jsonb_array_elements(COALESCE(lv.content->'blocks','[]'::jsonb)) block
     CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN block->>'type'='vocabulary' THEN COALESCE(block->'items','[]'::jsonb) ELSE '[]'::jsonb END) item
-    WHERE r.user_id=$1 AND r.learning_direction=$2 AND r.due_at<=now()
+    LEFT JOIN learner_vocabulary_reviews r ON r.user_id=$1 AND r.learning_direction=$2
+      AND r.lesson_version_id=lv.id AND r.vocabulary_item_id=item->>'id'
+    WHERE l.status='published' AND c.status='published' AND lv.status='published'
       AND c.learning_direction=$2 AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')
-      AND item->>'id'=r.vocabulary_item_id
-    ORDER BY r.due_at ASC LIMIT $3`,
+      AND item->>'id' IS NOT NULL AND (r.user_id IS NULL OR r.due_at<=now())
+    ORDER BY COALESCE(r.due_at,now()) ASC,l.title,item->>'term' LIMIT $3`,
    [learner.id,direction,limit]
   );
   return {learning_direction:direction,due_count:due.rows.length,items:due.rows.map(row=>({
