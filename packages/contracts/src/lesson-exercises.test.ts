@@ -28,3 +28,9 @@ describe("authored exercise evaluation",()=>{
   expect(authoredExerciseSchema.safeParse({...choice,stage:0}).success).toBe(false);
  });
 
+
+it("accepts only controlled skill taxonomy tags",()=>{
+  expect(authoredExerciseSchema.safeParse({...choice,skill_key:"vocabulary"}).success).toBe(true);
+  expect(authoredExerciseSchema.safeParse({...choice,skill_key:"grammar"}).success).toBe(true);
+  expect(authoredExerciseSchema.safeParse({...choice,skill_key:"confidence"}).success).toBe(false);
+});
