@@ -66,12 +66,12 @@ async function runBenchmark(){
  const cases=JSON.parse(await readFile(casesPath,"utf8")) as BenchmarkCase[];
  if(!Array.isArray(cases)||cases.length===0)throw new Error("Benchmark cases must be a non-empty JSON array.");
  await mkdir(dirname(outputPath),{recursive:true});
+ const provider=createOpenAICompatibleGabrooProvider({apiKey,baseUrl,model});
  let completed=0,failed=0;const completedLatencies:number[]=[];
  for(const testCase of cases){
   for(let repetition=1;repetition<=repeats;repetition++){
    const started=performance.now();let record:Record<string,unknown>;
    try{
-    const benchmarkMessages=buildGabrooBenchmarkMessages(testCase);
     const response=await provider.reply({
      mode:testCase.mode,
      supportLanguage:testCase.supportLanguage,
