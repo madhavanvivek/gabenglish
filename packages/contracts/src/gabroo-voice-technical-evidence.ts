@@ -57,7 +57,9 @@ export function summarizeGabrooVoiceTechnicalEvidence(input:GabrooVoiceTechnical
  if(!parsed.success)throw new Error("Invalid voice technical evidence: "+parsed.error.issues.map(x=>x.path.join(".")+": "+x.message).join("; "));
  const value=parsed.data,trials=value.trials;
  const first=trials.map(x=>x.firstAudioLatencyMs),full=trials.map(x=>x.fullResponseLatencyMs);
- const evidenceComplete=value.evidenceReferences.length>0&&value.commercialRights==="verified"&&value.dataRetentionTerms==="verified"&&value.modelTrainingTerms==="verified"&&trials.length>=5&&trials.every(x=>x.slowPlaybackNaturalness>=3);
+ const hasNormalSpeedTrial=trials.some(x=>Math.abs(x.playbackRate-1)<0.001);
+ const hasSlowSpeedTrial=trials.some(x=>x.playbackRate<=0.85);
+ const evidenceComplete=value.evidenceReferences.length>0&&value.commercialRights==="verified"&&value.dataRetentionTerms==="verified"&&value.modelTrainingTerms==="verified"&&trials.length>=5&&hasNormalSpeedTrial&&hasSlowSpeedTrial&&trials.every(x=>x.slowPlaybackNaturalness>=3);
  return {blindCode:value.blindCode,trialCount:trials.length,
   failureRatePercent:Number((trials.filter(x=>x.failed).length/trials.length*100).toFixed(2)),
   medianFirstAudioLatencyMs:median(first),p95FirstAudioLatencyMs:percentile(first,0.95),
