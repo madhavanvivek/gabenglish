@@ -142,7 +142,7 @@ No candidate is automatically selected because it is the default or cheapest.
 3. Add explicit server-side configuration, mutually exclusive provider selection and test doubles. **Done.**
 4. Reuse the existing authenticated speech API and one-time playback-ticket flow. **Already present; Google adapter is wired into server startup.**
 5. Add durable usage metering, quotas and timeout policy. **Initial implementation done:** PostgreSQL day/month buckets, atomic reservations, configurable 10,000 daily / 100,000 monthly character defaults, and quota rejection responses. Subscription-plan-specific quota mapping, retention cleanup and a separate operational cost kill switch remain pending.
-6. Add a restricted audition command or internal-only endpoint for candidate voice IDs. **Pending.**
+6. Add a restricted audition command for candidate voice IDs. **Implemented:** `pnpm --filter @gabenglish/api audition:google-tts -- --confirm-provider-usage` generates 28 identical-script MP3 samples across four Standard/WaveNet candidates, with a blind reviewer manifest and a separate private provider-to-code mapping. The command requires explicit confirmation and a server-side API key; output is git-ignored.
 7. Add/verify mobile playback integration through Gabenglish API, never direct Google calls. **Pending verification.**
 8. Run staging tests only after credentials and billing are separately authorized.
 9. Capture audition samples and technical scorecard for owner review.
@@ -169,9 +169,22 @@ No candidate is automatically selected because it is the default or cheapest.
 - Google Cloud project/API credentials: not configured.
 - Billing: not enabled by this change.
 - Usage metering and atomic daily/monthly character quotas: implemented in migration 0026; defaults are 10,000/day and 100,000/month and are configurable. Subscription-specific quota policy, request-rate controls, usage retention cleanup and cost kill switch: pending.
-- Voice audition samples: pending authorized Google Cloud access.
-- Final Gabroo voice: **not approved**.
+- Blind audition generator: implemented; it is not run automatically. Actual samples still require an authorized server-side Google Cloud key and confirmed provider usage.
+- Final Gabroo voice: **not approved**. The four generated candidate IDs remain evaluation candidates only; owner approval is still required.
 - Production use: **not authorized yet**.
 
 
 Learner usage endpoint: `GET /api/v1/gabroo/speech/usage` returns authenticated India-local daily/monthly character usage and remaining allowance. It does not expose speech content.
+
+
+## 11. Blind audition command (implemented 2026-11-25)
+
+Run only after confirming the Google Cloud project, billing/quota and permitted use:
+
+```bash
+GABROO_GOOGLE_TTS_API_KEY=... pnpm --filter @gabenglish/api audition:google-tts -- --confirm-provider-usage
+```
+
+The command generates four candidate folders (VOICE-01 through VOICE-04), seven matching script segments per candidate (28 MP3 files total), `reviewer-manifest.json`, and `mapping.private.json`. The reviewer manifest contains no provider or voice IDs. Keep the private mapping restricted and share only the blind-coded audio plus reviewer manifest with the independent listeners. The output directory defaults to `.local/gabroo-voice-auditions` and is excluded from Git; `GABROO_AUDITION_OUTPUT_DIR` may select a different local directory.
+
+The generator does not run during CI, application startup or deployment. No samples were generated as part of this code change, no provider credentials were accessed, and no voice was selected or approved.
