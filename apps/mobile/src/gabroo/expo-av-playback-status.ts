@@ -24,11 +24,13 @@ export interface ExpoPlaybackStatusLike {
 
 export function toGabrooNativePlayerSnapshot(
   status: ExpoPlaybackStatusLike,
-  identity: Pick<GabrooPlaybackIdentity, "playbackTicketId" | "audioId" | "audioSha256">,
+  identity: Pick<GabrooPlaybackIdentity, "playbackTicketId" | "audioId" | "audioSha256" | "measuredDurationMs">,
 ): GabrooNativePlayerSnapshot | null {
   if (status.isLoaded !== true || status.isPlaying !== true
     || !Number.isFinite(status.positionMillis) || !Number.isFinite(status.durationMillis)
-    || status.durationMillis! <= 0 || status.positionMillis! < 0
+    || status.durationMillis! <= 0 || !Number.isFinite(identity.measuredDurationMs)
+    || identity.measuredDurationMs <= 0 || Math.abs(status.durationMillis! - identity.measuredDurationMs) > 50
+    || status.positionMillis! < 0
     || status.positionMillis! >= status.durationMillis!
     || typeof identity.playbackTicketId !== "string" || !identity.playbackTicketId.trim()
     || typeof identity.audioId !== "string" || !identity.audioId.trim()
