@@ -85,3 +85,19 @@ export function validateGabrooSpeechAlignmentResult(
  }
  throw new Error("Gabroo alignment provider returned an unsupported alignment kind.");
 }
+
+/**
+ * Execute an optional alignment provider through the full trust boundary.
+ * Identity is checked before provider work and its response is validated
+ * before being returned to any caller. Abort is checked on both sides.
+ */
+export async function runGabrooSpeechAlignment(
+ provider:GabrooSpeechAlignmentProvider,
+ input:GabrooSpeechAlignmentInput
+):Promise<GabrooSpeechAlignmentResult> {
+ if(input.signal.aborted)throw new Error("Gabroo speech alignment was cancelled.");
+ assertGabrooSpeechAlignmentInputIdentity(input);
+ const result=await provider.align(input);
+ if(input.signal.aborted)throw new Error("Gabroo speech alignment was cancelled.");
+ return validateGabrooSpeechAlignmentResult(result,input.identity,input.text);
+}
