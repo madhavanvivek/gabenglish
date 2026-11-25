@@ -171,9 +171,10 @@ export default function GabrooScreen(){
   if(uri)await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
   setTranscriptionRecording(false);
   setTranscript(null);setReviewedTranscript("");
+  await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
  };
  const startTranscriptionCapture=async()=>{
-  if(!transcriptionConsent||!recognitionStatus?.available||voicePermissionStatus!=="granted"||transcriptionOperationRef.current||transcriptionRecordingRef.current||recordingRef.current)return;
+  if(!appIsActiveRef.current||!transcriptionConsent||!recognitionStatus?.available||voicePermissionStatus!=="granted"||transcriptionOperationRef.current||transcriptionRecordingRef.current||recordingRef.current)return;
   transcriptionOperationRef.current=true;setTranscriptionBusy(true);setSpeechNotice("");
   try{
    await Audio.setAudioModeAsync({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
@@ -190,7 +191,10 @@ export default function GabrooScreen(){
   }catch(reason){
    await discardTranscriptionAudio();
    setSpeechNotice(reason instanceof Error?reason.message:"Could not start voice recording.");
-  }finally{transcriptionOperationRef.current=false;setTranscriptionBusy(false);}
+  }finally{
+   transcriptionOperationRef.current=false;setTranscriptionBusy(false);
+   if(!appIsActiveRef.current&&transcriptionRecordingRef.current)void discardTranscriptionAudio();
+  }
  };
  const stopTranscriptionCapture=async()=>{
   const recording=transcriptionRecordingRef.current;
@@ -264,7 +268,7 @@ export default function GabrooScreen(){
   }finally{setVoicePermissionBusy(false);}
  };
  const startLocalCapture=async()=>{
-  if(!voiceCaptureConsent||voiceSessionState!=="ready"||recordingOperationRef.current||recordingRef.current||transcriptionRecordingRef.current||transcriptionUriRef.current)return;
+  if(!appIsActiveRef.current||!voiceCaptureConsent||voiceSessionState!=="ready"||recordingOperationRef.current||recordingRef.current||transcriptionRecordingRef.current||transcriptionUriRef.current)return;
   recordingOperationRef.current=true;
   setRecordingBusy(true);setSpeechNotice("");
   try{
