@@ -22,20 +22,20 @@ describe("Gabroo Google TTS audition pack",()=>{
    outputDirectory:directory,
    synthesize
   });
-  expect(result).toEqual({outputDirectory:directory,candidateCount:8,sampleCount:56});
+  expect(result).toEqual({outputDirectory:directory,variantCount:8,sampleCount:56});
   expect(synthesize).toHaveBeenCalledTimes(56);
   expect(synthesize.mock.calls.filter(call=>call[2]==="text")).toHaveLength(28);
   expect(synthesize.mock.calls.filter(call=>call[2]==="ssml")).toHaveLength(28);
   const manifest=JSON.parse(await readFile(join(directory,"reviewer-manifest.json"),"utf8")) as {
-   candidates:{blind_code:string;samples:{file:string}[]}[]
+   variants:{blind_code:string;samples:{file:string}[]}[]
   };
-  expect(manifest.candidates.map(candidate=>candidate.blind_code).sort()).toEqual(["SAMPLE-01","SAMPLE-02","SAMPLE-03","SAMPLE-04","SAMPLE-05","SAMPLE-06","SAMPLE-07","SAMPLE-08"]);
+  expect(manifest.variants.map(candidate=>candidate.blind_code).sort()).toEqual(["SAMPLE-01","SAMPLE-02","SAMPLE-03","SAMPLE-04","SAMPLE-05","SAMPLE-06","SAMPLE-07","SAMPLE-08"]);
   expect(manifest.candidates.every(candidate=>candidate.samples.length===7)).toBe(true);
   expect(JSON.stringify(manifest)).not.toMatch(/Standard-B|Wavenet-B|Google Cloud/);
   const mapping=JSON.parse(await readFile(join(directory,"mapping.private.json"),"utf8")) as {
-   candidates:{blind_code:string;voice_id:string;input_mode:"text"|"ssml"}[]
+   variants:{blind_code:string;voice_id:string;input_mode:"text"|"ssml"}[]
   };
-  expect(mapping.candidates).toHaveLength(8);
+  expect(mapping.variants).toHaveLength(8);
   for(const voice of ["ml-IN-Standard-B","ml-IN-Standard-D","ml-IN-Wavenet-B","ml-IN-Wavenet-D"]){
    expect(mapping.candidates.filter(candidate=>candidate.voice_id===voice).map(candidate=>candidate.input_mode).sort()).toEqual(["ssml","text"]);
   }
