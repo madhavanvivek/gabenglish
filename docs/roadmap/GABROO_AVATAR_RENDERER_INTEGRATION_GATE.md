@@ -81,3 +81,7 @@ Native playback status validation rejects out-of-range playheads, invalid durati
 The Expo AV adapter now validates the complete trusted playback identity before creating a native sound instance, including bounded non-empty ticket/audio IDs, a SHA-256 audio hash, positive integer measured duration, and exact alignment hash/duration match. Consumer error callbacks are isolated so exceptions cannot escape native playback-status dispatch.
 
 Native playback now performs a complete speech-asset preflight before `Audio.Sound.createAsync`: the untrusted alignment timeline is parsed with the shared contract, and its audio ID and duration must exactly match the validated playback identity. The accepted timeline is a fresh parsed copy, so later caller mutation cannot alter the animation data used by native playback.
+
+## Server-issued speech asset contract
+
+Added a shared `GabrooSpeechAsset` envelope for the future API-to-mobile handoff. It binds a playback ticket, audio ID, SHA-256 digest, measured duration, alignment digest/duration, HTTPS asset URL, expiry and canonical viseme/expression/gesture timeline. The schema rejects URL credentials and non-HTTPS schemes, unknown envelope fields, mismatched audio/alignment hashes, duration mismatches and timelines belonging to another audio ID. A playback-time parser rejects expired URLs. This is a contract and validation layer only: no speech provider, signed-URL issuer, audio storage, phoneme aligner or API endpoint is claimed to exist yet.
