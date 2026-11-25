@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {validateGabrooSpeechAlignmentResult} from "./gabroo-speech-alignment-provider.js";
+import {assertGabrooSpeechAlignmentInputIdentity,validateGabrooSpeechAlignmentResult} from "./gabroo-speech-alignment-provider.js";\nimport {createGabrooSynthesizedAudioIdentity} from "./gabroo-audio-identity.js";
 import type {GabrooSynthesizedAudioIdentity} from "./gabroo-audio-identity.js";
 
 const identity:GabrooSynthesizedAudioIdentity={
