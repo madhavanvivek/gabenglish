@@ -20,7 +20,11 @@ describe("vocabulary spaced repetition scheduler",()=>{
   const next=scheduleVocabularyReview({repetitions:2,intervalDays:3,easeFactor:1.31},0,at);
   expect(next.easeFactor).toBe(1.3);
  });
- it("caps ease factor at four",()=>{\n  const next=scheduleVocabularyReview({repetitions:2,intervalDays:3,easeFactor:3.99},5,at);\n  expect(next.easeFactor).toBe(4);\n });\n it("rejects invalid ratings and dates",()=>{
+ it("caps ease factor at four",()=>{
+  const next=scheduleVocabularyReview({repetitions:2,intervalDays:3,easeFactor:3.99},5,at);
+  expect(next.easeFactor).toBe(4);
+ });
+ it("rejects invalid ratings and dates",()=>{
   expect(()=>scheduleVocabularyReview({repetitions:0,intervalDays:0,easeFactor:2.5},6,at)).toThrow();
   expect(()=>scheduleVocabularyReview({repetitions:0,intervalDays:0,easeFactor:2.5},3,new Date("invalid"))).toThrow();
  });
