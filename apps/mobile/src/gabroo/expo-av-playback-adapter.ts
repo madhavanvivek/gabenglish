@@ -1,4 +1,3 @@
-import { Audio } from "expo-av";
 import {
   GabrooNativePlaybackClock,
 } from "./native-playback-clock";
@@ -6,6 +5,13 @@ import type { GabrooAvatarRendererGate } from "./avatar-renderer-gate";
 
 import { isGabrooPlayableAudioUri, toGabrooNativePlayerSnapshot } from "./expo-av-playback-status";
 import { prepareGabrooPlaybackAsset } from "./playback-asset-validation";
+
+export interface GabrooExpoAvSoundLike {
+  playAsync(): Promise<unknown>;
+  pauseAsync(): Promise<unknown>;
+  stopAsync(): Promise<unknown>;
+  unloadAsync(): Promise<unknown>;
+}
 
 export interface GabrooExpoAvPlaybackHandle {
   play(): Promise<void>;
@@ -28,7 +34,11 @@ export async function createGabrooExpoAvPlayback(input: {
   gate: GabrooAvatarRendererGate;
   onError?: (error: Error) => void;
   nowMs?: number;
-  createSound?: typeof Audio.Sound.createAsync;
+  createSound?: (
+    source: { uri: string },
+    initialStatus: { shouldPlay: boolean; progressUpdateIntervalMillis: number },
+    onPlaybackStatusUpdate: (status: import("expo-av").AVPlaybackStatus) => void,
+  ) => Promise<{ sound: GabrooExpoAvSoundLike }>;
 }): Promise<GabrooExpoAvPlaybackHandle> {
   const prepared = prepareGabrooPlaybackAsset(input.asset, input.nowMs);
   if (!isGabrooPlayableAudioUri(prepared.uri)) {
@@ -41,10 +51,14 @@ export async function createGabrooExpoAvPlayback(input: {
   };
 
   const clock = new GabrooNativePlaybackClock(input.gate);
-  let sound: Audio.Sound | null = null;
+  let sound: GabrooExpoAvSoundLike | null = null;
   let started = false;
   let closed = false;
-  const createSound = input.createSound ?? Audio.Sound.createAsync;
+  const createSound = input.createSound ?? (async (source, initialStatus, onPlaybackStatusUpdate) => {
+    // Load the native module only when the production adapter is actually used.
+    const { Audio } = await import("expo-av");
+    return Audio.Sound.createAsync(source, initialStatus, onPlaybackStatusUpdate);
+  });
 
   const stopClock = () => {
     if (closed) return;
