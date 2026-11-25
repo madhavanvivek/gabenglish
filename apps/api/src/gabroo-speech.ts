@@ -86,3 +86,5 @@ export async function registerGabrooSpeechRoutes(
     }
   });
 }
+
+export type { GabrooSpeechAssetProvider } from "./gabroo-speech-assets.js";
