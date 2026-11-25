@@ -73,4 +73,18 @@ describe("Gabroo speech alignment provider boundary",()=>{
   await expect(runGabrooSpeechAlignment(abortingProvider,{audio,text,language:"en",identity:exactIdentity,signal:during.signal})).rejects.toThrow(/cancelled/i);
  });
 
+ it("rejects oversized audio and unsupported language before provider invocation",()=>{
+  const controller=new AbortController();
+  let called=0;
+  const provider={align:async()=>{called+=1;return {kind:"phoneme" as const,alignment:{audio_id:"x",audio_sha256:"a".repeat(64),duration_ms:100,phonemes:[]}};}};
+  const validAudio=Buffer.from([1]);
+  const validText="Hello";
+  const validIdentity=createGabrooSynthesizedAudioIdentity({audio:validAudio,text:validText,durationMs:100,audioId:"bounded-audio"});
+  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio:Buffer.alloc(12*1024*1024+1),text:validText,identity:validIdentity,language:"en"})).toThrow(/12 MiB/i);
+  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio:validAudio,text:validText,identity:validIdentity,language:"xx" as "en"})).toThrow(/language/i);
+  expect(called).toBe(0);
+  void provider;
+  void controller;
+ });
+
 });
