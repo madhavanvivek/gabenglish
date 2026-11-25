@@ -87,14 +87,14 @@ async function runBenchmark(){
      teachingPolicyVersion:getGabrooBenchmarkPolicyVersion(testCase),latencyMs:Math.round(performance.now()-started),
      status:"completed",response:content.trim(),usage:payload.usage??null,
      expectedChecks:testCase.expected,criticalChecks:testCase.critical,
-     evaluatorScore:null,evaluatorNotes:null,recordedAt:new Date().toISOString()
-    };completed++;
+     evaluatorScore:null,evaluatorNotes:null,evaluatorRubric:GABROO_EVALUATION_DIMENSIONS.map(dimension=>({dimension,score:null,notes:null})),recordedAt:new Date().toISOString()
+    };completed++;completedLatencies.push(Number(record.latencyMs));
    }catch(error){
     record={
      caseId:testCase.id,title:testCase.title,repetition,model,providerBaseUrl:baseUrl,
      teachingPolicyVersion:getGabrooBenchmarkPolicyVersion(testCase),latencyMs:Math.round(performance.now()-started),
      status:"error",error:error instanceof Error?error.message:String(error),
-     evaluatorScore:null,evaluatorNotes:null,recordedAt:new Date().toISOString()
+     evaluatorScore:null,evaluatorNotes:null,evaluatorRubric:GABROO_EVALUATION_DIMENSIONS.map(dimension=>({dimension,score:null,notes:null})),recordedAt:new Date().toISOString()
     };failed++;
    }
    await appendFile(outputPath,JSON.stringify(record)+"\n","utf8");
