@@ -1,4 +1,5 @@
 import type {GabrooSpeechSynthesisInput,GabrooSpeechSynthesisProvider,GabrooSpeechSynthesisResult} from "./gabroo-speech-synthesis-provider.js";
+import {measureGabrooMp3DurationMs} from "./gabroo-mp3-metadata.js";
 
 type GoogleTtsConfig={
  GABROO_GOOGLE_TTS_API_KEY?:string;
@@ -95,7 +96,9 @@ export function createGoogleCloudTtsProvider(
    if(audio.byteLength===0)throw new Error("Google Cloud Text-to-Speech returned empty audio.");
    if(audio.byteLength>MAX_AUDIO_BYTES)throw new Error("Google Cloud Text-to-Speech response exceeded the audio size limit.");
    if(audio.toString("base64")!==payload.audioContent)throw new Error("Google Cloud Text-to-Speech returned malformed audio content.");
-   return {audio:new Uint8Array(audio),contentType:"audio/mpeg"};
+   const bytes=new Uint8Array(audio);
+   const durationMs=measureGabrooMp3DurationMs(bytes);
+   return {audio:bytes,contentType:"audio/mpeg",durationMs};
   }
  };
 }
