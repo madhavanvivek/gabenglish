@@ -73,6 +73,8 @@ describe("Google Cloud TTS provider",()=>{
   await expect(unavailable.synthesize(input)).rejects.toThrow(/status 403/);
   const missing=createGoogleCloudTtsProvider(config,async()=>Response.json({}))!;
   await expect(missing.synthesize(input)).rejects.toThrow(/no audio content/);
+  const invalidMp3=createGoogleCloudTtsProvider(config,async()=>Response.json({audioContent:Buffer.from([1,2,3]).toString("base64")}))!;
+  await expect(invalidMp3.synthesize(input)).rejects.toThrow(/complete, valid MP3/i);
   for(const audioContent of ["not base64!","A===","abc","AAAA="]){
    const malformed=createGoogleCloudTtsProvider(config,async()=>Response.json({audioContent}))!;
    await expect(malformed.synthesize(input)).rejects.toThrow(/malformed audio/);
