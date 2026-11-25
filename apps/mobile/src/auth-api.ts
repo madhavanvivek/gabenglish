@@ -199,6 +199,13 @@ export type GabrooLearningInsights={
  interpretation:{exercise_results_are_not_speaking_or_overall_proficiency_scores:boolean;latest_attempt_per_exercise_and_skill:boolean;minimum_evidence_for_coaching:number};
 };
 export type DailyChallengeCompletion={challenge_date:string;learning_direction:"ml_to_en"|"en_to_ml";challenge_title:string;skill_key:string|null;conversation_id:string|null;completed_at:string};
+export type DailyChallengeHistory={
+ learning_direction:"ml_to_en"|"en_to_ml";limit:number;completed_days:number;total_completed_days:number;completions:DailyChallengeCompletion[];
+};
+export async function getDailyChallengeHistory(limit=14){
+ if(!Number.isInteger(limit)||limit<1||limit>30)throw new AuthApiError("Choose between 1 and 30 recent practice days.");
+ return await authorized("/api/v1/learning/daily-challenges?limit="+limit,"GET") as DailyChallengeHistory;
+}
 export async function getDailyChallengeCompletion(date:string){
  return await authorized("/api/v1/learning/daily-challenges/"+encodeURIComponent(date),"GET") as {completion:DailyChallengeCompletion|null};
 }
