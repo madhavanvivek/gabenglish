@@ -64,6 +64,7 @@ export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;sup
    ...(input.profileCorrectionPreference?{profileCorrectionPreference:input.profileCorrectionPreference}:{})
   },
   learnerMemory:(input.learnerMemory??[]).slice(0,20).map(item=>({category:item.category,memoryKey:item.memoryKey.slice(0,80),content:item.content.slice(0,500)})),
-  vocabularyFocus:(input.vocabularyFocus??[]).filter(item=>item.term.trim()&&item.meaning.trim()).slice(0,5).map(item=>({term:item.term.slice(0,120),meaning:item.meaning.slice(0,240),reason:item.reason}))
+  vocabularyFocus:(input.vocabularyFocus??[]).filter(item=>item.term.trim()&&item.meaning.trim()).slice(0,5).map(item=>({term:item.term.slice(0,120),meaning:item.meaning.slice(0,240),reason:item.reason})),
+  skillFocus:(input.skillFocus??[]).filter(item=>Number.isFinite(item.accuracy)&&item.attemptCount>=5).slice(0,3).map(item=>({skillKey:item.skillKey.slice(0,40),accuracy:Math.max(0,Math.min(1,item.accuracy)),attemptCount:item.attemptCount}))
  };
 }
