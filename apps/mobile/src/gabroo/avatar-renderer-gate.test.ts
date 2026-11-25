@@ -101,6 +101,25 @@ describe('GabrooAvatarRendererGate', () => {
     expect(gate.render(validProof(generation), () => { throw new Error('stale timeline'); })).toBe(false);
   });
 
+  it('prevents an older concurrent initialization from replacing the newer rig identity', async () => {
+    const resolvers: Array<(value: { characterId: string; rigVersion: string; approved: true }) => void> = [];
+    const { rig } = makeRig();
+    rig.load = vi.fn(() => new Promise((resolve) => { resolvers.push(resolve); }));
+    const gate = new GabrooAvatarRendererGate(rig, 'gabroo-approved', 'v1');
+
+    const olderInitialization = gate.initialize();
+    const newerInitialization = gate.initialize();
+    expect(resolvers).toHaveLength(2);
+
+    resolvers[1]({ characterId: 'gabroo-approved', rigVersion: 'v1', approved: true });
+    expect(await newerInitialization).toBe(true);
+    resolvers[0]({ characterId: 'stale-character', rigVersion: 'v0', approved: true });
+    expect(await olderInitialization).toBe(false);
+    expect(gate.getRigIdentity()).toEqual({
+      characterId: 'gabroo-approved', rigVersion: 'v1', approved: true,
+    });
+  });
+
   it('invalidates a pending rig load when playback lifecycle disposes the gate', async () => {
     let resolveLoad!: (value: { characterId: string; rigVersion: string; approved: true }) => void;
     const { rig } = makeRig();
