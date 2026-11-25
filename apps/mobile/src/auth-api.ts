@@ -238,13 +238,13 @@ export async function sendGabrooMessageStream(id:string,message:string,signal:Ab
  let frameBuffer="";
  const dispatch=(frame:string)=>{
   let event="message";const data:string[]=[];
-  for(const line of frame.split(/\\r?\\n/)){
+  for(const line of frame.split(/\r?\n/)){
    if(line.startsWith("event:"))event=line.slice(6).trim();
    else if(line.startsWith("data:"))data.push(line.slice(5).trimStart());
   }
   if(!data.length)return;
   let payload:unknown;
-  try{payload=JSON.parse(data.join("\\n")) as unknown;}catch{return;}
+  try{payload=JSON.parse(data.join("\n")) as unknown;}catch{return;}
   if(event==="delta"&&typeof payload==="object"&&payload!==null&&"content" in payload&&typeof payload.content==="string")onDelta(payload.content);
   if(event==="committed"&&typeof payload==="object"&&payload!==null&&"messages" in payload&&Array.isArray(payload.messages))committed=payload as {messages:GabrooConversationMessage[]};
   if(event==="error"){
@@ -253,8 +253,8 @@ export async function sendGabrooMessageStream(id:string,message:string,signal:Ab
   }
  };
  const processText=(chunk:string)=>{
-  frameBuffer+=chunk.replace(/\\r\\n/g,"\\n");
-  let boundary=frameBuffer.indexOf("\\n\\n");
+  frameBuffer+=chunk.replace(/\r\n/g,"\n");
+  let boundary=frameBuffer.indexOf("\n\n");
   while(boundary>=0){
    const frame=frameBuffer.slice(0,boundary);frameBuffer=frameBuffer.slice(boundary+2);dispatch(frame);
    boundary=frameBuffer.indexOf("\\n\\n");
