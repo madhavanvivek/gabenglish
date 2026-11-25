@@ -99,3 +99,35 @@ export function gabrooCharacterAlignmentToCaptionCues(
   end_ms:event.end_ms
  }));
 }
+
+
+export interface GabrooCaptionPlaybackStatus {
+ audioId:string;
+ positionMs:number;
+ isPlaying:boolean;
+}
+
+/**
+ * Select the caption cue using the real audio player's clock. Paused/stopped
+ * audio and stale audio IDs always produce no active highlight.
+ */
+export function sampleGabrooCaptionAtPlayback(
+ cues:readonly GabrooCaptionCue[],
+ status:GabrooCaptionPlaybackStatus
+):{index:number;cue:GabrooCaptionCue}|null{
+ if(!Number.isFinite(status.positionMs)||status.positionMs<0){
+  throw new Error("Caption playback position must be a finite, non-negative value.");
+ }
+ if(typeof status.isPlaying!=="boolean")throw new Error("Caption playback status must include a playing state.");
+ if(!status.isPlaying||!status.audioId)return null;
+ let selectedIndex=-1;
+ let selectedStart=-1;
+ for(let index=0;index<cues.length;index+=1){
+  const cue=cues[index];
+  if(cue.start_ms<=status.positionMs&&status.positionMs<cue.end_ms&&cue.start_ms>=selectedStart){
+   selectedIndex=index;
+   selectedStart=cue.start_ms;
+  }
+ }
+ return selectedIndex<0?null:{index:selectedIndex,cue:cues[selectedIndex]};
+}
