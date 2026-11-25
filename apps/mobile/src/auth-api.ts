@@ -192,6 +192,11 @@ export async function getGabrooConversation(id:string){return await authorized("
 export async function createGabrooConversation(input:{mode?:GabrooConversationMode;support_language?:"ml"|"en";title?:string}={}){
  return await authorized("/api/v1/gabroo/conversations","POST",input) as {conversation:GabrooConversation};
 }
+export type GabrooSentenceFeedbackItem={category:"grammar"|"word_choice"|"naturalness";original:string;suggested:string;explanation:string;alternative?:string};
+export type GabrooSentenceFeedback={feedback:GabrooSentenceFeedbackItem[];encouragement:string};
+export async function requestGabrooSentenceFeedback(text:string){
+ return await authorized("/api/v1/gabroo/feedback","POST",{text}) as {feedback:GabrooSentenceFeedback;disclaimer:string};
+}
 export async function sendGabrooMessage(id:string,message:string){
  return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id)+"/messages","POST",{message}) as {messages:GabrooConversationMessage[]};
 }
