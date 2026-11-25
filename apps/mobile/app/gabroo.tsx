@@ -58,6 +58,7 @@ export default function GabrooScreen(){
  const [transcriptionBusy,setTranscriptionBusy]=useState(false);
  const [transcript,setTranscript]=useState<GabrooTranscript|null>(null);
  const [reviewedTranscript,setReviewedTranscript]=useState("");
+ const requestControllerRef=useRef<AbortController|null>(null);
  const transcriptionRecordingRef=useRef<Audio.Recording|null>(null);
  const transcriptionUriRef=useRef<string|null>(null);
  const transcriptionOperationRef=useRef(false);
@@ -85,6 +86,8 @@ export default function GabrooScreen(){
  useFocusEffect(useCallback(()=>{
   void load();
   return ()=>{
+   requestControllerRef.current?.abort();
+   requestControllerRef.current=null;
    speechRunRef.current+=1;
    void Speech.stop();
    const recording=recordingRef.current;
@@ -128,10 +131,11 @@ export default function GabrooScreen(){
  };
  const send=async()=>{
   const text=draft.trim();if(!text||!active||busy)return;
+  const controller=new AbortController();requestControllerRef.current=controller;
   setBusy(true);setError("");
-  try{const result=await sendGabrooMessage(active.id,text);setMessages(current=>[...current,...result.messages]);setDraft("");}
-  catch(reason){setError(reason instanceof AuthApiError&&reason.status===503?"Gabroo could not reply just now. Your message was not saved. Please try again.":reason instanceof Error?reason.message:"Could not send your message.");}
-  finally{setBusy(false);}
+  try{const result=await sendGabrooMessage(active.id,text,controller.signal);setMessages(current=>[...current,...result.messages]);setDraft("");}
+  catch(reason){if(!controller.signal.aborted)setError(reason instanceof AuthApiError&&reason.status===503?"Gabroo could not reply just now. Your message was not saved. Please try again.":reason instanceof Error?reason.message:"Could not send your message.");}
+  finally{if(requestControllerRef.current===controller)requestControllerRef.current=null;setBusy(false);}
  };
  const markChallengeComplete=async()=>{
   if(typeof challengeDate!=="string"||!active||challengeCompletionBusy||challengeCompleted||!messages.some(message=>message.role==="assistant"))return;
@@ -265,14 +269,15 @@ export default function GabrooScreen(){
  };
  const sendReviewedTranscript=async()=>{
   if(!active||!transcript||!reviewedTranscript.trim()||busy)return;
+  const controller=new AbortController();requestControllerRef.current=controller;
   setBusy(true);setError("");
   try{
    const confirmed=confirmGabrooTranscript({providerTranscript:transcript,reviewedText:reviewedTranscript,confirmed:true});
-   const result=await sendGabrooMessage(active.id,confirmed.text);
+   const result=await sendGabrooMessage(active.id,confirmed.text,controller.signal);
    setMessages(current=>[...current,...result.messages]);
    setTranscript(null);setReviewedTranscript("");setTranscriptionConsent(false);
-  }catch(reason){setError(reason instanceof Error?reason.message:"Could not send the reviewed transcript.");}
-  finally{setBusy(false);}
+  }catch(reason){if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Could not send the reviewed transcript.");}
+  finally{if(requestControllerRef.current===controller)requestControllerRef.current=null;setBusy(false);}
  };
  const requestVoicePermission=async()=>{
   if(!voiceConsent||voicePermissionBusy)return;
