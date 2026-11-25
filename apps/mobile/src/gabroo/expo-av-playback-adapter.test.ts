@@ -27,7 +27,6 @@ describe("Gabroo Expo AV playback adapter boundary", () => {
       gate: {} as never,
       nowMs: Date.parse("2030-01-01T00:00:00.000Z"),
       cacheAudio,
-      cacheAudio,
       createSound: createSound as never,
     })).rejects.toThrow();
     expect(createSound).not.toHaveBeenCalled();
@@ -126,7 +125,6 @@ describe("Gabroo Expo AV playback lifecycle", () => {
       onError,
       cacheAudio,
       nowMs: Date.parse("2029-12-31T23:59:00.000Z"),
-      cacheAudio,
       createSound: createSound as never,
     });
     await playback.play();
@@ -146,7 +144,6 @@ describe("Gabroo Expo AV playback lifecycle", () => {
       cacheAudio,
       onError,
       nowMs: Date.parse("2029-12-31T23:59:00.000Z"),
-      cacheAudio,
       createSound: vi.fn(async (_source, _initial, listener) => {
         secondListener = listener as (status: never) => void;
         return { sound: secondSound };
