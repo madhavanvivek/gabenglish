@@ -51,7 +51,6 @@ export async function createGabrooExpoAvPlayback(input: {
   if (!input.uri.trim()) throw new Error("A playable Gabroo audio URI is required.");
 
   const clock = new GabrooNativePlaybackClock(input.gate);
-  clock.begin(input.identity);
   let sound: Audio.Sound | null = null;
   let started = false;
   let closed = false;
@@ -73,10 +72,12 @@ export async function createGabrooExpoAvPlayback(input: {
           if ("error" in status && status.error) input.onError?.(new Error(status.error));
           return;
         }
+        if (status.didJustFinish) { stopClock(); return; }
         if (!status.isPlaying) {
-          if (started || status.didJustFinish) stopClock();
+          if (started) { clock.stop(); started = false; }
           return;
         }
+        if (!started) clock.begin(input.identity);
         started = true;
         const snapshot = toGabrooNativePlayerSnapshot(status, input.identity);
         if (!snapshot || !clock.tick(snapshot, input.timeline)) stopClock();
@@ -99,7 +100,7 @@ export async function createGabrooExpoAvPlayback(input: {
     async pause() {
       if (!sound || closed) return;
       await sound.pauseAsync();
-      stopClock();
+      if (started) { clock.stop(); started = false; }
     },
     async stop() {
       if (!sound || closed) return;
