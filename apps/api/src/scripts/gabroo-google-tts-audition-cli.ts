@@ -1,5 +1,5 @@
 import {createHash,randomInt} from "node:crypto";
-import {mkdir,writeFile} from "node:fs/promises";
+import {chmod,mkdir,writeFile} from "node:fs/promises";
 import {dirname,isAbsolute,relative,resolve,sep} from "node:path";
 import {fileURLToPath,pathToFileURL} from "node:url";
 import {createGoogleCloudTtsProvider} from "../google-cloud-tts-provider.js";
@@ -46,7 +46,8 @@ export async function createGabrooGoogleTtsAuditionPack(options:{
 }):Promise<{outputDirectory:string;variantCount:number;sampleCount:number}>{
  if(!options.apiKey.trim())throw new Error("A server-side Google Cloud TTS API key is required.");
  const outputDirectory=resolve(options.outputDirectory);
- await mkdir(outputDirectory,{recursive:true});
+ await mkdir(outputDirectory,{recursive:true,mode:0o700});
+ await chmod(outputDirectory,0o700);
  const synthesize=options.synthesize??(async(voice,text,inputMode)=>{
   const provider=createGoogleCloudTtsProvider({
    GABROO_GOOGLE_TTS_API_KEY:options.apiKey,
@@ -78,7 +79,8 @@ export async function createGabrooGoogleTtsAuditionPack(options:{
   blindIndex+=1;
    const blindCode="SAMPLE-"+String(blindIndex).padStart(2,"0");
    const candidateDirectory=resolve(outputDirectory,blindCode);
-   await mkdir(candidateDirectory,{recursive:true});
+   await mkdir(candidateDirectory,{recursive:true,mode:0o700});
+   await chmod(candidateDirectory,0o700);
    const samples:{sample_id:string;label:string;file:string}[]=[];
    for(const segment of SEGMENTS){
    const audio=await synthesize(candidate.voice,segment.text,inputMode);
