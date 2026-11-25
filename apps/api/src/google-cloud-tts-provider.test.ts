@@ -4,6 +4,8 @@ import {buildGabrooGoogleTtsSsml,createGoogleCloudTtsProvider} from "./google-cl
 describe("Google Cloud TTS provider",()=>{
  it("builds safe bilingual SSML",()=>{ expect(buildGabrooGoogleTtsSsml("നമസ്കാരം! Hello world & <test>.")).toBe("<speak>നമസ്കാരം! <lang xml:lang=\"en-US\">Hello world</lang> &amp; &lt;test&gt;.</speak>"); });
  it("rejects invalid English locale",()=>{expect(()=>buildGabrooGoogleTtsSsml("hello","bad-locale")).toThrow(/English language code/i);});
+ it("rejects XML 1.0 control characters before building SSML",()=>{ expect(()=>buildGabrooGoogleTtsSsml("hello\\u0000world")).toThrow(/not valid in XML 1.0/i); });
+ it("preserves XML-safe whitespace and supplementary Unicode characters",()=>{ expect(buildGabrooGoogleTtsSsml("നമസ്കാരം!\\n😀\\tHello.")).toBe("<speak>നമസ്കാരം!\\n😀\\t<lang xml:lang=\"en-US\">Hello</lang>.</speak>"); });
  it("escapes quotes and apostrophes in Malayalam and English text",()=>{ expect(buildGabrooGoogleTtsSsml('നീ "ശരി" ആണോ? It\'s okay.')).toBe('<speak>നീ &quot;ശരി&quot; ആണോ? <lang xml:lang="en-US">It&apos;s okay</lang>.</speak>'); });
 
  const config={GABROO_GOOGLE_TTS_API_KEY:"server-only-test-key",GABROO_GOOGLE_TTS_VOICE:"ml-IN-Standard-B",GABROO_GOOGLE_TTS_LANGUAGE_CODE:"ml-IN",GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE:"en-GB"};
