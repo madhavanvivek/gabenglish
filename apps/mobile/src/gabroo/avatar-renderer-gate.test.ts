@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   GabrooAvatarRendererGate,
   isPlaybackProofValid,
+  type ApprovedRigIdentity,
   type AvatarRigAdapter,
   type AvatarRigFrame,
   type PlaybackProof,
@@ -102,9 +103,9 @@ describe('GabrooAvatarRendererGate', () => {
   });
 
   it('prevents an older concurrent initialization from replacing the newer rig identity', async () => {
-    const resolvers: Array<(value: { characterId: string; rigVersion: string; approved: true }) => void> = [];
+    const resolvers: Array<(value: ApprovedRigIdentity) => void> = [];
     const { rig } = makeRig();
-    rig.load = vi.fn(() => new Promise((resolve) => { resolvers.push(resolve); }));
+    rig.load = vi.fn(() => new Promise<ApprovedRigIdentity>((resolve) => { resolvers.push(resolve); }));
     const gate = new GabrooAvatarRendererGate(rig, 'gabroo-approved', 'v1');
 
     const olderInitialization = gate.initialize();
@@ -121,9 +122,9 @@ describe('GabrooAvatarRendererGate', () => {
   });
 
   it('invalidates a pending rig load when a playback generation starts', async () => {
-    let resolveLoad!: (value: { characterId: string; rigVersion: string; approved: true }) => void;
+    let resolveLoad!: (value: ApprovedRigIdentity) => void;
     const { rig } = makeRig();
-    rig.load = vi.fn(() => new Promise((resolve) => { resolveLoad = resolve; }));
+    rig.load = vi.fn(() => new Promise<ApprovedRigIdentity>((resolve) => { resolveLoad = resolve; }));
     const gate = new GabrooAvatarRendererGate(rig, 'gabroo-approved', 'v1');
     const pending = gate.initialize();
 
