@@ -20,7 +20,6 @@ If the conversation service is unavailable, the existing API error is shown; the
 
 Challenge selection is computed on-device from the learner's already retrieved, account-scoped insights. No additional learner profile or challenge completion data is stored. Existing conversation persistence applies once the learner starts the challenge. Raw voice audio remains subject to the separate consent and transient-capture policy.
 
-
 ## Completion history
 
 The learner must explicitly choose **Mark challenge complete** after Gabroo has replied in the challenge conversation. Completion is stored against the learner, current learning direction and local challenge date, with the challenge title, optional skill key and linked Gabroo conversation. Repeated submissions for the same learner/date/direction update the same record rather than creating duplicate completions.
@@ -51,9 +50,11 @@ The Malayalam-learning direction needs its own educator-reviewed Malayalam promp
 ## Learner-saved phrase challenges
 
 - When the learner has explicitly saved one or more `saved_phrase` entries in Speaking Journal, the Home screen can select one deterministically for that day's optional challenge.
-- The app reads only the learner's own saved journal entries. It extracts the explicitly learner-entered `Learner phrase:` line and does not infer corrections from conversation transcripts.
-- The prompt invites the learner to use the saved phrase naturally in a new situation with Gabroo. It does not grade the phrase, assign a skill score, or treat challenge completion as evidence of improvement.
-- If no usable saved phrase exists, the existing exercise-evidence/general challenge selection remains unchanged.
+- The app reads only the learner's own saved journal entries. It extracts the explicitly learner-entered `Learner phrase:` line and, when present, the learner-approved `Practice version:` line.
+- If a practice version exists, the challenge uses that version as the practice target while showing the original phrase as context. It reminds the learner to preserve the original intended meaning and invites discussion of alternative wording when needed.
+- If no practice version exists, the original learner-saved phrase remains the target. The app does not treat an AI suggestion as approved unless the learner explicitly saved it as the practice version.
+- The prompt does not grade the phrase, assign a skill score, or treat challenge completion as evidence of improvement.
+- If no usable phrase exists, the existing exercise-evidence/general challenge selection remains unchanged.
 - Phrase selection is local to the Home screen and is not copied into a new server record; the daily completion record still stores only the challenge title, skill focus and optional conversation reference.
 
 ## Unified learner practice queue
