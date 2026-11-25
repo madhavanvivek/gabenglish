@@ -44,6 +44,7 @@ export default function GabrooScreen(){
  const transcriptionRecordingRef=useRef<Audio.Recording|null>(null);
  const transcriptionUriRef=useRef<string|null>(null);
  const transcriptionOperationRef=useRef(false);
+ const transcriptionReviewRunRef=useRef(0);
  const recordingRef=useRef<Audio.Recording|null>(null);
  const recordingOperationRef=useRef(false);
  const appIsActiveRef=useRef(true);
@@ -73,6 +74,7 @@ export default function GabrooScreen(){
   void load();
   return ()=>{
    screenFocusedRef.current=false;
+   transcriptionReviewRunRef.current+=1;
    speechRunRef.current+=1;
    void Speech.stop();
    void discardTranscriptionAudio();
@@ -225,18 +227,23 @@ export default function GabrooScreen(){
  };
  const reviewAndTranscribe=async()=>{
   const uri=transcriptionUriRef.current;
-  if(!uri||!transcriptionConsent||!recognitionStatus?.available||transcriptionBusy)return;
+  if(!uri||!transcriptionConsent||!recognitionStatus?.available||transcriptionBusy
+    ||!appIsActiveRef.current||!screenFocusedRef.current)return;
+  const run=++transcriptionReviewRunRef.current;
   setTranscriptionBusy(true);setSpeechNotice("");
   try{
    const result=await recognizeGabrooAudio({uri,mimeType:"audio/mp4",language:"ml-en",consentGranted:true});
+   if(run!==transcriptionReviewRunRef.current||!appIsActiveRef.current||!screenFocusedRef.current)return;
    setTranscript(result.transcript);setReviewedTranscript(result.transcript.text);
-   const uploadedUri=transcriptionUriRef.current;transcriptionUriRef.current=null;
-   if(uploadedUri)await FileSystem.deleteAsync(uploadedUri,{idempotent:true}).catch(()=>undefined);
+   if(transcriptionUriRef.current===uri)transcriptionUriRef.current=null;
+   await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
    setSpeechNotice("Transcript ready. Review or edit it below. Nothing has been sent to Gabroo yet.");
   }catch(reason){
-   setSpeechNotice(reason instanceof Error?reason.message:"Could not transcribe this recording. Your audio will be discarded.");
-   await discardTranscriptionAudio();
-  }finally{setTranscriptionBusy(false);}
+   if(run===transcriptionReviewRunRef.current){
+    setSpeechNotice(reason instanceof Error?reason.message:"Could not transcribe this recording. Your audio will be discarded.");
+    await discardTranscriptionAudio();
+   }
+  }finally{if(run===transcriptionReviewRunRef.current)setTranscriptionBusy(false);}
  };
  const sendReviewedTranscript=async()=>{
   if(!active||!transcript||!reviewedTranscript.trim()||busy)return;
@@ -334,6 +341,7 @@ export default function GabrooScreen(){
   const subscription=AppState.addEventListener("change",state=>{
    appIsActiveRef.current=state==="active";
    if(state!=="active"){
+    transcriptionReviewRunRef.current+=1;
     // Device TTS must not continue speaking behind a suspended learner screen.
     speechRunRef.current+=1;
     void Speech.stop();
