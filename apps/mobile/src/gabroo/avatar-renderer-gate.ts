@@ -123,6 +123,13 @@ export class GabrooAvatarRendererGate {
     }
   }
 
+  private disableSafely(): void {
+    this.ready = false;
+    this.identity = null;
+    this.generation += 1;
+    this.resetSafely();
+  }
+
   constructor(
     private readonly rig: AvatarRigAdapter,
     private readonly expectedCharacterId: string,
@@ -180,7 +187,7 @@ export class GabrooAvatarRendererGate {
       try {
         this.rig.applyFrame(neutralFrame(this.generation, proof.positionMs));
       } catch {
-        this.resetSafely();
+        this.disableSafely();
       }
       return false;
     }
@@ -197,7 +204,7 @@ export class GabrooAvatarRendererGate {
       });
       return true;
     } catch {
-      this.resetSafely();
+      this.disableSafely();
       return false;
     }
   }
