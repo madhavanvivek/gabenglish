@@ -58,7 +58,12 @@ export async function generateGabrooSpeechAsset(input: {
   }
 
   const controller = new AbortController();
-  const abortFromCaller = () => controller.abort();
+  let rejectCallerCancellation: ((reason: Error) => void) | undefined;
+  const callerCancelled = new Promise<never>((_, reject) => { rejectCallerCancellation = reject; });
+  const abortFromCaller = () => {
+    controller.abort();
+    rejectCallerCancellation?.(new GabrooRecognitionError("PROVIDER_UNAVAILABLE", "Gabroo speech generation was cancelled."));
+  };
   input.signal?.addEventListener("abort", abortFromCaller, { once: true });
   let timer: ReturnType<typeof setTimeout> | undefined;
   let timedOut = false;
