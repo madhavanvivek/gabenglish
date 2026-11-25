@@ -70,9 +70,9 @@ async function runBenchmark(){
     });
     const content=response.content;
     record={
-     caseId:testCase.id,title:testCase.title,repetition,model,providerBaseUrl:baseUrl,
+     caseId:testCase.id,title:testCase.title,repetition,model:response.model??model,providerBaseUrl:baseUrl,
      teachingPolicyVersion:getGabrooBenchmarkPolicyVersion(testCase),latencyMs:Math.round(performance.now()-started),
-     status:"completed",response:content.trim(),usage:null,
+     status:"completed",response:content.trim(),usage:response.usage??null,
      expectedChecks:testCase.expected,criticalChecks:testCase.critical,
      evaluatorScore:null,evaluatorNotes:null,evaluatorRubric:GABROO_EVALUATION_DIMENSIONS.map(dimension=>({dimension,score:null,notes:null})),recordedAt:new Date().toISOString()
     };completed++;completedLatencies.push(Number(record.latencyMs));
