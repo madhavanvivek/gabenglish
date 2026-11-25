@@ -182,3 +182,8 @@ Before uploading a learner-approved recording for transcription, the mobile clie
 ## Microphone capture lifecycle race protection
 
 The Gabroo transcription recorder now captures a monotonically increasing lifecycle generation before configuring the native audio session. Leaving the Gabroo screen or moving the app out of the active state invalidates that generation. The start flow checks the generation after audio-mode setup and again after native recorder creation; if it became stale, it does not publish a recording into UI state, and any recorder/file created by the late completion is stopped, unloaded and deleted. This also handles the app backgrounding and returning to the foreground before a pending native start promise resolves. This is client-side lifecycle protection; it does not claim cancellation of a transcription upload already in progress.
+
+
+## Unexpected native microphone stop handling
+
+While transcription capture is active, the Expo AV recording-status callback now checks that the callback still belongs to the active recorder and the same app/screen lifecycle generation. If the native recorder unexpectedly reports that it is no longer recording (without reporting a completed recording), the client removes the listener, stops/unloads the recorder, deletes the partial local file and tells the learner to retry. Normal user-initiated stop removes the listener before calling the native stop method, so it is not treated as an interruption. Maximum-duration auto-stop remains unchanged.
