@@ -22,6 +22,9 @@ export function createGabrooSynthesizedAudioIdentity(input:{
  if(!(input.audio instanceof Uint8Array)||input.audio.byteLength===0){
   throw new Error("Gabroo audio identity requires non-empty synthesized audio bytes.");
  }
+ if(input.audio.byteLength>12*1024*1024){
+  throw new Error("Gabroo audio identity cannot exceed the 12 MiB audio limit.");
+ }
  if(typeof input.text!=="string"||input.text.trim().length===0||Array.from(input.text).length>4_000){
   throw new Error("Gabroo audio identity requires the exact non-empty synthesis text of at most 4000 characters.");
  }
