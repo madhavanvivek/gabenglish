@@ -33,3 +33,16 @@ Before enabling the bridge in the learner app:
 - Compute SHA-256 over the exact audio bytes and enforce audio ID, hash and duration equality across synthesis, alignment, playback and cancellation.
 - Validate viseme timing and coarticulation with native Malayalam speakers, including slow playback.
 - Integrate the owner-approved character rig and test on physical Android devices; repeat on iOS when that platform is brought online.
+
+
+## Character timing for synchronized text highlighting
+
+Character timestamps are a separate capability from phoneme alignment. The contract in `packages/contracts/src/gabroo-character-alignment.ts` accepts provider-supplied source-text spans and audio timestamps, then produces caption/highlight cues only.
+
+- Offsets count Unicode code points, so Malayalam combining sequences and supplementary characters are not sliced using UTF-16 code-unit positions.
+- Every record binds the exact audio SHA-256, source-text SHA-256, audio ID and duration. The consumer must calculate the hashes over the exact audio bytes and UTF-8 text before accepting cues.
+- Events must be ordered in source-text and audio time, remain inside the source text and audio duration, and respect bounded payload sizes.
+- This adapter emits no visemes, mouth poses, or phoneme labels. Do not use character timestamps to drive lip-sync.
+- Provider offset semantics must be verified against real samples. If a provider reports byte offsets, UTF-16 offsets, word timings or token timings, an explicit verified conversion adapter is required; never reinterpret them as code-point indices.
+
+This allows future providers with character-level timing to support karaoke-style highlighting while the phoneme-driven avatar remains independently gated.
