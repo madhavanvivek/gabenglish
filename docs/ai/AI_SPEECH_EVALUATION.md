@@ -38,3 +38,9 @@ Freeze examples and reference annotations; run candidates with equivalent settin
 
 ## 9. Privacy
 Obtain recording consent; use synthetic/consented data; minimise raw audio retention; do not permit provider training without separate explicit authorisation; review processing/retention terms; do not infer sensitive traits from voice; never treat accent similarity as intelligence or learner worth.
+
+## 10. Learner-facing transcript review
+
+The mobile transcript review displays the provider's detected language and, when supplied, its recognition-confidence value. This value is only an estimate of transcription certainty. It is not a pronunciation score, accent score, fluency rating or measure of English ability. If the provider omits confidence, the UI says so and asks the learner to check the text carefully.
+
+Learners must be able to edit the recognised words before an explicit confirmation sends text to Gabroo. Raw audio remains transient and is discarded after transcription or cancellation. Do not present phoneme-level, word-level pronunciation feedback until a separately benchmarked alignment/evaluation capability exists and has been validated for Malayalam-accented English.
