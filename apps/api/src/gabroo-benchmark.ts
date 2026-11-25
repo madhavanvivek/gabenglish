@@ -3,6 +3,7 @@ import {createHash} from "node:crypto";
 import {dirname,resolve} from "node:path";
 import {fileURLToPath} from "node:url";
 import {buildGabrooTeachingPolicy,type GabrooTeachingPolicy} from "./gabroo-teaching-policy.js";
+import {createOpenAICompatibleGabrooProvider} from "./gabroo-openai-provider.js";
 import type {GabrooConversationMode,GabrooMessage} from "./gabroo-conversations.js";
 
 type BenchmarkCase={
@@ -70,22 +71,21 @@ async function runBenchmark(){
   for(let repetition=1;repetition<=repeats;repetition++){
    const started=performance.now();let record:Record<string,unknown>;
    try{
-    const response=await fetch(baseUrl+"/chat/completions",{
-     method:"POST",
-     headers:{authorization:"Bearer "+apiKey,"content-type":"application/json"},
-     body:JSON.stringify({model,messages:buildGabrooBenchmarkMessages(testCase),temperature:0.3}),
-     signal:AbortSignal.timeout(90_000)
+    const benchmarkMessages=buildGabrooBenchmarkMessages(testCase);
+    const response=await provider.reply({
+     mode:testCase.mode,
+     supportLanguage:testCase.supportLanguage,
+     learningDirection:testCase.direction,
+     targetLanguage:testCase.direction==="ml_to_en"?"en":"ml",
+     history:[...testCase.history,{role:"user",content:testCase.message}],
+     signal:AbortSignal.timeout(90_000),
+     teachingPolicy:buildPolicy(testCase)
     });
-    const payload=await response.json().catch(()=>({})) as {
-     choices?:Array<{message?:{content?:unknown}}>;usage?:unknown;error?:{message?:string}
-    };
-    if(!response.ok)throw new Error("Provider HTTP "+response.status+": "+String(payload.error?.message??"request failed").slice(0,500));
-    const content=payload.choices?.[0]?.message?.content;
-    if(typeof content!=="string"||!content.trim())throw new Error("Provider returned no text message.");
+    const content=response.content;
     record={
      caseId:testCase.id,title:testCase.title,repetition,model,providerBaseUrl:baseUrl,
      teachingPolicyVersion:getGabrooBenchmarkPolicyVersion(testCase),latencyMs:Math.round(performance.now()-started),
-     status:"completed",response:content.trim(),usage:payload.usage??null,
+     status:"completed",response:content.trim(),usage:null,
      expectedChecks:testCase.expected,criticalChecks:testCase.critical,
      evaluatorScore:null,evaluatorNotes:null,evaluatorRubric:GABROO_EVALUATION_DIMENSIONS.map(dimension=>({dimension,score:null,notes:null})),recordedAt:new Date().toISOString()
     };completed++;completedLatencies.push(Number(record.latencyMs));
@@ -101,7 +101,7 @@ async function runBenchmark(){
    console.log(String(record.status).toUpperCase()+" "+testCase.id+" "+repetition+"/"+repeats+" "+String(record.latencyMs)+"ms");
   }
  }
- console.log(JSON.stringify({model,total:cases.length*repeats,completed,failed,errorRate:(failed/(cases.length*repeats)),successfulLatencyMs:{p50:percentile(completedLatencies,0.5),p95:percentile(completedLatencies,0.95)},outputPath,policy:"live buildGabrooTeachingPolicy"},null,2));
+ console.log(JSON.stringify({model,total:cases.length*repeats,completed,failed,errorRate:(failed/(cases.length*repeats)),successfulLatencyMs:{p50:percentile(completedLatencies,0.5),p95:percentile(completedLatencies,0.95)},outputPath,policy:"live buildGabrooTeachingPolicy + production OpenAI-compatible adapter",usageNote:"Provider token usage is not exposed by the production conversation-provider interface."},null,2));
  if(failed>0)process.exitCode=1;
 }
 
