@@ -129,7 +129,8 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   );
   return {learning_direction:direction,stage:saved.rows[0]!.stage,stage_source:saved.rows[0]!.stage_source,updated_at:saved.rows[0]!.updated_at,stage_status:"confirmed"};
  });
-\n const lessonIdPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+ const lessonIdPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
  app.get("/api/v1/learning/lessons/:id",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to open this lesson.");
@@ -497,7 +498,8 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   );
   return {learning_direction:direction,stage:saved.rows[0]!.stage,stage_source:saved.rows[0]!.stage_source,updated_at:saved.rows[0]!.updated_at,stage_status:"confirmed"};
  });
-\n const lessonIdPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+ const lessonIdPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
  app.get("/api/v1/learning/lessons/:id",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to open this lesson.");
