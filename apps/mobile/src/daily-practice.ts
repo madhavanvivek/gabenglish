@@ -47,6 +47,12 @@ const general=[
  {title:"Your recommendation",focus:"Explain and support an idea",prompt:"Recommend a film, book, app or place to a friend. Explain why they might enjoy it and give one specific example."},
  {title:"Solve a small problem",focus:"Practical communication",prompt:"Imagine you need to reschedule an appointment. Explain the situation politely, suggest another time and ask whether it works."}
 ];
+export function localPracticeDateKey(date:Date=new Date()):string{
+ const year=date.getFullYear();
+ const month=String(date.getMonth()+1).padStart(2,"0");
+ const day=String(date.getDate()).padStart(2,"0");
+ return year+"-"+month+"-"+day;
+}
 export function buildDailySpeakingChallenge(date:string,skills:DailyPracticeSkill[]=[]):DailySpeakingChallenge{
  const day=Date.parse(date+"T00:00:00.000Z");
  const index=Number.isFinite(day)?Math.floor(day/86_400_000):0;
