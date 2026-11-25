@@ -90,3 +90,8 @@ Added a shared `GabrooSpeechAsset` envelope for the future API-to-mobile handoff
 ## API speech-generation boundary
 
 Added a consent-gated, provider-neutral API service for future speech asset generation. It validates learner text length, Malayalam/English language, playback rate, provider presence, caller cancellation and bounded provider timeout. Provider output is treated as untrusted and must pass the shared, unexpired `GabrooSpeechAsset` schema before it can be returned to a caller. Provider timeouts have a distinct error code. The service does not persist text/audio, log provider payloads, issue signed URLs, or implement a concrete speech vendor. The provider must supply a complete audio asset and alignment envelope; deployment remains disabled until a provider and secure asset issuer are configured.
+
+
+## Authenticated speech API route
+
+Added `GET /api/v1/gabroo/speech/status` and `POST /api/v1/gabroo/speech`. Both require a verified learner session and active subscription entitlement. Generation additionally requires explicit `x-gabroo-consent: true`, strict JSON fields (text, language and speech rate), and an injected speech provider. The route returns 503 while no provider is configured; it does not fabricate speech output. Request disconnects cancel provider work. API registration accepts a provider through the existing dependency-injection seam; the production server does not configure one, so the feature remains safely unavailable until credentials, provider implementation and signed asset delivery are reviewed. Route tests cover authentication, free-tier denial, provider-unavailable behavior and consent gating.
