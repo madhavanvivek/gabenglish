@@ -36,3 +36,35 @@ export function validateGabrooPlaybackAsset(
 export function validateGabrooSpeechAsset(value: unknown, nowMs = Date.now()): GabrooSpeechAsset {
   return parseActiveGabrooSpeechAsset(value, nowMs);
 }
+
+/**
+ * Convert one complete server-issued envelope into the only inputs accepted by
+ * the native playback adapter. URI, audio identity and timeline cannot be
+ * independently substituted by a caller.
+ */
+export function prepareGabrooPlaybackAsset(value: unknown, nowMs = Date.now()): {
+  uri: string;
+  identity: GabrooPlaybackIdentity;
+  timeline: GabrooSpeechTimeline;
+} {
+  const asset = validateGabrooSpeechAsset(value, nowMs);
+  return {
+    uri: asset.uri,
+    identity: {
+      playbackTicketId: asset.playbackTicketId,
+      audioId: asset.audioId,
+      audioSha256: asset.audioSha256,
+      measuredDurationMs: asset.measuredDurationMs,
+      alignmentAudioSha256: asset.alignmentAudioSha256,
+      alignmentDurationMs: asset.alignmentDurationMs,
+    },
+    timeline: validateGabrooPlaybackAsset({
+      playbackTicketId: asset.playbackTicketId,
+      audioId: asset.audioId,
+      audioSha256: asset.audioSha256,
+      measuredDurationMs: asset.measuredDurationMs,
+      alignmentAudioSha256: asset.alignmentAudioSha256,
+      alignmentDurationMs: asset.alignmentDurationMs,
+    }, asset.timeline),
+  };
+}
