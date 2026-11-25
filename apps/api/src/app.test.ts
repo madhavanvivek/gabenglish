@@ -46,6 +46,41 @@ describe("API foundation",()=>{
   await app.close();
  });
 
+ it("requires an authenticated learner for Gabroo speech status",async()=>{
+  const pool={query:async()=>({rows:[]})} as any;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const r=await app.inject({method:"GET",url:"/api/v1/gabroo/speech/status"});
+  expect(r.statusCode).toBe(401);
+  expect(r.json().error.code).toBe("VERIFIED_ACCOUNT_REQUIRED");
+  await app.close();
+ });
+ it("keeps Gabroo speech generation unavailable until a provider is configured",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const app=await buildApp(config,async()=>true,recognitionPool(true));
+  const r=await app.inject({method:"POST",url:"/api/v1/gabroo/speech",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET),"x-gabroo-consent":"true"},payload:{text:"hello",language:"en",speech_rate:1}});
+  expect(r.statusCode).toBe(503);
+  expect(r.json().error.code).toBe("PROVIDER_UNAVAILABLE");
+  await app.close();
+ });
+ it("requires explicit consent before invoking the configured Gabroo speech provider",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let calls=0;
+  const provider={generate:async()=>{calls+=1;return {}; }};
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,provider);
+  const r=await app.inject({method:"POST",url:"/api/v1/gabroo/speech",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{text:"hello",language:"en",speech_rate:1}});
+  expect(r.statusCode).toBe(400);
+  expect(r.json().error.code).toBe("CONSENT_REQUIRED");
+  expect(calls).toBe(0);
+  await app.close();
+ });
+ it("does not expose Gabroo speech status to a free learner",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const app=await buildApp(config,async()=>true,recognitionPool(false));
+  const r=await app.inject({method:"GET",url:"/api/v1/gabroo/speech/status",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(r.statusCode).toBe(403);
+  expect(r.json().error.code).toBe("PAID_SUBSCRIPTION_REQUIRED");
+  await app.close();
+ });
  it("returns a validated recognition readiness response to a paid learner",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   const app=await buildApp(config,async()=>true,recognitionPool(true));
