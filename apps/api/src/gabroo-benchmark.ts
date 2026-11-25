@@ -83,7 +83,7 @@ async function runBenchmark(){
    }catch(error){
     record={
      caseId:testCase.id,title:testCase.title,repetition,model,providerBaseUrl:baseUrl,
-     teachingPolicyVersion:"live-builder-current",latencyMs:Math.round(performance.now()-started),
+     teachingPolicyVersion:getGabrooBenchmarkPolicyVersion(testCase),latencyMs:Math.round(performance.now()-started),
      status:"error",error:error instanceof Error?error.message:String(error),
      evaluatorScore:null,evaluatorNotes:null,recordedAt:new Date().toISOString()
     };failed++;
