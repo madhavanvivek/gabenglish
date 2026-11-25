@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {buildGabrooBenchmarkMessages,getGabrooBenchmarkPolicyVersion} from "./gabroo-benchmark.js";
+import {buildGabrooBenchmarkMessages,getGabrooBenchmarkPolicyVersion,GABROO_EVALUATION_DIMENSIONS} from "./gabroo-benchmark.js";
 
 describe("buildGabrooBenchmarkMessages",()=>{
  it("injects the live English-learning policy and keeps conversation history",()=>{
