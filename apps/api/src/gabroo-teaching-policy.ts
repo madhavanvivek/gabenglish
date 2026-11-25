@@ -12,6 +12,7 @@ export type GabrooTeachingPolicy={
   stageGuidance:string;
   learnerContext:{preferredName?:string;learningGoal?:string;profileCorrectionPreference?:"gentle"|"balanced"|"detailed"};
   learnerMemory:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>;
+  vocabularyFocus:Array<{term:string;meaning:string;reason:"difficult"|"due"}>;
 };
 
 const policyByMode:Record<GabrooConversationMode,Omit<GabrooTeachingPolicy,"mode"|"supportLanguage"|"learningDirection"|"targetLanguage"|"addressPolicy"|"stageGuidance"|"learnerContext"|"learnerMemory">>={
@@ -24,7 +25,7 @@ const policyByMode:Record<GabrooConversationMode,Omit<GabrooTeachingPolicy,"mode
   confidence_practice:{correction:"gentle",primaryGoal:"build_confidence",responseGuidance:["Make participation feel safe and achievable.","Praise specific communication successes without exaggeration.","Choose easy next steps and avoid correcting every mistake."]}
 };
 
-export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection?:"ml_to_en"|"en_to_ml";targetLanguage?:"ml"|"en";stage?:1|2|3|4|5;preferredName?:string|null;learningGoal?:string|null;profileCorrectionPreference?:"gentle"|"balanced"|"detailed";learnerMemory?:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>}):GabrooTeachingPolicy{
+export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection?:"ml_to_en"|"en_to_ml";targetLanguage?:"ml"|"en";stage?:1|2|3|4|5;preferredName?:string|null;learningGoal?:string|null;profileCorrectionPreference?:"gentle"|"balanced"|"detailed";learnerMemory?:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>;vocabularyFocus?:Array<{term:string;meaning:string;reason:"difficult"|"due"}>}):GabrooTeachingPolicy{
  const selected=policyByMode[input.mode];
  const learningDirection=input.learningDirection??"ml_to_en";
  const targetLanguage=input.targetLanguage??(learningDirection==="ml_to_en"?"en":"ml");
@@ -61,6 +62,8 @@ export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;sup
    ...(input.learningGoal?.trim()?{learningGoal:input.learningGoal.trim().slice(0,200)}:{}),
    ...(input.profileCorrectionPreference?{profileCorrectionPreference:input.profileCorrectionPreference}:{})
   },
-  learnerMemory:(input.learnerMemory??[]).slice(0,20).map(item=>({category:item.category,memoryKey:item.memoryKey.slice(0,80),content:item.content.slice(0,500)}))
+  learnerMemory:(input.learnerMemory??[]).slice(0,20).map(item=>({category:item.category,memoryKey:item.memoryKey.slice(0,80),content:item.content.slice(0,500)})),
+  vocabularyFocus:(input.vocabularyFocus??[]).filter(item=>item.term.trim()&&item.meaning.trim()).slice(0,5).map(item=>({term:item.term.slice(0,120),meaning:item.meaning.slice(0,240),reason:item.reason})),
+  ...(input.vocabularyFocus?.length?{responseGuidance:[...selected.responseGuidance,"When relevant, gently reuse one of the learner's difficult or due vocabulary items in a natural example. Do not turn every conversation into a quiz, interrupt the learner, or claim a word is mastered. Invite practice rather than forcing it."]}:{})
  };
 }
