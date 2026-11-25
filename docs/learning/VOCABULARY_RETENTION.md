@@ -29,3 +29,9 @@ The screen uses the authenticated mobile API client, so access tokens remain in 
 - Add a learner progress summary for vocabulary retained, developing and due for review.
 - Teach Gabroo to naturally revisit weak words during conversation, with learner consent and without interrupting the conversation.
 - Run the complete mobile typecheck/test suite and API integration tests against PostgreSQL before merging.
+
+## Retention insights
+
+The authenticated endpoint `GET /api/v1/learning/vocabulary/summary` aggregates only stable-ID vocabulary in the learner's current published curriculum direction and current published lesson versions. It returns total tagged words, words reviewed at least once, words still developing recall, words due now, and the most recent review timestamp.
+
+“Stable recall” is a scheduling signal defined as at least three successful repetitions with a seven-day-or-longer interval. It is not a fluency, vocabulary-size, or proficiency score. The endpoint requires an active subscription, and the mobile progress screen shows the summary when available while keeping the free diagnostic report independent.
