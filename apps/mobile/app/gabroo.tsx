@@ -212,6 +212,7 @@ export default function GabrooScreen(){
   }finally{
    await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
    transcriptionOperationRef.current=false;setTranscriptionBusy(false);
+   if(!appIsActiveRef.current&&transcriptionUriRef.current)void discardTranscriptionAudio();
   }
  };
  const reviewAndTranscribe=async()=>{
@@ -324,8 +325,27 @@ export default function GabrooScreen(){
  useEffect(()=>{
   const subscription=AppState.addEventListener("change",state=>{
    appIsActiveRef.current=state==="active";
-   if(state!=="active"&&recordingRef.current&&!recordingOperationRef.current){
-    void stopAndDiscardLocalCapture();
+   if(state!=="active"){
+    // Device TTS must not continue speaking behind a suspended learner screen.
+    speechRunRef.current+=1;
+    void Speech.stop();
+    setSpeakingMessageId(null);
+
+    // Never leave an unreviewed microphone file running or waiting in cache
+    // while the app is backgrounded. If capture is currently being started or
+    // stopped, its finally block performs the same cleanup after the operation.
+    if(transcriptionRecordingRef.current&&!transcriptionOperationRef.current){
+     void discardTranscriptionAudio();
+    }else if(transcriptionUriRef.current&&!transcriptionOperationRef.current){
+     const uri=transcriptionUriRef.current;
+     transcriptionUriRef.current=null;
+     void FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+     setTranscriptionRecording(false);
+     setSpeechNotice("The unsubmitted recording was discarded because Gabenglish went into the background.");
+    }
+    if(recordingRef.current&&!recordingOperationRef.current){
+     void stopAndDiscardLocalCapture();
+    }
    }
   });
   return ()=>subscription.remove();
