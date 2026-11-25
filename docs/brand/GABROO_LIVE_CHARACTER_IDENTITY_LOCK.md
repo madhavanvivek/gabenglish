@@ -1,20 +1,22 @@
-# Gabroo Live Character Identity Lock
+# Gabroo Character Selection and Approval Gate
 
-Status: **Binding product and production requirement**
+Status: **Selection and approval process; no character identity or 3D avatar approved yet**
 Last reviewed: 2026-11-18
 Applies to: every Gabenglish client, onboarding flow, tutor session, lesson, assessment, notification, promotional render and future platform.
 
-## 1. Non-negotiable identity rule
+## 1. Current approval status and selection rule
 
-Gabroo must always be the exact learner-approved **Concept C — Signature Gabroo** from **Gabenglish Branding Kit Version 2**. The approved character artwork supplied by the product owner is the single canonical visual source.
+No Gabroo concept, face, outfit or production 3D avatar has been approved yet. Concept C and any other supplied or generated character references are exploratory options only; none is the canonical identity. The owner must review and explicitly select a character direction before a canonical visual source can be established.
 
-This is an identity-preservation requirement, not a request to create a character inspired by the reference. Do not reinterpret, redesign, regenerate, replace, blend, remix or approximate Gabroo. Do not introduce alternate character concepts, substitute avatars, extra tutors or unrelated character references.
+The immediate task is to prepare and compare distinct character concepts for owner selection. Do not treat an existing reference or previous concept label as an approval. After selection, preserve the chosen identity and do not silently reinterpret, replace or mix it with other concepts.
 
-The canonical source must be imported into the repository as a versioned, access-controlled master asset before production avatar implementation. Until that happens, the supplied approved artwork remains the only valid visual reference; no generated image is an acceptable substitute.
+After the owner selects a concept, prepare a definitive model sheet and obtain approval before importing it as the canonical, versioned, access-controlled master asset. Exploratory generated concepts are not production assets and must be clearly labelled as options.
 
-## 2. What must remain identical
+A previously inspected reference image and its manifest must not be interpreted as owner approval of the character identity or 3D avatar. Any reference asset remains exploratory until the owner explicitly confirms it as the selected canonical source.
 
-Preserve the approved character's:
+## 2. Evaluation criteria for concept selection
+
+Evaluate each proposed character for:
 - face identity and facial proportions;
 - head shape, eye shape/spacing, eyebrows, nose, mouth and smile;
 - skin tone and shading identity;
@@ -25,11 +27,11 @@ Preserve the approved character's:
 - body proportions, apparent age/style and overall silhouette;
 - established palette, materials and visual personality.
 
-No per-screen costume changes, facial reinterpretations, age shifts, hairstyle changes, body-shape changes or alternate art styles. Animation may move the existing rigged features; it must not change the underlying identity.
+The owner selects the visual identity. Once approved, no per-screen costume changes or facial reinterpretations are permitted without a separately approved revision.
 
 ## 3. Permitted production work
 
-The following are allowed only as faithful technical extensions of the approved master:
+After explicit concept and model approval, the following production work is allowed:
 - create a production 3D model by matching the approved reference;
 - build a facial/body rig that preserves the approved topology and proportions;
 - create phoneme/viseme shapes, expressions and gesture clips on that same model;
@@ -41,7 +43,7 @@ These are animation/rendering states of one character, not new character variant
 
 ## 4. Prohibited work
 
-- Do not use image generation to invent a new Gabroo or produce a replacement master.
+- Do not present generated concept images as approved or canonical. Image generation may be used to prepare clearly labelled options for owner selection.
 - Do not use stock avatars, generic talking heads, AI-video actors or another character for any Gabroo interaction.
 - Do not combine traits from previous concept options or external reference characters.
 - Do not create separate onboarding, lesson, assessment or marketing versions with different faces/outfits.
@@ -52,15 +54,15 @@ These are animation/rendering states of one character, not new character variant
 ## 5. Asset provenance and release gate
 
 Before implementation can be marked production-ready:
-1. Import the owner-approved Branding Kit V2 master artwork without alteration.
-2. Record its original filename, source, dimensions, checksum and approval/version in an asset manifest.
+1. Import the owner-approved Branding Kit V2 reference artwork byte-for-byte.
+2. Record its original filename, source, dimensions, checksum and approval/version in `docs/brand/GABROO_APPROVED_ASSET_MANIFEST.md`.
 3. Store the master as read-only source material; derived model, textures, rig and exports must reference that source/version.
 4. Produce a model-sheet comparison (front, three-quarter, profile and full-body) for owner review.
 5. Obtain explicit owner approval of the 3D model before animation production.
 6. Run visual regression checks against the approved master for all app surfaces and avatar states.
 7. Verify no vendor fallback or loading state swaps in a different character.
 
-Do not invent or hardcode an asset checksum. Record it only after the exact approved source file is imported and hashed.
+The manifest checksum is calculated from the exact owner-provided PNG bytes. After repository upload, recompute SHA-256 from the committed bytes and require an exact match before marking the repository-import gate complete.
 
 ## 6. Animation and live conversation quality
 
@@ -78,17 +80,17 @@ Do not fake exact lip-sync with a generic loop. If timing metadata is unavailabl
 
 ## 7. Voice identity is separate from visual identity
 
-The voice must be benchmarked and approved independently. The chosen voice direction remains male, energetic, funny, friendly and natural in Kerala Malayalam, with respectful casual slang. Do not assume a provider's sample voice is final. Do not allow voice-provider choice to alter the approved character design.
+Voice identity is a separate, open approval decision. No final voice has been selected. Benchmark multiple candidates for natural Kerala Malayalam, clarity, warmth, energy, humour and code-switching; obtain explicit owner approval. Do not assume a provider sample is final.
 
 ## 8. Implementation status
 
-- Approved visual source: **selected and owner-approved in Branding Kit V2**.
-- Identity lock: **defined by this document**.
-- Approved master asset committed to repository with manifest/checksum: **pending**.
-- Production 3D model and owner visual sign-off: **pending**.
+- Character concept/visual source: **not yet selected or owner-approved; concept exploration required**.
+- Exploratory reference material: **not an approved canonical source**.
+- Reference PNG committed byte-for-byte to repository: **pending**.
+- Production 3D model and owner visual sign-off: **pending; cannot begin final production until concept selection**.
 - Facial/body rig and animation states: **pending**.
-- Audio-timestamp-driven lip-sync: **pending**.
+- Audio-timestamp-driven lip-sync: **contract added; renderer integration pending**.
 - Live interruptible tutor conversation: **pending**.
-- Production voice selection: **pending benchmark and owner approval**.
+- Production voice selection: **not selected; benchmark and explicit owner approval pending**.
 
-Documentation does not imply that any pending production capability is already implemented.
+Documentation and contracts do not imply that any pending production capability is already implemented.

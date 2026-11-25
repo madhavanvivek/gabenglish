@@ -1,3 +1,4 @@
+import {z} from "zod";
 import {evaluateAuthoredExercise} from "@gabenglish/contracts";
 import {projectLearnerLessonContent} from "@gabenglish/contracts";
 import type {FastifyInstance} from "fastify";
@@ -5,6 +6,9 @@ import type {Pool} from "pg";
 import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
+import {buildGabrooAdaptivePractice,type GabrooExerciseOutcome} from "./gabroo-adaptive-practice.js";
+import {selectGabrooNextExercise} from "./gabroo-exercise-selector.js";
+import {buildLessonExerciseEvidenceTaskId} from "./gabroo-exercise-evidence.js";
 
 type Direction="ml_to_en"|"en_to_ml";
 type CatalogRow={
@@ -104,6 +108,47 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   if(!safeContent){request.log.error({request_id:request.id,lesson_id:id},"Published lesson content does not match the learner-safe schema");return failure(reply,request.id,503,"LESSON_CONTENT_UNAVAILABLE","This lesson is being prepared and is not available yet.");}
   return {lesson:{id:lesson.lesson_id,slug:lesson.slug,title:lesson.title,version_id:lesson.version_id,version:lesson.version_number,learning_direction:lesson.learning_direction,source_language:lesson.source_language,target_language:lesson.target_language,support_language:lesson.support_language,content:safeContent,script_mode:lesson.script_mode,register:lesson.register,dialect_scope:lesson.dialect_scope,romanisation:lesson.romanisation},progress:lesson.progress_status?{status:lesson.progress_status,progress_percent:Number(lesson.progress_percent),updated_at:lesson.progress_updated_at}:null};
  });
+ app.get("/api/v1/learning/lessons/:id/next-exercise",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to get your next exercise.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to access exercises.");
+  const id=(request.params as {id?:string}).id??"";
+  if(!lessonIdPattern.test(id))return failure(reply,request.id,400,"INVALID_LESSON_ID","This lesson link is invalid.");
+  const found=await pool.query<{version_id:string;content:unknown}>(
+   `SELECT lv.id AS version_id,lv.content FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id WHERE l.id=$1 AND l.status='published' AND c.status='published' AND lv.status='published' AND c.learning_direction=COALESCE((SELECT learning_direction FROM user_preferences WHERE user_id=$2),'ml_to_en') AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')`,
+   [id,learner.id]
+  );
+  const lesson=found.rows[0];
+  if(!lesson)return failure(reply,request.id,404,"LESSON_NOT_FOUND","This lesson is not published for your selected learning direction.");
+  const safeContent=projectLearnerLessonContent(lesson.content);
+  if(!safeContent)return failure(reply,request.id,503,"LESSON_CONTENT_UNAVAILABLE","This lesson is being prepared and is not available yet.");
+  const requestedSessionId=(request.query as {learning_session_id?:string}).learning_session_id;
+  if(requestedSessionId!==undefined&&!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestedSessionId))
+   return failure(reply,request.id,400,"INVALID_LEARNING_SESSION_ID","This learning session is invalid. Reopen the lesson and try again.");
+  const [attempts,outcomes]=await Promise.all([
+   pool.query<{exercise_id:string}>(
+    "SELECT DISTINCT exercise_id FROM learner_exercise_attempts WHERE user_id=$1 AND lesson_version_id=$2 AND ($3::uuid IS NULL OR learning_session_id=$3)",
+    [learner.id,lesson.version_id,requestedSessionId??null]
+   ),
+   pool.query<{skill:GabrooExerciseOutcome["skill"];correct:boolean;difficulty:number|null;observed_at:Date}>(`SELECT skill,correct,difficulty,observed_at FROM (
+    SELECT DISTINCT ON (a.lesson_version_id,a.exercise_id,COALESCE(a.learning_session_id,'00000000-0000-0000-0000-000000000000'::uuid))
+     block->>'skill' AS skill,a.is_correct AS correct,
+     CASE WHEN block->>'difficulty' ~ '^[1-5]$' THEN (block->>'difficulty')::int ELSE NULL END AS difficulty,
+     a.attempted_at AS observed_at
+    FROM learner_exercise_attempts a
+    JOIN lesson_versions lv ON lv.id=a.lesson_version_id
+    CROSS JOIN LATERAL jsonb_array_elements(
+     CASE WHEN jsonb_typeof(lv.content->'blocks')='array' THEN lv.content->'blocks' ELSE '[]'::jsonb END
+    ) AS blocks(block)
+    WHERE a.user_id=$1 AND block->>'type'='exercise' AND block->>'id'=a.exercise_id
+     AND block->>'skill' IN ('grammar','vocabulary','comprehension')
+    ORDER BY a.lesson_version_id,a.exercise_id,COALESCE(a.learning_session_id,'00000000-0000-0000-0000-000000000000'::uuid),a.attempted_at DESC
+   ) AS latest_outcomes ORDER BY observed_at DESC LIMIT 100`,[learner.id])
+  ]);
+  const adaptivePractice=buildGabrooAdaptivePractice(outcomes.rows.map(row=>({skill:row.skill,correct:row.correct,difficulty:row.difficulty??undefined,observedAt:row.observed_at.toISOString()})));
+  const selection=selectGabrooNextExercise({content:safeContent,attemptedExerciseIds:attempts.rows.map(row=>row.exercise_id),adaptivePractice});
+  return {lesson_id:id,selection};
+ });
  app.post("/api/v1/learning/lessons/:id/progress",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to save lesson progress.");
@@ -181,8 +226,8 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   const params=request.params as {id?:string;exerciseId?:string};
   const id=params.id??"",exerciseId=params.exerciseId??"";
   if(!lessonIdPattern.test(id)||!/^[a-z0-9_-]{1,64}$/i.test(exerciseId))return failure(reply,request.id,400,"INVALID_EXERCISE_REFERENCE","This exercise link is invalid.");
-  const body=request.body as {response?:unknown}|null;
-  if(!body||typeof body.response!=="string"||!body.response.trim()||body.response.trim().length>2000||Object.keys(body).some(key=>key!=="response"))return failure(reply,request.id,400,"VALIDATION_ERROR","Enter an answer of up to 2,000 characters.");
+  const parsed=z.object({response:z.string().trim().min(1).max(2000),idempotency_key:z.string().uuid(),learning_session_id:z.string().uuid().optional()}).strict().safeParse(request.body);
+  if(!parsed.success)return failure(reply,request.id,400,"VALIDATION_ERROR","Provide an answer and a valid idempotency key.");
   const result=await pool.query<{course_id:string;learning_direction:Direction;version_id:string;content:unknown}>(
    `SELECT c.id AS course_id,c.learning_direction,lv.id AS version_id,lv.content
     FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
@@ -198,22 +243,58 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   const blocks=Array.isArray(raw?.blocks)?raw.blocks:[];
   const exercise=blocks.find((item):item is Record<string,unknown>=>typeof item==="object"&&item!==null&&(item as Record<string,unknown>).type==="exercise"&&(item as Record<string,unknown>).id===exerciseId);
   if(!exercise)return failure(reply,request.id,404,"EXERCISE_NOT_FOUND","This exercise is not part of the published lesson.");
-  const submitted=body.response.trim();
-  const evaluated=evaluateAuthoredExercise(exercise,submitted);
+  const evaluated=evaluateAuthoredExercise(exercise,parsed.data.response);
   if(!evaluated){
    if(exercise.response_type==="single_choice"&&Array.isArray(exercise.options)){
-    const exists=exercise.options.some(option=>typeof option==="object"&&option!==null&&(option as Record<string,unknown>).id===submitted);
+    const exists=exercise.options.some(option=>typeof option==="object"&&option!==null&&(option as Record<string,unknown>).id===parsed.data.response);
     if(!exists)return failure(reply,request.id,400,"INVALID_EXERCISE_RESPONSE","Choose one of the available answers.");
    }
    return failure(reply,request.id,503,"EXERCISE_NOT_CONFIGURED","This exercise is awaiting a valid answer key or accepted-answer rubric.");
   }
-  const {correct,feedback}=evaluated;
-  await pool.query(
-   `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-   [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,submitted,correct,feedback]
-  );
-  return {lesson_id:id,exercise_id:exerciseId,result:{correct,feedback}};
+  const client=await pool.connect();
+  try{
+   await client.query("BEGIN");
+   const saved=await client.query<{id:string;is_correct:boolean;feedback:string}>(
+    `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback,idempotency_key,learning_session_id)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+     ON CONFLICT(user_id,lesson_version_id,exercise_id,idempotency_key)
+       WHERE idempotency_key IS NOT NULL DO NOTHING
+     RETURNING id,is_correct,feedback`,
+    [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,parsed.data.response,evaluated.correct,evaluated.feedback,parsed.data.idempotency_key,parsed.data.learning_session_id??null]
+   );
+   let attempt=saved.rows[0];
+   if(!attempt){
+    const previous=await client.query<{id:string;is_correct:boolean;feedback:string;response:string;learning_session_id:string|null}>(
+     "SELECT id,is_correct,feedback,response,learning_session_id FROM learner_exercise_attempts WHERE user_id=$1 AND lesson_version_id=$2 AND exercise_id=$3 AND idempotency_key=$4 FOR UPDATE",
+     [learner.id,lesson.version_id,exerciseId,parsed.data.idempotency_key]
+    );
+    const replay=previous.rows[0];
+    if(!replay){await client.query("ROLLBACK");return failure(reply,request.id,503,"ATTEMPT_SAVE_UNAVAILABLE","Your answer could not be saved. Please retry.");}
+    if(replay.response!==parsed.data.response){await client.query("ROLLBACK");return failure(reply,request.id,409,"IDEMPOTENCY_KEY_REUSED","This submission key was already used for a different answer.");}
+    if((replay.learning_session_id??null)!==(parsed.data.learning_session_id??null)){await client.query("ROLLBACK");return failure(reply,request.id,409,"IDEMPOTENCY_SESSION_MISMATCH","This submission key was already used in a different learning session.");}
+    attempt={id:replay.id,is_correct:replay.is_correct,feedback:replay.feedback};
+   }
+   let evidenceRecorded=false;
+   if(["grammar","vocabulary","comprehension"].includes(String(exercise.skill))){
+    const evidenceTaskId=buildLessonExerciseEvidenceTaskId({
+     lessonVersionId:lesson.version_id,exerciseId,learningSessionId:parsed.data.learning_session_id
+    });
+    const evidence=await client.query<{id:string}>(
+     `INSERT INTO gabroo_skill_evidence(user_id,skill,score,confidence,source,task_id,observed_at)
+      VALUES($1,$2,$3,0.75,'lesson_exercise',$4,now())
+      ON CONFLICT(user_id,skill,source,task_id) DO NOTHING
+      RETURNING id`,
+     [learner.id,exercise.skill,attempt.is_correct?1:0,evidenceTaskId]
+    );
+    evidenceRecorded=evidence.rows.length>0;
+   }
+   await client.query("COMMIT");
+   return {lesson_id:id,exercise_id:exerciseId,attempt_id:attempt.id,result:{correct:attempt.is_correct,feedback:attempt.feedback},evidence_recorded:evidenceRecorded};
+  }catch(error){
+   await client.query("ROLLBACK").catch(()=>undefined);
+   request.log.error({request_id:request.id},"Exercise attempt persistence failed");
+   return failure(reply,request.id,503,"ATTEMPT_SAVE_UNAVAILABLE","Your answer could not be saved. Please try again.");
+  }finally{client.release();}
  });
 
 }

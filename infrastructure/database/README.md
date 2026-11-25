@@ -36,3 +36,10 @@ The migrations are executed against an ephemeral PostgreSQL 16 service in GitHub
 ## Verified subscription entitlement ledger — migration 0008
 
 Migration `0008_verified_subscription_entitlements.sql` restricts the initial commercial model to Monthly (30 days) and Yearly (360 days), INR, and adds the verified-payment entitlement ledger and active-entitlement read view. It does not seed plans, prices, transactions or entitlements and does not integrate a payment provider. Entitlement rows must only be created by a future server-side payment verification flow after signed-event and server-to-server verification. Do not expose paid features until server-side entitlement gates are implemented and tested.
+
+
+## Gabroo native playback tickets — migration 0020
+
+Migration `0020_gabroo_speech_playback_tickets.sql` adds durable, one-time playback tickets for native audio clients. The API creates a cryptographically random 256-bit token, stores only its SHA-256 digest, and keeps the speech text and selected speed in PostgreSQL rather than placing learner text in a URL. Tickets expire after 60 seconds and are consumed atomically by a single GET request; a replay or expired ticket is rejected. The learner's paid entitlement is checked again when audio is requested.
+
+The initial GET endpoint still calls the existing buffered speech provider and sends the completed MP3. This is a compatibility bridge for authenticated native remote playback, **not true progressive TTS streaming**. Incremental provider-to-client streaming, disconnect propagation during response delivery, and physical-device Expo AV validation remain outstanding. Expired ticket rows older than five minutes past expiry are opportunistically pruned whenever a new ticket is issued; a dedicated scheduled cleanup job is not yet configured.

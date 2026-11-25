@@ -180,7 +180,7 @@ The mobile application must never call a model provider directly or contain prov
 
 ## 14. All-day open conversation and activity planning
 
-The paid product includes an open-conversation mode as a first-class use case, not merely a lesson-specific chat. The learner can initiate a topic at any time, resume their own prior conversation, or use optional structured daily activities. The daily plan is a recommendation layer and never a gate in front of open chat.
+The paid product includes an open-conversation mode as a first-class use case, not merely a lesson-specific chat. The learner can initiate a topic at any time, resume their own prior conversation, or use optional structured daily activities. The daily plan is a recommendation layer and never a gate in front of open chat. Gabroo is an active, equal-feeling conversation partner—not a news presenter, current-affairs anchor or lecturer. Topic suggestions are optional invitations to speak. When current information is useful, topic research supplies a short, cited evidence pack behind the scenes so Gabroo can contribute one relevant fact or example, respond to the learner's ideas and return the floor to the learner.
 
 Conversation mode is a teaching-policy input: `free_flow`, `gentle_correction`, or `detailed_correction`. Topic-practice, role-play, vocabulary-building and confidence-practice are activity intents. In free-flow mode, preserve conversational rhythm and defer minor corrections; in detailed mode, give focused explanations and retries. All modes retain the stage, support-language, age and communication-policy constraints.
 
@@ -211,6 +211,26 @@ The address policy requires the learner's explicitly selected name or respectful
 This is a deterministic policy foundation, not a live AI integration. The conversation API now loads the authenticated learner's display name, learning goal and profile correction preference from their own profile/preferences and passes only those bounded fields into the policy context. A validated learning stage is not yet available: the current free diagnostic report intentionally makes no stage recommendation, so the policy continues to mark stage as unknown rather than infer one. The selected conversation mode remains authoritative for the current turn; profile correction preference is contextual until a learner explicitly chooses a mode. Provider adapters must treat policy and learner profile fields as separate trusted context, never allow learner text to override policy, and honour the request abort signal.
 
 
+
+## 17. Learner-first conversation balance and speaking-time policy
+
+Gabroo may contribute knowledge, examples, explanations and a clearly attributed perspective when these genuinely help the discussion. However, every contribution must serve the primary objective: getting the learner to speak more, think in English and express ideas with increasing confidence. Knowledge sharing is a conversation catalyst, never the main event.
+
+Apply a deliberate listen–contribute–invite–listen rhythm:
+1. Listen to the learner's actual point and acknowledge its meaning.
+2. Add at most one concise, relevant fact, example, comparison, clarification or natural-language model when useful. Do not add information merely to fill silence.
+3. Return the floor with one open, specific follow-up that invites the learner to explain, describe, compare, give an example, predict, reflect or share a personal view.
+4. Wait for the learner's response and build the next turn from what they actually said.
+
+The tutor should actively encourage fuller answers. If the learner responds with a very short answer, use a warm follow-up such as "What makes you think that?", "Can you tell me a little more?", "Could you give me an example?" or "How does that affect people in your experience?" Do not stack multiple questions, interrogate the learner, pressure them to disclose personal information, or repeat the same prompt mechanically. Offer a choice, a sentence starter or a simpler question if the learner appears stuck.
+
+Avoid ending consecutive turns with generic questions that merely change the subject. Follow the learner's thread for several exchanges when it remains productive. Invite the learner to do most of the explaining; Gabroo can disagree gently, add a different angle or share a source-grounded fact without turning the exchange into a debate or lecture.
+
+English coaching should be woven into the conversation: model a useful phrase, give a brief correction when appropriate to the selected correction mode, and then invite the learner to reuse or expand the idea. Do not interrupt every sentence or make the learner feel examined. Silence, thinking time and requests for help are valid parts of conversation.
+
+Quality evaluation must measure learner participation, not just answer correctness or tutor knowledge. Track (with privacy-minimising aggregates) learner speaking-time share where reliable, learner turn length and elaboration, number of learner-led follow-ups, successful reuse of target expressions, conversation continuity and learner-reported comfort. Do not maximise raw talk time at the expense of naturalness, accessibility or learner wellbeing. The learner may always ask Gabroo to explain more or take a longer turn.
+
+
 ## 16. Learner-controlled private memory foundation (16 November 2026)
 
 The API now provides a learner-owned private memory store with four intentionally narrow categories: goals, interests, saved phrases and learning notes. A learner can list, create, edit and delete entries. Each entry is scoped to the authenticated account; another account cannot read, update or delete it. These privacy controls remain available after paid access expires.
@@ -218,3 +238,89 @@ The API now provides a learner-owned private memory store with four intentionall
 Only learner-saved entries enter this store in the current implementation. The system does not automatically extract facts from transcripts, infer sensitive personal attributes, or promote conversation content into shared curriculum. The provider receives at most the 20 most recently updated saved entries as bounded structured context. This context is separate from the current conversation history and from the shared lesson library.
 
 The mobile account screen now exposes the learner's saved memory, category selection, create/edit/delete controls and an explanation of what is used. A confirmed clear-all control is also available. A separate disable-personalisation toggle and a more explicit memory settings policy remain follow-up work. Account deletion cascades the memory records. No raw transcript or hidden model reasoning is stored as memory.
+
+## 15. Current-affairs and learner-selected topic intelligence
+
+The dedicated [Gabroo Topic Intelligence System](./GABROO_TOPIC_INTELLIGENCE_SPEC.md) extends the knowledge retrieval layer with two distinct paths: curated topic suggestions and learner-requested public-source research.
+
+This is an optional research capability, not a replacement for the teaching orchestrator. The learner's chosen safe topic remains in control; the research service supplies a bounded, dated and cited evidence pack. Gabroo then turns that evidence into a level-appropriate conversation and English-learning opportunity.
+
+The research service must follow the topic specification's source-quality, neutrality, privacy, prompt-injection, safety, freshness and citation rules. Retrieved web content is untrusted data and cannot modify Gabroo's policies. Do not expose search credentials to mobile clients or send learner identity/private memory to research providers.
+
+Do not claim the capability is live until the API adapter, policy gates, source verification, citations, mobile experience and adversarial tests have been implemented and passed.
+
+
+## Conversation continuity (implementation baseline)
+
+The API loads the latest 20 saved conversation messages and passes them to the model as conversation history. The current learner turn is also supplied to the teaching-policy builder. The deterministic continuity guidance now distinguishes:
+
+- A first turn with no prior assistant response: begin naturally without pretending to remember anything.
+- A learner turn following Gabroo's question: treat it as the answer, acknowledge a specific detail, and do not repeat the same question.
+- An established thread without a pending question: continue the learner's chosen topic rather than restarting with a greeting or unnecessary recap.
+
+This is a bounded recent-turn mechanism, not an unlimited transcript memory or a generated session summary. It must not invent interests, preferences, learning progress or personal facts. The separate learner-memory store remains learner-owned, bounded and distinct from conversation history. Future phrase-review or vocabulary-recall features should use explicit saved learning items and consent-aware controls rather than silently promoting arbitrary conversation text into permanent memory.
+
+The continuity helper is heuristic. It detects obvious question punctuation and a small set of Malayalam question forms; it does not semantically determine whether a question was fully answered. Human review and conversation fixtures remain necessary.
+
+
+## Learner-controlled phrase capture
+
+The account screen already provides owner-controlled CRUD for saved goals, interests, phrases and learning notes. Gabroo's conversation UI now adds an explicit **Save useful phrase** action to each assistant reply. A learner must tap the action; replies are never silently promoted into permanent memory. The action stores a bounded phrase (up to 500 characters) as a `saved_phrase` item, reports duplicate saves, and confirms where the learner can edit or delete it. The existing memory list remains private to the learner and is injected into the teaching policy only as bounded context. This is phrase capture, not automatic vocabulary extraction or spaced-repetition scheduling.
+
+
+## Revision-aware vocabulary context
+
+Gabroo conversation requests may receive up to five active, learner-owned vocabulary entries. Context selection prioritises entries last rated Again, then entries whose review date is due, followed by other Learning/Familiar entries. The teaching policy receives only bounded term, Malayalam meaning, example, status and a derived practice-needed signal.
+
+A due or Again-rated word may receive gentle extra practice when it fits the learner's current thread: a fresh, level-appropriate model sentence and an optional invitation to use it. Gabroo must not announce difficulty, imply failure, force an unrelated word, interrupt a direct question or turn free-flow conversation into a quiz. Conversation exposure does not count as a spaced-repetition rating and never changes mastery status automatically. These signals are private to the learner and do not become shared curriculum data.
+
+
+## Speaking activity indicators
+
+The learner account can display a seven-day activity summary derived from persisted learner-authored conversation turns: number of conversations with learner activity, learner turns, whitespace-delimited words and average words per turn. It compares the current seven-day window with the preceding seven-day window. The API scopes all records to the authenticated learner and requires an active Gabroo entitlement.
+
+These are participation indicators, not fluency, pronunciation, grammar or English proficiency measurements. Message length can be affected by language choice, speech-to-text transcription, typing style and task type. Do not turn these counts into a score, rank or mastery claim. More meaningful speaking-development evidence requires consent-aware audio assessment and validated rubrics; it must be separately designed and tested.
+
+
+### Placement sample indicators
+
+The free placement conversation now records per-response word count, unique-word count and ratio, average words per sentence, sentence count, connector count, and cautious past-time/reasoning markers. The saved report aggregates average words per response, average unique-word ratio and average words per sentence. These values describe only the submitted text or reviewed transcript samples; they are not validated measures of vocabulary knowledge, grammar accuracy, fluency or proficiency. Unique-word ratios are sensitive to sample length, topic, repetition and language, so never compare learners or infer a CEFR-like stage from them. Pronunciation remains unmeasured.
+
+
+### Conservative grammar review observations
+
+The placement pilot checks a narrow set of surface patterns: selected present-simple subject/verb mismatches, have/has and be-verb agreement, selected verb forms after am, does/doesn't, did/didn't and modal verbs. It returns at most three examples per response with a teaching note and a suggested correction, and deduplicates the report to at most eight review items. Suggested corrections are pattern-based examples, not automatic rewrites of the learner's response.
+
+These are prompts for review, not definitive error labels. The rules are intentionally incomplete, can miss many genuine errors, and may flag context they do not understand. Do not infer an overall grammar ability, proficiency stage or learner ranking from these rules. The learner-facing report explicitly describes them as patterns to review; a qualified language educator and broader contextual assessment are required before stronger conclusions.
+
+
+## 18. Contextual sentence-construction practice
+
+When a free diagnostic report contains a conservative grammar review item, show the learner the original observed phrase, a clearly labelled suggested form and the short explanation. Offer an optional action to practise that exact pattern with Gabroo. The app pre-fills a draft that includes both forms and asks Gabroo to explain the contrast, model one fresh example and invite the learner to construct a sentence. The learner must review and send the draft; opening the practice route must never submit text automatically. This is a learning prompt, not a definitive correction: preserve the original learner response, do not infer a proficiency level, and make no claim that the finite rule-based checks cover all valid English. The current explanations are English-only; Malayalam-localised reviewed explanations remain a separate content task.
+
+
+## 19. Malayalam-supported grammar review notes
+
+The conservative placement grammar patterns now include a bounded, reviewed Malayalam support note alongside the English explanation. Notes are selected from explicit known pattern descriptions (subject–verb agreement, be-verb agreement, -ing after am, base form after does/did and base form after modal verbs). The mapping fails closed if a new English note is introduced without reviewed Malayalam copy; do not silently fall back to machine translation. These notes are explanatory aids, not a complete grammar curriculum. Keep the original English explanation and learner example visible, and continue to label the suggested form as a review prompt rather than a guaranteed rewrite.
+
+
+## 20. Guided sentence-construction practice
+
+The mobile sentence builder contains a small curated beginner set covering basic word order, present-simple agreement, question formation, negatives, past-tense forms, modal verbs, reason clauses and frequency-adverb placement. Each multiple-choice item includes an English explanation and a Malayalam support explanation. Answer checking is deterministic against an explicit answer key; unknown exercise IDs or option IDs are rejected. The result is a local practice-set tally only, never a proficiency score, and attempts are not persisted to the learner account. Learners can open Gabroo with the current pattern and prompt prefilled for a voluntary conversation; the learner must review and send the message. This starter set is not a complete curriculum and requires review by English and Kerala Malayalam educators before broader release.
+
+
+## 21. Active sentence construction and learner-authored drafts
+
+After the curated multiple-choice round, the learner can arrange word tiles into three short sentence patterns: a daily routine, a question and a negative sentence. Tile evaluation checks complete arrangements against explicit accepted patterns; incomplete or duplicated/unknown tile submissions are rejected. Feedback includes English and Malayalam explanations. This is a bounded exercise set, not an exhaustive grammar evaluator.
+
+The final open-response prompt invites the learner to write one or two original weekend sentences. A sample answer is optional and is labelled as one possible response, not a universal answer key. The learner can request Gabroo feedback: their draft is prefilled into a new message, never auto-submitted. Gabroo is asked to preserve intended meaning, give specific kind feedback, offer one improved version and explain changes in both languages. The draft is bounded before routing and is not scored or persisted by the exercise screen. Learner review and explicit send remain required.
+
+
+## 22. Learner-owned sentence revision notebook
+
+The Sentence Builder can explicitly save a learner-authored draft as a learning_note in the existing private Gabroo memory store. Each record uses a versioned, validated payload and a dedicated sentence_revision_ key namespace. The mobile screen only lists notes in that namespace whose payload validates; unrelated learning notes are not surfaced or modified. Learners can open a saved draft as a prefilled Gabroo revision request or explicitly delete it. Saving and deletion use the existing authenticated, owner-scoped memory API. No sentence is saved automatically, no automated correction is claimed as authoritative, and no proficiency score is inferred. The saved draft is a learner-authored starting point; any Gabroo feedback remains a separate conversation and requires learner review and send.
+
+
+## 23. Saving an original and Gabroo revision together
+
+When a learner enters Gabroo from a sentence-revision exercise with an original draft, an assistant reply can be explicitly saved as the suggested version paired with that original. The record is stored as a version-1 learning_note using a sentence-revision key; both original and suggested text are bounded to 420 characters. The Sentence Notebook validates the record and displays the two versions distinctly. The save action is visible only in this revision context, is user-triggered, and reports duplicate or save failures. This captures the assistant's reply as a suggested revision, not a guaranteed correction; learners retain responsibility for reviewing its meaning and accuracy. A later revision may replace or supersede it only through an explicit user action.

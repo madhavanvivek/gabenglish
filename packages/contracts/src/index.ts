@@ -12,6 +12,14 @@ export * from "./placement.js";
 export * from "./auth.js";
 
 export * from "./gabroo-speech.js";
+export * from "./gabroo-live-session.js";
+export * from "./gabroo-realtime-protocol.js";
+export * from "./gabroo-playback.js";
+export * from "./gabroo-turn.js";
+
+export * from "./gabroo-avatar.js";
+export * from "./gabroo-conversation.js";
+export * from "./gabroo-avatar-runtime.js";
 
 export * from "./gabroo-recognition.js";
 
@@ -20,3 +28,34 @@ export * from "./language-learning.js";
 export * from "./lesson-content.js";
 
 export * from "./lesson-exercises.js";
+
+export * from "./gabroo-speech-metrics.js";
+
+export * from "./gabroo-speech-benchmark-report.js";
+
+export * from "./gabroo-speech-benchmark-input.js";
+
+export * from "./gabroo-speech-benchmark-markdown.js";
+
+export * from "./gabroo-speech-benchmark-runner.js";
+
+export * from "./gabroo-speech-benchmark-manifest.js";
+export * from "./gabroo-speech-benchmark-executor.js";
+
+export * from "./gabroo-speech-benchmark-experiment.js";
+
+export * from "./gabroo-speech-benchmark-comparison.js";
+
+export * from "./gabroo-speech-benchmark-human-review.js";
+
+export * from "./gabroo-voice-audition.js";
+
+export * from "./gabroo-voice-technical-evidence.js";
+
+export * from "./gabroo-voice-audition-comparison.js";
+
+export * from "./gabroo-playback-rate-benchmark.js";
+
+export * from "./gabroo-phoneme-alignment.js";
+
+export * from "./gabroo-character-alignment.js";

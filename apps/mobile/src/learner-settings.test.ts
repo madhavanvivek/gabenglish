@@ -6,6 +6,8 @@ import {
   GABROO_SPEECH_RATE_MIN,
   resolveLearningDirection,
   isCourseForLearningDirection,
+  resolveLearningStage,
+  GABROO_LEARNING_STAGES
 } from "./learner-settings";
 
 describe("Gabroo speech-rate preference", () => {
@@ -27,6 +29,22 @@ describe("Gabroo speech-rate preference", () => {
     expect(adjustGabrooSpeechRate(1, 0.05)).toBe(1.05);
     expect(adjustGabrooSpeechRate(GABROO_SPEECH_RATE_MIN, -0.05)).toBe(GABROO_SPEECH_RATE_MIN);
     expect(adjustGabrooSpeechRate(GABROO_SPEECH_RATE_MAX, 0.05)).toBe(GABROO_SPEECH_RATE_MAX);
+  });
+
+  it("quantizes persisted values to the supported 0.05 increment", () => {
+    expect(clampGabrooSpeechRate(1.03)).toBe(1.05);
+    expect(clampGabrooSpeechRate(1.02)).toBe(1);
+    expect(clampGabrooSpeechRate(0.76)).toBe(0.75);
+    expect(clampGabrooSpeechRate(1.499)).toBe(1.5);
+  });
+
+  it("keeps repeated adjustments aligned to the supported increment", () => {
+    let rate = 0.75;
+    for (let index = 0; index < 15; index += 1) {
+      rate = adjustGabrooSpeechRate(rate, 0.05);
+      expect(rate).toBeCloseTo(GABROO_SPEECH_RATE_MIN + Math.round((rate - GABROO_SPEECH_RATE_MIN) / 0.05) * 0.05, 8);
+    }
+    expect(rate).toBe(1.5);
   });
 
   it("falls back to normal speed for non-finite values", () => {
@@ -52,4 +70,20 @@ describe("learner learning-direction safeguards", () => {
     expect(isCourseForLearningDirection("en_to_ml", "en_to_ml")).toBe(true);
     expect(isCourseForLearningDirection("ml_to_en", "en_to_ml")).toBe(false);
   });
+});
+
+describe("learner-selected Gabenglish stage",()=>{
+ it("accepts only one of the five explicit stage choices",()=>{
+  expect([1,2,3,4,5].map(resolveLearningStage)).toEqual([1,2,3,4,5]);
+  expect(resolveLearningStage(null)).toBeNull();
+  expect(resolveLearningStage(undefined)).toBeNull();
+  expect(resolveLearningStage(0)).toBeNull();
+  expect(resolveLearningStage(6)).toBeNull();
+  expect(resolveLearningStage("3")).toBeNull();
+ });
+ it("keeps all five product stages in their approved order",()=>{
+  expect(GABROO_LEARNING_STAGES.map(item=>item.title)).toEqual([
+   "Malayalam Mode","Malayalam + English Mix","English Practice Mode","English Immersion","Expert Communication"
+  ]);
+ });
 });

@@ -159,3 +159,17 @@ The foundation branch includes these authenticated routes:
 The message route reads a short snapshot under a database lock, releases the transaction before calling the model provider, then re-locks and compares the conversation turn count before saving. Concurrent stale responses receive HTTP 409 and are not persisted. The provider request has a 15-second timeout and receives an abort signal. The message pair is inserted in a single transaction; failed provider responses do not leave a learner-only message behind.
 
 Private memory categories are `goal`, `interest`, `saved_phrase` and `learning_note`. Entries are learner-saved only, account-scoped and capped at 500 characters each. The API returns at most 100 items for management; up to 20 recent items are supplied as bounded context to the provider. No transcript auto-extraction is active.
+
+
+## Superadmin Gabroo speech usage reporting
+
+The Superadmin-only endpoint `GET /api/v1/admin/gabroo/speech-usage` returns aggregate speech-synthesis usage for operational review. It requires a valid administrator bearer token and the `superadmin` role; learner tokens and other administrator roles are denied.
+
+Query parameters:
+- `period`: `day` (default) or `month`.
+- `from`, `to`: optional inclusive calendar dates in `YYYY-MM-DD` format. The default window is the most recent 30 India-local calendar dates. The maximum accepted range is 366 days.
+- Monthly ranges are normalized to the first day of each selected month because monthly usage is stored in month-start buckets.
+
+The response includes `timezone: "Asia/Kolkata"`, normalized `from`/`to` values, aggregate totals and a time series. Totals distinguish `unique_learners` across the full selected range from `active_learner_buckets`, which sums active learners in each bucket and can count the same learner more than once. The report includes character totals and request counts; it does not expose learner identifiers, email addresses, transcripts or audio.
+
+This endpoint is reporting only. It does not configure quotas, estimate provider spend or change speech availability. Speech quota limits remain engineering safeguards, not approved subscription entitlements.

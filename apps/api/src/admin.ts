@@ -5,6 +5,12 @@ import {z} from "zod";
 import type {AppConfig} from "./config.js";
 
 const ADMIN_SESSION_TTL_DAYS=8;
+function indiaLocalDate(offsetDays=0){
+ const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
+ const values=Object.fromEntries(parts.map(part=>[part.type,part.value]));
+ const date=new Date(Date.UTC(Number(values.year),Number(values.month)-1,Number(values.day)+offsetDays));
+ return date.toISOString().slice(0,10);
+}
 type AdminClaims={sub:string;sid:string;exp:number;iss:"gabenglish-admin";aud:"gabenglish-console"};
 type AdminAccount={id:string;email_normalized:string;password_hash:string|null;status:"invited"|"active"|"suspended";failed_login_attempts:number;locked_until:Date|null};
 type AdminIdentity={id:string;email_normalized:string;roles:string[]};
@@ -184,4 +190,38 @@ export async function registerAdminRoutes(app:FastifyInstance,pool:Pool,config:A
    return {offer:{...row,standard_amount_minor:Number(row.standard_amount_minor),currency:String(row.currency).trim()}};
   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
  });
+
+ app.get("/api/v1/admin/gabroo/speech-usage",async(request,reply)=>{
+  const admin=await authenticateAdmin(request,pool,secret);
+  if(!admin)return reply.code(401).send({error:{code:"ADMIN_UNAUTHENTICATED",message:"Please sign in again.",request_id:request.id}});
+  if(!admin.roles.includes("superadmin"))return reply.code(403).send({error:{code:"SUPERADMIN_REQUIRED",message:"Superadmin access is required.",request_id:request.id}});
+  const dateSchema=z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value=>{
+   const parsed=new Date(value+"T00:00:00.000Z");
+   return Number.isFinite(parsed.getTime())&&parsed.toISOString().slice(0,10)===value;
+  });
+  const query=z.object({period:z.enum(["day","month"]).default("day"),from:dateSchema.optional(),to:dateSchema.optional()}).strict().safeParse(request.query);
+  if(!query.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Check the speech usage date filters.",request_id:request.id}});
+  const period=query.data.period;
+  const requestedFrom=query.data.from??indiaLocalDate(-29);
+  const requestedTo=query.data.to??indiaLocalDate();
+  const fromTime=Date.parse(requestedFrom+"T00:00:00Z"),toTime=Date.parse(requestedTo+"T00:00:00Z");
+  if(fromTime>toTime||toTime-fromTime>366*86400000)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Choose a valid date range of at most 366 days.",request_id:request.id}});
+  // Monthly buckets are stored on the first day of each month. Normalize
+  // partial-month date filters so a request for any day includes that month.
+  const from=period==="month"?requestedFrom.slice(0,7)+"-01":requestedFrom;
+  const to=period==="month"?requestedTo.slice(0,7)+"-01":requestedTo;
+  const [result,uniqueLearners]=await Promise.all([
+   pool.query<{bucket_start:string;characters_used:string;requests_count:string;active_learners:string}>(
+    "SELECT bucket_start::text, sum(characters_used)::text AS characters_used, sum(requests_count)::text AS requests_count, count(*) FILTER (WHERE characters_used>0 OR requests_count>0)::text AS active_learners FROM gabroo_speech_usage_buckets WHERE bucket_type=$1 AND bucket_start >= $2::date AND bucket_start <= $3::date GROUP BY bucket_start ORDER BY bucket_start",
+    [period,from,to]
+   ),
+   pool.query<{unique_learners:string}>(
+    "SELECT count(DISTINCT user_id)::text AS unique_learners FROM gabroo_speech_usage_buckets WHERE bucket_type=$1 AND bucket_start >= $2::date AND bucket_start <= $3::date AND (characters_used>0 OR requests_count>0)",
+    [period,from,to]
+   )
+  ]);
+  const series=result.rows.map(row=>({bucket_start:row.bucket_start,characters_used:Number(row.characters_used??0),requests_count:Number(row.requests_count??0),active_learners:Number(row.active_learners??0)}));
+  return {timezone:"Asia/Kolkata",period,from,to,totals:{...series.reduce((total,row)=>({characters_used:total.characters_used+row.characters_used,requests_count:total.requests_count+row.requests_count,active_learner_buckets:total.active_learner_buckets+row.active_learners}),{characters_used:0,requests_count:0,active_learner_buckets:0}),unique_learners:Number(uniqueLearners.rows[0]?.unique_learners??0)},series};
+ });
+
 }

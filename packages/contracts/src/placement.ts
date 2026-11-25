@@ -11,9 +11,10 @@ export const placementEvidenceSchema=z.object({
   source:z.enum(["text","voice_transcript"]),
   observed_skills:z.array(placementSkillSchema).max(0),
   observations:z.array(z.string()),
+  grammar_observations:z.array(z.object({category:z.enum(["subject_verb_agreement","verb_form","past_tense_form"]),example:z.string(),note:z.string(),support_note_ml:z.string(),suggestion:z.string()})).max(3),
   sample_size:z.enum(["brief","extended"]),
   limitations:z.array(z.string()),
-  metrics:z.object({word_count:z.number().int().nonnegative(),sentence_count:z.number().int().nonnegative(),connector_count:z.number().int().nonnegative(),has_past_reference:z.boolean(),has_reasoning_marker:z.boolean()})
+  metrics:z.object({word_count:z.number().int().nonnegative(),unique_word_count:z.number().int().nonnegative(),unique_word_ratio:z.number().min(0).max(1),average_words_per_sentence:z.number().nonnegative(),sentence_count:z.number().int().nonnegative(),connector_count:z.number().int().nonnegative(),has_past_reference:z.boolean(),has_reasoning_marker:z.boolean()})
 });
 export const placementSkillFindingSchema=z.object({skill:placementSkillSchema,finding:z.string(),confidence:z.enum(["low","medium","high"]),evidence:z.array(z.string())});
 export const placementReportSchema=z.object({
@@ -23,6 +24,13 @@ export const placementReportSchema=z.object({
   response_count:z.number().int().nonnegative(),
   extended_samples:z.number().int().nonnegative(),
   brief_samples:z.number().int().nonnegative(),
+  response_metrics:z.object({average_words_per_response:z.number().nonnegative(),average_unique_word_ratio:z.number().min(0).max(1),average_words_per_sentence:z.number().nonnegative()}),
+  grammar_review_items:z.array(z.object({category:z.enum(["subject_verb_agreement","verb_form","past_tense_form"]),example:z.string(),note:z.string(),support_note_ml:z.string(),suggestion:z.string()})).max(8),
+  assessment_coverage:z.array(z.object({
+    skill:z.enum(["grammar","vocabulary","comprehension","communication","fluency","pronunciation","confidence"]),
+    status:z.enum(["examples_only","elicited_not_scored","not_assessed"]),
+    basis:z.string()
+  })).optional(),
   observed_patterns:z.array(z.string()),
   limitations:z.array(z.string()),
   next_steps:z.array(z.string())
@@ -36,5 +44,23 @@ export type PlacementEvidence=z.infer<typeof placementEvidenceSchema>;
 export const placementAnswerSchema=z.object({question_id:z.string().min(1),option_id:z.string().min(1)});
 export const placementSubmissionSchema=z.object({answers:z.array(placementAnswerSchema).min(1).max(20)});
 export type PlacementSubmission=z.infer<typeof placementSubmissionSchema>;
-export const placementResultSchema=z.object({score:z.number().int().min(0),total:z.number().int().positive(),percentage:z.number().min(0).max(100),suggested_stage:placementStageSchema,notice:z.string()});
+export const placementResultSchema=z.object({
+ score:z.number().int().min(0),total:z.number().int().positive(),percentage:z.number().min(0).max(100),
+ recommendation_status:z.literal("not_yet_available"),
+ assessment_coverage:z.array(z.object({
+  skill:z.enum(["grammar","comprehension","vocabulary","sentence_construction","communication","fluency","pronunciation"]),
+  status:z.enum(["sampled_limited","not_assessed"]),basis:z.string()
+ })),
+ rubric_observations:z.array(z.object({skill:z.enum(["vocabulary","grammar","sentence_construction","comprehension","fluency","communication","pronunciation"]),score:z.number().min(0).max(1),confidence:z.number().min(0).max(1),task_id:z.string(),observed_at:z.string().datetime()})).optional(),
+ notice:z.string()
+});
 export type PlacementResult=z.infer<typeof placementResultSchema>;
+
+export const authenticatedPlacementSubmissionSchema=z.object({
+ idempotency_key:z.string().uuid(),
+ answers:z.array(placementAnswerSchema.extend({
+  question_id:z.enum(["q1","q2","q3","q4","q5"]),
+  option_id:z.enum(["a","b","c"])
+ })).length(5)
+}).strict().refine(value=>new Set(value.answers.map(answer=>answer.question_id)).size===5,{message:"Answer each placement question exactly once."});
+export type AuthenticatedPlacementSubmission=z.infer<typeof authenticatedPlacementSubmissionSchema>;

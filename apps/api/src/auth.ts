@@ -371,8 +371,8 @@ export async function registerAuthRoutes(app:FastifyInstance,pool:Pool,config:Ap
  app.get("/api/v1/auth/me",async(request,reply)=>{
   const user=await authenticate(request);
   if(!user)return unauthorized(reply,request.id);
-  const preferences=await pool.query<{learning_direction:"ml_to_en"|"en_to_ml";support_language:string;learning_goal:string|null;correction_mode:string;daily_target_minutes:number;reminders_enabled:boolean;gabroo_speech_rate:number}>(
-   "SELECT learning_direction,support_language,learning_goal,correction_mode,daily_target_minutes,reminders_enabled,gabroo_speech_rate::double precision AS gabroo_speech_rate FROM user_preferences WHERE user_id=$1",[user.id]
+  const preferences=await pool.query<{learning_direction:"ml_to_en"|"en_to_ml";support_language:string;learning_goal:string|null;correction_mode:string;daily_target_minutes:number;reminders_enabled:boolean;gabroo_speech_rate:number;preferred_learning_stage:number|null}>(
+   "SELECT learning_direction,support_language,learning_goal,correction_mode,daily_target_minutes,reminders_enabled,gabroo_speech_rate::double precision AS gabroo_speech_rate,preferred_learning_stage FROM user_preferences WHERE user_id=$1",[user.id]
   );
   return {user:safeUser(user),preferences:preferences.rows[0]??null};
  });

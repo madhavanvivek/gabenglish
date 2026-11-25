@@ -1,14 +1,27 @@
 import type {FastifyInstance} from "fastify";
 import {randomUUID} from "node:crypto";
-import type {Pool} from "pg";
+import type {Pool,PoolClient} from "pg";
 import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {z} from "zod";
-import {placementSessionStartSchema,placementConversationRequestSchema} from "@gabenglish/contracts";
+import {placementSessionStartSchema,placementConversationRequestSchema,authenticatedPlacementSubmissionSchema} from "@gabenglish/contracts";
 import {extractResponseEvidence, type ResponseEvidence} from "./placement-evidence.js";
+import {buildObjectivePlacementRubricResults,mapGabrooRubricResults,aggregatePlacementEvidenceBySkill} from "./gabroo-assessment-evaluator.js";
 
 const legacySubmission=z.object({answers:z.array(z.object({question_id:z.string(),option_id:z.string()})).min(1).max(20)});
+
+
 const quiz=[{id:"q1",prompt:"Choose the correct sentence.",options:[{id:"a",text:"She go to work every day."},{id:"b",text:"She goes to work every day."},{id:"c",text:"She going to work every day."}],correct:"b"},{id:"q2",prompt:"Complete: I have lived here ___ 2020.",options:[{id:"a",text:"since"},{id:"b",text:"for"},{id:"c",text:"from"}],correct:"a"},{id:"q3",prompt:"Which sounds most natural?",options:[{id:"a",text:"I am having 25 years."},{id:"b",text:"I have 25 years old."},{id:"c",text:"I am 25 years old."}],correct:"c"},{id:"q4",prompt:"Choose the best response: “Would you mind opening the window?”",options:[{id:"a",text:"Not at all."},{id:"b",text:"Yes, I would mind."},{id:"c",text:"I don't mind to."}],correct:"a"},{id:"q5",prompt:"Choose the correct sentence.",options:[{id:"a",text:"If I knew, I would tell you."},{id:"b",text:"If I know, I would told you."},{id:"c",text:"If I had know, I tell you."}],correct:"a"}] as const;
+
+const pilotAssessmentCoverage=[
+ {skill:"grammar",status:"sampled_limited",basis:"Four of five multiple-choice items primarily sample selected grammar forms; this is not a comprehensive grammar assessment."},
+ {skill:"comprehension",status:"sampled_limited",basis:"One selected-response item samples understanding of a polite request; this is not broad reading or listening comprehension."},
+ {skill:"vocabulary",status:"not_assessed",basis:"The pilot does not systematically sample vocabulary range, precision or contextual use."},
+ {skill:"sentence_construction",status:"not_assessed",basis:"Selected-response items do not demonstrate independent sentence construction."},
+ {skill:"communication",status:"not_assessed",basis:"The pilot does not collect an open-ended communicative response."},
+ {skill:"fluency",status:"not_assessed",basis:"No live spoken interaction is evaluated."},
+ {skill:"pronunciation",status:"not_assessed",basis:"No pronunciation-capable audio analysis or human review is performed."}
+] as const;
 
 type Prompt={id:string;band:number;text:string};
 const prompts:Prompt[]=[
@@ -50,6 +63,21 @@ function buildPlacementReport(session:Session){
   response_count:session.evidence.length,
   extended_samples:session.evidence.filter(item=>item.sampleSize==="extended").length,
   brief_samples:session.evidence.filter(item=>item.sampleSize==="brief").length,
+  response_metrics:{
+   average_words_per_response:session.evidence.length?Math.round(session.evidence.reduce((sum,item)=>sum+item.metrics.wordCount,0)/session.evidence.length*10)/10:0,
+   average_unique_word_ratio:session.evidence.length?Math.round(session.evidence.reduce((sum,item)=>sum+item.metrics.uniqueWordRatio,0)/session.evidence.length*100)/100:0,
+   average_words_per_sentence:session.evidence.length?Math.round(session.evidence.reduce((sum,item)=>sum+item.metrics.averageWordsPerSentence,0)/session.evidence.length*10)/10:0
+  },
+  grammar_review_items:[...new Map(session.evidence.flatMap(item=>item.grammarObservations).map(item=>[item.category+"|"+item.example.toLowerCase(),item])).values()].slice(0,8).map(({supportNoteMl,...item})=>({...item,support_note_ml:supportNoteMl})),
+  assessment_coverage:[
+   {skill:"grammar",status:"examples_only",basis:"A small set of deterministic grammar-pattern examples; not a complete grammar score."},
+   {skill:"vocabulary",status:"elicited_not_scored",basis:"Responses may show word use, but vocabulary breadth and appropriateness have not been evaluated with a reviewed rubric."},
+   {skill:"comprehension",status:"elicited_not_scored",basis:"Responses provide limited evidence of understanding prompts; no controlled listening or reading task was administered."},
+   {skill:"communication",status:"elicited_not_scored",basis:"The prompts invite communication, but task achievement and interaction quality have not been scored by a validated rubric."},
+   {skill:"fluency",status:"not_assessed",basis:"Transcript length and sentence counts are not measures of spoken fluency."},
+   {skill:"pronunciation",status:"not_assessed",basis:"No pronunciation-capable audio analysis or human review was performed."},
+   {skill:"confidence",status:"not_assessed",basis:"Confidence cannot be reliably inferred from response length or text alone."}
+  ],
   observed_patterns:patterns,
   limitations,
   next_steps:[
@@ -150,7 +178,7 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
   const next=selectNextPrompt(session,expected.id,incoming.response);
   const complete=!next;
   let result:Record<string,unknown>;
-  if(complete){const report=buildPlacementReport(session);const gabroo_explanation=buildGabrooExplanation(report);const evidence=session.evidence.map(item=>({prompt_id:item.promptId,source:item.source,observed_skills:item.observedSkills,observations:item.observations,sample_size:item.sampleSize,limitations:item.limitations,metrics:{word_count:item.metrics.wordCount,sentence_count:item.metrics.sentenceCount,connector_count:item.metrics.connectorCount,has_past_reference:item.metrics.hasPastReference,has_reasoning_marker:item.metrics.hasReasoningMarker}}));result={session_id:session.id,prompt_id:"complete",gabroo_message:"Thank you for sharing that with me. I have prepared a preliminary report from this conversation. It does not assign a learning stage yet.",difficulty_band:session.band,turn_number:session.turn+1,is_complete:true,evidence,report,gabroo_explanation};}
+  if(complete){const report=buildPlacementReport(session);const gabroo_explanation=buildGabrooExplanation(report);const evidence=session.evidence.map(item=>({prompt_id:item.promptId,source:item.source,observed_skills:item.observedSkills,observations:item.observations,grammar_observations:item.grammarObservations.map(({supportNoteMl,...grammar})=>({...grammar,support_note_ml:supportNoteMl})),sample_size:item.sampleSize,limitations:item.limitations,metrics:{word_count:item.metrics.wordCount,unique_word_count:item.metrics.uniqueWordCount,unique_word_ratio:item.metrics.uniqueWordRatio,average_words_per_sentence:item.metrics.averageWordsPerSentence,sentence_count:item.metrics.sentenceCount,connector_count:item.metrics.connectorCount,has_past_reference:item.metrics.hasPastReference,has_reasoning_marker:item.metrics.hasReasoningMarker}}));result={session_id:session.id,prompt_id:"complete",gabroo_message:"Thank you for sharing that with me. I have prepared a preliminary report from this conversation. It does not assign a learning stage yet.",difficulty_band:session.band,turn_number:session.turn+1,is_complete:true,evidence,report,gabroo_explanation};}
   else {const selected=next!;session.currentPromptId=selected.id;session.band=selected.band;result={session_id:session.id,prompt_id:selected.id,gabroo_message:selected.text,difficulty_band:selected.band,turn_number:session.turn+1,is_complete:false};}
   session.lastTurn={prompt_id:incoming.prompt_id,response:incoming.response,response_mode:incoming.response_mode,result};
   const saved=await saveSession(session);
@@ -158,12 +186,72 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
   await persistCompletedReport(session,result);
   return result;
  });
+
+ app.post("/api/v1/placement/assessments/submit",async(request,reply)=>{
+  if(!pool)return reply.code(503).send({error:{code:"DATABASE_UNAVAILABLE",message:"Your assessment could not be saved. Please try again later.",request_id:request.id}});
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return reply.code(401).send({error:{code:"VERIFIED_ACCOUNT_REQUIRED",message:"Please sign in with your verified account before submitting your assessment.",request_id:request.id}});
+  const parsed=authenticatedPlacementSubmissionSchema.safeParse(request.body);
+  if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Answer all five placement questions once before submitting.",request_id:request.id}});
+  const answers=parsed.data.answers;
+  const answerMap=new Map(answers.map(answer=>[answer.question_id,answer.option_id]));
+  const score=quiz.filter(question=>answerMap.get(question.id)===question.correct).length;
+  const percentage=Math.round(score/quiz.length*100);
+  // This five-item pilot is too narrow to recommend a curriculum stage.
+  const client:PoolClient=await pool.connect();
+  try{
+   await client.query("BEGIN");
+   const inserted=await client.query<{id:string}>(
+    "INSERT INTO gabroo_placement_attempts(user_id,idempotency_key,assessment_version,answers,result) VALUES($1,$2,'pilot-1',$3::jsonb,'{}'::jsonb) ON CONFLICT(user_id,idempotency_key) DO NOTHING RETURNING id",
+    [learner.id,parsed.data.idempotency_key,JSON.stringify(answers)]
+   );
+   if(!inserted.rows[0]){
+    const prior=await client.query<{answers:unknown;result:Record<string,unknown>}>(
+     "SELECT answers,result FROM gabroo_placement_attempts WHERE user_id=$1 AND idempotency_key=$2 FOR UPDATE",
+     [learner.id,parsed.data.idempotency_key]
+    );
+    const normalize=(value:unknown)=>JSON.stringify(Array.isArray(value)?[...value].sort((a,b)=>String((a as {question_id?:string}).question_id).localeCompare(String((b as {question_id?:string}).question_id))):value);
+    if(!prior.rows[0]||normalize(prior.rows[0].answers)!==normalize(answers)){
+     await client.query("ROLLBACK");
+     return reply.code(409).send({error:{code:"IDEMPOTENCY_KEY_REUSED",message:"This submission key was already used for a different set of answers.",request_id:request.id}});
+    }
+    await client.query("COMMIT");
+    return {...prior.rows[0].result,idempotent_replay:true};
+   }
+   const attemptId=inserted.rows[0].id;
+   const observedAt=new Date().toISOString();
+   const rubricResults=buildObjectivePlacementRubricResults({
+    answers:quiz.map(question=>({questionId:question.id,correct:answerMap.get(question.id)===question.correct})),
+    observedAt
+   });
+   const skillEvidence=aggregatePlacementEvidenceBySkill(mapGabrooRubricResults(rubricResults,"placement_assessment"),attemptId+":placement-pilot-1");
+   for(const item of skillEvidence){
+    await client.query(
+     "INSERT INTO gabroo_skill_evidence(user_id,skill,score,confidence,source,task_id,observed_at) VALUES($1,$2,$3,$4,'placement_assessment',$5,$6) ON CONFLICT(user_id,skill,source,task_id) DO NOTHING",
+     [learner.id,item.skill,item.score,item.confidence,item.taskId,item.observedAt]
+    );
+   }
+   const result={
+    assessment_id:attemptId,assessment_version:"pilot-1",score,total:quiz.length,percentage,recommendation_status:"not_yet_available",assessment_coverage:pilotAssessmentCoverage,
+    rubric_observations:skillEvidence.map(item=>({skill:item.skill,score:item.score,confidence:item.confidence,task_id:item.taskId,observed_at:item.observedAt})),
+    learning_profile_updated:skillEvidence.length>0,
+    notice:"This short pilot is a limited knowledge check, not a proficiency diagnosis, stage recommendation or formal certification."
+   };
+   await client.query("UPDATE gabroo_placement_attempts SET result=$2::jsonb WHERE id=$1",[attemptId,JSON.stringify(result)]);
+   await client.query("COMMIT");
+   return result;
+  }catch(error){
+   await client.query("ROLLBACK");
+   throw error;
+  }finally{client.release();}
+ });
+
  app.get("/api/v1/placement/questions",async()=>({assessment_version:"pilot-1",questions:quiz.map(({correct,...q})=>q)}));
  app.post("/api/v1/placement/score",async(request,reply)=>{
   const parsed=legacySubmission.safeParse(request.body);
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Submit between 1 and 20 valid answers.",request_id:request.id}});
   const answerMap=new Map(parsed.data.answers.map(a=>[a.question_id,a.option_id]));const score=quiz.filter(q=>answerMap.get(q.id)===q.correct).length;const percentage=Math.round(score/quiz.length*100);
-  const suggested_stage=percentage<40?"malayalam_mode":percentage<80?"mixed_mode":"english_practice";
-  return {assessment_version:"pilot-1",score,total:quiz.length,percentage,suggested_stage,notice:"This short pilot assessment is a starting-point suggestion, not a formal certification."};
+  // This five-item pilot is too narrow to recommend a curriculum stage.
+  const observedAt=new Date().toISOString();const rubricResults=buildObjectivePlacementRubricResults({answers:quiz.map(question=>({questionId:question.id,correct:answerMap.get(question.id)===question.correct})).filter(answer=>answerMap.has(answer.questionId)),observedAt});const skillEvidence=mapGabrooRubricResults(rubricResults,"placement_assessment");return {assessment_version:"pilot-1",score,total:quiz.length,percentage,recommendation_status:"not_yet_available",assessment_coverage:pilotAssessmentCoverage,rubric_observations:skillEvidence.map(item=>({skill:item.skill,score:item.score,confidence:item.confidence,task_id:item.taskId,observed_at:item.observedAt})),notice:"This short pilot assessment is a starting-point suggestion, not a formal certification. Rubric observations are provisional item-level evidence and are not yet persisted to your learning profile."};
  });
 }
