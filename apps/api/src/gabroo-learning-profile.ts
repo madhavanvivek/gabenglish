@@ -39,6 +39,13 @@ export async function registerGabrooLearningProfileRoutes(app:FastifyInstance,po
   if(!learner)return reply.code(401).send({error:{code:"VERIFIED_ACCOUNT_REQUIRED",message:"Please sign in with your verified account.",request_id:request.id}});
   const parsed=z.object({stage:z.number().int().min(1).max(5).nullable()}).strict().safeParse(request.body);
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Choose a Gabenglish stage from 1 to 5, or clear your selection.",request_id:request.id}});
+  if(parsed.data.stage!==null){
+   const preference=await pool.query<{learning_direction:"ml_to_en"|"en_to_ml"}>(
+    "SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]
+   );
+   if((preference.rows[0]?.learning_direction??"ml_to_en")!=="ml_to_en")
+    return reply.code(409).send({error:{code:"STAGE_SELECTION_UNAVAILABLE",message:"The five-stage selector is currently available for English learning only.",request_id:request.id}});
+  }
   const saved=await pool.query<{preferred_learning_stage:number|null}>(
    "INSERT INTO user_preferences(user_id,preferred_learning_stage) VALUES($1,$2) ON CONFLICT(user_id) DO UPDATE SET preferred_learning_stage=EXCLUDED.preferred_learning_stage,updated_at=now() RETURNING preferred_learning_stage",
    [learner.id,parsed.data.stage]
