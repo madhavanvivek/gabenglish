@@ -45,6 +45,32 @@ describe("Google Cloud TTS provider",()=>{
    audioConfig:{audioEncoding:"MP3",speakingRate:0.9}
   });
  });
+ it("propagates learner cancellation to an in-flight Google request",async()=>{
+  let providerSignal:AbortSignal|undefined;
+  const fetcher=vi.fn(async(_url:string|URL|Request,init?:RequestInit)=>{
+   providerSignal=init?.signal as AbortSignal|undefined;
+   return await new Promise<Response>((_resolve,reject)=>{
+    if(providerSignal?.aborted){reject(new DOMException("Aborted","AbortError"));return;}
+    providerSignal?.addEventListener("abort",()=>reject(new DOMException("Aborted","AbortError")),{once:true});
+   });
+  });
+  const provider=createGoogleCloudTtsProvider(config,fetcher)!;
+  const controller=new AbortController();
+  const pending=provider.synthesize({text:"നമസ്കാരം",speed:1,signal:controller.signal});
+  await Promise.resolve();
+  expect(fetcher).toHaveBeenCalledOnce();
+  expect(providerSignal?.aborted).toBe(false);
+  controller.abort();
+  await expect(pending).rejects.toThrow();
+  expect(providerSignal?.aborted).toBe(true);
+ });
+ it("does not make a provider request when the learner has already cancelled",async()=>{
+  const fetcher=vi.fn();
+  const provider=createGoogleCloudTtsProvider(config,fetcher)!;
+  const controller=new AbortController();controller.abort();
+  await expect(provider.synthesize({text:"നമസ്കാരം",speed:1,signal:controller.signal})).rejects.toThrow(/cancelled/i);
+  expect(fetcher).not.toHaveBeenCalled();
+ });
  it("can synthesize plain text for controlled SSML comparison",async()=>{
   let body:Record<string,unknown>|undefined;
   const fetcher=vi.fn(async(_url:string|URL|Request,init?:RequestInit)=>{body=JSON.parse(String(init?.body));return Response.json({audioContent:Buffer.from(validMp3()).toString("base64")});});
