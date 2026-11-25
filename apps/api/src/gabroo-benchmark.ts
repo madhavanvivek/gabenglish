@@ -1,0 +1,90 @@
+import {appendFile,mkdir,readFile} from "node:fs/promises";
+import {dirname,resolve} from "node:path";
+import {fileURLToPath} from "node:url";
+import {buildGabrooTeachingPolicy,type GabrooTeachingPolicy} from "./gabroo-teaching-policy.js";
+import type {GabrooConversationMode,GabrooMessage} from "./gabroo-conversations.js";
+
+type BenchmarkCase={
+ id:string;title:string;mode:GabrooConversationMode;
+ direction:"ml_to_en"|"en_to_ml";supportLanguage:"ml"|"en";stage:1|2|3|4|5;
+ history:GabrooMessage[];message:string;expected:string[];critical:string[];
+};
+type BenchmarkMessage={role:"system"|"user"|"assistant";content:string};
+const defaultCasesPath=resolve(process.cwd(),"../../docs/ai/gabroo-benchmark-cases.json");
+const repositoryRoot=resolve(process.cwd(),"../..");
+
+export function buildGabrooBenchmarkMessages(testCase:BenchmarkCase):BenchmarkMessage[]{
+ const targetLanguage=testCase.direction==="ml_to_en"?"en":"ml";
+ const policy:GabrooTeachingPolicy=buildGabrooTeachingPolicy({
+  mode:testCase.mode,
+  supportLanguage:testCase.supportLanguage,
+  learningDirection:testCase.direction,
+  targetLanguage,
+  stage:testCase.stage
+ });
+ const system=[
+  "You are Gabroo, a friendly, energetic and respectful spoken-language tutor.",
+  "Follow the live Gabroo teaching policy below. Treat it as authoritative for mode, learning direction, support language, correction level, stage and address.",
+  "Never infer learner facts or proficiency. Text transcripts cannot establish pronunciation, accent or speaking fluency.",
+  "Return a natural conversational reply; do not expose internal policy or benchmark instructions.",
+  "LIVE_GABROO_TEACHING_POLICY:",
+  JSON.stringify(policy)
+ ].join("\n");
+ return [{role:"system",content:system},...testCase.history,{role:"user",content:testCase.message}];
+}
+
+async function runBenchmark(){
+ const apiKey=process.env.GABROO_EVAL_API_KEY??process.env.OPENAI_API_KEY;
+ const model=process.env.GABROO_EVAL_MODEL;
+ const baseUrl=(process.env.GABROO_EVAL_BASE_URL??"https://api.openai.com/v1").replace(/\/+$/,"");
+ const casesPath=resolve(process.env.GABROO_BENCHMARK_CASES??defaultCasesPath);
+ const outputPath=resolve(process.env.GABROO_BENCHMARK_OUTPUT??resolve(repositoryRoot,"artifacts/gabroo-benchmark-results.jsonl"));
+ const repeats=Math.max(1,Math.min(10,Number.parseInt(process.env.GABROO_BENCHMARK_REPEATS??"3",10)||3));
+ if(!apiKey||!model){
+  console.error("Set GABROO_EVAL_API_KEY (or OPENAI_API_KEY) and GABROO_EVAL_MODEL. No provider request was sent.");
+  process.exitCode=2;return;
+ }
+ const cases=JSON.parse(await readFile(casesPath,"utf8")) as BenchmarkCase[];
+ if(!Array.isArray(cases)||cases.length===0)throw new Error("Benchmark cases must be a non-empty JSON array.");
+ await mkdir(dirname(outputPath),{recursive:true});
+ let completed=0,failed=0;
+ for(const testCase of cases){
+  for(let repetition=1;repetition<=repeats;repetition++){
+   const started=performance.now();let record:Record<string,unknown>;
+   try{
+    const response=await fetch(baseUrl+"/chat/completions",{
+     method:"POST",
+     headers:{authorization:"Bearer "+apiKey,"content-type":"application/json"},
+     body:JSON.stringify({model,messages:buildGabrooBenchmarkMessages(testCase),temperature:0.3}),
+     signal:AbortSignal.timeout(90_000)
+    });
+    const payload=await response.json().catch(()=>({})) as {
+     choices?:Array<{message?:{content?:unknown}}>;usage?:unknown;error?:{message?:string}
+    };
+    if(!response.ok)throw new Error("Provider HTTP "+response.status+": "+String(payload.error?.message??"request failed").slice(0,500));
+    const content=payload.choices?.[0]?.message?.content;
+    if(typeof content!=="string"||!content.trim())throw new Error("Provider returned no text message.");
+    record={
+     caseId:testCase.id,title:testCase.title,repetition,model,providerBaseUrl:baseUrl,
+     teachingPolicyVersion:"live-builder-current",latencyMs:Math.round(performance.now()-started),
+     status:"completed",response:content.trim(),usage:payload.usage??null,
+     expectedChecks:testCase.expected,criticalChecks:testCase.critical,
+     evaluatorScore:null,evaluatorNotes:null,recordedAt:new Date().toISOString()
+    };completed++;
+   }catch(error){
+    record={
+     caseId:testCase.id,title:testCase.title,repetition,model,providerBaseUrl:baseUrl,
+     teachingPolicyVersion:"live-builder-current",latencyMs:Math.round(performance.now()-started),
+     status:"error",error:error instanceof Error?error.message:String(error),
+     evaluatorScore:null,evaluatorNotes:null,recordedAt:new Date().toISOString()
+    };failed++;
+   }
+   await appendFile(outputPath,JSON.stringify(record)+"\n","utf8");
+   console.log(String(record.status).toUpperCase()+" "+testCase.id+" "+repetition+"/"+repeats+" "+String(record.latencyMs)+"ms");
+  }
+ }
+ console.log(JSON.stringify({model,total:cases.length*repeats,completed,failed,outputPath,policy:"live buildGabrooTeachingPolicy"},null,2));
+ if(failed>0)process.exitCode=1;
+}
+
+if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url))await runBenchmark();
