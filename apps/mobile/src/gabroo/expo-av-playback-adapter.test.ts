@@ -14,6 +14,18 @@ describe("Expo AV playback status mapping", () => {
     });
   });
 
+
+  it("rejects impossible playheads, invalid durations and malformed audio identity", () => {
+    const identity = { playbackTicketId: "ticket", audioId: "audio", audioSha256: "a".repeat(64) };
+    const valid = { isLoaded: true, isPlaying: true, positionMillis: 20, durationMillis: 100 };
+    expect(toGabrooNativePlayerSnapshot({ ...valid, positionMillis: -1 }, identity)).toBeNull();
+    expect(toGabrooNativePlayerSnapshot({ ...valid, positionMillis: 100 }, identity)).toBeNull();
+    expect(toGabrooNativePlayerSnapshot({ ...valid, durationMillis: 0 }, identity)).toBeNull();
+    expect(toGabrooNativePlayerSnapshot({ ...valid, durationMillis: Number.NaN }, identity)).toBeNull();
+    expect(toGabrooNativePlayerSnapshot(valid, { ...identity, audioSha256: "bad" })).toBeNull();
+    expect(toGabrooNativePlayerSnapshot(valid, { ...identity, playbackTicketId: " " })).toBeNull();
+  });
+
   it("rejects unloaded, paused or incomplete status instead of fabricating a playhead", () => {
     const identity = { playbackTicketId: "ticket", audioId: "audio", audioSha256: "a".repeat(64) };
     expect(toGabrooNativePlayerSnapshot({ isLoaded: false }, identity)).toBeNull();
