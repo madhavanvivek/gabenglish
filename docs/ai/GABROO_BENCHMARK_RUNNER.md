@@ -1,6 +1,6 @@
 # Gabroo benchmark runner
 
-The API benchmark runner sends ten versioned seed cases to an OpenAI-compatible chat-completions endpoint and stores raw text responses, per-case latency, provider usage and evaluator placeholders as JSONL. Crucially, it imports the same `buildGabrooTeachingPolicy` function used by the live conversation API, so candidate models receive the current production teaching policy. It does not automatically grade language quality.
+The API benchmark runner sends twelve versioned seed cases to an OpenAI-compatible chat-completions endpoint and stores raw text responses, per-case latency, provider usage and evaluator placeholders as JSONL. Crucially, it imports the same `buildGabrooTeachingPolicy` function used by the live conversation API, so candidate models receive the current production teaching policy. It does not automatically grade language quality.
 
 ## Run
 
