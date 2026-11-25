@@ -2,7 +2,6 @@ import { Audio } from "expo-av";
 import {
   GabrooNativePlaybackClock,
   type GabrooNativePlayerSnapshot,
-  type GabrooPlaybackIdentity,
 } from "./native-playback-clock";
 import type { GabrooAvatarRendererGate } from "./avatar-renderer-gate";
 
