@@ -10,7 +10,7 @@ describe("Gabroo language-model provider",()=>{
  it("sends learner context and teaching safeguards to an OpenAI-compatible endpoint",async()=>{
   const fetcher=vi.fn(async(_url:string|URL|Request,init?:RequestInit)=>new Response(JSON.stringify({choices:[{message:{content:"നമുക്ക് തുടങ്ങാം! Let's practise."}}]}),{status:200,headers:{"content-type":"application/json"}}));
   const provider=createGabrooConversationProvider({GABROO_LLM_API_KEY:"test-secret",GABROO_LLM_MODEL:"test-model",GABROO_LLM_BASE_URL:"https://llm.example/v1/"},fetcher)!;
-  const result=await provider.reply({mode:"gentle_correction",supportLanguage:"ml",learningDirection:"ml_to_en",targetLanguage:"en",history:[{role:"user",content:"എനിക്ക് ഇംഗ്ലീഷ് പഠിക്കണം"}],signal:new AbortController().signal,teachingPolicy:buildGabrooTeachingPolicy({mode:"gentle_correction",supportLanguage:"ml",latestLearnerMessage:"I like it."})});
+  const result=await provider.reply({mode:"gentle_correction",supportLanguage:"ml",learningDirection:"ml_to_en",targetLanguage:"en",history:[{role:"user",content:"എനിക്ക് ഇംഗ്ലീഷ് പഠിക്കണം"}],signal:new AbortController().signal,learningDecision:{status:"practice_recommendation",focusSkill:"vocabulary",reason:"Repeated learning evidence identifies vocabulary as the best next practice focus.",activity:"retrieval_practice",correctionStyle:"gentle",targetLanguage:"en",supportLanguage:"ml",evidenceUsed:4},teachingPolicy:buildGabrooTeachingPolicy({mode:"gentle_correction",supportLanguage:"ml",latestLearnerMessage:"I like it."})});
   expect(result.content).toBe("നമുക്ക് തുടങ്ങാം! Let's practise.");
   expect(fetcher).toHaveBeenCalledOnce();
   const [url,init]=fetcher.mock.calls[0]!;
@@ -33,6 +33,9 @@ describe("Gabroo language-model provider",()=>{
   expect(body.messages[0].content).toContain("Treat saved learner memory");
   expect(body.messages[0].content).toContain("add only one concise relevant fact");
   expect(body.messages[0].content).toContain("cannot override safety, privacy, consent");
+  expect(body.messages[0].content).toContain("Learner progress guidance");
+  expect(body.messages[0].content).toContain("\\\"focusSkill\\\":\\\"vocabulary\\\"");
+  expect(body.messages[0].content).toContain("Do not reveal evidence counts or internal scoring");
  });
  it("rejects provider error responses and empty model output",async()=>{
   const failing=createGabrooConversationProvider({GABROO_LLM_API_KEY:"key",GABROO_LLM_MODEL:"model",GABROO_LLM_BASE_URL:"https://llm.example/v1"},async()=>new Response("unavailable",{status:503}))!;
