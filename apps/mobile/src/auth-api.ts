@@ -2,6 +2,7 @@ import type {LearnerLessonContent} from "@gabenglish/contracts";
 import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system";
 import { parseGabrooSpeechStatus, type GabrooSpeechStatus } from "./gabroo/speech-status";
+import { validateGabrooRecordingUpload } from "./gabroo/recording-upload-validation";
 import { buildGabrooSpeechRequest, parseGabrooSpeechResponse } from "./gabroo/speech-request";
 import {type GabrooSpeechAsset,authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
 
@@ -140,8 +141,15 @@ export async function recognizeGabrooAudio(input:{
  consentGranted:true;
 }):Promise<GabrooRecognitionResponse>{
  if(input.consentGranted!==true)throw new AuthApiError("Explicit microphone and transcription consent is required.");
+ let recording:{uri:string;size:number};
+ try{
+  const info=await FileSystem.getInfoAsync(input.uri);
+  recording=validateGabrooRecordingUpload({uri:input.uri,exists:info.exists,size:"size" in info?info.size:undefined});
+ }catch(error){
+  throw new AuthApiError(error instanceof Error?error.message:"The Gabroo recording could not be validated.");
+ }
  const upload=async(accessToken:string)=>{
-  const result=await FileSystem.uploadAsync(baseUrl()+"/api/v1/gabroo/recognition",input.uri,{
+  const result=await FileSystem.uploadAsync(baseUrl()+"/api/v1/gabroo/recognition",recording.uri,{
    httpMethod:"POST",
    uploadType:FileSystem.FileSystemUploadType.BINARY_CONTENT,
    headers:{
