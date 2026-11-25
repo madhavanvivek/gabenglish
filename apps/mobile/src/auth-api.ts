@@ -2,7 +2,7 @@ import type {LearnerLessonContent} from "@gabenglish/contracts";
 import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system";
 import { parseGabrooSpeechStatus, type GabrooSpeechStatus } from "./gabroo/speech-status";
-import {authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
+import {parseActiveGabrooSpeechAsset,type GabrooSpeechAsset,authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
 
 const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
 const ACCESS_KEY="gabenglish.auth.access";
@@ -91,10 +91,10 @@ export async function loginLearner(input:{email:string;password:string}){
  const tokens=await saveTokens(payload);
  return {tokens,email_verified:Boolean(payload.email_verified)};
 }
-async function authorized(path:string,method:"GET"|"POST"|"PATCH"|"DELETE",body?:unknown):Promise<unknown>{
+async function authorized(path:string,method:"GET"|"POST"|"PATCH"|"DELETE",body?:unknown,extraHeaders:Record<string,string>={}):Promise<unknown>{
  let access=await SecureStore.getItemAsync(ACCESS_KEY);
  if(!access){await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);}
- const send=()=>fetch(baseUrl()+path,{method,headers:{"content-type":"application/json",accept:"application/json",authorization:"Bearer "+access},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ const send=()=>fetch(baseUrl()+path,{method,headers:{"content-type":"application/json",accept:"application/json",authorization:"Bearer "+access,...extraHeaders},...(body===undefined?{}:{body:JSON.stringify(body)})});
  let response=await send();
  if(response.status===401){
   await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);response=await send();
@@ -180,6 +180,14 @@ export async function recognizeGabrooAudio(input:{
 }
 
 export type {GabrooRecognitionStatus};
+export async function generateGabrooSpeech(input:{text:string;language:"ml"|"en";speech_rate:number;consentGranted:true}):Promise<GabrooSpeechAsset>{
+ if(input.consentGranted!==true)throw new AuthApiError("Explicit consent is required before generating Gabroo speech.");
+ const payload=await authorized("/api/v1/gabroo/speech","POST",{text:input.text,language:input.language,speech_rate:input.speech_rate},{"x-gabroo-consent":"true"});
+ if(typeof payload!=="object"||payload===null||!("speech_asset" in payload))throw new AuthApiError("Gabroo speech generation returned an invalid response.");
+ try{return parseActiveGabrooSpeechAsset(payload.speech_asset);}
+ catch{throw new AuthApiError("Gabroo returned an invalid or expired speech asset.");}
+}
+
 export async function getGabrooSpeechStatus():Promise<GabrooSpeechStatus>{
  const payload=await authorized("/api/v1/gabroo/speech/status","GET");
  try{return parseGabrooSpeechStatus(payload);}
