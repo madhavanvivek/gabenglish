@@ -2,7 +2,7 @@ import {useEffect,useState} from "react";
 import {Link,useLocalSearchParams} from "expo-router";
 import {Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {getLearningLesson,saveLearningLessonProgress,submitLearningExerciseAttempt,type LearningLessonDetail} from "../../src/auth-api";
+import {createLearningSessionId,getLearningLesson,saveLearningLessonProgress,submitLearningExerciseAttempt,type LearningLessonDetail} from "../../src/auth-api";
 import {BrandMark,Eyebrow,PrimaryButton,SurfaceCard} from "../../src/ui";
 import type {LearnerLessonContent} from "@gabenglish/contracts";
 import {colors,radius,space} from "../../src/theme";
@@ -26,6 +26,7 @@ function LessonBlocks({content,answers,setAnswers,results,onSubmit,busyExercise}
 export default function LessonScreen(){
  const {id}=useLocalSearchParams<{id:string}>();
  const [data,setData]=useState<LearningLessonDetail|null>(null);
+ const [learningSessionId]=useState(createLearningSessionId);
  const [progress,setProgress]=useState(0);
  const [busy,setBusy]=useState(false);
  const [message,setMessage]=useState("");
@@ -34,7 +35,7 @@ export default function LessonScreen(){
  const [exerciseResults,setExerciseResults]=useState<Record<string,{correct:boolean;feedback:string}>>({});
  const [busyExercise,setBusyExercise]=useState<string|null>(null);
  const setAnswer=(exerciseId:string,value:string)=>setAnswersState(current=>({...current,[exerciseId]:value}));
- async function submitExercise(exerciseId:string){if(!id||busyExercise)return;setBusyExercise(exerciseId);setError("");try{const result=await submitLearningExerciseAttempt(id,exerciseId,answers[exerciseId]??"");setExerciseResults(current=>({...current,[exerciseId]:result.result}));}catch(e){setError(e instanceof Error?e.message:"Could not check this answer.");}finally{setBusyExercise(null);}}
+ async function submitExercise(exerciseId:string){if(!id||busyExercise)return;setBusyExercise(exerciseId);setError("");try{const result=await submitLearningExerciseAttempt(id,exerciseId,answers[exerciseId]??"",learningSessionId);setExerciseResults(current=>({...current,[exerciseId]:result.result}));}catch(e){setError(e instanceof Error?e.message:"Could not check this answer.");}finally{setBusyExercise(null);}}
  useEffect(()=>{let active=true;if(id)void getLearningLesson(id).then(value=>{if(!active)return;setData(value);setProgress(value.progress?.progress_percent??0);}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;};},[id]);
  async function save(value:number){
   if(!id||busy)return;
