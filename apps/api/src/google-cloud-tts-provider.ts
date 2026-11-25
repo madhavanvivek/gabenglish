@@ -75,7 +75,7 @@ async function readBoundedGoogleTtsPayload(response:Response):Promise<{audioCont
  let offset=0;
  for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
  try{return JSON.parse(new TextDecoder().decode(bytes)) as {audioContent?:unknown};}
- catch{return Promise.reject(new Error("Google Cloud Text-to-Speech returned malformed JSON."));}
+ catch{throw new Error("Google Cloud Text-to-Speech returned malformed JSON.");}
 }
 
 /**
