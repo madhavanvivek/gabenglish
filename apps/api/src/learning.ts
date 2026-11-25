@@ -215,7 +215,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   const params=request.params as {id?:string;exerciseId?:string};
   const id=params.id??"",exerciseId=params.exerciseId??"";
   if(!lessonIdPattern.test(id)||!/^[a-z0-9_-]{1,64}$/i.test(exerciseId))return failure(reply,request.id,400,"INVALID_EXERCISE_REFERENCE","This exercise link is invalid.");
-  const parsed=z.object({response:z.string().trim().min(1).max(2000),idempotency_key:z.string().uuid()}).strict().safeParse(request.body);
+  const parsed=z.object({response:z.string().trim().min(1).max(2000),idempotency_key:z.string().uuid(),learning_session_id:z.string().uuid().optional()}).strict().safeParse(request.body);
   if(!parsed.success)return failure(reply,request.id,400,"VALIDATION_ERROR","Provide an answer and a valid idempotency key.");
   const result=await pool.query<{course_id:string;learning_direction:Direction;version_id:string;content:unknown}>(
    `SELECT c.id AS course_id,c.learning_direction,lv.id AS version_id,lv.content
@@ -244,12 +244,12 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   try{
    await client.query("BEGIN");
    const saved=await client.query<{id:string;is_correct:boolean;feedback:string}>(
-    `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback,idempotency_key)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback,idempotency_key,learning_session_id)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
      ON CONFLICT(user_id,lesson_version_id,exercise_id,idempotency_key)
        WHERE idempotency_key IS NOT NULL DO NOTHING
      RETURNING id,is_correct,feedback`,
-    [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,parsed.data.response,evaluated.correct,evaluated.feedback,parsed.data.idempotency_key]
+    [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,parsed.data.response,evaluated.correct,evaluated.feedback,parsed.data.idempotency_key,parsed.data.learning_session_id??null]
    );
    let attempt=saved.rows[0];
    if(!attempt){
@@ -261,12 +261,16 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
     if(!replay){await client.query("ROLLBACK");return failure(reply,request.id,503,"ATTEMPT_SAVE_UNAVAILABLE","Your answer could not be saved. Please retry.");}
     if(replay.response!==parsed.data.response){await client.query("ROLLBACK");return failure(reply,request.id,409,"IDEMPOTENCY_KEY_REUSED","This submission key was already used for a different answer.");}
     attempt={id:replay.id,is_correct:replay.is_correct,feedback:replay.feedback};
-   }else if(["grammar","vocabulary","comprehension"].includes(String(exercise.skill))){
+   }
+   if(["grammar","vocabulary","comprehension"].includes(String(exercise.skill))){
+    const evidenceTaskId=parsed.data.learning_session_id
+      ?"lesson-exercise-session:"+parsed.data.learning_session_id+":"+exerciseId
+      :"lesson-exercise:"+attempt.id;
     await client.query(
      `INSERT INTO gabroo_skill_evidence(user_id,skill,score,confidence,source,task_id,observed_at)
       VALUES($1,$2,$3,0.75,'lesson_exercise',$4,now())
       ON CONFLICT(user_id,skill,source,task_id) DO NOTHING`,
-     [learner.id,exercise.skill,evaluated.correct?1:0,"lesson-exercise:"+attempt.id]
+     [learner.id,exercise.skill,attempt.is_correct?1:0,evidenceTaskId]
     );
    }
    await client.query("COMMIT");
