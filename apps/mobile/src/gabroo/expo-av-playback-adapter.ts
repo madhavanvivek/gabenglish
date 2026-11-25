@@ -75,11 +75,21 @@ export async function createGabrooExpoAvPlayback(input: {
     return Audio.Sound.createAsync(source, initialStatus, onPlaybackStatusUpdate);
   });
 
-  const abortPlayback = () => {\n    stopClock();\n    if (sound) {\n      const current = sound;\n      sound = null;\n      void current.unloadAsync().catch(() => undefined);\n    }\n  };\n  input.signal?.addEventListener("abort", abortPlayback, { once: true });\n\n  const stopClock = () => {
+  const stopClock = () => {
     if (closed) return;
     closed = true;
     clock.stop();
   };
+
+  const abortPlayback = () => {
+    stopClock();
+    if (sound) {
+      const current = sound;
+      sound = null;
+      void current.unloadAsync().catch(() => undefined);
+    }
+  };
+  input.signal?.addEventListener("abort", abortPlayback, { once: true });
 
   try {
     const created = await createSound(
@@ -104,9 +114,13 @@ export async function createGabrooExpoAvPlayback(input: {
       },
     );
     sound = created.sound;
-    if (closed || input.signal?.aborted) {\n      await sound.unloadAsync().catch(() => undefined);\n      sound = null;\n    }
+    if (closed || input.signal?.aborted) {
+      await sound.unloadAsync().catch(() => undefined);
+      sound = null;
+    }
   } catch (reason) {
     stopClock();
+    input.signal?.removeEventListener("abort", abortPlayback);
     throw reason instanceof Error ? reason : new Error("Could not load Gabroo audio.");
   }
 
@@ -125,11 +139,13 @@ export async function createGabrooExpoAvPlayback(input: {
     async stop() {
       if (!sound || closed) return;
       stopClock();
+      input.signal?.removeEventListener("abort", abortPlayback);
       await sound.stopAsync();
     },
     async unload() {
       if (!sound) return;
       stopClock();
+      input.signal?.removeEventListener("abort", abortPlayback);
       const current = sound;
       sound = null;
       await current.unloadAsync();
