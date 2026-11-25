@@ -4,6 +4,12 @@ export type GabrooSpeechStatus = {
   available: boolean;
   formats: GabrooSpeechFormat[];
   speed: { minimum: number; maximum: number };
+  capabilities: {
+    speech_synthesis: boolean;
+    character_alignment: false;
+    phoneme_alignment: false;
+    live_avatar_renderer: false;
+  };
 };
 
 const SUPPORTED_FORMATS: readonly GabrooSpeechFormat[] = ["audio/mpeg"];
@@ -20,7 +26,7 @@ export function parseGabrooSpeechStatus(payload: unknown): GabrooSpeechStatus {
     throw new Error("Gabroo speech availability returned an invalid response.");
   }
 
-  const { available, formats, speed } = payload;
+  const { available, formats, speed, capabilities } = payload;
   if (
     typeof available !== "boolean" ||
     !Array.isArray(formats) ||
@@ -30,7 +36,12 @@ export function parseGabrooSpeechStatus(payload: unknown): GabrooSpeechStatus {
         SUPPORTED_FORMATS.includes(format as GabrooSpeechFormat),
     ) ||
     new Set(formats).size !== formats.length ||
-    !isRecord(speed)
+    !isRecord(speed) ||
+    !isRecord(capabilities) ||
+    typeof capabilities.speech_synthesis !== "boolean" ||
+    capabilities.character_alignment !== false ||
+    capabilities.phoneme_alignment !== false ||
+    capabilities.live_avatar_renderer !== false
   ) {
     throw new Error("Gabroo speech availability returned an invalid response.");
   }
@@ -45,7 +56,8 @@ export function parseGabrooSpeechStatus(payload: unknown): GabrooSpeechStatus {
     maximum > MAX_ALLOWED_SPEED ||
     minimum > maximum ||
     (available && (formats.length !== 1 || formats[0] !== "audio/mpeg")) ||
-    (!available && formats.length !== 0)
+    (!available && formats.length !== 0) ||
+    capabilities.speech_synthesis !== available
   ) {
     throw new Error("Gabroo speech availability returned an invalid response.");
   }
@@ -54,5 +66,11 @@ export function parseGabrooSpeechStatus(payload: unknown): GabrooSpeechStatus {
     available,
     formats: [...formats],
     speed: { minimum, maximum },
+    capabilities: {
+      speech_synthesis: capabilities.speech_synthesis,
+      character_alignment: false,
+      phoneme_alignment: false,
+      live_avatar_renderer: false,
+    },
   };
 }
