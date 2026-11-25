@@ -16,7 +16,7 @@ function learnerSavedPhrase(item:SavedPracticePhrase):PracticePhrase{
 const challengeBank:Record<string,Array<{title:string;focus:string;prompt:string}>>={
  sentence_formation:[
   {title:"Make it clearer",focus:"Build a complete sentence",prompt:"Tell Gabroo about something you did yesterday. Use three complete sentences. Try connecting them with “because”, “then” or “so”."},
-  {title:"Explain your choice",focus:"Give a reason",prompt:"Describe one decision you made recently and explain why you made it. Try using “I decided to…” and “because…”."}
+  {title:"Explain your choice",focus:"Give a reason",prompt:"Describe one decision you made recently and explain why you made it. Try using “I decided to…” and “because…”.}
  ],
  grammar:[
   {title:"Past and present",focus:"Use time clearly",prompt:"Talk about your usual morning routine, then explain one thing that was different yesterday. Pay attention to present and past tense."},
@@ -54,9 +54,7 @@ export function localPracticeDateKey(date:Date=new Date()):string{
 export function buildDailySpeakingChallenge(date:string,skills:DailyPracticeSkill[]=[],savedPhrases:SavedPracticePhrase[]=[]):DailySpeakingChallenge{
  const day=Date.parse(date+"T00:00:00.000Z");
  const index=Number.isFinite(day)?Math.floor(day/86_400_000):0;
- const focusSkill=skills
-  .filter(item=>item.evidence_status==="practice_opportunity"||item.evidence_status==="developing_exercise_performance")
-  .sort((a,b)=>a.accuracy-b.accuracy||b.attempt_count-a.attempt_count)[0];
+ const focusSkill=skills.filter(item=>item.evidence_status==="practice_opportunity"||item.evidence_status==="developing_exercise_performance").sort((a,b)=>a.accuracy-b.accuracy||b.attempt_count-a.attempt_count)[0];
  const bank=focusSkill?challengeBank[focusSkill.skill_key]??general:general;
  const selected=bank[((index%bank.length)+bank.length)%bank.length]!;
  const usablePhrases=savedPhrases.map(learnerSavedPhrase).filter(item=>item.original||item.practiceVersion||item.fallback).slice(0,50);
@@ -65,7 +63,7 @@ export function buildDailySpeakingChallenge(date:string,skills:DailyPracticeSkil
   const original=saved.original??saved.fallback;
   const target=saved.practiceVersion??original;
   const prompt=saved.practiceVersion&&saved.original
-   ?"You saved this original phrase in your Speaking Journal: “"+saved.original+"”. You also chose this practice version: “"+saved.practiceVersion+"”. Try using the practice version in a natural conversation with Gabroo. Keep the meaning you intended in the original phrase; if the new wording does not feel right, discuss another way to say it. This is practice, not a score."
+   ?"You saved this original phrase in your Speaking Journal: “"+saved.original+"”. You also chose this practice version: “"+saved.practiceVersion+"”. Try using the practice version in a natural conversation with Gabroo, in a different everyday situation. Keep the meaning you intended in the original phrase; if the new wording does not feel right, discuss another way to say it. This is practice, not a score."
    :"You saved this phrase in your Speaking Journal: “"+target+"”. Start a natural conversation with Gabroo where you can use this phrase in a different everyday situation. Keep the meaning you intended, and do not treat this practice as a score.";
   return {date,title:"Bring a saved phrase to life",focus:saved.practiceVersion?"Practise a version you chose to improve":"Practise a phrase you chose to keep",prompt,skillKey:null};
  }
