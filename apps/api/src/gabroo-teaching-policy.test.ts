@@ -77,7 +77,7 @@ describe("Gabroo teaching policy",()=>{
    for(const direction of ["ml_to_en","en_to_ml"] as const){
     const policy=buildGabrooTeachingPolicy({mode,supportLanguage:direction==="ml_to_en"?"ml":"en",learningDirection:direction});
     const guidance=policy.responseGuidance.join(" ");
-    expect(guidance).toContain("identify the immediate intent");
+    expect(guidance).toContain("Identify the immediate intent");
     expect(guidance).toContain("resolve that doubt first");
     expect(guidance).toContain("comprehensible stretch");
    }
