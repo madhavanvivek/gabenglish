@@ -5,7 +5,8 @@ import * as FileSystem from "expo-file-system";
 import {readGabrooAudioBytes} from "./gabroo-audio-response";
 import {parseGabrooPlaybackTicket} from "./gabroo-playback-ticket";
 import {parseGabrooAudioResponseMetadata} from "./gabroo-audio-metadata";
-import {authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
+import {authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus,type GabrooSpeechTimeline} from "@gabenglish/contracts";
+import {parseGabrooPhonemeTimelineForAudio} from "./gabroo-phoneme-timeline";
 
 const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
 const ACCESS_KEY="gabenglish.auth.access";
@@ -245,6 +246,39 @@ export type GabrooSynthesizedMobileAudio={
  audioId:string;
  metadata:ReturnType<typeof parseGabrooAudioResponseMetadata>;
 };
+
+
+/**
+ * Ask the configured alignment provider to time the exact cached MP3. The
+ * endpoint re-hashes both audio and transcript and independently measures
+ * MP3 duration; no viseme timing is inferred on the device.
+ */
+export async function requestGabrooPhonemeTimeline(input:{
+ audioUri:string;text:string;metadata:NonNullable<GabrooSynthesizedMobileAudio["metadata"]>;
+ language:"ml"|"en"|"mixed";signal?:AbortSignal;
+}):Promise<GabrooSpeechTimeline|null>{
+ if(!input.metadata) return null;
+ if(input.signal?.aborted)throw new AuthApiError("Gabroo alignment request was cancelled.");
+ let audioBase64:string;
+ try{
+  audioBase64=await FileSystem.readAsStringAsync(input.audioUri,{encoding:FileSystem.EncodingType.Base64});
+ }catch{
+  throw new AuthApiError("The cached Gabroo audio could not be read for alignment.");
+ }
+ if(!audioBase64)throw new AuthApiError("The cached Gabroo audio is empty.");
+ const metadata=input.metadata;
+ const payload=await authorized("/api/v1/gabroo/speech/alignment","POST",{
+  audio_base64:audioBase64,text:input.text.trim(),audio_id:metadata.audioId,
+  audio_sha256:metadata.audioSha256,text_sha256:metadata.textSha256,
+  duration_ms:metadata.durationMs,language:input.language
+ },input.signal) as unknown;
+ if(typeof payload!=="object"||payload===null||!("alignment" in payload))return null;
+ const result=(payload as {alignment?:unknown}).alignment;
+ if(typeof result!=="object"||result===null||!("kind" in result)||!("alignment" in result))return null;
+ const typed=result as {kind?:unknown;alignment?:unknown};
+ if(typed.kind!=="phoneme")return null;
+ return parseGabrooPhonemeTimelineForAudio(typed.alignment,metadata);
+}
 
 export async function synthesizeGabrooSpeech(input:{text:string;speed:number;signal?:AbortSignal}):Promise<GabrooSynthesizedMobileAudio>{
  const text=input.text.trim();
