@@ -41,6 +41,7 @@ describe("Gabroo teaching policy",()=>{
   expect(policy.vocabularyFocus).toHaveLength(5);
   expect(policy.vocabularyFocus[0]).toEqual({term:"hesitate",meaning:"to pause before doing something",reason:"difficult"});
   expect(policy.responseGuidance.join(" ")).toContain("Do not turn every conversation into a quiz");
+  expect(policy.responseGuidance.join(" ")).toContain("learner is learning English");
   expect(buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"}).vocabularyFocus).toEqual([]);
  });
  it("defines distinct correction and learning goals for each mode",()=>{
