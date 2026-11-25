@@ -43,7 +43,7 @@ export async function createGabrooGoogleTtsAuditionPack(options:{
  outputDirectory:string;
  synthesize?:(voice:string,text:string,inputMode:"text"|"ssml")=>Promise<Uint8Array>;
  englishLanguageCode?:string;
-}):Promise<{outputDirectory:string;candidateCount:number;sampleCount:number}>{
+}):Promise<{outputDirectory:string;variantCount:number;sampleCount:number}>{
  if(!options.apiKey.trim())throw new Error("A server-side Google Cloud TTS API key is required.");
  const outputDirectory=resolve(options.outputDirectory);
  await mkdir(outputDirectory,{recursive:true});
@@ -66,7 +66,7 @@ export async function createGabrooGoogleTtsAuditionPack(options:{
   generated_at:new Date().toISOString(),
   script_sha256:createHash("sha256").update(JSON.stringify(SEGMENTS)).digest("hex"),
   instructions:"Listen in a randomized order. Each voice appears twice: plain text and bilingual SSML. Score each blind code independently using docs/ai/GABROO_VOICE_AUDITION_PROTOCOL.md. Do not compare labels until scoring is complete. This packet does not approve a voice.",
-  candidates:[] as {blind_code:string;samples:{sample_id:string;label:string;file:string}[]}[]
+  variants:[] as {blind_code:string;samples:{sample_id:string;label:string;file:string}[]}[]
  };
  const privateMapping:{blind_code:string;provider:string;voice_id:string;model_family:string;input_mode:"text"|"ssml"}[]=[];
  let sampleCount=0;
@@ -88,16 +88,16 @@ export async function createGabrooGoogleTtsAuditionPack(options:{
    samples.push({sample_id:segment.id,label:segment.label,file:blindCode+"/"+filename});
    sampleCount+=1;
    }
-   reviewerManifest.candidates.push({blind_code:blindCode,samples});
+   reviewerManifest.variants.push({blind_code:blindCode,samples});
    privateMapping.push({blind_code:blindCode,provider:"Google Cloud Text-to-Speech",voice_id:candidate.voice,model_family:candidate.family,input_mode:inputMode});
   }
  await writeFile(resolve(outputDirectory,"reviewer-manifest.json"),JSON.stringify(reviewerManifest,null,2)+"\n",{mode:0o600});
  await writeFile(resolve(outputDirectory,"mapping.private.json"),JSON.stringify({
   warning:"RESTRICTED: do not share this file with blind reviewers.",
   generated_at:reviewerManifest.generated_at,
-  candidates:privateMapping
+  variants:privateMapping
  },null,2)+"\n",{mode:0o600});
- return {outputDirectory,candidateCount:tasks.length,sampleCount};
+ return {outputDirectory,variantCount:tasks.length,sampleCount};
 }
 
 async function main():Promise<void>{
