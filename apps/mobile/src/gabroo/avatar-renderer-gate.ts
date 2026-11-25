@@ -173,7 +173,11 @@ export class GabrooAvatarRendererGate {
   render(proof: PlaybackProof, sample: (positionMs: number) => SampledAvatarFrame | null): boolean {
     if (this.disposed || !this.ready) return false;
     if (!isPlaybackProofValid(proof, this.generation)) {
-      this.resetSafely();
+      // A queued callback from an older playback must never neutralize a newer one.
+      if (proof && typeof proof === 'object'
+        && Number.isSafeInteger(proof.generation)
+        && proof.generation !== this.generation) return false;
+      this.stopPlayback(this.generation);
       return false;
     }
     let sampled: SampledAvatarFrame | null = null;
@@ -210,10 +214,12 @@ export class GabrooAvatarRendererGate {
   }
 
   /** Call synchronously on pause, interruption, blur, background, completion or cancellation. */
-  stopPlayback(): void {
-    if (this.disposed) return;
+  stopPlayback(expectedGeneration?: number): boolean {
+    if (this.disposed) return false;
+    if (expectedGeneration !== undefined && expectedGeneration !== this.generation) return false;
     this.generation += 1;
     this.resetSafely();
+    return true;
   }
 
   dispose(): void {
