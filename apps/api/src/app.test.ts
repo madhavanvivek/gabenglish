@@ -196,6 +196,22 @@ describe("API foundation",()=>{
   await app.close();
  });
 
+ it("advertises alignment only when an alignment provider is injected",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const alignmentProvider={align:async()=>({kind:"phoneme" as const,alignment:{audio_id:"a".repeat(64),audio_sha256:"a".repeat(64),duration_ms:100,phonemes:[{phoneme:"m",start_ms:0,end_ms:50}]}})};
+  const app=await buildApp(config,async()=>true,undefined,undefined,undefined,undefined,undefined,undefined,alignmentProvider);
+  const ready=await app.inject({method:"GET",url:"/api/v1/ready"});
+  expect(ready.json().capabilities.gabroo_alignment).toBe("configured");
+  await app.close();
+ });
+ it("advertises alignment capability to paid learners only when provider is injected",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const alignmentProvider={align:async()=>({kind:"phoneme" as const,alignment:{audio_id:"a".repeat(64),audio_sha256:"a".repeat(64),duration_ms:100,phonemes:[{phoneme:"m",start_ms:0,end_ms:50}]}})};
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,undefined,undefined,alignmentProvider);
+  const response=await app.inject({method:"GET",url:"/api/v1/gabroo/speech/status",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.json().capabilities).toEqual({speech_synthesis:false,character_alignment:true,phoneme_alignment:true,live_avatar_renderer:false});
+  await app.close();
+ });
  it("reports Gabroo speech capability only when a synthesis provider is injected",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   const provider={synthesize:async()=>({audio:new Uint8Array([1]),contentType:"audio/mpeg" as const})};
