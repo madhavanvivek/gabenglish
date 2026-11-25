@@ -151,6 +151,33 @@ describe("API foundation",()=>{
   expect(calls).toBe(1);
   await app.close();
  });
+ it("allows only one concurrent Gabroo alignment request per learner",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const audio=Buffer.alloc(834);
+  for(let offset=0;offset<audio.length;offset+=417)audio.set([0xff,0xfb,0x90,0x00],offset);
+  const text="ഹായ് Gabroo!";
+  const durationMs=measureGabrooMp3DurationMs(audio);
+  const identity=createGabrooSynthesizedAudioIdentity({audio,text,durationMs,audioId:createHash("sha256").update(audio).digest("hex")});
+  let begin!:()=>void;let finish!:()=>void;
+  const started=new Promise<void>(resolve=>{begin=resolve;});
+  const gate=new Promise<void>(resolve=>{finish=resolve;});
+  const provider={align:async(input:any)=>{
+   begin();await gate;
+   return {kind:"phoneme" as const,alignment:{audio_id:input.identity.audio_id,audio_sha256:input.identity.audio_sha256,duration_ms:input.identity.duration_ms,phonemes:[{phoneme:"m",start_ms:0,end_ms:Math.min(20,input.identity.duration_ms)}]}};
+  }};
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,undefined,undefined,provider);
+  const headers={authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)};
+  const payload={audio_base64:audio.toString("base64"),text,audio_id:identity.audio_id,audio_sha256:identity.audio_sha256,text_sha256:identity.text_sha256,duration_ms:durationMs,language:"mixed"};
+  const first=app.inject({method:"POST",url:"/api/v1/gabroo/speech/alignment",headers,payload});
+  await started;
+  const second=await app.inject({method:"POST",url:"/api/v1/gabroo/speech/alignment",headers,payload});
+  expect(second.statusCode).toBe(429);
+  expect(second.json().error.code).toBe("ALIGNMENT_REQUEST_IN_PROGRESS");
+  finish();
+  const firstResponse=await first;
+  expect(firstResponse.statusCode).toBe(200);
+  await app.close();
+ });
  it("rejects unsupported Gabroo speech speed and does not call the provider",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   let calls=0;
