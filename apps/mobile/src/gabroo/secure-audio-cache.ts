@@ -154,6 +154,11 @@ export async function cacheGabrooSpeechAudioWithExpo(input: {
           }
         });
         signal?.addEventListener("abort", cancelDownload, { once: true });
+        if (signal?.aborted) {
+          signal.removeEventListener("abort", cancelDownload);
+          await resumable.cancelAsync().catch(() => undefined);
+          throw new Error("Gabroo audio download was cancelled.");
+        }
         try {
           const result = await resumable.downloadAsync();
           if (signal?.aborted) throw new Error("Gabroo audio download was cancelled.");
