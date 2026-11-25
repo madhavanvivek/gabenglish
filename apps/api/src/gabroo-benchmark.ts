@@ -1,4 +1,5 @@
 import {appendFile,mkdir,readFile} from "node:fs/promises";
+import {createHash} from "node:crypto";
 import {dirname,resolve} from "node:path";
 import {fileURLToPath} from "node:url";
 import {buildGabrooTeachingPolicy,type GabrooTeachingPolicy} from "./gabroo-teaching-policy.js";
@@ -13,15 +14,23 @@ type BenchmarkMessage={role:"system"|"user"|"assistant";content:string};
 const defaultCasesPath=resolve(process.cwd(),"../../docs/ai/gabroo-benchmark-cases.json");
 const repositoryRoot=resolve(process.cwd(),"../..");
 
-export function buildGabrooBenchmarkMessages(testCase:BenchmarkCase):BenchmarkMessage[]{
+function buildPolicy(testCase:BenchmarkCase):GabrooTeachingPolicy{
  const targetLanguage=testCase.direction==="ml_to_en"?"en":"ml";
- const policy:GabrooTeachingPolicy=buildGabrooTeachingPolicy({
+ return buildGabrooTeachingPolicy({
   mode:testCase.mode,
   supportLanguage:testCase.supportLanguage,
   learningDirection:testCase.direction,
   targetLanguage,
   stage:testCase.stage
  });
+}
+
+export function getGabrooBenchmarkPolicyVersion(testCase:BenchmarkCase):string{
+ return createHash("sha256").update(JSON.stringify(buildPolicy(testCase))).digest("hex").slice(0,16);
+}
+
+export function buildGabrooBenchmarkMessages(testCase:BenchmarkCase):BenchmarkMessage[]{
+ const policy=buildPolicy(testCase);
  const system=[
   "You are Gabroo, a friendly, energetic and respectful spoken-language tutor.",
   "Follow the live Gabroo teaching policy below. Treat it as authoritative for mode, learning direction, support language, correction level, stage and address.",
@@ -66,7 +75,7 @@ async function runBenchmark(){
     if(typeof content!=="string"||!content.trim())throw new Error("Provider returned no text message.");
     record={
      caseId:testCase.id,title:testCase.title,repetition,model,providerBaseUrl:baseUrl,
-     teachingPolicyVersion:"live-builder-current",latencyMs:Math.round(performance.now()-started),
+     teachingPolicyVersion:getGabrooBenchmarkPolicyVersion(testCase),latencyMs:Math.round(performance.now()-started),
      status:"completed",response:content.trim(),usage:payload.usage??null,
      expectedChecks:testCase.expected,criticalChecks:testCase.critical,
      evaluatorScore:null,evaluatorNotes:null,recordedAt:new Date().toISOString()
