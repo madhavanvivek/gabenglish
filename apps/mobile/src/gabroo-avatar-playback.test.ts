@@ -23,6 +23,21 @@ describe("Gabroo mobile avatar playback bridge",()=>{
   expect(sampleGabrooMobileAvatarPlayback({...input,isLoaded:false}).controls.viseme.shape).toBe("neutral");
   expect(sampleGabrooMobileAvatarPlayback({...input,timeline:null}).controls.viseme.shape).toBe("neutral");
  });
+ it("fails closed when measured audio metadata is malformed or not content-addressed",()=>{
+  expect(sampleGabrooMobileAvatarPlayback({...input,metadata:{...metadata,audioSha256:"c".repeat(64)}}).controls.viseme.shape).toBe("neutral");
+  expect(sampleGabrooMobileAvatarPlayback({...input,metadata:{...metadata,textSha256:"invalid"}}).controls.viseme.shape).toBe("neutral");
+  expect(sampleGabrooMobileAvatarPlayback({...input,metadata:{...metadata,durationMs:0}}).controls.viseme.shape).toBe("neutral");
+ });
+ it("requires a non-empty active native playback ticket",()=>{
+  expect(sampleGabrooMobileAvatarPlayback({...input,expectedPlaybackId:""}).controls.viseme.shape).toBe("neutral");
+  expect(sampleGabrooMobileAvatarPlayback({...input,playbackId:null}).controls.viseme.shape).toBe("neutral");
+ });
+ it("does not share a mutable neutral frame between stale playback samples",()=>{
+  const first=sampleGabrooMobileAvatarPlayback({...input,playbackId:"stale"});
+  first.controls.viseme.weight=0.8;
+  const second=sampleGabrooMobileAvatarPlayback({...input,playbackId:"stale"});
+  expect(second.controls.viseme.weight).toBe(0);
+ });
  it("does not animate when the timeline belongs to different measured audio",()=>{
   expect(sampleGabrooMobileAvatarPlayback({...input,timeline:{...timeline,audio_id:"c".repeat(64)}}).controls.viseme.shape).toBe("neutral");
   expect(sampleGabrooMobileAvatarPlayback({...input,timeline:{...timeline,duration_ms:998}}).controls.viseme.shape).toBe("neutral");
