@@ -47,6 +47,26 @@ describe("daily speaking challenge",()=>{
   expect(challenge.prompt).toContain("Could you please clarify?");
   expect(challenge.focus).toBe("Practise a phrase you chose to keep");
  });
+ it("keeps today's saved phrase stable when the journal returns entries in a different order",()=>{
+  const phrases=[
+   {memory_key:"Phrase B",content:"Learner phrase: Could you send me the details?"},
+   {memory_key:"Phrase A",content:"Learner phrase: I will get back to you."}
+  ];
+  expect(buildDailySpeakingChallenge("2026-11-25",[],phrases)).toEqual(buildDailySpeakingChallenge("2026-11-25",[],[...phrases].reverse()));
+ });
+ it("deduplicates identical saved phrases before rotating",()=>{
+  const phrase={memory_key:"Useful phrase",content:"Learner phrase: Could you please clarify?"};
+  const unique=buildDailySpeakingChallenge("2026-11-25",[],[phrase,{memory_key:"Another key",content:"Learner phrase: I will check and confirm."}]);
+  const duplicated=buildDailySpeakingChallenge("2026-11-25",[],[phrase,phrase,{memory_key:"Another key",content:"Learner phrase: I will check and confirm."}]);
+  expect(duplicated).toEqual(unique);
+ });
+ it("rotates through distinct saved phrases across consecutive local dates",()=>{
+  const phrases=[
+   {memory_key:"Phrase B",content:"Learner phrase: Could you send me the details?"},
+   {memory_key:"Phrase A",content:"Learner phrase: I will get back to you."}
+  ];
+  expect(buildDailySpeakingChallenge("2026-11-25",[],phrases).prompt).not.toBe(buildDailySpeakingChallenge("2026-11-26",[],phrases).prompt);
+ });
  it("falls back to the normal challenge when the journal has no usable phrase",()=>{
   const challenge=buildDailySpeakingChallenge("2026-11-25",[],[{memory_key:"",content:"Practice version: "}]);
   expect(challenge.title).not.toBe("Bring a saved phrase to life");
