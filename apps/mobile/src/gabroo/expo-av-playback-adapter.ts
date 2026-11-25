@@ -35,13 +35,15 @@ export async function createGabrooExpoAvPlayback(input: {
   gate: GabrooAvatarRendererGate;
   onError?: (error: Error) => void;
   nowMs?: number;
-  cacheAudio?: (input: { remoteUri: string; audioSha256: string; expiresAt: string }) => Promise<GabrooCachedAudio>;
+  cacheAudio?: (input: { remoteUri: string; audioSha256: string; expiresAt: string; signal?: AbortSignal }) => Promise<GabrooCachedAudio>;
+  signal?: AbortSignal;
   createSound?: (
     source: { uri: string },
     initialStatus: { shouldPlay: boolean; progressUpdateIntervalMillis: number },
     onPlaybackStatusUpdate: (status: import("expo-av").AVPlaybackStatus) => void,
   ) => Promise<{ sound: GabrooExpoAvSoundLike }>;
 }): Promise<GabrooExpoAvPlaybackHandle> {
+  if (input.signal?.aborted) throw new Error("Gabroo playback was cancelled.");
   const prepared = prepareGabrooPlaybackAsset(input.asset, input.nowMs);
   if (!isGabrooPlayableAudioUri(prepared.uri)) {
     throw new Error("A playable Gabroo audio URI is required.");
@@ -52,7 +54,9 @@ export async function createGabrooExpoAvPlayback(input: {
     remoteUri: prepared.uri,
     audioSha256: identity.audioSha256,
     expiresAt: prepared.expiresAt,
+    signal: input.signal,
   });
+  if (input.signal?.aborted) throw new Error("Gabroo playback was cancelled.");
   if (cachedAudio.audioSha256.toLowerCase() !== identity.audioSha256.toLowerCase()
     || !isGabrooPlayableAudioUri(cachedAudio.uri)) {
     throw new Error("Gabroo cached audio failed its playback integrity check.");
@@ -71,7 +75,7 @@ export async function createGabrooExpoAvPlayback(input: {
     return Audio.Sound.createAsync(source, initialStatus, onPlaybackStatusUpdate);
   });
 
-  const stopClock = () => {
+  const abortPlayback = () => {\n    stopClock();\n    if (sound) {\n      const current = sound;\n      sound = null;\n      void current.unloadAsync().catch(() => undefined);\n    }\n  };\n  input.signal?.addEventListener("abort", abortPlayback, { once: true });\n\n  const stopClock = () => {
     if (closed) return;
     closed = true;
     clock.stop();
@@ -100,7 +104,7 @@ export async function createGabrooExpoAvPlayback(input: {
       },
     );
     sound = created.sound;
-    if (closed) await sound.unloadAsync().catch(() => undefined);
+    if (closed || input.signal?.aborted) {\n      await sound.unloadAsync().catch(() => undefined);\n      sound = null;\n    }
   } catch (reason) {
     stopClock();
     throw reason instanceof Error ? reason : new Error("Could not load Gabroo audio.");
