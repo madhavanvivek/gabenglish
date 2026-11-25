@@ -353,6 +353,16 @@ export type LearningLessonDetail={
 export async function getLearningLesson(id:string){
  return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(id),"GET") as LearningLessonDetail;
 }
+
+export type GabrooNextExerciseSelection={
+ exercise:{type:"exercise";id:string;skill?:"grammar"|"vocabulary"|"comprehension";difficulty?:number;instruction:string;prompt:string;response_type:"text"|"single_choice";options?:Array<{id:string;label:string}>}|null;
+ reason:"targeted_skill"|"next_unseen_exercise"|"review_available"|"no_exercises";
+ focus_skill:"grammar"|"vocabulary"|"comprehension"|null;
+ target_difficulty:number|null;
+};
+export async function getGabrooNextExercise(lessonId:string){
+ return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(lessonId)+"/next-exercise","GET") as {lesson_id:string;selection:GabrooNextExerciseSelection};
+}
 export async function saveLearningLessonProgress(id:string,progress_percent:number){
  return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(id)+"/progress","POST",{progress_percent}) as {lesson_id:string;learning_direction:"ml_to_en"|"en_to_ml";progress:{status:string;progress_percent:number;updated_at:string};course_progress:{progress_percent:number;completed_lessons:number;total_started_lessons:number}};
 }
