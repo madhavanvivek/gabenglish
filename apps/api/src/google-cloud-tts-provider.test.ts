@@ -1,7 +1,10 @@
 import {describe,it,expect,vi} from "vitest";
-import {createGoogleCloudTtsProvider} from "./google-cloud-tts-provider.js";
+import {buildGabrooGoogleTtsSsml,createGoogleCloudTtsProvider} from "./google-cloud-tts-provider.js";
 
 describe("Google Cloud TTS provider",()=>{
+ it("builds safe bilingual SSML",()=>{ expect(buildGabrooGoogleTtsSsml("നമസ്കാരം! Hello world & <test>.")).toBe("<speak>നമസ്കാരം! <lang xml:lang=\"en-US\">Hello world</lang> &amp; &lt;test&gt;.</speak>"); });
+ it("rejects invalid English locale",()=>{expect(()=>buildGabrooGoogleTtsSsml("hello","bad-locale")).toThrow(/English language code/i);});
+
  const config={GABROO_GOOGLE_TTS_API_KEY:"server-only-test-key",GABROO_GOOGLE_TTS_VOICE:"ml-IN-Standard-B",GABROO_GOOGLE_TTS_LANGUAGE_CODE:"ml-IN"};
  it("remains disabled until both a server API key and explicit voice are configured",()=>{
   expect(createGoogleCloudTtsProvider({...config,GABROO_GOOGLE_TTS_API_KEY:undefined})).toBeUndefined();
@@ -26,7 +29,7 @@ describe("Google Cloud TTS provider",()=>{
   controller.abort();
   expect(captured.init.signal?.aborted).toBe(true);
   expect(JSON.parse(String(captured?.init.body))).toEqual({
-   input:{text:"നമസ്കാരം! Let's practise."},
+   input:{ssml:"<speak>നമസ്കാരം! <lang xml:lang=\"en-US\">Hello world</lang>.</speak>"},
    voice:{languageCode:"ml-IN",name:"ml-IN-Standard-B"},
    audioConfig:{audioEncoding:"MP3",speakingRate:0.9}
   });
