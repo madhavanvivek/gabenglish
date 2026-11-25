@@ -13,7 +13,12 @@ export function toGabrooNativePlayerSnapshot(
   identity: Pick<GabrooPlaybackIdentity, "playbackTicketId" | "audioId" | "audioSha256">,
 ): GabrooNativePlayerSnapshot | null {
   if (status.isLoaded !== true || status.isPlaying !== true
-    || !Number.isFinite(status.positionMillis) || !Number.isFinite(status.durationMillis)) return null;
+    || !Number.isFinite(status.positionMillis) || !Number.isFinite(status.durationMillis)
+    || status.durationMillis! <= 0 || status.positionMillis! < 0
+    || status.positionMillis! >= status.durationMillis!
+    || typeof identity.playbackTicketId !== "string" || !identity.playbackTicketId.trim()
+    || typeof identity.audioId !== "string" || !identity.audioId.trim()
+    || typeof identity.audioSha256 !== "string" || !/^[a-f0-9]{64}$/i.test(identity.audioSha256)) return null;
   return {
     playbackTicketId: identity.playbackTicketId,
     audioId: identity.audioId,
