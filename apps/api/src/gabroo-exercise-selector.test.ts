@@ -26,11 +26,11 @@ describe("Gabroo next exercise selector",()=>{
   expect(result.exercise?.id).toBe("vocab-1");
  });
  it("falls back to the next unseen exercise when no skill guidance matches",()=>{
-  const result=selectGabrooNextExercise({content:lesson,attemptedExerciseIds:["grammar-1"],adaptivePractice:[]});
+  const result=selectGabrooNextExercise({content:lesson,attemptedExerciseIds:["grammar-1","grammar-advanced"],adaptivePractice:[]});
   expect(result).toMatchObject({exercise:{id:"vocab-1"},reason:"next_unseen_exercise"});
  });
  it("offers review when all published exercises have been attempted",()=>{
-  const result=selectGabrooNextExercise({content:lesson,attemptedExerciseIds:["grammar-1","vocab-1","comp-1"],adaptivePractice:[]});
+  const result=selectGabrooNextExercise({content:lesson,attemptedExerciseIds:["grammar-1","grammar-advanced","vocab-1","comp-1"],adaptivePractice:[]});
   expect(result).toMatchObject({exercise:{id:"grammar-1"},reason:"review_available"});
  });
  it("returns no exercise for a lesson without exercises",()=>{
