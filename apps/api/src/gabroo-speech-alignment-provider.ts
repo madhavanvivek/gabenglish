@@ -47,6 +47,16 @@ export function assertGabrooSpeechAlignmentInputIdentity(
 ):void {
  if(input.audio.byteLength===0||input.audio.byteLength>MAX_ALIGNMENT_AUDIO_BYTES)throw new Error("Gabroo alignment audio must be between 1 byte and 12 MiB.");
  if(!["ml","en","mixed"].includes(input.language))throw new Error("Gabroo alignment language must be ml, en, or mixed.");
+ const supplied=input.identity as GabrooSynthesizedAudioIdentity|null|undefined;
+ if(!supplied||typeof supplied!=="object"
+  ||typeof supplied.audio_id!=="string"||supplied.audio_id.length===0
+  ||supplied.audio_id.length>160||supplied.audio_id.trim()!==supplied.audio_id
+  ||typeof supplied.audio_sha256!=="string"||!/^[a-f0-9]{64}$/i.test(supplied.audio_sha256)
+  ||typeof supplied.text_sha256!=="string"||!/^[a-f0-9]{64}$/i.test(supplied.text_sha256)
+  ||!Number.isInteger(supplied.text_length)||supplied.text_length<1||supplied.text_length>4_000
+  ||!Number.isFinite(supplied.duration_ms)||supplied.duration_ms<=0||supplied.duration_ms>10*60*1000){
+  throw new Error("Gabroo alignment identity is malformed or outside its permitted bounds.");
+ }
  const recomputed=createGabrooSynthesizedAudioIdentity({
   audio:input.audio,
   text:input.text,
