@@ -153,3 +153,27 @@ describe("Gabroo audio download cancellation", () => {
     expect(fs.moveAsync).not.toHaveBeenCalled();
   });
 });
+
+
+describe("Gabroo cached-file cancellation", () => {
+  it("preserves a valid cached asset if cancellation occurs during verification", async () => {
+    const path = `file:///private/cache/gabroo-${digest}-${Date.parse("2030-01-01T00:00:00.000Z")}.audio`;
+    const { fs, files } = makeFs({ [path]: bytes });
+    const controller = new AbortController();
+    vi.mocked(fs.readAsBase64Async).mockImplementationOnce(async () => {
+      controller.abort();
+      return btoa(String.fromCharCode(...bytes));
+    });
+    await expect(cacheGabrooSpeechAudio({
+      remoteUri: "https://cdn.example.test/speech",
+      cacheDirectory: "file:///private/cache",
+      audioSha256: digest,
+      expiresAt: "2030-01-01T00:00:00.000Z",
+      fileSystem: fs,
+      signal: controller.signal,
+    })).rejects.toThrow(/cancelled/i);
+    expect(files.has(path)).toBe(true);
+    expect(fs.deleteAsync).not.toHaveBeenCalled();
+    expect(fs.downloadAsync).not.toHaveBeenCalled();
+  });
+});
