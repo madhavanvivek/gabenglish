@@ -16,3 +16,7 @@ ALTER TABLE learner_exercise_attempts
 CREATE INDEX learner_exercise_attempts_stage_evidence_idx
   ON learner_exercise_attempts(user_id, learning_direction, learner_stage, created_at DESC)
   WHERE learner_stage IS NOT NULL;
+
+-- Freeze the learner's confirmed stage alongside direction for each Gabroo conversation.
+ALTER TABLE gabroo_conversations
+  ADD COLUMN learning_stage smallint CHECK (learning_stage BETWEEN 1 AND 5);
