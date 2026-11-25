@@ -144,11 +144,11 @@ export async function cleanupExpiredGabrooSpeechAudio(input: {
   const names = await input.fileSystem.readDirectoryAsync(input.cacheDirectory);
   let removed = 0;
   for (const name of names) {
-    const match = /^gabroo-[a-f0-9]{64}-(\\d+)\\.audio$/i.exec(name);
+    const match = /^gabroo-[a-f0-9]{64}-(\d+)\.audio$/i.exec(name);
     if (!match) continue;
     const expiryMs = Number(match[1]);
     if (Number.isSafeInteger(expiryMs) && expiryMs <= nowMs) {
-      await input.fileSystem.deleteAsync(`${input.cacheDirectory.replace(/\\/$/, "")}/${name}`, { idempotent: true });
+      await input.fileSystem.deleteAsync(`${input.cacheDirectory.replace(/\/$/, "")}/${name}`, { idempotent: true });
       removed += 1;
     }
   }
