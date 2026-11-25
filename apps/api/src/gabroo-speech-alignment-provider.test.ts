@@ -27,11 +27,11 @@ describe("Gabroo speech alignment provider boundary",()=>{
   expect(result.kind).toBe("character");
  });
  it("rejects stale audio, changed text, and duration mismatch",()=>{
-  const phoneme={kind:"phoneme" as const,alignment:{audio_id:identity.audio_id,audio_sha256:"c".repeat(64),duration_ms:1000,phonemes:[]}};
+  const phoneme={kind:"phoneme" as const,alignment:{audio_id:identity.audio_id,audio_sha256:"c".repeat(64),duration_ms:1000,phonemes:[{phoneme:"m",start_ms:0,end_ms:50}]}};
   expect(()=>validateGabrooSpeechAlignmentResult(phoneme,identity,"Hello")).toThrow(/audio asset/i);
-  const character={kind:"character" as const,alignment:{audio_id:identity.audio_id,audio_sha256:identity.audio_sha256,text_sha256:"c".repeat(64),text_length:5,duration_ms:1000,characters:[]}};
+  const character={kind:"character" as const,alignment:{audio_id:identity.audio_id,audio_sha256:identity.audio_sha256,text_sha256:"c".repeat(64),text_length:5,duration_ms:1000,characters:[{start_index:0,end_index:1,start_ms:0,end_ms:50}]}};
   expect(()=>validateGabrooSpeechAlignmentResult(character,identity,"Hello")).toThrow(/source text/i);
-  const wrongDuration={kind:"phoneme" as const,alignment:{audio_id:identity.audio_id,audio_sha256:identity.audio_sha256,duration_ms:1200,phonemes:[]}};
+  const wrongDuration={kind:"phoneme" as const,alignment:{audio_id:identity.audio_id,audio_sha256:identity.audio_sha256,duration_ms:1200,phonemes:[{phoneme:"m",start_ms:0,end_ms:50}]}};
   expect(()=>validateGabrooSpeechAlignmentResult(wrongDuration,identity,"Hello")).toThrow(/audio asset/i);
  });
  it("rejects malformed provider events instead of coercing them",()=>{
@@ -69,7 +69,7 @@ describe("Gabroo speech alignment provider boundary",()=>{
   const provider={align:async()=>({kind:"phoneme" as const,alignment:{audio_id:exactIdentity.audio_id,audio_sha256:exactIdentity.audio_sha256,duration_ms:500,phonemes:[{phoneme:"h",start_ms:0,end_ms:50}]}})};
   await expect(runGabrooSpeechAlignment(provider,{audio,text,language:"en",identity:exactIdentity,signal:controller.signal})).rejects.toThrow(/cancelled/i);
   const during=new AbortController();
-  const abortingProvider={align:async()=>{during.abort();return {kind:"phoneme" as const,alignment:{audio_id:exactIdentity.audio_id,audio_sha256:exactIdentity.audio_sha256,duration_ms:500,phonemes:[]}};}};
+  const abortingProvider={align:async()=>{during.abort();return {kind:"phoneme" as const,alignment:{audio_id:exactIdentity.audio_id,audio_sha256:exactIdentity.audio_sha256,duration_ms:500,phonemes:[{phoneme:"h",start_ms:0,end_ms:50}]}};}};
   await expect(runGabrooSpeechAlignment(abortingProvider,{audio,text,language:"en",identity:exactIdentity,signal:during.signal})).rejects.toThrow(/cancelled/i);
  });
 
