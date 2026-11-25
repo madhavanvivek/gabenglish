@@ -222,7 +222,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   let streamedAnswer="";
   let streamStarted=false;
   const sendStreamEvent=(event:string,payload:unknown)=>{
-   if(!reply.raw.destroyed&&!reply.raw.writableEnded)reply.raw.write("event: "+event+"\\ndata: "+JSON.stringify(payload)+"\\n\\n");
+   if(!reply.raw.destroyed&&!reply.raw.writableEnded)reply.raw.write("event: "+event+"\ndata: "+JSON.stringify(payload)+"\n\n");
   };
   const streamFailure=(status:number,code:string,message:string)=>{
    if(streamStarted){sendStreamEvent("error",{error:{code,message,request_id:request.id}});reply.raw.end();return reply;}
