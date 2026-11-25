@@ -95,6 +95,23 @@ describe("Google Cloud TTS provider",()=>{
   await provider.synthesize({text:"നമസ്കാരം! Please practise.",speed:1,signal:new AbortController().signal});
   expect(body?.input).toEqual({text:"നമസ്കാരം! Please practise."});
  });
+ it("rejects an oversized declared content length without reading the body",async()=>{
+  let cancelled=false,read=false;
+  const body=new ReadableStream<Uint8Array>({
+   pull(controller){read=true;controller.enqueue(new Uint8Array([1]));},
+   cancel(){cancelled=true;}
+  });
+  const provider=createGoogleCloudTtsProvider(config,async()=>new Response(body,{headers:{"content-length":String(20*1024*1024)}}))!;
+  await expect(provider.synthesize({text:"hello",speed:1,signal:new AbortController().signal})).rejects.toThrow(/size limit/i);
+  expect(read).toBe(false);
+  expect(cancelled).toBe(true);
+ });
+ it("rejects malformed JSON and empty provider response bodies explicitly",async()=>{
+  const malformed=createGoogleCloudTtsProvider(config,async()=>new Response("{not-json",{headers:{"content-type":"application/json"}}))!;
+  await expect(malformed.synthesize({text:"hello",speed:1,signal:new AbortController().signal})).rejects.toThrow(/malformed JSON/i);
+  const empty=createGoogleCloudTtsProvider(config,async()=>new Response(null))!;
+  await expect(empty.synthesize({text:"hello",speed:1,signal:new AbortController().signal})).rejects.toThrow(/no audio content/i);
+ });
  it("bounds the provider JSON response while streaming before buffering it",async()=>{
   let cancelled=false;
   let sent=0;
