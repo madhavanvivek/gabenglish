@@ -36,7 +36,7 @@ describe("validateGabrooPlaybackAsset", () => {
   });
 
   it("does not allow caller mutation after validation to alter the accepted timeline", () => {
-    const source = structuredClone(timeline);
+    const source: any = structuredClone(timeline);
     const parsed = validateGabrooPlaybackAsset(identity, source);
     source.visemes[0].shape = "closed_lips";
     expect(parsed.visemes[0].shape).toBe("open_wide");
