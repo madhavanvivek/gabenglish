@@ -121,3 +121,8 @@ The mobile API layer now also exposes a consent-gated speech-generation request.
 ## Single-envelope native playback handoff
 
 The mobile native playback adapter now accepts one untrusted speech-asset envelope rather than separately supplied URL, playback identity and timeline values. A preflight helper validates the server-issued envelope and expiry, then derives the URI, identity and parsed timeline exclusively from that same object. This closes a caller-substitution gap where a valid timeline and identity could otherwise be paired with an unrelated HTTPS audio URL. Tests cover successful derivation, expiry, cross-audio timeline substitution and alignment-hash mismatch. The adapter still remains gated by the owner-approved character/rig and live renderer integration; no production audio is enabled by this change.
+
+
+## Native playback adapter lifecycle verification
+
+The Expo AV adapter now exposes an injectable sound factory for deterministic tests while retaining Expo AV as the production default. Mobile tests exercise the adapter boundary directly: expired, cross-audio and unsafe-URL assets are rejected before native sound creation; valid assets pass only the validated URL to the factory; and native sound resources are unloaded. Lifecycle tests exercise native status callbacks across play, pause, resume, completion and decoder failure, verifying that playback generations reset to neutral and consumer-visible errors are reported without allowing callback exceptions to escape. CI typechecking caught a mock-call typing issue in the new tests; the test double was corrected before the latest validation run. This is adapter-level automated coverage, not Android hardware acceptance.
