@@ -19,12 +19,16 @@ export interface GabrooExpoAvPlaybackHandle {
  * avatar clock. The adapter accepts one complete server-issued asset envelope
  * and derives its URI, audio identity and timeline from that same validated
  * object, preventing callers from mixing unrelated audio and alignment data.
+ *
+ * createSound is injectable for deterministic boundary tests; production
+ * callers use Expo AV's native implementation by default.
  */
 export async function createGabrooExpoAvPlayback(input: {
   asset: unknown;
   gate: GabrooAvatarRendererGate;
   onError?: (error: Error) => void;
   nowMs?: number;
+  createSound?: typeof Audio.Sound.createAsync;
 }): Promise<GabrooExpoAvPlaybackHandle> {
   const prepared = prepareGabrooPlaybackAsset(input.asset, input.nowMs);
   if (!isGabrooPlayableAudioUri(prepared.uri)) {
@@ -40,6 +44,7 @@ export async function createGabrooExpoAvPlayback(input: {
   let sound: Audio.Sound | null = null;
   let started = false;
   let closed = false;
+  const createSound = input.createSound ?? Audio.Sound.createAsync;
 
   const stopClock = () => {
     if (closed) return;
@@ -48,7 +53,7 @@ export async function createGabrooExpoAvPlayback(input: {
   };
 
   try {
-    const created = await Audio.Sound.createAsync(
+    const created = await createSound(
       { uri: prepared.uri },
       { shouldPlay: false, progressUpdateIntervalMillis: 40 },
       status => {
