@@ -44,6 +44,19 @@ describe("Gabroo teaching policy",()=>{
   expect(policy.responseGuidance.join(" ")).toContain("learner is learning English");
   expect(buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"}).vocabularyFocus).toEqual([]);
  });
+ it("uses only sufficiently evidenced learner skill gaps and avoids proficiency claims",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"gentle_correction",supportLanguage:"ml",skillFocus:[
+   {skillKey:"grammar",accuracy:0.4,attemptCount:8},
+   {skillKey:"vocabulary",accuracy:0.5,attemptCount:5},
+   {skillKey:"pronunciation",accuracy:0.1,attemptCount:4},
+   {skillKey:"fluency",accuracy:0.3,attemptCount:9},
+   {skillKey:"writing",accuracy:0.2,attemptCount:12}
+  ]});
+  expect(policy.skillFocus).toHaveLength(3);
+  expect(policy.skillFocus.map(item=>item.skillKey)).toEqual(["grammar","vocabulary","fluency"]);
+  expect(policy.responseGuidance.join(" ")).toContain("do not invent specific errors");
+  expect(buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"}).skillFocus).toEqual([]);
+ });
  it("defines distinct correction and learning goals for each mode",()=>{
   const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
   const policies=modes.map(mode=>buildGabrooTeachingPolicy({mode,supportLanguage:"en"}));
