@@ -33,7 +33,6 @@ export class GabrooNativePlaybackClock {
   constructor(private readonly gate: GabrooAvatarRendererGate) {}
 
   begin(identity: GabrooPlaybackIdentity): number {
-    if (this.generation !== null) this.gate.stopPlayback(this.generation);
     this.identity = null;
     this.generation = null;
     this.stopped = true;
@@ -94,9 +93,9 @@ export class GabrooNativePlaybackClock {
   stop(): void {
     if (this.stopped) return;
     this.stopped = true;
+    const generation = this.generation;
     this.identity = null;
     this.generation = null;
-    const generation = this.generation;
     if (generation !== null) this.gate.stopPlayback(generation);
   }
 
