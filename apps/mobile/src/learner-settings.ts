@@ -31,3 +31,17 @@ export function isCourseForLearningDirection(
 ): boolean {
   return courseDirection === learnerDirection;
 }
+
+export type GabenglishLearningStage=1|2|3|4|5;
+export const GABROO_LEARNING_STAGES=[
+ {stage:1 as const,title:"Malayalam Mode",description:"Build everyday English with Malayalam explanations."},
+ {stage:2 as const,title:"Malayalam + English Mix",description:"Gradually use more English in familiar situations."},
+ {stage:3 as const,title:"English Practice Mode",description:"Practise expressing your ideas in simple English."},
+ {stage:4 as const,title:"English Immersion",description:"Build natural communication with less Malayalam support."},
+ {stage:5 as const,title:"Expert Communication",description:"Develop nuance, precision and confident professional communication."}
+] as const;
+
+/** A chosen stage is a learner preference, never a measured proficiency result. */
+export function resolveLearningStage(value:unknown):GabenglishLearningStage|null{
+ return value===1||value===2||value===3||value===4||value===5?value:null;
+}
