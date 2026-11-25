@@ -5,6 +5,7 @@ import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
 import {buildGabrooTeachingPolicy,type GabrooTeachingPolicy} from "./gabroo-teaching-policy.js";
+import {buildGabrooFeedbackPrompt,parseGabrooFeedback} from "./gabroo-feedback.js";
 
 export type GabrooConversationMode="free_flow"|"gentle_correction"|"detailed_correction"|"topic_practice"|"role_play"|"vocabulary_building"|"confidence_practice";
 export type GabrooMessage={role:"user"|"assistant";content:string};
@@ -26,6 +27,37 @@ async function learnerFor(request:any,reply:any,pool:Pool,config:AppConfig){
 }
 const conversationSelect="id,title,mode,support_language,learning_direction,target_language,learning_stage,status,turn_count,created_at,updated_at,closed_at";
 export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:Pool,config:AppConfig,provider?:GabrooConversationProvider){
+ app.post("/api/v1/gabroo/feedback",async(request,reply)=>{
+  const learner=await learnerFor(request,reply,pool,config);if(!learner)return;
+  if(!provider)return error(reply,request.id,503,"GABROO_PROVIDER_UNAVAILABLE","Gabroo feedback is not available yet.");
+  const parsed=z.object({text:z.string().trim().min(2).max(1500)}).strict().safeParse(request.body);
+  if(!parsed.success)return error(reply,request.id,400,"VALIDATION_ERROR","Please provide a sentence between 2 and 1,500 characters.");
+  const preferences=await pool.query<{support_language:"ml"|"en";learning_direction:"ml_to_en"|"en_to_ml"}>("SELECT support_language,learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const saved=preferences.rows[0]??{support_language:"ml" as const,learning_direction:"ml_to_en" as const};
+  const direction=saved.learning_direction;
+  const targetLanguage=direction==="ml_to_en"?"en":"ml";
+  const stage=await pool.query<{stage:1|2|3|4|5}>("SELECT stage FROM learner_learning_stages WHERE user_id=$1 AND learning_direction=$2",[learner.id,direction]);
+  const controller=new AbortController();let timeout:ReturnType<typeof setTimeout>|undefined;
+  try{
+   const timedOut=new Promise<never>((_,reject)=>{timeout=setTimeout(()=>{controller.abort();reject(new Error("feedback timeout"));},PROVIDER_TIMEOUT_MS);});
+   const response=await Promise.race([
+    provider.reply({
+     mode:"detailed_correction",supportLanguage:saved.support_language,learningDirection:direction,targetLanguage,
+     history:[{role:"user",content:buildGabrooFeedbackPrompt({text:parsed.data.text,targetLanguage,supportLanguage:saved.support_language})}],
+     signal:controller.signal,
+     teachingPolicy:buildGabrooTeachingPolicy({mode:"detailed_correction",supportLanguage:saved.support_language,learningDirection:direction,targetLanguage,stage:stage.rows[0]?.stage})
+    }),
+    timedOut
+   ]);
+   const feedback=parseGabrooFeedback(response.content);
+   if(!feedback)return error(reply,request.id,503,"GABROO_FEEDBACK_INVALID","Gabroo could not produce validated feedback. Please try again.");
+   return {feedback,disclaimer:"Suggestions are language-learning guidance, not a formal proficiency assessment. Review each suggestion before saving it."};
+  }catch(e){
+   request.log.error({request_id:request.id},"Gabroo structured feedback request failed");
+   return error(reply,request.id,503,"GABROO_FEEDBACK_UNAVAILABLE","Gabroo feedback is temporarily unavailable. Please try again.");
+  }finally{if(timeout)clearTimeout(timeout);}
+ });
+
  app.post("/api/v1/gabroo/conversations",async(request,reply)=>{
   const learner=await learnerFor(request,reply,pool,config);if(!learner)return;
   if(!provider)return error(reply,request.id,503,"GABROO_PROVIDER_UNAVAILABLE","Gabroo conversations are not available yet. Your subscription and account remain unchanged.");
