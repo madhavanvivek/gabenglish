@@ -152,3 +152,10 @@ The playback adapter passes the same cancellation signal through cache preparati
 The Expo AV adapter now treats native buffering as an interruption even if the platform still reports `isPlaying: true`. It neutralizes the avatar and closes the current playback generation while buffering; animation resumes only after a fresh native status tick reports playback without buffering. This avoids driving visemes and gestures from a stale playhead during Android decoder starvation, network stalls, or audio-route changes.
 
 A rejected native `playAsync()` now reports a normalized error to the consumer, invalidates any active animation generation, and rethrows so the screen can present an appropriate recovery action. Tests cover buffering/resume and playback-route failure. Device-specific validation is still required for calls, Bluetooth/headset changes, app background/foreground transitions, and vendor-specific Android audio focus behavior.
+
+
+## App background and microphone cleanup
+
+The Gabroo screen now stops device TTS as soon as the app leaves the active state, invalidating the current speech run so late segment callbacks cannot continue a reply in the background. Unsubmitted transcription recordings and locally captured microphone-test files are stopped and deleted when the app backgrounds. If the app backgrounds while a native recording start/stop operation is still in flight, the operation's completion path performs the same cleanup. Capture entry points also refuse to start while the app is not active, and the audio mode is restored after transcription capture is discarded.
+
+This is application-level lifecycle handling. Validate on physical Android devices for notification shade, lock screen, incoming calls, Bluetooth route changes, process recreation and OEM-specific audio focus behavior before release.
