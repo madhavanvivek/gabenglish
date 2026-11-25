@@ -26,9 +26,10 @@ export function selectGabrooNextExercise(input:{
  for(const item of guidance){
   const candidates=unseen.filter(exercise=>exercise.skill===item.skill);
   if(candidates.length===0)continue;
-  const selected=item.target_difficulty===null?candidates[0]!:candidates
+  const preferredDifficulty=item.action==="reinforce_current_pattern"?item.current_difficulty:item.target_difficulty;
+  const selected=preferredDifficulty===null?candidates[0]!:candidates
    .filter(exercise=>exercise.difficulty!==undefined)
-   .sort((a,b)=>Math.abs(a.difficulty!-item.target_difficulty!)-Math.abs(b.difficulty!-item.target_difficulty!)||a.difficulty!-b.difficulty!)[0]??candidates[0]!;
+   .sort((a,b)=>Math.abs(a.difficulty!-preferredDifficulty)-Math.abs(b.difficulty!-preferredDifficulty)||a.difficulty!-b.difficulty!)[0]??candidates[0]!;
   return {exercise:selected,reason:"targeted_skill",focus_skill:item.skill,target_difficulty:item.target_difficulty};
  }
  if(unseen[0])return {exercise:unseen[0],reason:"next_unseen_exercise",focus_skill:unseen[0].skill??null,target_difficulty:unseen[0].difficulty??null};
