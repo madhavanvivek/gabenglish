@@ -205,9 +205,24 @@ export default function GabrooScreen(){
    transcriptionRecordingRef.current=created.recording;
    created.recording.setProgressUpdateInterval(250);
    created.recording.setOnRecordingStatusUpdate(status=>{
+    if(transcriptionRecordingRef.current!==created.recording)return;
+    if(!lifecycleIsCurrent()){
+     created.recording.setOnRecordingStatusUpdate(null);
+     void discardTranscriptionAudio();
+     return;
+    }
     if(status.isRecording&&status.durationMillis>=GABROO_LOCAL_CAPTURE_MAX_MS){
      created.recording.setOnRecordingStatusUpdate(null);
      void stopTranscriptionCapture();
+     return;
+    }
+    // Expo AV reports isRecording=false when the native capture session
+    // unexpectedly stops. A normal user stop removes this listener first.
+    if(!status.isRecording&&!status.isDoneRecording){
+     created.recording.setOnRecordingStatusUpdate(null);
+     void discardTranscriptionAudio().then(()=>{
+      if(lifecycleIsCurrent())setSpeechNotice("Microphone capture was interrupted. The partial recording was discarded; please start again.");
+     });
     }
    });
    setTranscriptionRecording(true);
