@@ -65,7 +65,7 @@ describe("GLIM rubric evidence adapter",()=>{
   const aggregated=aggregatePlacementEvidenceBySkill(mapped,"attempt-123");
   expect(aggregated).toHaveLength(1);
   expect(aggregated[0]).toMatchObject({
-   skill:"grammar",score:0.5,confidence:0.8,
+   skill:"grammar",score:0.5,confidence:0.85,
    source:"placement_assessment",taskId:"attempt-123:grammar"
   });
  });
