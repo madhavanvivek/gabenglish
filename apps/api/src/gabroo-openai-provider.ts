@@ -1,7 +1,7 @@
 import type {GabrooConversationProvider,GabrooMessage} from "./gabroo-conversations.js";
 import type {GabrooTeachingPolicy} from "./gabroo-teaching-policy.js";
 
-type ProviderConfig={apiKey:string;baseUrl:string;model:string};
+type ProviderConfig={apiKey:string;baseUrl:string;model:string;maxOutputTokens?:number};
 export const GABROO_PROVIDER_ADAPTER_VERSION="1";
 const MAX_HISTORY_MESSAGES=16;
 const MAX_HISTORY_CHARACTERS=24_000;
@@ -45,7 +45,7 @@ export function createOpenAICompatibleGabrooProvider(config:ProviderConfig):Gabr
    const response=await fetch(baseUrl+"/chat/completions",{
     method:"POST",
     headers:{authorization:"Bearer "+config.apiKey,"content-type":"application/json"},
-    body:JSON.stringify({model:config.model,messages,temperature:0.45}),
+    body:JSON.stringify({model:config.model,messages,temperature:0.45,max_tokens:config.maxOutputTokens??512}),
     signal:input.signal
    });
    const payload=await response.json().catch(()=>({})) as ProviderResponse;
