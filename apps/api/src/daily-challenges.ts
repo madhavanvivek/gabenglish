@@ -32,11 +32,12 @@ export async function registerDailyChallengeRoutes(app:FastifyInstance,pool:Pool
    `SELECT challenge_date::text AS challenge_date,learning_direction,challenge_title,skill_key,conversation_id,completed_at
     FROM learner_daily_challenge_completions
     WHERE user_id=$1 AND learning_direction=COALESCE((SELECT learning_direction FROM user_preferences WHERE user_id=$1),'ml_to_en')
-      AND challenge_date >= (CURRENT_DATE - ($2::integer - 1))
-    ORDER BY challenge_date DESC LIMIT $2`,
+      ORDER BY challenge_date DESC LIMIT $2`,
    [learner.id,limit]
   );
-  return {learning_direction:(await pool.query<{learning_direction:string}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id])).rows[0]?.learning_direction??"ml_to_en",days:limit,completed_days:result.rows.length,completions:result.rows};
+  const preference=await pool.query<{learning_direction:string}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const total=await pool.query<{count:string}>("SELECT count(*)::text AS count FROM learner_daily_challenge_completions WHERE user_id=$1 AND learning_direction=$2",[learner.id,preference.rows[0]?.learning_direction??"ml_to_en"]);
+  return {learning_direction:preference.rows[0]?.learning_direction??"ml_to_en",limit,completed_days:result.rows.length,total_completed_days:Number(total.rows[0]?.count??0),completions:result.rows};
  });
  app.get("/api/v1/learning/daily-challenges/:date",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
