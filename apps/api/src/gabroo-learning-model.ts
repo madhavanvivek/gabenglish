@@ -83,21 +83,23 @@ export function chooseGabrooLearningDecision(input: {
   const estimates = estimateGabrooSkills(input.evidence);
   const totalEvidence = estimates.reduce((sum, item) => sum + item.evidenceCount, 0);
 
-  if (totalEvidence === 0) {
-    return {
-      status: "needs_placement", focusSkill: null,
-      reason: "There is not enough verified learning evidence to estimate proficiency. Start with a short, supportive placement activity.",
-      activity: "placement_task", correctionStyle: "gentle",
-      targetLanguage, supportLanguage, evidenceUsed: 0
-    };
-  }
-
+  // A learner's explicit free-conversation choice takes precedence over
+  // placement prompts, including when no verified evidence exists yet.
   if (input.learnerAskedForFreeConversation) {
     return {
       status: "balanced_practice", focusSkill: null,
-      reason: "Respect the learner's request for open conversation; do not force a lesson or correction.",
+      reason: "Respect the learner's request for open conversation; do not force a lesson, placement activity or correction.",
       activity: "speaking_prompt", correctionStyle: "none",
       targetLanguage, supportLanguage, evidenceUsed: totalEvidence
+    };
+  }
+
+  if (totalEvidence === 0) {
+    return {
+      status: "needs_placement", focusSkill: null,
+      reason: "There is not enough verified learning evidence to estimate proficiency. Start with a short, supportive placement activity when the learner is ready.",
+      activity: "placement_task", correctionStyle: "gentle",
+      targetLanguage, supportLanguage, evidenceUsed: 0
     };
   }
 
