@@ -64,6 +64,23 @@ describe("Google Cloud TTS provider",()=>{
   await expect(pending).rejects.toThrow();
   expect(providerSignal?.aborted).toBe(true);
  });
+ it("aborts a stalled Google request at the configured provider timeout",async()=>{
+  let requestSignal:AbortSignal|undefined;
+  const fetcher=vi.fn(async(_url:string|URL|Request,init?:RequestInit)=>{
+   requestSignal=init?.signal as AbortSignal|undefined;
+   return await new Promise<Response>((_resolve,reject)=>{
+    requestSignal?.addEventListener("abort",()=>reject(new Error("provider request aborted")),{once:true});
+   });
+  });
+  const provider=createGoogleCloudTtsProvider(config,fetcher,5)!;
+  await expect(provider.synthesize({text:"നമസ്കാരം",speed:1,signal:new AbortController().signal})).rejects.toThrow(/provider request aborted/i);
+  expect(fetcher).toHaveBeenCalledOnce();
+  expect(requestSignal?.aborted).toBe(true);
+ });
+ it("rejects an invalid configured provider timeout",()=>{
+  expect(()=>createGoogleCloudTtsProvider(config,fetch,0)).toThrow(/timeout/i);
+  expect(()=>createGoogleCloudTtsProvider(config,fetch,60_001)).toThrow(/timeout/i);
+ });
  it("does not make a provider request when the learner has already cancelled",async()=>{
   const fetcher=vi.fn();
   const provider=createGoogleCloudTtsProvider(config,fetcher)!;
