@@ -23,7 +23,9 @@ export interface AvatarRigFrame {
   viseme: AvatarViseme;
   visemeWeight: number;
   expression: AvatarExpression;
+  expressionWeight: number;
   gesture: AvatarGesture;
+  gestureWeight: number;
 }
 
 export interface AvatarRigAdapter {
@@ -53,7 +55,9 @@ export interface SampledAvatarFrame {
   viseme: AvatarViseme;
   visemeWeight: number;
   expression: AvatarExpression;
+  expressionWeight: number;
   gesture: AvatarGesture;
+  gestureWeight: number;
 }
 
 const VISemes = new Set<AvatarViseme>([
@@ -98,7 +102,7 @@ export function isPlaybackProofValid(proof: PlaybackProof, activeGeneration: num
 }
 
 function neutralFrame(generation: number, positionMs = 0): AvatarRigFrame {
-  return { generation, positionMs, viseme: 'neutral', visemeWeight: 0, expression: 'neutral', gesture: 'idle' };
+  return { generation, positionMs, viseme: 'neutral', visemeWeight: 0, expression: 'neutral', expressionWeight: 0, gesture: 'idle', gestureWeight: 0 };
 }
 
 export class GabrooAvatarRendererGate {
@@ -170,7 +174,9 @@ export class GabrooAvatarRendererGate {
     if (!sampled || !VISemes.has(sampled.viseme)
       || !EXPRESSIONS.has(sampled.expression) || !GESTURES.has(sampled.gesture)
       || !Number.isFinite(sampled.visemeWeight)
-      || sampled.visemeWeight < 0 || sampled.visemeWeight > 1) {
+      || sampled.visemeWeight < 0 || sampled.visemeWeight > 1
+      || !Number.isFinite(sampled.expressionWeight) || sampled.expressionWeight < 0 || sampled.expressionWeight > 1
+      || !Number.isFinite(sampled.gestureWeight) || sampled.gestureWeight < 0 || sampled.gestureWeight > 1) {
       try {
         this.rig.applyFrame(neutralFrame(this.generation, proof.positionMs));
       } catch {
@@ -185,7 +191,9 @@ export class GabrooAvatarRendererGate {
         viseme: sampled.viseme,
         visemeWeight: sampled.viseme === 'neutral' ? 0 : sampled.visemeWeight,
         expression: sampled.expression,
+        expressionWeight: sampled.expression === 'neutral' ? 0 : sampled.expressionWeight,
         gesture: sampled.gesture,
+        gestureWeight: sampled.gesture === 'idle' ? 0 : sampled.gestureWeight,
       });
       return true;
     } catch {
