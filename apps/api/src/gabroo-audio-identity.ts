@@ -22,14 +22,14 @@ export function createGabrooSynthesizedAudioIdentity(input:{
  if(!(input.audio instanceof Uint8Array)||input.audio.byteLength===0){
   throw new Error("Gabroo audio identity requires non-empty synthesized audio bytes.");
  }
- if(typeof input.text!=="string"||input.text.length===0){
-  throw new Error("Gabroo audio identity requires the exact non-empty synthesis text.");
+ if(typeof input.text!=="string"||input.text.trim().length===0||Array.from(input.text).length>4_000){
+  throw new Error("Gabroo audio identity requires the exact non-empty synthesis text of at most 4000 characters.");
  }
  if(!Number.isFinite(input.durationMs)||input.durationMs<=0||input.durationMs>10*60*1000){
   throw new Error("Gabroo audio duration must be positive and no longer than ten minutes.");
  }
  const audioId=input.audioId??randomUUID();
- if(typeof audioId!=="string"||audioId.trim().length===0||audioId.length>160){
+ if(typeof audioId!=="string"||audioId.trim().length===0||audioId!==audioId.trim()||audioId.length>160){
   throw new Error("Gabroo audio identity requires a valid audio ID.");
  }
  return {
