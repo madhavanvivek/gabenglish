@@ -72,6 +72,7 @@ describe("Gabroo secure audio cache", () => {
       remoteUri: "https://cdn.example.test/speech",
       cacheDirectory: "file:///private/cache",
       audioSha256: digest,
+      expiresAt: "2030-01-01T00:00:00.000Z",
       fileSystem: fs,
       nonce: "repair",
     });
