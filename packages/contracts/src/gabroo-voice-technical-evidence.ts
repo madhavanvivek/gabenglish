@@ -26,7 +26,15 @@ export const gabrooVoiceTechnicalEvidenceSchema=z.object({
  trials:z.array(gabrooVoiceTechnicalTrialSchema).min(1).max(100),
  recordedAt:z.string().datetime({offset:true}),
  notes:z.string().max(2000).optional()
-}).strict();
+}).strict().superRefine((evidence,ctx)=>{
+ const seenTrialIds=new Set<string>();
+ evidence.trials.forEach((trial,index)=>{
+  if(seenTrialIds.has(trial.trialId)){
+   ctx.addIssue({code:"custom",path:["trials",index,"trialId"],message:"Trial IDs must be unique; repeated measurements cannot count as independent trials."});
+  }
+  seenTrialIds.add(trial.trialId);
+ });
+});
 
 export type GabrooVoiceTechnicalEvidence=z.infer<typeof gabrooVoiceTechnicalEvidenceSchema>;
 export interface GabrooVoiceTechnicalSummary {
