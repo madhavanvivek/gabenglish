@@ -104,7 +104,7 @@ export async function cacheGabrooSpeechAudioWithExpo(input: {
   audioSha256: string;
   nonce?: string;
 }): Promise<GabrooCachedAudio> {
-  const fs = await import("expo-file-system/legacy");
+  const fs = await import("expo-file-system");
   if (!fs.cacheDirectory) throw new Error("Private app cache is unavailable.");
   return cacheGabrooSpeechAudio({
     ...input,
