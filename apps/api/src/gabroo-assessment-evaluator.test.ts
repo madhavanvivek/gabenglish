@@ -25,7 +25,7 @@ describe("GLIM rubric evidence adapter",()=>{
    task({skill:"pronunciation",method:"audio_analysis"}),
    task({skill:"fluency",method:"audio_analysis"})
   ],"placement_assessment");
-  expect(result.map(item=>item.skill)).toEqual(["pronunciation"]);
+  expect(result.map(item=>item.skill)).toEqual(["pronunciation","fluency"]);
  });
  it("requires learner-review provenance for self-reported evidence",()=>{
   const item=task({skill:"confidence",method:"learner_review"});
