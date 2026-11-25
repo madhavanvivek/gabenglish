@@ -16,6 +16,7 @@ const schema=z.object({
  GABROO_GOOGLE_TTS_API_KEY:z.string().optional(),
  GABROO_GOOGLE_TTS_VOICE:z.string().optional(),
  GABROO_GOOGLE_TTS_LANGUAGE_CODE:z.string().default("ml-IN"),
+ GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE:z.string().default("en-US"),
  GABROO_TTS_DAILY_CHARACTER_LIMIT:z.coerce.number().int().min(1).max(10_000_000).default(10_000),
  GABROO_TTS_MONTHLY_CHARACTER_LIMIT:z.coerce.number().int().min(1).max(100_000_000).default(100_000)
 }).superRefine((value,ctx)=>{
