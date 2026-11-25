@@ -57,3 +57,5 @@ export * from "./gabroo-voice-audition-comparison.js";
 export * from "./gabroo-playback-rate-benchmark.js";
 
 export * from "./gabroo-phoneme-alignment.js";
+
+export * from "./gabroo-character-alignment.js";
