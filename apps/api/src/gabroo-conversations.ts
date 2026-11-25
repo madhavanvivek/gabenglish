@@ -5,11 +5,12 @@ import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
 import {buildGabrooTeachingPolicy,type GabrooTeachingPolicy} from "./gabroo-teaching-policy.js";
+import {chooseGabrooLearningDecision,type GabrooSkillEvidence,type GabrooLearningDecision} from "./gabroo-learning-model.js";
 
 export type GabrooConversationMode="free_flow"|"gentle_correction"|"detailed_correction"|"topic_practice"|"role_play"|"vocabulary_building"|"confidence_practice";
 export type GabrooMessage={role:"user"|"assistant";content:string};
 export type GabrooConversationProvider={
-  reply(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection:"ml_to_en"|"en_to_ml";targetLanguage:"ml"|"en";history:GabrooMessage[];signal:AbortSignal;teachingPolicy:GabrooTeachingPolicy}):Promise<{content:string}>;
+  reply(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection:"ml_to_en"|"en_to_ml";targetLanguage:"ml"|"en";history:GabrooMessage[];signal:AbortSignal;teachingPolicy:GabrooTeachingPolicy;learningDecision?:GabrooLearningDecision}):Promise<{content:string}>;
 };
 const PROVIDER_TIMEOUT_MS=15_000;
 const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
@@ -118,6 +119,8 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   let learnerProfile:{display_name:string|null;learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed"}|undefined;
   let savedMemory:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>=[];
   let savedVocabulary:Array<{term:string;malayalamMeaning:string;exampleSentence:string;status:"learning"|"familiar";isDue:boolean;lastReviewRating:"again"|"hard"|"good"|"easy"|null}>=[];
+  let skillEvidence:GabrooSkillEvidence[]=[];
+  let dueVocabularyCount=0;
   try{
    await client.query("BEGIN");
    const found=await client.query<{id:string;mode:GabrooConversationMode;support_language:"ml"|"en";learning_direction:"ml_to_en"|"en_to_ml";target_language:"ml"|"en";status:string;turn_count:number}>(
@@ -134,6 +137,14 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
    const vocabulary=await client.query<{term:string;malayalamMeaning:string;exampleSentence:string;status:"learning"|"familiar";isDue:boolean;lastReviewRating:"again"|"hard"|"good"|"easy"|null}>(
     "SELECT term,malayalam_meaning AS \"malayalamMeaning\",example_sentence AS \"exampleSentence\",status,(review_due_at<=now()) AS \"isDue\",last_review_rating AS \"lastReviewRating\" FROM gabroo_vocabulary WHERE user_id=$1 AND learning_direction=$2 AND status IN ('learning','familiar') ORDER BY CASE WHEN last_review_rating='again' THEN 0 WHEN review_due_at<=now() THEN 1 WHEN status='learning' THEN 2 ELSE 3 END,updated_at DESC LIMIT 5",[learner.id,snapshot.learning_direction]);
    savedVocabulary=vocabulary.rows;
+   const [evidenceRows,dueRows]=await Promise.all([
+    client.query<{skill:GabrooSkillEvidence["skill"];score:string;confidence:string;source:GabrooSkillEvidence["source"];task_id:string;observed_at:Date}>(
+     "SELECT skill,score::text,confidence::text,source,task_id,observed_at FROM gabroo_skill_evidence WHERE user_id=$1 AND observed_at>=now()-interval '180 days' ORDER BY observed_at DESC LIMIT 300",[learner.id]),
+    client.query<{count:string}>(
+     "SELECT count(*)::text AS count FROM gabroo_vocabulary WHERE user_id=$1 AND learning_direction=$2 AND status<>'mastered' AND review_due_at<=now()",[learner.id,snapshot.learning_direction])
+   ]);
+   skillEvidence=evidenceRows.rows.map(row=>({skill:row.skill,score:Number(row.score),confidence:Number(row.confidence),source:row.source,taskId:row.task_id,observedAt:row.observed_at.toISOString()}));
+   dueVocabularyCount=Number(dueRows.rows[0]?.count??0);
    const existing=await client.query<{role:"user"|"assistant";content:string}>(
     "SELECT role,content FROM gabroo_conversation_messages WHERE conversation_id=$1 ORDER BY sequence_number DESC LIMIT 20",[snapshot.id]);
    history=[...existing.rows].reverse();
@@ -145,6 +156,12 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   }finally{
    client.release();
   }
+  const learningDecision=chooseGabrooLearningDecision({
+   evidence:skillEvidence,
+   learningDirection:snapshot!.learning_direction,
+   dueVocabularyCount,
+   learnerAskedForFreeConversation:snapshot!.mode==="free_flow"
+  });
   const controller=new AbortController();
   let timeout:ReturnType<typeof setTimeout>|undefined;
   let response:{content:string};
@@ -164,6 +181,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
      targetLanguage:snapshot!.target_language,
      history:[...history,{role:"user",content:parsedBody.data.message}],
      signal:controller.signal,
+     learningDecision,
      teachingPolicy:buildGabrooTeachingPolicy({
       mode:snapshot!.mode,
       supportLanguage:snapshot!.support_language,
