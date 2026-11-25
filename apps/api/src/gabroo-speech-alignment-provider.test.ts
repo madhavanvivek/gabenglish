@@ -44,7 +44,7 @@ describe("Gabroo speech alignment provider boundary",()=>{
   const exactIdentity=createGabrooSynthesizedAudioIdentity({audio,text,durationMs:900,audioId:"verified-audio"});
   expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio,text,identity:exactIdentity})).not.toThrow();
   expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio:Buffer.from([1,2,3,5]),text,identity:exactIdentity})).toThrow(/exact audio bytes/i);
-  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio,text:"മറ്റൊരു വാചകം",identity:exactIdentity})).toThrow(/exact audio bytes/i);
+  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio,text:"മറ്റൊരു വാചകം",identity:exactIdentity})).toThrow(/exact audio bytes and source text/i);
  });
 
 });
