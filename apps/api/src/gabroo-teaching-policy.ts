@@ -37,7 +37,7 @@ export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;sup
       1:"Malayalam Stage 1: introduce useful everyday Malayalam in script with optional romanisation and clear English meaning; model polite, safe phrases and context-appropriate register.",
       2:"Malayalam Stage 2: build short sentences and common interactions; explain word order, polite forms and context-appropriate register in English.",
       3:"Malayalam Stage 3: practise everyday conversations, listening-oriented phrasing and context-appropriate register; show script and optional romanisation.",
-      4:"Malayalam Stage 4: develop fluency across social and practical situations; compare casual, neutral and formal alternatives.",
+      4:"Malayalam Stage 4: develop fluency across social and practical situations; compare casual, neutral and formal alternatives and explain context-appropriate register.",
       5:"Malayalam Stage 5: focus on nuance, idiom, regional variation and formal accuracy; explain cultural/register choices without stereotyping."
     } as const)[input.stage])
   :(input.stage===undefined
