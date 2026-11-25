@@ -54,6 +54,7 @@ export default function GabrooScreen(){
  const speechRequestAbortRef=useRef<AbortController|null>(null);
  const speechAudioUriRef=useRef<string|null>(null);
  const speechActiveAudioIdRef=useRef<string|null>(null);
+ const speechPlaybackClockRef=useRef<{audioId:string|null;positionMillis:number;nativeDurationMs:number|null;measuredDurationMs:number|null}>({audioId:null,positionMillis:0,nativeDurationMs:null,measuredDurationMs:null});
  const speechSegmentResolveRef=useRef<(()=>void)|null>(null);
  const [turnState,setTurnState]=useState<GabrooTurnState>(initialGabrooTurnState);
  const [speechNotice,setSpeechNotice]=useState("");
@@ -376,6 +377,7 @@ export default function GabrooScreen(){
      }
      speechAudioUriRef.current=uri;
      speechActiveAudioIdRef.current=audioAsset.audioId;
+     speechPlaybackClockRef.current={audioId:audioAsset.audioId,positionMillis:0,nativeDurationMs:null,measuredDurationMs:audioAsset.metadata?.durationMs??null};
      let sound:Audio.Sound|null=null;
      try{
       const created=await Audio.Sound.createAsync({uri},{shouldPlay:false,rate:speechRateRef.current,shouldCorrectPitch:true});
@@ -405,6 +407,9 @@ export default function GabrooScreen(){
         // segment's playback state, even within the same learner message.
         if(speechActiveAudioIdRef.current!==audioAsset.audioId)return;
         if(status.isLoaded){
+         if(status.isPlaying&&speechPlaybackClockRef.current.audioId===audioAsset.audioId){
+          speechPlaybackClockRef.current={audioId:audioAsset.audioId,positionMillis:status.positionMillis,nativeDurationMs:status.durationMillis,measuredDurationMs:audioAsset.metadata?.durationMs??null};
+         }
          // Promote playback only after Expo confirms this audio item is playing.
          if((status.isPlaying||status.didJustFinish)&&!playbackStarted){
           dispatchPlayback({type:"started",playback_id:playbackId});
@@ -432,6 +437,7 @@ export default function GabrooScreen(){
       }
       if(speechAudioUriRef.current===uri)speechAudioUriRef.current=null;
       if(speechActiveAudioIdRef.current===audioAsset.audioId)speechActiveAudioIdRef.current=null;
+      if(speechPlaybackClockRef.current.audioId===audioAsset.audioId)speechPlaybackClockRef.current={audioId:null,positionMillis:0,nativeDurationMs:null,measuredDurationMs:null};
       // Do not pass remote playback ticket URLs to the local filesystem API.
       if(uri.startsWith("file://"))await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
      }
