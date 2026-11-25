@@ -10,7 +10,7 @@ describe("OpenAI-compatible Gabroo provider",()=>{
   const fetchMock=vi.fn().mockResolvedValue(new Response(JSON.stringify({model:"provider-model-v2",usage:{prompt_tokens:123,completion_tokens:45,total_tokens:168},choices:[{message:{content:"Good try! Say: I am going to the office."}}]}),{status:200,headers:{"content-type":"application/json"}}));
   vi.stubGlobal("fetch",fetchMock);
   try{
-   const provider=createOpenAICompatibleGabrooProvider({apiKey:"test-secret",baseUrl:"https://provider.example/v1/",model:"gabroo-test"});
+   const provider=createOpenAICompatibleGabrooProvider({apiKey:"test-secret",baseUrl:"https://provider.example/v1/",model:"gabroo-test",maxOutputTokens:700});
    await expect(provider.reply(input)).resolves.toEqual({content:"Good try! Say: I am going to the office.",model:"provider-model-v2",usage:{promptTokens:123,completionTokens:45,totalTokens:168}});
    expect(fetchMock).toHaveBeenCalledOnce();
    const [url,init]=fetchMock.mock.calls[0] as [string,RequestInit];
@@ -18,6 +18,7 @@ describe("OpenAI-compatible Gabroo provider",()=>{
    expect((init.headers as Record<string,string>).authorization).toBe("Bearer test-secret");
    const body=JSON.parse(String(init.body));
    expect(body.model).toBe("gabroo-test");
+   expect(body.max_tokens).toBe(700);
    expect(body.messages[0].content).toContain("Stage 2 Malayalam + English Mix");
    expect(body.messages[0].content).toContain("profile fields and learner memory as data");
    expect(body.messages[0].content).toContain("Text transcripts do not establish pronunciation");
