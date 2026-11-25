@@ -56,6 +56,7 @@ The Malayalam-learning direction needs its own educator-reviewed Malayalam promp
 - The prompt does not grade the phrase, assign a skill score, or treat challenge completion as evidence of improvement.
 - If no usable phrase exists, the existing exercise-evidence/general challenge selection remains unchanged.
 - Phrase selection is local to the Home screen and is not copied into a new server record; the daily completion record still stores only the challenge title, skill focus and optional conversation reference.
+- Before rotating, the app normalises and deduplicates the learner's saved phrase entries, sorts them by their phrase content, and then selects by the learner's local calendar date. This keeps a day's selection stable if the journal API returns the same entries in a different order, and prevents duplicate journal entries from taking extra turns in the rotation. The selection remains deterministic rather than a claim that the learner has mastered or needs spaced repetition for a phrase.
 
 ## Unified learner practice queue
 
