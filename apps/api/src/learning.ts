@@ -5,6 +5,7 @@ import type {Pool} from "pg";
 import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
+import {evaluateLearningStage, type LearningStage} from "./learning-stage.js";
 
 type Direction="ml_to_en"|"en_to_ml";
 type CatalogRow={
@@ -70,7 +71,35 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   }
   return {learning_direction:direction,target_language:direction==="ml_to_en"?"en":"ml",courses:[...courses.values()].map(course=>({...course,modules:[...course.modules.values()]})),publication_policy:{drafts_hidden:true,malayalam_requires_educator_approval:true}};
  });
- const lessonIdPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+ app.get("/api/v1/learning/stage",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view your learning stage.");
+  const preferences=await pool.query<{learning_direction:Direction}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preferences.rows[0]?.learning_direction??"ml_to_en";
+  const saved=await pool.query<{stage:number;stage_source:string;updated_at:Date}>(
+   "SELECT stage,stage_source,updated_at FROM learner_learning_stages WHERE user_id=$1 AND learning_direction=$2",[learner.id,direction]
+  );
+  return {learning_direction:direction,stage:saved.rows[0]?.stage??null,stage_source:saved.rows[0]?.stage_source??null,updated_at:saved.rows[0]?.updated_at??null,stage_status:saved.rows[0]?"confirmed":"not_selected"};
+ });
+ app.put("/api/v1/learning/stage",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to update your learning stage.");
+  const body=request.body as {stage?:unknown}|null;
+  if(!body||typeof body.stage!=="number"||!Number.isInteger(body.stage)||body.stage<1||body.stage>5||Object.keys(body).some(key=>key!=="stage")){
+   return failure(reply,request.id,400,"VALIDATION_ERROR","Choose a learning stage from 1 to 5.");
+  }
+  const preferences=await pool.query<{learning_direction:Direction}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preferences.rows[0]?.learning_direction??"ml_to_en";
+  const saved=await pool.query<{stage:number;stage_source:string;updated_at:Date}>(
+   `INSERT INTO learner_learning_stages(user_id,learning_direction,stage,stage_source)
+    VALUES($1,$2,$3,'learner_selected')
+    ON CONFLICT(user_id,learning_direction) DO UPDATE SET stage=EXCLUDED.stage,stage_source='learner_selected',updated_at=now()
+    RETURNING stage,stage_source,updated_at`,[learner.id,direction,body.stage]
+  );
+  return {learning_direction:direction,stage:saved.rows[0]!.stage,stage_source:saved.rows[0]!.stage_source,updated_at:saved.rows[0]!.updated_at,stage_status:"confirmed"};
+ });
+\n const lessonIdPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
  app.get("/api/v1/learning/lessons/:id",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to open this lesson.");
@@ -208,12 +237,38 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
    return failure(reply,request.id,503,"EXERCISE_NOT_CONFIGURED","This exercise is awaiting a valid answer key or accepted-answer rubric.");
   }
   const {correct,feedback}=evaluated;
-  await pool.query(
-   `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-   [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,submitted,correct,feedback]
+  const stageRow=await pool.query<{stage:LearningStage}>(
+   "SELECT stage FROM learner_learning_stages WHERE user_id=$1 AND learning_direction=$2",
+   [learner.id,lesson.learning_direction]
   );
-  return {lesson_id:id,exercise_id:exerciseId,result:{correct,feedback}};
+  const currentStage=stageRow.rows[0]?.stage??null;
+  await pool.query(
+   `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback,learner_stage)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+   [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,submitted,correct,feedback,currentStage]
+  );
+  let stageProgression:ReturnType<typeof evaluateLearningStage>|null=null;
+  if(currentStage!==null){
+   const recent=await pool.query<{is_correct:boolean}>(
+    `SELECT is_correct FROM learner_exercise_attempts
+     WHERE user_id=$1 AND learning_direction=$2 AND learner_stage=$3
+     ORDER BY attempted_at DESC LIMIT 8`,
+    [learner.id,lesson.learning_direction,currentStage]
+   );
+   stageProgression=evaluateLearningStage(currentStage,recent.rows.map(row=>row.is_correct));
+   if(stageProgression.outcome==="promote"||stageProgression.outcome==="demote"){
+    await pool.query(
+     `UPDATE learner_learning_stages SET stage=$3,stage_source='evidence_progression',updated_at=now()
+      WHERE user_id=$1 AND learning_direction=$2 AND stage=$4`,
+     [learner.id,lesson.learning_direction,stageProgression.nextStage,currentStage]
+    );
+   }
+  }
+  return {lesson_id:id,exercise_id:exerciseId,result:{correct,feedback},stage_progression:stageProgression?{
+   current_stage:stageProgression.currentStage,next_stage:stageProgression.nextStage,outcome:stageProgression.outcome,
+   sample_size:stageProgression.sampleSize,correct_count:stageProgression.correctCount,accuracy:stageProgression.accuracy,
+   rationale:stageProgression.rationale
+  }:null};
  });
 
 }
