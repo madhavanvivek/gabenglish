@@ -42,7 +42,7 @@ export interface GabrooSpeechAlignmentProvider {
  * valid identity record with a different audio buffer or source transcript.
  */
 export function assertGabrooSpeechAlignmentInputIdentity(
- input:Pick<GabrooSpeechAlignmentInput,"audio"|"text"|"identity">
+ input:Pick<GabrooSpeechAlignmentInput,"audio"|"text"|"identity"|"language">
 ):void {
  const recomputed=createGabrooSynthesizedAudioIdentity({
   audio:input.audio,
