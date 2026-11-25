@@ -57,10 +57,13 @@ export function summarizeGabrooVoiceAuditions(reviews:GabrooVoiceAuditionReview[
  if(!Array.isArray(reviews)||reviews.length===0)throw new Error("At least one blind audition review is required.");
  const seen=new Set<string>();
  const groups=new Map<string,GabrooVoiceAuditionReview[]>();
- for(const review of reviews){
-  const parsed=gabrooVoiceAuditionReviewSchema.safeParse(review);
+ for(const input of reviews){
+  const parsed=gabrooVoiceAuditionReviewSchema.safeParse(input);
   if(!parsed.success)throw new Error("Invalid voice audition review: "+parsed.error.issues.map(x=>x.path.join(".")+": "+x.message).join("; "));
-  const identity=review.blindCode+"|"+review.reviewerLabel;
+  const review=parsed.data;
+  // Reviewer labels are identifiers within a blind candidate, not display names.
+  // Canonicalise whitespace/case so the same person cannot submit duplicate cards.
+  const identity=review.blindCode+"|"+review.reviewerLabel.toLocaleLowerCase("en-US");
   if(seen.has(identity))throw new Error("Duplicate reviewer scorecard for blind candidate.");
   seen.add(identity);
   const bucket=groups.get(review.blindCode)??[];bucket.push(review);groups.set(review.blindCode,bucket);
