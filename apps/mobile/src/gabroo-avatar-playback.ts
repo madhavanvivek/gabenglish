@@ -31,9 +31,16 @@ export function sampleGabrooMobileAvatarPlayback(input:{
  isPlaying:boolean;
  positionMillis:number;
 }):GabrooRenderedFrame{
- if(!input.timeline||!input.metadata)return {...neutralFrame,controls:{...neutralFrame.controls,viseme:{...neutralFrame.controls.viseme}}};
+ const neutral=():GabrooRenderedFrame=>({...neutralFrame,controls:{...neutralFrame.controls,viseme:{...neutralFrame.controls.viseme}}});
+ if(!input.timeline||!input.metadata)return neutral();
+ // Native status can be stale during pause, completion, unload or a player
+ // transition. Never pass invalid clocks into the renderer sampling path.
+ if(input.isLoaded!==true||input.isPlaying!==true
+  ||!Number.isFinite(input.positionMillis)||input.positionMillis<0
+  ||!Number.isFinite(input.timeline.duration_ms)||input.timeline.duration_ms<=0
+  ||input.positionMillis>=input.timeline.duration_ms)return neutral();
  if(typeof input.expectedPlaybackId!=="string"||input.expectedPlaybackId.length===0
-  ||input.playbackId!==input.expectedPlaybackId)return {...neutralFrame,controls:{...neutralFrame.controls,viseme:{...neutralFrame.controls.viseme}}};
+  ||input.playbackId!==input.expectedPlaybackId)return neutral();
  const metadata=input.metadata;
  if(!/^[a-f0-9]{64}$/.test(metadata.audioId)||metadata.audioId!==metadata.audioSha256
   ||!/^[a-f0-9]{64}$/.test(metadata.textSha256)
@@ -41,7 +48,7 @@ export function sampleGabrooMobileAvatarPlayback(input:{
   ||input.timeline.audio_id!==metadata.audioId
   ||!Number.isFinite(input.timeline.duration_ms)
   ||Math.abs(input.timeline.duration_ms-metadata.durationMs)>1){
-  return {...neutralFrame,controls:{...neutralFrame.controls,viseme:{...neutralFrame.controls.viseme}}};
+  return neutral();
  }
  return sampleGabrooConversationFrameFromPlaybackStatus({
   phase:"speaking",
