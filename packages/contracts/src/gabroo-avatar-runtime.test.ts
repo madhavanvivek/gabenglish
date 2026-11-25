@@ -1,5 +1,9 @@
 import {describe,expect,it} from "vitest";
-import {sampleGabrooConversationFrame,isGabrooRenderTickCurrent} from "./gabroo-avatar-runtime.js";
+import {
+ sampleGabrooConversationFrame,
+ sampleGabrooConversationFrameFromPlaybackStatus,
+ isGabrooRenderTickCurrent
+} from "./gabroo-avatar-runtime.js";
 import {initialGabrooConversationState,reduceGabrooConversation} from "./gabroo-conversation.js";
 import type {GabrooConversationState} from "./gabroo-conversation.js";
 import {gabrooSpeechTimelineSchema} from "./gabroo-avatar.js";
@@ -16,6 +20,13 @@ const speaking=():GabrooConversationState=>{
  const listening=reduceGabrooConversation(greeting,{type:"greeting_finished"});
  const thinking=reduceGabrooConversation(listening,{type:"learner_turn_started"});
  return reduceGabrooConversation(thinking,{type:"response_speech_started",timeline});
+};
+const neutral={
+ viseme:{shape:"neutral",weight:0},
+ expression:"neutral",
+ expressionWeight:0,
+ gesture:null,
+ gestureWeight:0
 };
 
 describe("Gabroo conversation-to-renderer bridge",()=>{
@@ -39,9 +50,7 @@ describe("Gabroo conversation-to-renderer bridge",()=>{
    const state:GabrooConversationState={phase,activeSpeech:timeline,lastError:null};
    const frame=sampleGabrooConversationFrame(state,250);
    expect(frame.audioId).toBeNull();
-   expect(frame.controls.viseme).toEqual({shape:"neutral",weight:0});
-   expect(frame.controls.expression).toBe("neutral");
-   expect(frame.controls.gesture).toBeNull();
+   expect(frame.controls).toEqual(neutral);
   }
  );
 
@@ -60,5 +69,46 @@ describe("Gabroo conversation-to-renderer bridge",()=>{
   expect(frame.state).toBe("listening");
   expect(frame.audioId).toBeNull();
   expect(frame.controls.viseme.shape).toBe("neutral");
+ });
+
+ it("samples only when the native player is loaded, playing and owns the active audio ID",()=>{
+  const state=speaking();
+  const frame=sampleGabrooConversationFrameFromPlaybackStatus(state,{
+   isLoaded:true,isPlaying:true,positionMillis:180,audioId:"gabroo-runtime-audio"
+  });
+  expect(frame.audioId).toBe("gabroo-runtime-audio");
+  expect(frame.controls.viseme).toEqual({shape:"closed_lips",weight:1});
+ });
+
+ it.each([
+  {isLoaded:false,isPlaying:true,positionMillis:180,audioId:"gabroo-runtime-audio"},
+  {isLoaded:true,isPlaying:false,positionMillis:180,audioId:"gabroo-runtime-audio"},
+  {isLoaded:true,isPlaying:true,positionMillis:180,audioId:"previous-turn"},
+  {isLoaded:true,isPlaying:true,positionMillis:180,audioId:null}
+ ])("returns neutral controls when native playback is stale, paused or not ready: %o",status=>{
+  const frame=sampleGabrooConversationFrameFromPlaybackStatus(speaking(),status);
+  expect(frame.audioId).toBeNull();
+  expect(frame.controls).toEqual(neutral);
+ });
+
+ it("does not animate a valid old player status after the conversation is interrupted",()=>{
+  const interrupted=reduceGabrooConversation(speaking(),{type:"learner_barge_in"});
+  const frame=sampleGabrooConversationFrameFromPlaybackStatus(interrupted,{
+   isLoaded:true,isPlaying:true,positionMillis:180,audioId:"gabroo-runtime-audio"
+  });
+  expect(frame.audioId).toBeNull();
+  expect(frame.controls).toEqual(neutral);
+ });
+
+ it("rejects invalid native player status",()=>{
+  expect(()=>sampleGabrooConversationFrameFromPlaybackStatus(speaking(),{
+   isLoaded:true,isPlaying:true,positionMillis:-1,audioId:"gabroo-runtime-audio"
+  })).toThrow(/position/i);
+  expect(()=>sampleGabrooConversationFrameFromPlaybackStatus(speaking(),{
+   isLoaded:true,isPlaying:true,positionMillis:Number.NaN,audioId:"gabroo-runtime-audio"
+  })).toThrow(/position/i);
+  expect(()=>sampleGabrooConversationFrameFromPlaybackStatus(speaking(),{
+   isLoaded:"yes" as unknown as boolean,isPlaying:true,positionMillis:180,audioId:"gabroo-runtime-audio"
+  })).toThrow(/loaded and playing/i);
  });
 });
