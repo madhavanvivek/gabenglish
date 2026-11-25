@@ -9,7 +9,7 @@ import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
 import {adjustGabrooSpeechRate} from "../src/learner-settings";
 import {BrandMark} from "../src/ui";
-import {AuthApiError,completeDailyChallenge,createGabrooConversation,deleteGabrooConversation,getDailyChallengeCompletion,getGabrooConversation,getGabrooRecognitionStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences} from "../src/auth-api";
+import {AuthApiError,completeDailyChallenge,createGabrooConversation,deleteGabrooConversation,getDailyChallengeCompletion,getGabrooConversation,getGabrooRecognitionStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,sendGabrooMessageStream,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences} from "../src/auth-api";
 
 const conversationModes:{value:GabrooConversationMode;label:string}[]=[{value:"free_flow",label:"Free flow"},{value:"gentle_correction",label:"Gentle correction"},{value:"detailed_correction",label:"Detailed correction"},{value:"topic_practice",label:"Topic practice"},{value:"role_play",label:"Role-play"},{value:"vocabulary_building",label:"Vocabulary"},{value:"confidence_practice",label:"Confidence"}];
 
@@ -20,6 +20,7 @@ export default function GabrooScreen(){
  const [conversations,setConversations]=useState<GabrooConversation[]>([]);
  const [active,setActive]=useState<GabrooConversation|null>(null);
  const [messages,setMessages]=useState<GabrooConversationMessage[]>([]);
+ const [streamingReply,setStreamingReply]=useState("");
  const [draft,setDraft]=useState("");
  const [mode,setMode]=useState<GabrooConversationMode>("gentle_correction");
  const [challengeCompleted,setChallengeCompleted]=useState(false);
@@ -133,8 +134,9 @@ export default function GabrooScreen(){
   const text=draft.trim();if(!text||!active||busy)return;
   const controller=new AbortController();requestControllerRef.current=controller;
   setBusy(true);setError("");
-  try{const result=await sendGabrooMessage(active.id,text,controller.signal);setMessages(current=>[...current,...result.messages]);setDraft("");}
-  catch(reason){if(!controller.signal.aborted)setError(reason instanceof AuthApiError&&reason.status===503?"Gabroo could not reply just now. Your message was not saved. Please try again.":reason instanceof Error?reason.message:"Could not send your message.");}
+  setStreamingReply("");
+  try{const result=await sendGabrooMessageStream(active.id,text,controller.signal,fragment=>setStreamingReply(current=>current+fragment));setMessages(current=>[...current,...result.messages]);setStreamingReply("");setDraft("");}
+  catch(reason){setStreamingReply("");if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Could not send your message.");}
   finally{if(requestControllerRef.current===controller)requestControllerRef.current=null;setBusy(false);}
  };
  const markChallengeComplete=async()=>{
@@ -273,10 +275,11 @@ export default function GabrooScreen(){
   setBusy(true);setError("");
   try{
    const confirmed=confirmGabrooTranscript({providerTranscript:transcript,reviewedText:reviewedTranscript,confirmed:true});
-   const result=await sendGabrooMessage(active.id,confirmed.text,controller.signal);
-   setMessages(current=>[...current,...result.messages]);
+   setStreamingReply("");
+   const result=await sendGabrooMessageStream(active.id,confirmed.text,controller.signal,fragment=>setStreamingReply(current=>current+fragment));
+   setMessages(current=>[...current,...result.messages]);setStreamingReply("");
    setTranscript(null);setReviewedTranscript("");setTranscriptionConsent(false);
-  }catch(reason){if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Could not send the reviewed transcript.");}
+  }catch(reason){setStreamingReply("");if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Could not send the reviewed transcript.");}
   finally{if(requestControllerRef.current===controller)requestControllerRef.current=null;setBusy(false);}
  };
  const requestVoicePermission=async()=>{
@@ -459,7 +462,7 @@ export default function GabrooScreen(){
     </View>
     <Link href="/speaking-journal" style={{color:colors.primary,fontWeight:"900",marginTop:16,marginBottom:4}}>Open Speaking Journal →</Link>
     <Link href="/sentence-coach" style={{color:colors.primary,fontWeight:"900",marginTop:10,marginBottom:4}}>Try Sentence Coach →</Link>
-    <Text style={s.modeLabel}>Conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>void changeMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View>{messages.length===0?<View style={s.emptyPanel}><Text style={s.title}>Hi! I'm Gabroo.</Text><Text style={s.copy}>Let's have a natural conversation. What's on your mind today?</Text></View>:messages.map(message=><View key={message.id} style={[s.bubble,message.role==="user"?s.userBubble:s.gabrooBubble]}><Text style={s.speaker}>{message.role==="user"?"YOU":"GABROO"}</Text><Text style={s.message}>{message.content}</Text>{message.role==="assistant"?<Pressable accessibilityRole="button" onPress={()=>void speakMessage(message)} style={s.listenButton}><Text style={s.listenButtonText}>{speakingMessageId===message.id?"Stop speaking":"Listen · device voice"}</Text></Pressable>:null}</View>)}
+    <Text style={s.modeLabel}>Conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>void changeMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View>{messages.length===0?<View style={s.emptyPanel}><Text style={s.title}>Hi! I'm Gabroo.</Text><Text style={s.copy}>Let's have a natural conversation. What's on your mind today?</Text></View>:messages.map(message=><View key={message.id} style={[s.bubble,message.role==="user"?s.userBubble:s.gabrooBubble]}><Text style={s.speaker}>{message.role==="user"?"YOU":"GABROO"}</Text><Text style={s.message}>{message.content}</Text>{message.role==="assistant"?<Pressable accessibilityRole="button" onPress={()=>void speakMessage(message)} style={s.listenButton}><Text style={s.listenButtonText}>{speakingMessageId===message.id?"Stop speaking":"Listen · device voice"}</Text></Pressable>:null}</View>)}{streamingReply?<View key="gabroo-streaming-draft" style={[s.bubble,s.gabrooBubble]}><Text style={s.speaker}>GABROO · REPLYING</Text><Text style={s.message}>{streamingReply}</Text></View>:null}
     <TextInput value={draft} onChangeText={setDraft} placeholder="Write your message…" multiline style={s.input} editable={!busy}/>
     <Pressable disabled={!draft.trim()||busy} onPress={send} style={[s.button,(!draft.trim()||busy)&&s.disabled]}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Send message</Text>}</Pressable>
     <Text style={s.hint}>You can ask for gentle corrections, detailed explanations or just a natural chat. Listen uses the voice installed on your device; Gabroo’s final character voice and live voice conversations are still being developed.</Text>{speechNotice?<Text style={s.speechNotice}>{speechNotice}</Text>:null}
