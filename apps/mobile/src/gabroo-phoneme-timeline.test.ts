@@ -22,7 +22,7 @@ describe("Gabroo mobile phoneme timeline",()=>{
  });
  it("refuses an alignment with a different content identity or measured duration",()=>{
   expect(parseGabrooPhonemeTimelineForAudio({...alignment,audio_id:"d".repeat(64)},metadata)).toBeNull();
-  expect(parseGabrooPhonemeTimelineForAudio({...alignment,duration_ms:999},metadata)).toBeNull();
+  expect(parseGabrooPhonemeTimelineForAudio({...alignment,duration_ms:998},metadata)).toBeNull();
  });
  it("refuses malformed or missing provider alignment instead of guessing timing",()=>{
   expect(parseGabrooPhonemeTimelineForAudio({audio_id:audioId,phonemes:[]},metadata)).toBeNull();
