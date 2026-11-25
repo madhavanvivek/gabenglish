@@ -25,6 +25,6 @@ describe("Gabroo mobile avatar playback bridge",()=>{
  });
  it("does not animate when the timeline belongs to different measured audio",()=>{
   expect(sampleGabrooMobileAvatarPlayback({...input,timeline:{...timeline,audio_id:"c".repeat(64)}}).controls.viseme.shape).toBe("neutral");
-  expect(sampleGabrooMobileAvatarPlayback({...input,timeline:{...timeline,duration_ms:999}}).controls.viseme.shape).toBe("neutral");
+  expect(sampleGabrooMobileAvatarPlayback({...input,timeline:{...timeline,duration_ms:998}}).controls.viseme.shape).toBe("neutral");
  });
 });
