@@ -224,3 +224,9 @@ The mobile account screen now exposes the learner's saved memory, category selec
 For each authenticated conversation turn, the API may load up to three learner skill areas with at least five distinct exercise records and recent accuracy at or below 50%. The calculation uses only the latest attempt per lesson/exercise, is scoped to the learner and conversation learning direction, and is ordered by the weakest observed exercise accuracy.
 
 These records are exercise-performance signals, not a diagnosis of speaking ability, pronunciation, fluency or general proficiency. Gabroo receives only the skill key, bounded accuracy and evidence count. The policy asks it to offer a small, relevant practice opportunity when the conversation naturally permits; it must not invent the learner's exact errors or label the learner. Skill evidence below the minimum threshold is omitted. This complements the existing vocabulary focus and does not replace the learner's selected conversation mode.
+
+## 18. Learner-owned Speaking Journal (25 November 2026)
+
+The mobile app now provides a Speaking Journal backed by the existing account-scoped Gabroo saved-memory API. Learners can save an original phrase, optionally add their own practice version and note, then edit or delete entries. The journal is linked directly from the Gabroo conversation screen.
+
+Journal entries are learner-authored and remain private to the authenticated account. The current implementation does not automatically extract phrases from conversation transcripts, generate corrections, or claim that a suggested rewrite is grammatically validated. This keeps the journal useful without presenting unverified model output as measured speaking progress. A future coach-generated correction workflow must use an explicitly structured, validated provider response and clear learner confirmation before it is saved.
