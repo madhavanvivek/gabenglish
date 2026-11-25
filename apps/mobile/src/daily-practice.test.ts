@@ -20,6 +20,20 @@ describe("daily speaking challenge",()=>{
   expect(challenge.skillKey).toBe("vocabulary");
   expect(challenge.focus).toBe("Use precise words");
  });
+ it("rotates conversation prompts instead of repeating a single prompt",()=>{
+  const skill=[{skill_key:"conversation",attempt_count:7,accuracy:.5,evidence_status:"developing_exercise_performance" as const}];
+  const first=buildDailySpeakingChallenge("2026-11-25",skill);
+  const next=buildDailySpeakingChallenge("2026-11-26",skill);
+  expect(first.skillKey).toBe("conversation");
+  expect(next.skillKey).toBe("conversation");
+  expect(first.prompt).not.toBe(next.prompt);
+ });
+ it("rotates listening, speaking, comprehension and writing practice prompts",()=>{
+  for(const skillKey of ["listening","speaking","comprehension","writing"]){
+   const evidence=[{skill_key:skillKey,attempt_count:6,accuracy:.5,evidence_status:"developing_exercise_performance" as const}];
+   expect(buildDailySpeakingChallenge("2026-11-25",evidence).prompt).not.toBe(buildDailySpeakingChallenge("2026-11-26",evidence).prompt);
+  }
+ });
  it("does not infer a weakness from insufficient or strong evidence",()=>{
   const challenge=buildDailySpeakingChallenge("2026-11-25",[
    {skill_key:"grammar",attempt_count:2,accuracy:.2,evidence_status:"building_evidence"},
