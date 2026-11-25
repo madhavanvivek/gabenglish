@@ -314,23 +314,6 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   }:null,stage_evidence:{eligible:evidenceStage!==null,reason:evidenceStage!==null?"Exercise is tagged for the learner’s confirmed stage.":exerciseStage===null?"Exercise has no curriculum stage tag.":"Exercise stage does not match the learner’s confirmed stage."}};
  });
 
-}
-
-          AND (block->>'stage')::int=$3
-      )
-    ORDER BY c.sort_order,m.sort_order,l.sort_order`,
-   [learner.id,direction,stage]
-  );
-  const recommendation=selectNextLessonRecommendation(stage,candidates.rows);
-  return {
-   learning_direction:direction,stage,recommendation,
-   reason:recommendation?recommendation.reason:"no_published_content_for_stage",
-   message:recommendation
-    ?recommendation.reason==="continue_learning"?"Pick up where you left off.":"This is the next lesson in your learning path."
-    :"There are no published lessons tagged for this stage yet."
-  };
- });
-
  app.get("/api/v1/learning/vocabulary/reviews",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to review vocabulary.");
