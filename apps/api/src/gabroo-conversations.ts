@@ -194,6 +194,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   const clientDisconnected=new Promise<never>((_,reject)=>{rejectDisconnected=reject;});
   let response:{content:string;model?:string;usage?:{promptTokens?:number;completionTokens?:number;totalTokens?:number}};
   reply.raw.once("close",onResponseClose);
+  if(reply.raw.destroyed){reply.raw.off("close",onResponseClose);return;}
   try{
    const timeoutPromise=new Promise<never>((_,reject)=>{
     timeout=setTimeout(()=>{timedOut=true;controller.abort();reject(new Error("Gabroo provider timed out"));},PROVIDER_TIMEOUT_MS);
