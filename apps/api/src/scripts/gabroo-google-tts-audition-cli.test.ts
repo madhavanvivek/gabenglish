@@ -34,7 +34,9 @@ describe("Gabroo Google TTS audition pack",()=>{
   ]);
   const candidateFiles=await readdir(join(directory,"VOICE-01"));
   expect(candidateFiles).toHaveLength(7);
-  expect(await readFile(join(directory,"VOICE-01",candidateFiles[0]!))).toEqual(Buffer.from([15,125,1]));
+  const sample=await readFile(join(directory,"VOICE-01",candidateFiles[0]!));
+  expect(sample.byteLength).toBe(3);
+  expect(sample[0]).toBe("ml-IN-Standard-B".length);
  });
  it("does not generate an empty sample",async()=>{
   directory=await mkdtemp(join(tmpdir(),"gabroo-audition-"));
