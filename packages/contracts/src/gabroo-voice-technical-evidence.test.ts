@@ -24,6 +24,11 @@ describe("Gabroo voice technical audition evidence",()=>{
   expect(summarizeGabrooVoiceTechnicalEvidence(evidence({trials:evidence().trials.slice(0,2)})).eligibleForOwnerReview).toBe(false);
   expect(summarizeGabrooVoiceTechnicalEvidence(evidence({evidenceReferences:[]})).eligibleForOwnerReview).toBe(false);
  });
+ it("rejects duplicate trial IDs so repeated rows cannot inflate evidence counts",()=>{
+  const first=evidence().trials[0];
+  const duplicate={...first,device:"Second Android device"};
+  expect(()=>summarizeGabrooVoiceTechnicalEvidence(evidence({trials:[first,duplicate,...evidence().trials.slice(2)]}))).toThrow("Trial IDs must be unique");
+ });
  it("rejects inconsistent latency measurements",()=>{
   expect(()=>summarizeGabrooVoiceTechnicalEvidence(evidence({trials:[{...evidence().trials[0],firstAudioLatencyMs:900,fullResponseLatencyMs:800}]}))).toThrow("Full response latency");
  });
