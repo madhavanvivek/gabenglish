@@ -42,7 +42,41 @@ export function buildGabrooGoogleTtsSsml(text:string,englishLanguageCode="en-US"
  }
  return "<speak>"+parts.join("")+"</speak>";
 }
+const MAX_PROVIDER_RESPONSE_BYTES=MAX_BASE64_AUDIO_CHARACTERS+4_096;
 const CANONICAL_BASE64=/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+
+/** Bound the JSON envelope while streaming; response.json() would buffer an
+ * untrusted provider response before the audio-size checks could run. */
+async function readBoundedGoogleTtsPayload(response:Response):Promise<{audioContent?:unknown}>{
+ const declared=Number(response.headers.get("content-length"));
+ if(Number.isFinite(declared)&&declared>MAX_PROVIDER_RESPONSE_BYTES){
+  await response.body?.cancel();
+  throw new Error("Google Cloud Text-to-Speech response exceeded the audio size limit.");
+ }
+ if(!response.body)throw new Error("Google Cloud Text-to-Speech returned no audio content.");
+ const reader=response.body.getReader();
+ const chunks:Uint8Array[]=[];
+ let total=0;
+ try{
+  while(true){
+   const {done,value}=await reader.read();
+   if(done)break;
+   total+=value.byteLength;
+   if(total>MAX_PROVIDER_RESPONSE_BYTES){
+    await reader.cancel();
+    throw new Error("Google Cloud Text-to-Speech response exceeded the audio size limit.");
+   }
+   chunks.push(value);
+  }
+ }finally{
+  reader.releaseLock();
+ }
+ const bytes=new Uint8Array(total);
+ let offset=0;
+ for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+ try{return JSON.parse(new TextDecoder().decode(bytes)) as {audioContent?:unknown};}
+ catch{return Promise.reject(new Error("Google Cloud Text-to-Speech returned malformed JSON."));}
+}
 
 /**
  * Native Google Cloud Text-to-Speech REST adapter.
@@ -89,7 +123,7 @@ export function createGoogleCloudTtsProvider(
     signal
    });
    if(!response.ok)throw new Error("Google Cloud Text-to-Speech request failed with status "+response.status);
-   const payload=await response.json() as {audioContent?:unknown};
+   const payload=await readBoundedGoogleTtsPayload(response);
    if(typeof payload.audioContent!=="string"||!payload.audioContent)throw new Error("Google Cloud Text-to-Speech returned no audio content.");
    // Reject an oversized encoded payload before allocating its decoded Buffer.
    if(payload.audioContent.length>MAX_BASE64_AUDIO_CHARACTERS)throw new Error("Google Cloud Text-to-Speech response exceeded the audio size limit.");
