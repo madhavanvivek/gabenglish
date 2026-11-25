@@ -66,6 +66,17 @@ describe("Gabroo canonical avatar animation contract",()=>{
   expect(sampleGabrooAvatarFrame(data,200,0).viseme.shape).toBe("open_round");
  });
 
+ it("keeps the first authored cue when overlapping cues have equal strength",()=>{
+  const data=gabrooSpeechTimelineSchema.parse({
+   audio_id:"equal-overlap",duration_ms:500,
+   visemes:[
+    {start_ms:0,end_ms:400,shape:"open_mid",weight:0.8},
+    {start_ms:0,end_ms:400,shape:"open_round",weight:0.8}
+   ]
+  });
+  expect(sampleGabrooAvatarFrame(data,200,0).viseme.shape).toBe("open_mid");
+ });
+
  it("rejects zero-length and reversed viseme events",()=>{
   expect(gabrooVisemeEventSchema.safeParse({
    start_ms:200,end_ms:200,shape:"open_wide"
