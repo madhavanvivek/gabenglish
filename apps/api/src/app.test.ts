@@ -26,6 +26,20 @@ function recognitionPool(hasEntitlement:boolean){
  }} as any;
 }
 
+function insightsPool(){
+ return {query:async(sql:string)=>{
+  if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+  if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1",plan_code:"monthly"}]};
+  if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
+  if(sql.includes("FROM learner_exercise_attempts"))return {rows:[
+   {skill_key:"grammar",attempt_count:6,correct_count:3,accuracy:"0.50"},
+   {skill_key:"vocabulary",attempt_count:4,correct_count:4,accuracy:"1.00"}
+  ]};
+  if(sql.includes("FROM gabroo_learner_memory"))return {rows:[{saved_phrase_count:2}]};
+  return {rows:[]};
+ }} as any;
+}
+
 describe("API foundation",()=>{
  it("serves liveness",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);const r=await app.inject({method:"GET",url:"/api/v1/health"});expect(r.statusCode).toBe(200);expect(r.json().status).toBe("ok");await app.close();});
  it("reports ready when database check passes",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true);const r=await app.inject({method:"GET",url:"/api/v1/ready"});expect(r.statusCode).toBe(200);await app.close();});
