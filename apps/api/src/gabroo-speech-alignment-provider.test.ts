@@ -73,6 +73,17 @@ describe("Gabroo speech alignment provider boundary",()=>{
   await expect(runGabrooSpeechAlignment(abortingProvider,{audio,text,language:"en",identity:exactIdentity,signal:during.signal})).rejects.toThrow(/cancelled/i);
  });
 
+ it("cancels promptly when an alignment provider ignores its abort signal",async()=>{
+  const audio=Buffer.from([4,5,6]);
+  const text="Hello";
+  const exactIdentity=createGabrooSynthesizedAudioIdentity({audio,text,durationMs:500,audioId:"stalled-audio"});
+  const controller=new AbortController();
+  const provider={align:async()=>await new Promise<never>(()=>{})};
+  const pending=runGabrooSpeechAlignment(provider,{audio,text,language:"en",identity:exactIdentity,signal:controller.signal});
+  controller.abort();
+  await expect(pending).rejects.toThrow(/cancelled/i);
+ });
+
  it("rejects oversized audio and unsupported language before provider invocation",async()=>{
   const validAudio=Buffer.from([1]);
   const validText="Hello";
