@@ -70,7 +70,9 @@ describe("mapGabrooAvatarFrame", () => {
       viseme: "mbp",
       visemeWeight: 0.72,
       expression: "friendly",
+      expressionWeight: 0,
       gesture: "small_nod",
+      gestureWeight: 0,
     });
   });
 });
