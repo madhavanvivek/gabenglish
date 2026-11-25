@@ -11,6 +11,7 @@ const CANDIDATES=[
  {blindCode:"VOICE-04",voice:"ml-IN-Wavenet-D",family:"WaveNet"}
 ] as const;
 
+const INPUT_MODES=["text","ssml"] as const;
 const REPOSITORY_ROOT=resolve(dirname(fileURLToPath(import.meta.url)),"../../../..");
 const DEFAULT_OUTPUT_DIRECTORY=resolve(REPOSITORY_ROOT,".local/gabroo-voice-auditions");
 
@@ -40,7 +41,8 @@ const SEGMENTS=[
 export async function createGabrooGoogleTtsAuditionPack(options:{
  apiKey:string;
  outputDirectory:string;
- synthesize?:(voice:string,text:string)=>Promise<Uint8Array>;
+ synthesize?:(voice:string,text:string,inputMode:"text"|"ssml")=>Promise<Uint8Array>;
+ englishLanguageCode?:string;
 }):Promise<{outputDirectory:string;candidateCount:number;sampleCount:number}>{
  if(!options.apiKey.trim())throw new Error("A server-side Google Cloud TTS API key is required.");
  const outputDirectory=resolve(options.outputDirectory);
@@ -49,7 +51,9 @@ export async function createGabrooGoogleTtsAuditionPack(options:{
   const provider=createGoogleCloudTtsProvider({
    GABROO_GOOGLE_TTS_API_KEY:options.apiKey,
    GABROO_GOOGLE_TTS_VOICE:voice,
-   GABROO_GOOGLE_TTS_LANGUAGE_CODE:"ml-IN"
+   GABROO_GOOGLE_TTS_LANGUAGE_CODE:"ml-IN",
+   GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE:options.englishLanguageCode||"en-US",
+   GABROO_GOOGLE_TTS_INPUT_MODE:inputMode
   });
   if(!provider)throw new Error("Google Cloud TTS provider could not be configured.");
   const result=await provider.synthesize({text,speed:1,signal:new AbortController().signal});
@@ -61,25 +65,30 @@ export async function createGabrooGoogleTtsAuditionPack(options:{
   format:"audio/mpeg",
   generated_at:new Date().toISOString(),
   script_sha256:createHash("sha256").update(JSON.stringify(SEGMENTS)).digest("hex"),
-  instructions:"Listen in a randomized order. Score each blind code independently using docs/ai/GABROO_VOICE_AUDITION_PROTOCOL.md. This packet does not approve a voice.",
+  instructions:"Listen in a randomized order. Each voice appears twice: plain text and bilingual SSML. Score each blind code independently using docs/ai/GABROO_VOICE_AUDITION_PROTOCOL.md. Do not compare labels until scoring is complete. This packet does not approve a voice.",
   candidates:[] as {blind_code:string;samples:{sample_id:string;label:string;file:string}[]}[]
  };
  const privateMapping:{blind_code:string;provider:string;voice_id:string;model_family:string}[]=[];
  let sampleCount=0;
+ let blindIndex=0;
  for(const candidate of CANDIDATES){
-  const candidateDirectory=resolve(outputDirectory,candidate.blindCode);
-  await mkdir(candidateDirectory,{recursive:true});
-  const samples:{sample_id:string;label:string;file:string}[]=[];
-  for(const segment of SEGMENTS){
-   const audio=await synthesize(candidate.voice,segment.text);
-   if(audio.byteLength===0)throw new Error("Provider returned empty audio for "+candidate.blindCode+"/"+segment.id+".");
+  for(const inputMode of INPUT_MODES){
+   blindIndex+=1;
+   const blindCode="SAMPLE-"+String(blindIndex).padStart(2,"0");
+   const candidateDirectory=resolve(outputDirectory,blindCode);
+   await mkdir(candidateDirectory,{recursive:true});
+   const samples:{sample_id:string;label:string;file:string}[]=[];
+   for(const segment of SEGMENTS){
+   const audio=await synthesize(candidate.voice,segment.text,inputMode);
+   if(audio.byteLength===0)throw new Error("Provider returned empty audio for "+blindCode+"/"+segment.id+".");
    const filename=segment.id+".mp3";
    await writeFile(resolve(candidateDirectory,filename),audio,{mode:0o600});
-   samples.push({sample_id:segment.id,label:segment.label,file:candidate.blindCode+"/"+filename});
+   samples.push({sample_id:segment.id,label:segment.label,file:blindCode+"/"+filename});
    sampleCount+=1;
+   }
+   reviewerManifest.candidates.push({blind_code:blindCode,samples});
+   privateMapping.push({blind_code:blindCode,provider:"Google Cloud Text-to-Speech",voice_id:candidate.voice,model_family:candidate.family,input_mode:inputMode});
   }
-  reviewerManifest.candidates.push({blind_code:candidate.blindCode,samples});
-  privateMapping.push({blind_code:candidate.blindCode,provider:"Google Cloud Text-to-Speech",voice_id:candidate.voice,model_family:candidate.family});
  }
  await writeFile(resolve(outputDirectory,"reviewer-manifest.json"),JSON.stringify(reviewerManifest,null,2)+"\n",{mode:0o600});
  await writeFile(resolve(outputDirectory,"mapping.private.json"),JSON.stringify({
@@ -111,7 +120,8 @@ async function main():Promise<void>{
  try{
   const result=await createGabrooGoogleTtsAuditionPack({
    apiKey,
-   outputDirectory:resolveGabrooAuditionOutputDirectory(process.env.GABROO_AUDITION_OUTPUT_DIR)
+   outputDirectory:resolveGabrooAuditionOutputDirectory(process.env.GABROO_AUDITION_OUTPUT_DIR),
+   englishLanguageCode:process.env.GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE
   });
   process.stdout.write(JSON.stringify(result,null,2)+"\n");
   process.stdout.write("Keep mapping.private.json restricted. Share only the blind-coded MP3 folders and reviewer-manifest.json.\n");
