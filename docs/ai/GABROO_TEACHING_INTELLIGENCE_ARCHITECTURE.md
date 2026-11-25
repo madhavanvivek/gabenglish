@@ -258,3 +258,10 @@ The deterministic teaching policy now carries shared turn-by-turn guidance acros
 - Prefer one natural next step or focused follow-up question. Understanding checks should feel conversational rather than becoming a repetitive quiz.
 
 These instructions supplement, rather than override, the learner-selected conversation mode, correction preference, target/support-language contract, stage guidance, address policy, private learner memory and evidence guardrails. They are prompt-policy guidance, not a claim that the current provider performs reliable intent classification or maintains a separate hidden conversation-state machine. Provider behaviour still needs evaluation against real Malayalam-English conversations before it can be considered production-quality.
+
+
+## 22. Conversation request cancellation and timeout safety (25 November 2026)
+
+The non-streaming conversation endpoint now observes the HTTP response connection while waiting for the tutor provider. If the learner leaves the screen, loses the connection or otherwise closes the request before a response is completed, the API aborts the provider request and stops waiting for its result. A client that was already disconnected is not sent to inference. The provider adapter forwards the abort signal to its outbound fetch request.
+
+Provider timeouts remain bounded at 15 seconds and now return a distinct 504 timeout response. Both timeout and disconnect paths leave the turn uncommitted: learner and assistant messages are still inserted together only after a valid response and a final conversation/subscription concurrency check. Disconnects are not logged with learner content. This is cancellation support for the existing request/response flow, not yet token streaming or audio streaming.
