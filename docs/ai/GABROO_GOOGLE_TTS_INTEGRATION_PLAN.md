@@ -188,3 +188,10 @@ GABROO_GOOGLE_TTS_API_KEY=... pnpm --filter @gabenglish/api audition:google-tts 
 The command generates four candidate folders (VOICE-01 through VOICE-04), seven matching script segments per candidate (28 MP3 files total), `reviewer-manifest.json`, and `mapping.private.json`. The reviewer manifest contains no provider or voice IDs. Keep the private mapping restricted and share only the blind-coded audio plus reviewer manifest with the independent listeners. The output directory defaults to `.local/gabroo-voice-auditions` and is excluded from Git; `GABROO_AUDITION_OUTPUT_DIR` may select a different local directory.
 
 The generator does not run during CI, application startup or deployment. The Google adapter regression tests cover malformed padding and over-limit encoded payload rejection. No samples were generated as part of this code change, no provider credentials were accessed, and no voice was selected or approved.
+
+
+## 12. Malayalam-English SSML handling (2026-11-25)
+
+The Google Standard/WaveNet adapter now sends SSML rather than plain text. It preserves the configured Malayalam voice as the default and wraps contiguous Latin-script phrases in an English `<lang>` span (`en-US`). XML-reserved characters are escaped before insertion, and the locale is validated. The provider does not switch to a second English voice.
+
+Google describes `<lang>` support as best-effort and notes that mixed-language quality can vary. This implementation is a controlled pronunciation experiment, not a claim that code-switching is solved. Compare the resulting samples with plain Malayalam-locale synthesis using the same scripts and settings before retaining it for production. Chirp 3 HD remains excluded because it does not support SSML or the speaking-rate parameter used by this adapter.
