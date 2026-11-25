@@ -31,10 +31,18 @@ export function sampleGabrooMobileAvatarPlayback(input:{
  isPlaying:boolean;
  positionMillis:number;
 }):GabrooRenderedFrame{
- if(!input.timeline||!input.metadata)return neutralFrame;
- if(!input.expectedPlaybackId||input.playbackId!==input.expectedPlaybackId)return neutralFrame;
- if(input.timeline.audio_id!==input.metadata.audioId
-  ||Math.abs(input.timeline.duration_ms-input.metadata.durationMs)>1)return neutralFrame;
+ if(!input.timeline||!input.metadata)return {...neutralFrame,controls:{...neutralFrame.controls,viseme:{...neutralFrame.controls.viseme}}};
+ if(typeof input.expectedPlaybackId!=="string"||input.expectedPlaybackId.length===0
+  ||input.playbackId!==input.expectedPlaybackId)return {...neutralFrame,controls:{...neutralFrame.controls,viseme:{...neutralFrame.controls.viseme}}};
+ const metadata=input.metadata;
+ if(!/^[a-f0-9]{64}$/.test(metadata.audioId)||metadata.audioId!==metadata.audioSha256
+  ||!/^[a-f0-9]{64}$/.test(metadata.textSha256)
+  ||!Number.isSafeInteger(metadata.durationMs)||metadata.durationMs<=0
+  ||input.timeline.audio_id!==metadata.audioId
+  ||!Number.isFinite(input.timeline.duration_ms)
+  ||Math.abs(input.timeline.duration_ms-metadata.durationMs)>1){
+  return {...neutralFrame,controls:{...neutralFrame.controls,viseme:{...neutralFrame.controls.viseme}}};
+ }
  return sampleGabrooConversationFrameFromPlaybackStatus({
   phase:"speaking",
   activeSpeech:input.timeline,
