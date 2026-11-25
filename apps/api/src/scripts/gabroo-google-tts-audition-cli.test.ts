@@ -30,14 +30,14 @@ describe("Gabroo Google TTS audition pack",()=>{
    variants:{blind_code:string;samples:{file:string}[]}[]
   };
   expect(manifest.variants.map(candidate=>candidate.blind_code).sort()).toEqual(["SAMPLE-01","SAMPLE-02","SAMPLE-03","SAMPLE-04","SAMPLE-05","SAMPLE-06","SAMPLE-07","SAMPLE-08"]);
-  expect(manifest.candidates.every(candidate=>candidate.samples.length===7)).toBe(true);
+  expect(manifest.variants.every(candidate=>candidate.samples.length===7)).toBe(true);
   expect(JSON.stringify(manifest)).not.toMatch(/Standard-B|Wavenet-B|Google Cloud/);
   const mapping=JSON.parse(await readFile(join(directory,"mapping.private.json"),"utf8")) as {
    variants:{blind_code:string;voice_id:string;input_mode:"text"|"ssml"}[]
   };
   expect(mapping.variants).toHaveLength(8);
   for(const voice of ["ml-IN-Standard-B","ml-IN-Standard-D","ml-IN-Wavenet-B","ml-IN-Wavenet-D"]){
-   expect(mapping.candidates.filter(candidate=>candidate.voice_id===voice).map(candidate=>candidate.input_mode).sort()).toEqual(["ssml","text"]);
+   expect(mapping.variants.filter(candidate=>candidate.voice_id===voice).map(candidate=>candidate.input_mode).sort()).toEqual(["ssml","text"]);
   }
   const candidateFiles=await readdir(join(directory,"SAMPLE-01"));
   expect(candidateFiles).toHaveLength(7);
