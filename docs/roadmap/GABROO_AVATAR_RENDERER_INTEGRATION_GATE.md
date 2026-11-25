@@ -172,3 +172,8 @@ A process kill can leave a temporary `.part` file even though normal cancellatio
 ## Transcription interruption safety
 
 A transcription request may already be in flight when the learner backgrounds the app or navigates away. Gabroo now invalidates that request's UI generation on either interruption, resets the busy state, and ignores any late transcript response. The pending local recording is discarded by the existing lifecycle cleanup. This prevents a late response from repopulating a transcript after the learner has left the screen; it does not claim to cancel a network upload that the platform has already started.
+
+
+## Bounded transcription uploads
+
+Before uploading a learner-approved recording for transcription, the mobile client now verifies that the URI is an app-local `file:///` URI, the file still exists, its byte size is known and non-zero, and the file is no larger than 15 MiB. This fails closed before authentication refresh or network upload if the recording is missing, unverifiable, remote, empty or oversized. Unit tests cover accepted local files, URI isolation, missing metadata, the size ceiling and invalid limits.
