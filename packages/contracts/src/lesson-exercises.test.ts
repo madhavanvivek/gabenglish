@@ -18,6 +18,17 @@ describe("authored exercise evaluation",()=>{
   expect(evaluateAuthoredExercise(choice,"night")).toEqual({correct:false,feedback:"Try the time-of-day clue."});
   expect(evaluateAuthoredExercise(choice,"unknown")).toBeNull();
  });
+ it("supports skill and difficulty metadata on text-response exercises",()=>{
+  const exercise={type:"exercise",id:"vocab",skill:"vocabulary",difficulty:2,instruction:"Translate",prompt:"Good morning",response_type:"text",accepted_answers:["Good morning"]};
+  expect(authoredExerciseSchema.safeParse(exercise).success).toBe(true);
+  expect(authoredExerciseSchema.safeParse({...exercise,skill:"pronunciation"}).success).toBe(false);
+  expect(authoredExerciseSchema.safeParse({...exercise,difficulty:0}).success).toBe(false);
+ });
+ it("normalises repeated whitespace inside accepted text answers",()=>{
+  const exercise={type:"exercise",id:"phrase",instruction:"Translate",prompt:"Good morning",response_type:"text",accepted_answers:["Good morning"]};
+  expect(evaluateAuthoredExercise(exercise,"  GOOD   MORNING  ")?.correct).toBe(true);
+  expect(evaluateAuthoredExercise(exercise,"GOOD\\tMORNING")?.correct).toBe(true);
+ });
  it("normalises accepted text answers",()=>{
   const exercise={type:"exercise",id:"hello",instruction:"Translate",prompt:"Hello",response_type:"text",accepted_answers:["Hello","Hi there"]};
   expect(evaluateAuthoredExercise(exercise,"  HELLO  ")?.correct).toBe(true);
