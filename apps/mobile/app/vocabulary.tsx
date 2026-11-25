@@ -2,7 +2,7 @@ import {useCallback,useState} from "react";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {AuthApiError,getVocabularyReviewQueue,submitVocabularyRecallRating,type VocabularyReviewItem} from "../src/auth-api";
+import {getVocabularyReviewQueue,submitVocabularyRecallRating,type VocabularyReviewItem} from "../src/auth-api";
 import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
 import {colors,radius,space} from "../src/theme";
 
