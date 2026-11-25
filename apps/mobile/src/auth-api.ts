@@ -223,6 +223,60 @@ export async function requestGabrooSentenceFeedback(text:string){
 export async function sendGabrooMessage(id:string,message:string,signal?:AbortSignal){
  return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id)+"/messages","POST",{message},signal) as {messages:GabrooConversationMessage[]};
 }
+
+export async function sendGabrooMessageStream(id:string,message:string,signal:AbortSignal,onDelta:(text:string)=>void){
+ const path="/api/v1/gabroo/conversations/"+encodeURIComponent(id)+"/messages";
+ let access=await SecureStore.getItemAsync(ACCESS_KEY);
+ if(!access){await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);}
+ const send=()=>fetch(baseUrl()+path,{method:"POST",headers:{"content-type":"application/json",accept:"text/event-stream",authorization:"Bearer "+access},body:JSON.stringify({message}),signal});
+ let response=await send();
+ if(response.status===401){
+  await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);response=await send();
+ }
+ if(!response.ok)await parseResponse(response);
+ let committed:{messages:GabrooConversationMessage[]}|undefined;
+ let frameBuffer="";
+ const dispatch=(frame:string)=>{
+  let event="message";const data:string[]=[];
+  for(const line of frame.split(/\\r?\\n/)){
+   if(line.startsWith("event:"))event=line.slice(6).trim();
+   else if(line.startsWith("data:"))data.push(line.slice(5).trimStart());
+  }
+  if(!data.length)return;
+  let payload:unknown;
+  try{payload=JSON.parse(data.join("\\n")) as unknown;}catch{return;}
+  if(event==="delta"&&typeof payload==="object"&&payload!==null&&"content" in payload&&typeof payload.content==="string")onDelta(payload.content);
+  if(event==="committed"&&typeof payload==="object"&&payload!==null&&"messages" in payload&&Array.isArray(payload.messages))committed=payload as {messages:GabrooConversationMessage[]};
+  if(event==="error"){
+   const message=typeof payload==="object"&&payload!==null&&"error" in payload&&typeof payload.error==="object"&&payload.error!==null&&"message" in payload.error&&typeof payload.error.message==="string"?payload.error.message:"Gabroo could not complete this reply.";
+   throw new AuthApiError(message,502);
+  }
+ };
+ const processText=(chunk:string)=>{
+  frameBuffer+=chunk.replace(/\\r\\n/g,"\\n");
+  let boundary=frameBuffer.indexOf("\\n\\n");
+  while(boundary>=0){
+   const frame=frameBuffer.slice(0,boundary);frameBuffer=frameBuffer.slice(boundary+2);dispatch(frame);
+   boundary=frameBuffer.indexOf("\\n\\n");
+  }
+ };
+ if(response.body&&typeof response.body.getReader==="function"){
+  const reader=response.body.getReader();const decoder=new TextDecoder();
+  try{
+   while(true){
+    if(signal.aborted)throw new DOMException("Aborted","AbortError");
+    const chunk=await reader.read();
+    if(chunk.done){processText(decoder.decode());break;}
+    processText(decoder.decode(chunk.value,{stream:true}));
+   }
+  }finally{await reader.cancel().catch(()=>undefined);reader.releaseLock();}
+ }else{
+  processText(await response.text());
+ }
+ if(frameBuffer.trim())dispatch(frameBuffer);
+ if(!committed)throw new AuthApiError("Gabroo's reply ended before it was safely saved. Please reload the conversation.",502);
+ return committed;
+}
 export async function deleteGabrooConversation(id:string){
  await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id),"DELETE");
 }
