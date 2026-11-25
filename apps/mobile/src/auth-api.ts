@@ -1,6 +1,7 @@
 import type {LearnerLessonContent} from "@gabenglish/contracts";
 import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system";
+import { parseGabrooSpeechStatus, type GabrooSpeechStatus } from "./gabroo/speech-status";
 import {authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
 
 const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
@@ -179,16 +180,10 @@ export async function recognizeGabrooAudio(input:{
 }
 
 export type {GabrooRecognitionStatus};
-export type GabrooSpeechStatus={available:boolean;supported_languages:("ml"|"en")[];speech_rate:{minimum:number;maximum:number};consent_required:true};
 export async function getGabrooSpeechStatus():Promise<GabrooSpeechStatus>{
  const payload=await authorized("/api/v1/gabroo/speech/status","GET");
- if(typeof payload!=="object"||payload===null)throw new AuthApiError("Gabroo speech availability returned an invalid response.");
- const value=payload as Record<string,unknown>;
- const rate=value.speech_rate as Record<string,unknown>|undefined;
- if(typeof value.available!=="boolean"||!Array.isArray(value.supported_languages)||!value.supported_languages.every(language=>language==="ml"||language==="en")||!rate||typeof rate.minimum!=="number"||typeof rate.maximum!=="number"||value.consent_required!==true){
-  throw new AuthApiError("Gabroo speech availability returned an invalid response.");
- }
- return {available:value.available,supported_languages:value.supported_languages as ("ml"|"en")[],speech_rate:{minimum:rate.minimum,maximum:rate.maximum},consent_required:true};
+ try{return parseGabrooSpeechStatus(payload);}
+ catch{throw new AuthApiError("Gabroo speech availability returned an invalid response.");}
 }
 
 export async function getGabrooRecognitionStatus(){
