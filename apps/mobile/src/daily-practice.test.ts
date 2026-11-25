@@ -1,6 +1,10 @@
 import {describe,expect,it} from "vitest";
-import {buildDailySpeakingChallenge} from "./daily-practice.js";
+import {buildDailySpeakingChallenge,localPracticeDateKey} from "./daily-practice.js";
 describe("daily speaking challenge",()=>{
+ it("formats the learner device-local calendar date without UTC conversion",()=>{
+  const date=new Date(2026,10,25,23,45,0);
+  expect(localPracticeDateKey(date)).toBe("2026-11-25");
+ });
  it("returns a stable challenge for the same calendar date",()=>{
   expect(buildDailySpeakingChallenge("2026-11-25")).toEqual(buildDailySpeakingChallenge("2026-11-25"));
  });
