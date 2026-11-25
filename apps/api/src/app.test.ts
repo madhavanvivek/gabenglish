@@ -185,4 +185,36 @@ describe("API foundation",()=>{
   await app.close();
  });
 
+ it("persists a learner-selected stage separately for each learning direction",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let direction:"ml_to_en"|"en_to_ml"="ml_to_en";
+  const stages=new Map<string,{stage:number;stage_source:string;updated_at:Date}>();
+  const pool={query:async(sql:string,values?:unknown[])=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:direction}]};
+   if(sql.includes("SELECT stage,stage_source,updated_at FROM learner_learning_stages")){
+    const saved=stages.get(String(values?.[1]));return {rows:saved?[saved]:[]};
+   }
+   if(sql.includes("INSERT INTO learner_learning_stages")){
+    const saved={stage:Number(values?.[2]),stage_source:"learner_selected",updated_at:new Date()};
+    stages.set(String(values?.[1]),saved);return {rows:[saved]};
+   }
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const headers={authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)};
+  const selected=await app.inject({method:"PUT",url:"/api/v1/learning/stage",headers,payload:{stage:4}});
+  expect(selected.statusCode).toBe(200);
+  expect(selected.json()).toMatchObject({learning_direction:"ml_to_en",stage:4,stage_source:"learner_selected",stage_status:"confirmed"});
+  const sameDirection=await app.inject({method:"GET",url:"/api/v1/learning/stage",headers});
+  expect(sameDirection.json().stage).toBe(4);
+  direction="en_to_ml";
+  const otherDirection=await app.inject({method:"GET",url:"/api/v1/learning/stage",headers});
+  expect(otherDirection.json()).toMatchObject({learning_direction:"en_to_ml",stage:null,stage_status:"not_selected"});
+  direction="ml_to_en";
+  const restored=await app.inject({method:"GET",url:"/api/v1/learning/stage",headers});
+  expect(restored.json().stage).toBe(4);
+  await app.close();
+ });
+
 });
