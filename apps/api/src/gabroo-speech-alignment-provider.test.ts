@@ -73,18 +73,19 @@ describe("Gabroo speech alignment provider boundary",()=>{
   await expect(runGabrooSpeechAlignment(abortingProvider,{audio,text,language:"en",identity:exactIdentity,signal:during.signal})).rejects.toThrow(/cancelled/i);
  });
 
- it("rejects oversized audio and unsupported language before provider invocation",()=>{
-  const controller=new AbortController();
-  let called=0;
-  const provider={align:async()=>{called+=1;return {kind:"phoneme" as const,alignment:{audio_id:"x",audio_sha256:"a".repeat(64),duration_ms:100,phonemes:[]}};}};
+ it("rejects oversized audio and unsupported language before provider invocation",async()=>{
   const validAudio=Buffer.from([1]);
   const validText="Hello";
   const validIdentity=createGabrooSynthesizedAudioIdentity({audio:validAudio,text:validText,durationMs:100,audioId:"bounded-audio"});
-  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio:Buffer.alloc(12*1024*1024+1),text:validText,identity:validIdentity,language:"en"})).toThrow(/12 MiB/i);
-  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio:validAudio,text:validText,identity:validIdentity,language:"xx" as "en"})).toThrow(/language/i);
+  const controller=new AbortController();
+  let called=0;
+  const provider={align:async()=>{called+=1;return {kind:"phoneme" as const,alignment:{audio_id:validIdentity.audio_id,audio_sha256:validIdentity.audio_sha256,duration_ms:100,phonemes:[{phoneme:"h",start_ms:0,end_ms:50}]}};}};
+
+  const oversized=Buffer.alloc(12*1024*1024+1);
+  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio:oversized,text:validText,identity:validIdentity,language:"en"})).toThrow(/12 MiB/i);
+  await expect(runGabrooSpeechAlignment(provider,{audio:oversized,text:validText,identity:validIdentity,language:"en",signal:controller.signal})).rejects.toThrow(/12 MiB/i);
+  await expect(runGabrooSpeechAlignment(provider,{audio:validAudio,text:validText,identity:validIdentity,language:"xx" as "en",signal:controller.signal})).rejects.toThrow(/language/i);
   expect(called).toBe(0);
-  void provider;
-  void controller;
  });
 
  it("rejects empty timing arrays instead of treating them as successful alignment",()=>{
