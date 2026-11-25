@@ -7,8 +7,20 @@ import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
 import type {GabrooSpeechSynthesisProvider} from "./gabroo-speech-synthesis-provider.js";
 import {GabrooSpeechQuotaExceededError,reserveGabrooSpeechUsage} from "./gabroo-speech-usage.js";
+import type {GabrooSpeechAlignmentProvider,GabrooAlignmentLanguage} from "./gabroo-speech-alignment-provider.js";
+import {runGabrooSpeechAlignment} from "./gabroo-speech-alignment-provider.js";
+import {createGabrooSynthesizedAudioIdentity} from "./gabroo-audio-identity.js";
+import {measureGabrooMp3DurationMs} from "./gabroo-mp3-metadata.js";
 
 const activeSpeechLearners=new Set<string>();
+const alignmentRequestSchema=z.object({
+ audio_base64:z.string().min(4).max(16_777_216),text:z.string().trim().min(1).max(4_000),
+ audio_id:z.string().regex(/^[a-f0-9]{64}$/),audio_sha256:z.string().regex(/^[a-f0-9]{64}$/),
+ text_sha256:z.string().regex(/^[a-f0-9]{64}$/),duration_ms:z.number().int().positive().max(600_000),
+ language:z.enum(["ml","en","mixed"])
+}).strict();
+const CANONICAL_BASE64=/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+const MAX_ALIGNMENT_AUDIO_BYTES=12*1024*1024;
 
 const speechRequestSchema=z.object({
  text:z.string().trim().min(1).max(4_000),
@@ -123,11 +135,43 @@ export async function registerGabrooSpeechRoutes(
    available,
    formats:available?["audio/mpeg"]:[],
    speed:{minimum:0.75,maximum:1.5},
-   capabilities:{speech_synthesis:available,character_alignment:false,phoneme_alignment:false,live_avatar_renderer:false}
+   capabilities:{speech_synthesis:available,character_alignment:Boolean(alignmentProvider),phoneme_alignment:Boolean(alignmentProvider),live_avatar_renderer:false}
   };
  });
 
 
+ app.post("/api/v1/gabroo/speech/alignment",{bodyLimit:17*1024*1024},async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return sendError(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account to align Gabroo audio.");
+  const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);
+  if(!entitlement)return sendError(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to use Gabroo alignment.");
+  if(!alignmentProvider)return sendError(reply,request.id,503,"ALIGNMENT_PROVIDER_UNAVAILABLE","Gabroo phoneme alignment is not configured yet.");
+  const parsed=alignmentRequestSchema.safeParse(request.body);
+  if(!parsed.success)return sendError(reply,request.id,400,"INVALID_ALIGNMENT_REQUEST","The audio alignment request is invalid.");
+  if(!CANONICAL_BASE64.test(parsed.data.audio_base64))return sendError(reply,request.id,400,"INVALID_ALIGNMENT_AUDIO","The supplied audio is not valid base64.");
+  const audio=Buffer.from(parsed.data.audio_base64,"base64");
+  if(audio.byteLength===0||audio.byteLength>MAX_ALIGNMENT_AUDIO_BYTES||audio.toString("base64")!==parsed.data.audio_base64)
+   return sendError(reply,request.id,400,"INVALID_ALIGNMENT_AUDIO","The supplied audio is empty, malformed, or exceeds 12 MiB.");
+  let measuredDuration:number;
+  try{measuredDuration=measureGabrooMp3DurationMs(audio);}catch{return sendError(reply,request.id,400,"INVALID_ALIGNMENT_AUDIO","The supplied audio is not a valid measured MP3.");}
+  if(Math.abs(measuredDuration-parsed.data.duration_ms)>1)
+   return sendError(reply,request.id,400,"ALIGNMENT_DURATION_MISMATCH","The supplied duration does not match the exact MP3 bytes.");
+  const identity=createGabrooSynthesizedAudioIdentity({audio,text:parsed.data.text,durationMs:measuredDuration,audioId:parsed.data.audio_id});
+  if(identity.audio_sha256!==parsed.data.audio_sha256||identity.audio_sha256!==parsed.data.audio_id||identity.text_sha256!==parsed.data.text_sha256)
+   return sendError(reply,request.id,400,"ALIGNMENT_IDENTITY_MISMATCH","The supplied audio or text identity does not match the exact content.");
+  const controller=new AbortController(),onAborted=()=>controller.abort();
+  request.raw.once("aborted",onAborted);
+  try{
+   const result=await runGabrooSpeechAlignment(alignmentProvider,{audio,text:parsed.data.text,language:parsed.data.language,identity,signal:controller.signal});
+   if(controller.signal.aborted)return;
+   reply.header("cache-control","private, no-store");
+   return {alignment:result};
+  }catch{
+   if(controller.signal.aborted)return;
+   request.log.warn({request_id:request.id},"Gabroo alignment provider rejected or failed the request");
+   return sendError(reply,request.id,502,"ALIGNMENT_FAILED","Gabroo could not align this audio. Please try again.");
+  }finally{request.raw.removeListener("aborted",onAborted);}
+ });
  app.post("/api/v1/gabroo/speech/playback-ticket",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return sendError(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account to prepare Gabroo audio.");
