@@ -53,13 +53,13 @@ describe("Gabroo caption playback sampler",()=>{
   {text:"Gabroo",start_index:10,end_index:16,start_ms:500,end_ms:900}
  ];
  it("highlights only the cue active at the native audio playback position",()=>{
-  expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",positionMs:250,isPlaying:true})?.cue.text).toBe("നമസ്കാരം");
+  expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",expectedAudioId:"audio-1",positionMs:250,isPlaying:true})?.cue.text).toBe("നമസ്കാരം");
   expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",positionMs:750,isPlaying:true})?.cue.text).toBe("Gabroo");
   expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",positionMs:950,isPlaying:true})).toBeNull();
  });
  it("clears highlighting on pause or stale playback identity",()=>{
   expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",positionMs:250,isPlaying:false})).toBeNull();
-  expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-old",positionMs:250,isPlaying:true})).toBeNull();
+  expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-old",expectedAudioId:"audio-1",positionMs:250,isPlaying:true})).toBeNull();
  });
  it("chooses the latest-starting active cue when provider spans overlap",()=>{
   const overlapping=[cues[0],{...cues[1],start_ms:300}];
