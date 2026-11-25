@@ -1,3 +1,17 @@
+export function isGabrooPlayableAudioUri(value: unknown): value is string {
+  if (typeof value !== "string" || value.length > 4096 || value.trim() !== value) return false;
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === "https:") {
+      return Boolean(parsed.hostname) && !parsed.username && !parsed.password;
+    }
+    // Expo AV commonly plays a downloaded, app-private cache file.
+    return parsed.protocol === "file:" && value.startsWith("file:///");
+  } catch {
+    return false;
+  }
+}
+
 import type { GabrooNativePlayerSnapshot, GabrooPlaybackIdentity } from "./native-playback-clock";
 
 export interface ExpoPlaybackStatusLike {
