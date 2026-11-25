@@ -27,7 +27,7 @@ describe("authored exercise evaluation",()=>{
  it("normalises repeated whitespace inside accepted text answers",()=>{
   const exercise={type:"exercise",id:"phrase",instruction:"Translate",prompt:"Good morning",response_type:"text",accepted_answers:["Good morning"]};
   expect(evaluateAuthoredExercise(exercise,"  GOOD   MORNING  ")?.correct).toBe(true);
-  expect(evaluateAuthoredExercise(exercise,"GOOD\\tMORNING")?.correct).toBe(true);
+  expect(evaluateAuthoredExercise(exercise,"GOOD\tMORNING")?.correct).toBe(true);
  });
  it("normalises accepted text answers",()=>{
   const exercise={type:"exercise",id:"hello",instruction:"Translate",prompt:"Hello",response_type:"text",accepted_answers:["Hello","Hi there"]};
