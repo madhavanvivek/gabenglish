@@ -1,7 +1,6 @@
 import { Audio } from "expo-av";
 import {
   GabrooNativePlaybackClock,
-  type GabrooNativePlayerSnapshot,
 } from "./native-playback-clock";
 import type { GabrooAvatarRendererGate } from "./avatar-renderer-gate";
 
@@ -17,11 +16,9 @@ export interface GabrooExpoAvPlaybackHandle {
 
 /**
  * Connects Expo AV's native playback-status callback to the host-neutral
- * avatar clock. Audio/alignment hashes and IDs must come from trusted,
- * server-validated metadata; this adapter does not calculate or assert them.
- *
- * The caller must only pass a timeline returned by the trusted alignment
- * service for this exact audio asset.
+ * avatar clock. The adapter accepts one complete server-issued asset envelope
+ * and derives its URI, audio identity and timeline from that same validated
+ * object, preventing callers from mixing unrelated audio and alignment data.
  */
 export async function createGabrooExpoAvPlayback(input: {
   asset: unknown;
