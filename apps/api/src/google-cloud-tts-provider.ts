@@ -122,7 +122,12 @@ export function createGoogleCloudTtsProvider(
     }),
     signal
    });
-   if(!response.ok)throw new Error("Google Cloud Text-to-Speech request failed with status "+response.status);
+   if(!response.ok){
+    // Release an error response body instead of leaving an unread stream attached
+    // to a pooled connection. Cancellation failure must not hide the HTTP status.
+    try{await response.body?.cancel();}catch{/* preserve the provider status error */}
+    throw new Error("Google Cloud Text-to-Speech request failed with status "+response.status);
+   }
    const payload=await readBoundedGoogleTtsPayload(response);
    if(typeof payload.audioContent!=="string"||!payload.audioContent)throw new Error("Google Cloud Text-to-Speech returned no audio content.");
    // Reject an oversized encoded payload before allocating its decoded Buffer.
