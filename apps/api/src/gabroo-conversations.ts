@@ -187,7 +187,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
       supportLanguage:snapshot!.support_language,
       learningDirection:snapshot!.learning_direction,
       targetLanguage:snapshot!.target_language,
-      stage:([1,2,3,4,5].includes(learnerProfile?.preferred_learning_stage??0)?learnerProfile!.preferred_learning_stage as 1|2|3|4|5:undefined),
+      stage:(snapshot!.learning_direction==="ml_to_en"&&[1,2,3,4,5].includes(learnerProfile?.preferred_learning_stage??0)?learnerProfile!.preferred_learning_stage as 1|2|3|4|5:undefined),
       preferredName:learnerProfile?.display_name,
       learningGoal:learnerProfile?.learning_goal,
       profileCorrectionPreference:learnerProfile?.correction_mode,
