@@ -262,19 +262,22 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
     if(replay.response!==parsed.data.response){await client.query("ROLLBACK");return failure(reply,request.id,409,"IDEMPOTENCY_KEY_REUSED","This submission key was already used for a different answer.");}
     attempt={id:replay.id,is_correct:replay.is_correct,feedback:replay.feedback};
    }
+   let evidenceRecorded=false;
    if(["grammar","vocabulary","comprehension"].includes(String(exercise.skill))){
     const evidenceTaskId=parsed.data.learning_session_id
       ?"lesson-exercise-session:"+parsed.data.learning_session_id+":"+exerciseId
       :"lesson-exercise:"+attempt.id;
-    await client.query(
+    const evidence=await client.query<{id:string}>(
      `INSERT INTO gabroo_skill_evidence(user_id,skill,score,confidence,source,task_id,observed_at)
       VALUES($1,$2,$3,0.75,'lesson_exercise',$4,now())
-      ON CONFLICT(user_id,skill,source,task_id) DO NOTHING`,
+      ON CONFLICT(user_id,skill,source,task_id) DO NOTHING
+      RETURNING id`,
      [learner.id,exercise.skill,attempt.is_correct?1:0,evidenceTaskId]
     );
+    evidenceRecorded=evidence.rows.length>0;
    }
    await client.query("COMMIT");
-   return {lesson_id:id,exercise_id:exerciseId,attempt_id:attempt.id,result:{correct:attempt.is_correct,feedback:attempt.feedback},evidence_recorded:Boolean(saved.rows[0])&&["grammar","vocabulary","comprehension"].includes(String(exercise.skill))};
+   return {lesson_id:id,exercise_id:exerciseId,attempt_id:attempt.id,result:{correct:attempt.is_correct,feedback:attempt.feedback},evidence_recorded:evidenceRecorded};
   }catch(error){
    await client.query("ROLLBACK").catch(()=>undefined);
    request.log.error({request_id:request.id},"Exercise attempt persistence failed");
