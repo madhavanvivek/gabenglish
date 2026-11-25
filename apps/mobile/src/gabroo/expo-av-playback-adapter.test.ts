@@ -155,3 +155,61 @@ describe("Gabroo Expo AV playback lifecycle", () => {
     await secondPlayback.unload();
   });
 });
+
+
+describe("Gabroo playback cancellation", () => {
+  it("unloads a native sound if cancellation races native player creation", async () => {
+    const controller = new AbortController();
+    let resolveCreate!: (value: { sound: {
+      playAsync(): Promise<void>;
+      pauseAsync(): Promise<void>;
+      stopAsync(): Promise<void>;
+      unloadAsync(): Promise<void>;
+    } }) => void;
+    const sound = {
+      playAsync: vi.fn(async () => undefined),
+      pauseAsync: vi.fn(async () => undefined),
+      stopAsync: vi.fn(async () => undefined),
+      unloadAsync: vi.fn(async () => undefined),
+    };
+    const createSound = vi.fn(() => new Promise<{ sound: typeof sound }>(resolve => {
+      resolveCreate = resolve;
+    }));
+    const pending = createGabrooExpoAvPlayback({
+      asset: validAsset(),
+      gate: {} as never,
+      nowMs: Date.parse("2029-12-31T23:59:00.000Z"),
+      cacheAudio,
+      signal: controller.signal,
+      createSound: createSound as never,
+    });
+    await Promise.resolve();
+    controller.abort();
+    resolveCreate({ sound });
+    const playback = await pending;
+    expect(sound.unloadAsync).toHaveBeenCalledOnce();
+    await expect(playback.play()).rejects.toThrow(/no longer active/i);
+  });
+
+  it("does not create a native player when cancellation happens during cache preparation", async () => {
+    const controller = new AbortController();
+    let finishCache!: (value: { uri: string; audioSha256: string; bytes: number }) => void;
+    const cacheAudio = vi.fn(() => new Promise<{ uri: string; audioSha256: string; bytes: number }>(resolve => {
+      finishCache = resolve;
+    }));
+    const createSound = vi.fn();
+    const pending = createGabrooExpoAvPlayback({
+      asset: validAsset(),
+      gate: {} as never,
+      nowMs: Date.parse("2029-12-31T23:59:00.000Z"),
+      cacheAudio,
+      signal: controller.signal,
+      createSound: createSound as never,
+    });
+    await Promise.resolve();
+    controller.abort();
+    finishCache({ uri: "file:///private/cache/gabroo-a.audio", audioSha256: "a".repeat(64), bytes: 1024 });
+    await expect(pending).rejects.toThrow(/cancelled/i);
+    expect(createSound).not.toHaveBeenCalled();
+  });
+});
