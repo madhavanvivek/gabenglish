@@ -2,6 +2,16 @@ import type {GabrooConversationProvider,GabrooMessage} from "./gabroo-conversati
 import type {GabrooTeachingPolicy} from "./gabroo-teaching-policy.js";
 
 type ProviderConfig={apiKey:string;baseUrl:string;model:string};
+const MAX_HISTORY_MESSAGES=16;
+const MAX_HISTORY_CHARACTERS=24_000;
+function boundedHistory(history:GabrooMessage[]):GabrooMessage[]{
+ const selected:GabrooMessage[]=[];let characters=0;
+ for(const message of [...history].reverse().slice(0,MAX_HISTORY_MESSAGES)){
+  if(characters+message.content.length>MAX_HISTORY_CHARACTERS)break;
+  selected.push(message);characters+=message.content.length;
+ }
+ return selected.reverse();
+}
 type ProviderResponse={
  choices?:Array<{message?:{content?:unknown}}>;
  error?:{message?:string};
@@ -29,7 +39,7 @@ export function createOpenAICompatibleGabrooProvider(config:ProviderConfig):Gabr
       JSON.stringify(input.teachingPolicy)
      ].join("\n\n")
     },
-    ...input.history.map((message:GabrooMessage)=>({role:message.role,content:message.content}))
+    ...boundedHistory(input.history).map((message:GabrooMessage)=>({role:message.role,content:message.content}))
    ];
    const response=await fetch(baseUrl+"/chat/completions",{
     method:"POST",
