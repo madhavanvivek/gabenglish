@@ -8,6 +8,12 @@ describe("Gabroo provider configuration",()=>{
   expect(config.GABROO_API_MODEL).toBeUndefined();
   expect(config.GABROO_API_BASE_URL).toBe("https://api.openai.com/v1");
  });
+ it("treats blank example environment values as an unconfigured optional provider",()=>{
+  const config=loadConfig({NODE_ENV:"test",GABROO_API_KEY:"",GABROO_API_MODEL:""});
+  expect(config.GABROO_API_KEY).toBeUndefined();
+  expect(config.GABROO_API_MODEL).toBeUndefined();
+ });
+
  it("accepts a complete OpenAI-compatible provider configuration",()=>{
   const config=loadConfig({
    NODE_ENV:"test",GABROO_API_KEY:"provider-secret",
