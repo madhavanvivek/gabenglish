@@ -3,7 +3,7 @@ import { GabrooAvatarRendererGate, type AvatarRigAdapter, type AvatarRigFrame } 
 import { GabrooNativePlaybackClock, type GabrooNativePlayerSnapshot } from "./native-playback-clock";
 
 const hash = "e".repeat(64);
-const identity = { playbackTicketId: "ticket-a", audioId: "audio-a", audioSha256: hash, measuredDurationMs: 1_000 };
+const identity = { playbackTicketId: "ticket-a", audioId: "audio-a", audioSha256: hash, measuredDurationMs: 1_000, alignmentAudioSha256: hash, alignmentDurationMs: 1_000 };
 const timeline = {
   audio_id: "audio-a",
   duration_ms: 1_000,
@@ -66,7 +66,7 @@ describe("GabrooNativePlaybackClock", () => {
     expect(clock.tick(snapshot(), timeline)).toBe(false);
   });
 
-  it("ignores ticks after explicit stop and is safe to stop repeatedly", async () => {
+  it("rejects an alignment that is not independently bound to the audio asset", async () => {\n    const { clock } = await setup();\n    clock.begin({ ...identity, alignmentAudioSha256: "f".repeat(64) });\n    expect(clock.activeGeneration).toBeNull();\n    expect(clock.tick(snapshot(), timeline)).toBe(false);\n  });\n\n  it("ignores ticks after explicit stop and is safe to stop repeatedly", async () => {
     const { clock, rig } = await setup();
     clock.begin(identity);
     clock.stop();
