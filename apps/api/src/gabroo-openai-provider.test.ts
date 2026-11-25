@@ -109,8 +109,8 @@ describe("OpenAI-compatible Gabroo provider",()=>{
  it("streams incremental text deltas from an OpenAI-compatible SSE response",async()=>{
   const encoder=new TextEncoder();
   const chunks=[
-   'data: {"choices":[{"delta":{"content":"Namaskaar"}}]}\\n\\n',
-   'data: {"choices":[{"delta":{"content":"! How are you?"}}]}\\n\\ndata: [DONE]\\n\\n'
+   'data: {"choices":[{"delta":{"content":"Namaskaar"}}]}\n\n',
+   'data: {"choices":[{"delta":{"content":"! How are you?"}}]}\n\ndata: [DONE]\n\n'
   ];
   const body=new ReadableStream<Uint8Array>({
    start(controller){for(const chunk of chunks)controller.enqueue(encoder.encode(chunk));controller.close();}
