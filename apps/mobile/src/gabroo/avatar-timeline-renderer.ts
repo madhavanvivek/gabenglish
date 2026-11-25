@@ -20,15 +20,16 @@ export function renderGabrooTimelineFrame(
   proof: PlaybackProof,
   untrustedTimeline: unknown,
 ): boolean {
+  const proofGeneration = typeof proof === "object" && proof !== null ? proof.generation : undefined;
   if (typeof proof !== "object" || proof === null || typeof proof.audioId !== "string") {
-    if (Number.isSafeInteger(proof.generation)) gate.stopPlayback(proof.generation);
+    if (Number.isSafeInteger(proofGeneration)) gate.stopPlayback(proofGeneration);
     return false;
   }
   const parsed = gabrooSpeechTimelineSchema.safeParse(untrustedTimeline);
   if (!parsed.success
     || parsed.data.audio_id !== proof.audioId
     || parsed.data.duration_ms !== proof.measuredDurationMs) {
-    gate.stopPlayback();
+    if (Number.isSafeInteger(proofGeneration)) gate.stopPlayback(proofGeneration);
     return false;
   }
 
