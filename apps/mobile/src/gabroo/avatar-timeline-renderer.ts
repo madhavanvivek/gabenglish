@@ -20,6 +20,10 @@ export function renderGabrooTimelineFrame(
   proof: PlaybackProof,
   untrustedTimeline: unknown,
 ): boolean {
+  if (typeof proof !== "object" || proof === null || typeof proof.audioId !== "string") {
+    gate.stopPlayback();
+    return false;
+  }
   const parsed = gabrooSpeechTimelineSchema.safeParse(untrustedTimeline);
   if (!parsed.success
     || parsed.data.audio_id !== proof.audioId
