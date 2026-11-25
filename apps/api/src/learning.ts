@@ -252,8 +252,12 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   let stageProgression:ReturnType<typeof evaluateLearningStage>|null=null;
   if(currentStage!==null&&evidenceStage===currentStage){
    const recent=await pool.query<{is_correct:boolean}>(
-    `SELECT is_correct FROM learner_exercise_attempts
-     WHERE user_id=$1 AND learning_direction=$2 AND learner_stage=$3
+    `SELECT is_correct FROM (
+       SELECT DISTINCT ON (lesson_id,exercise_id) is_correct,attempted_at
+       FROM learner_exercise_attempts
+       WHERE user_id=$1 AND learning_direction=$2 AND learner_stage=$3
+       ORDER BY lesson_id,exercise_id,attempted_at DESC
+     ) AS latest_per_exercise
      ORDER BY attempted_at DESC LIMIT 8`,
     [learner.id,lesson.learning_direction,currentStage]
    );
