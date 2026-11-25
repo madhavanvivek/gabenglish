@@ -240,3 +240,26 @@ export async function saveLearningLessonProgress(id:string,progress_percent:numb
 export async function submitLearningExerciseAttempt(lessonId:string,exerciseId:string,response:string){
  return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(lessonId)+"/exercises/"+encodeURIComponent(exerciseId)+"/attempts","POST",{response}) as {lesson_id:string;exercise_id:string;result:{correct:boolean;feedback:string}};
 }
+
+ 
+export type VocabularyReviewItem={
+ lesson_id:string;lesson_title:string;lesson_version_id:string;vocabulary_item_id:string;
+ term:string;meaning:string;pronunciation:string|null;example:string|null;due_at:string;
+ repetitions:number;interval_days:number;
+};
+export type VocabularyReviewQueue={
+ learning_direction:"ml_to_en"|"en_to_ml";due_count:number;items:VocabularyReviewItem[];
+ policy:{only_current_published_versions:boolean;learner_reports_recall:boolean;missed_reviews_never_block_lessons:boolean};
+};
+export async function getVocabularyReviewQueue(limit=20){
+ if(!Number.isInteger(limit)||limit<1||limit>50)throw new AuthApiError("Choose between 1 and 50 vocabulary words.");
+ return await authorized("/api/v1/learning/vocabulary/reviews?limit="+limit,"GET") as VocabularyReviewQueue;
+}
+export type VocabularyReviewResult={
+ lesson_id:string;vocabulary_item_id:string;learning_direction:"ml_to_en"|"en_to_ml";rating:number;
+ schedule:{due_at:string;repetitions:number;interval_days:number;ease_factor:number};
+};
+export async function submitVocabularyRecallRating(lessonId:string,itemId:string,rating:number){
+ if(!Number.isInteger(rating)||rating<0||rating>5)throw new AuthApiError("Recall rating must be between 0 and 5.");
+ return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(lessonId)+"/vocabulary/"+encodeURIComponent(itemId)+"/review","POST",{rating}) as VocabularyReviewResult;
+}
