@@ -4,7 +4,7 @@ import {
  type GabrooCharacterAlignment,
  type GabrooPhonemeAlignment
 } from "@gabenglish/contracts";
-import type {GabrooSynthesizedAudioIdentity} from "./gabroo-audio-identity.js";
+import {createGabrooSynthesizedAudioIdentity,type GabrooSynthesizedAudioIdentity} from "./gabroo-audio-identity.js";
 
 export type GabrooAlignmentLanguage="ml"|"en"|"mixed";
 
