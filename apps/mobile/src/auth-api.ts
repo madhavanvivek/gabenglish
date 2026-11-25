@@ -198,6 +198,13 @@ export type GabrooLearningInsights={
  saved_practice_phrases:number;
  interpretation:{exercise_results_are_not_speaking_or_overall_proficiency_scores:boolean;latest_attempt_per_exercise_and_skill:boolean;minimum_evidence_for_coaching:number};
 };
+export type DailyChallengeCompletion={challenge_date:string;learning_direction:"ml_to_en"|"en_to_ml";challenge_title:string;skill_key:string|null;conversation_id:string|null;completed_at:string};
+export async function getDailyChallengeCompletion(date:string){
+ return await authorized("/api/v1/learning/daily-challenges/"+encodeURIComponent(date),"GET") as {completion:DailyChallengeCompletion|null};
+}
+export async function completeDailyChallenge(date:string,input:{title:string;skill_key:string|null;conversation_id?:string}){
+ return await authorized("/api/v1/learning/daily-challenges/"+encodeURIComponent(date)+"/complete","POST",input) as {completion:DailyChallengeCompletion};
+}
 export async function getGabrooLearningInsights(){
  return await authorized("/api/v1/gabroo/learning-insights","GET") as GabrooLearningInsights;
 }
