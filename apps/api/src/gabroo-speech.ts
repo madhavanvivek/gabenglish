@@ -61,6 +61,11 @@ async function synthesizeAndSend(
   if(controller.signal.aborted)return;
   reply.header("content-type",result.contentType);
   reply.header("content-length",String(result.audio.byteLength));
+  if(result.durationMs!==undefined){
+   reply.header("x-gabroo-audio-duration-ms",String(result.durationMs));
+   reply.header("x-gabroo-audio-sha256",createHash("sha256").update(result.audio).digest("hex"));
+   reply.header("x-gabroo-text-sha256",createHash("sha256").update(text,"utf8").digest("hex"));
+  }
   reply.header("cache-control","private, no-store");
   reply.header("x-content-type-options","nosniff");
   return reply.send(Buffer.from(result.audio));
