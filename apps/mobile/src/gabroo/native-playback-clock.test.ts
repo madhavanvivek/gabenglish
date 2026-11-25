@@ -83,6 +83,22 @@ describe("GabrooNativePlaybackClock", () => {
     expect(rig.applyFrame).not.toHaveBeenCalled();
   });
 
+
+  it("does not let a queued tick from an older clock stop a newer playback", async () => {
+    const { gate, rig } = await setup();
+    const oldClock = new GabrooNativePlaybackClock(gate);
+    const newClock = new GabrooNativePlaybackClock(gate);
+    const oldGeneration = oldClock.begin(identity);
+    const newGeneration = newClock.begin({ ...identity, playbackTicketId: "ticket-b", audioId: "audio-b" });
+    const resetCount = vi.mocked(rig.resetToNeutral).mock.calls.length;
+
+    expect(newGeneration).toBeGreaterThan(oldGeneration);
+    expect(oldClock.tick(snapshot(), timeline)).toBe(false);
+    expect(oldClock.activeGeneration).toBeNull();
+    expect(newClock.activeGeneration).toBe(newGeneration);
+    expect(vi.mocked(rig.resetToNeutral).mock.calls.length).toBe(resetCount);
+  });
+
   it("invalidates the current generation when timeline identity is wrong", async () => {
     const { clock } = await setup();
     clock.begin(identity);
