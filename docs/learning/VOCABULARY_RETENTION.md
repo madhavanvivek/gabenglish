@@ -18,6 +18,14 @@ Migration `0022_learner_vocabulary_reviews.sql` stores per-learner, per-directio
 - Review items are keyed to the current lesson version. When content is revised and republished, the new version is treated as a new learning item rather than inheriting an outdated definition's schedule.
 - Vocabulary item IDs are optional for legacy content, but only items with stable IDs participate in review scheduling.
 
-## Mobile integration still required
+## Mobile learner experience
 
-The mobile app must add a due-review card, reveal the meaning after the learner attempts recall, collect the 0–5 rating, submit it to the review endpoint, and refresh the queue. Review scheduling must never block normal lessons or punish missed days.
+The mobile app now includes a Word Garden review screen linked from the learner home. It loads up to 30 due or never-reviewed items, shows the target word and optional pronunciation/example first, reveals the meaning on learner action, and records one of six recall ratings. After a successful save it advances to the next item; when the queue is empty it offers a route back to lessons and Gabroo.
+
+The screen uses the authenticated mobile API client, so access tokens remain in secure storage and the client refreshes an expired session through the existing session flow. Subscription and published-content checks remain enforced by the API. Review scheduling must never block normal lessons or punish missed days.
+
+## Remaining integration work
+
+- Add a learner progress summary for vocabulary retained, developing and due for review.
+- Teach Gabroo to naturally revisit weak words during conversation, with learner consent and without interrupting the conversation.
+- Run the complete mobile typecheck/test suite and API integration tests against PostgreSQL before merging.
