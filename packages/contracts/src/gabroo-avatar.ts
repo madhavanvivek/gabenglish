@@ -86,6 +86,22 @@ function eventWeight(start:number,end:number,weight:number,at:number,fadeMs:numb
  return weight*Math.min(fadeIn,fadeOut);
 }
 
+/** Select the strongest active cue in one pass; called on every render tick. */
+function strongestEvent<T extends {start_ms:number;end_ms:number;weight:number}>(
+ events:readonly T[],
+ at:number,
+ fadeMs:number
+):{event:T;weight:number}|undefined{
+ let selected:T|undefined;
+ let selectedWeight=0;
+ for(const event of events){
+  const weight=eventWeight(event.start_ms,event.end_ms,event.weight,at,fadeMs);
+  // Strict comparison preserves the earlier authored cue on exact ties.
+  if(weight>selectedWeight){selected=event;selectedWeight=weight;}
+ }
+ return selected?{event:selected,weight:selectedWeight}:undefined;
+}
+
 /**
  * Sample the canonical Gabroo rig controls at the current audio playback time.
  * Silence resolves to a neutral mouth; no synthetic open/close talking loop.
@@ -99,23 +115,14 @@ export function sampleGabrooAvatarFrame(
   throw new Error("Playback time and fade duration must be finite; fade duration cannot be negative.");
  }
  const at=Math.max(0,Math.min(playbackMs,timeline.duration_ms));
- const viseme=timeline.visemes
-  .map(event=>({shape:event.shape,weight:eventWeight(event.start_ms,event.end_ms,event.weight,at,fadeMs)}))
-  .filter(event=>event.weight>0)
-  .sort((a,b)=>b.weight-a.weight)[0];
- const expression=timeline.expressions
-  .map(event=>({expression:event.expression,weight:eventWeight(event.start_ms,event.end_ms,event.weight,at,fadeMs)}))
-  .filter(event=>event.weight>0)
-  .sort((a,b)=>b.weight-a.weight)[0];
- const gesture=timeline.gestures
-  .map(event=>({gesture:event.gesture,weight:eventWeight(event.start_ms,event.end_ms,event.weight,at,fadeMs)}))
-  .filter(event=>event.weight>0)
-  .sort((a,b)=>b.weight-a.weight)[0];
+ const viseme=strongestEvent(timeline.visemes,at,fadeMs);
+ const expression=strongestEvent(timeline.expressions,at,fadeMs);
+ const gesture=strongestEvent(timeline.gestures,at,fadeMs);
  return {
-  viseme:viseme?{shape:viseme.shape,weight:viseme.weight}:{shape:"neutral",weight:0},
-  expression:expression?.expression??"neutral",
+  viseme:viseme?{shape:viseme.event.shape,weight:viseme.weight}:{shape:"neutral",weight:0},
+  expression:expression?.event.expression??"neutral",
   expressionWeight:expression?.weight??0,
-  gesture:gesture?.gesture??null,
+  gesture:gesture?.event.gesture??null,
   gestureWeight:gesture?.weight??0
  };
 }
