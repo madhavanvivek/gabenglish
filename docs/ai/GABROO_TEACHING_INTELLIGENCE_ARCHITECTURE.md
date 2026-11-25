@@ -246,3 +246,15 @@ The authenticated, active-subscription-gated `GET /api/v1/gabroo/learning-insigh
 Skill areas expose attempt count, correct count, accuracy and a descriptive evidence band. Fewer than five attempts are labelled as building evidence; at least five attempts can be described as strong exercise performance (80% or above), a practice opportunity (50% or below), or developing exercise performance. These labels describe tagged exercise outcomes only and must not be presented as a diagnosis of speaking, pronunciation, fluency or overall English proficiency.
 
 The mobile Progress screen displays these skill signals and the number of learner-saved practice phrases, with direct links to Sentence Coach and Speaking Journal. No learner text is sent to an AI provider by this endpoint, and no new learner profile or mistake record is inferred from free-form conversations.
+
+## 21. Live conversational adaptation and doubt-first turn handling (25 November 2026)
+
+The deterministic teaching policy now carries shared turn-by-turn guidance across all conversation modes and both learning directions:
+
+- Identify the learner's immediate intent before deciding whether to continue the conversation, explain, model, correct or ask a question.
+- If the learner asks a direct question or signals confusion, answer that doubt first rather than blindly continuing the previous activity.
+- When the doubt is resolved, reconnect briefly to the earlier topic or pending question if it remains useful. Do not make the learner repeat context already present in the conversation history.
+- Use comprehensible stretch: keep most of the reply accessible and introduce at most one manageable new phrase, richer structure or idea when it fits.
+- Prefer one natural next step or focused follow-up question. Understanding checks should feel conversational rather than becoming a repetitive quiz.
+
+These instructions supplement, rather than override, the learner-selected conversation mode, correction preference, target/support-language contract, stage guidance, address policy, private learner memory and evidence guardrails. They are prompt-policy guidance, not a claim that the current provider performs reliable intent classification or maintains a separate hidden conversation-state machine. Provider behaviour still needs evaluation against real Malayalam-English conversations before it can be considered production-quality.
