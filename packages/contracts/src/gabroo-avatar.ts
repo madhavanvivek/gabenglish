@@ -1,8 +1,9 @@
 import {z} from "zod";
 
 /**
- * Provider-neutral animation contract for the one approved Concept C Gabroo
- * rig. These are rig controls, not character variants or generated avatars.
+ * Provider-neutral animation contract for a future owner-approved canonical
+ * Gabroo rig. These controls define animation semantics only; they do not
+ * select, approve or supply a character model or visual identity.
  */
 export const gabrooVisemeShapeSchema=z.enum([
  "neutral","closed_lips","lip_teeth","tongue_teeth","open_wide",
