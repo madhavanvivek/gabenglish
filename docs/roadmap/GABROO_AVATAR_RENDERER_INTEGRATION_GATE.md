@@ -159,3 +159,6 @@ A rejected native `playAsync()` now reports a normalized error to the consumer, 
 The Gabroo screen now stops device TTS as soon as the app leaves the active state, invalidating the current speech run so late segment callbacks cannot continue a reply in the background. Unsubmitted transcription recordings and locally captured microphone-test files are stopped and deleted when the app backgrounds. If the app backgrounds while a native recording start/stop operation is still in flight, the operation's completion path performs the same cleanup. Capture entry points also refuse to start while the app is not active, and the audio mode is restored after transcription capture is discarded.
 
 This is application-level lifecycle handling. Validate on physical Android devices for notification shade, lock screen, incoming calls, Bluetooth route changes, process recreation and OEM-specific audio focus behavior before release.
+
+
+Screen navigation blur is handled separately from OS backgrounding: leaving the Gabroo route stops device TTS, discards temporary transcription audio, and blocks new microphone capture until the route is focused again. Pending native recording operations check both app-active and screen-focused state when they settle, so a recording created during a navigation/background race is discarded rather than retained.
