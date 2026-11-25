@@ -257,7 +257,7 @@ export async function sendGabrooMessageStream(id:string,message:string,signal:Ab
   let boundary=frameBuffer.indexOf("\n\n");
   while(boundary>=0){
    const frame=frameBuffer.slice(0,boundary);frameBuffer=frameBuffer.slice(boundary+2);dispatch(frame);
-   boundary=frameBuffer.indexOf("\\n\\n");
+   boundary=frameBuffer.indexOf("\n\n");
   }
  };
  if(response.body&&typeof response.body.getReader==="function"){
