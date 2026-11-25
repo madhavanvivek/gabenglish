@@ -9,13 +9,14 @@ import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
 import {adjustGabrooSpeechRate} from "../src/learner-settings";
 import {BrandMark} from "../src/ui";
-import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getGabrooRecognitionStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences} from "../src/auth-api";
+import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getGabrooRecognitionStatus,getGabrooSpeechStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences} from "../src/auth-api";
 
 const conversationModes:{value:GabrooConversationMode;label:string}[]=[{value:"free_flow",label:"Free flow"},{value:"gentle_correction",label:"Gentle correction"},{value:"detailed_correction",label:"Detailed correction"},{value:"topic_practice",label:"Topic practice"},{value:"role_play",label:"Role-play"},{value:"vocabulary_building",label:"Vocabulary"},{value:"confidence_practice",label:"Confidence"}];
 
 export default function GabrooScreen(){
  const [subscription,setSubscription]=useState<SubscriptionStatus|null>(null);
  const [recognitionStatus,setRecognitionStatus]=useState<GabrooRecognitionStatus|null>(null);
+ const [generatedSpeechAvailable,setGeneratedSpeechAvailable]=useState<boolean|null>(null);
  const [conversations,setConversations]=useState<GabrooConversation[]>([]);
  const [active,setActive]=useState<GabrooConversation|null>(null);
  const [messages,setMessages]=useState<GabrooConversationMessage[]>([]);
@@ -57,8 +58,10 @@ export default function GabrooScreen(){
     setConversations(result.conversations);
     try{setRecognitionStatus(await getGabrooRecognitionStatus());}
     catch{setRecognitionStatus(null);}
+    try{setGeneratedSpeechAvailable((await getGabrooSpeechStatus()).available);}
+    catch{setGeneratedSpeechAvailable(null);}
    }else{
-    setRecognitionStatus(null);
+    setRecognitionStatus(null);setGeneratedSpeechAvailable(null);
     setConversations([]);setActive(null);setMessages([]);
    }
   }catch(reason){setError(reason instanceof Error?reason.message:"Could not load Gabroo.");}
@@ -413,7 +416,7 @@ export default function GabrooScreen(){
     <Text style={s.modeLabel}>Conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>void changeMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View>{messages.length===0?<View style={s.emptyPanel}><Text style={s.title}>Hi! I'm Gabroo.</Text><Text style={s.copy}>Let's have a natural conversation. What's on your mind today?</Text></View>:messages.map(message=><View key={message.id} style={[s.bubble,message.role==="user"?s.userBubble:s.gabrooBubble]}><Text style={s.speaker}>{message.role==="user"?"YOU":"GABROO"}</Text><Text style={s.message}>{message.content}</Text>{message.role==="assistant"?<Pressable accessibilityRole="button" onPress={()=>void speakMessage(message)} style={s.listenButton}><Text style={s.listenButtonText}>{speakingMessageId===message.id?"Stop speaking":"Listen · device voice"}</Text></Pressable>:null}</View>)}
     <TextInput value={draft} onChangeText={setDraft} placeholder="Write your message…" multiline style={s.input} editable={!busy}/>
     <Pressable disabled={!draft.trim()||busy} onPress={send} style={[s.button,(!draft.trim()||busy)&&s.disabled]}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Send message</Text>}</Pressable>
-    <Text style={s.hint}>You can ask for gentle corrections, detailed explanations or just a natural chat. Listen uses the voice installed on your device; Gabroo’s final character voice and live voice conversations are still being developed.</Text>{speechNotice?<Text style={s.speechNotice}>{speechNotice}</Text>:null}
+    <Text style={s.hint}>You can ask for gentle corrections, detailed explanations or just a natural chat. Listen uses the voice installed on your device; Gabroo’s final character voice and live voice conversations are still being developed.</Text>{generatedSpeechAvailable===false?<Text style={s.speechNotice}>Gabroo’s approved generated voice is not connected yet. Listen currently uses your device voice; your conversation and subscription are unaffected.</Text>:generatedSpeechAvailable===null?<Text style={s.speechNotice}>Generated voice availability could not be checked. Device voice remains available.</Text>:null}{speechNotice?<Text style={s.speechNotice}>{speechNotice}</Text>:null}
    </>}
   </>}
   {!!error&&<View style={s.error}><Text style={s.errorText}>{error}</Text></View>}
