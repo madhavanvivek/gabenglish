@@ -75,6 +75,7 @@ export default function GabrooScreen(){
   return ()=>{
    screenFocusedRef.current=false;
    transcriptionReviewRunRef.current+=1;
+   setTranscriptionBusy(false);
    speechRunRef.current+=1;
    void Speech.stop();
    void discardTranscriptionAudio();
@@ -342,6 +343,7 @@ export default function GabrooScreen(){
    appIsActiveRef.current=state==="active";
    if(state!=="active"){
     transcriptionReviewRunRef.current+=1;
+    setTranscriptionBusy(false);
     // Device TTS must not continue speaking behind a suspended learner screen.
     speechRunRef.current+=1;
     void Speech.stop();
