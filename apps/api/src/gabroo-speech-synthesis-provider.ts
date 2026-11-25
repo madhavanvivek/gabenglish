@@ -8,6 +8,7 @@ export type GabrooSpeechSynthesisInput={
 export type GabrooSpeechSynthesisResult={
  audio:Uint8Array;
  contentType:"audio/mpeg";
+ durationMs?:number;
 };
 export type GabrooSpeechSynthesisStreamResult={
  audio:Readable;
