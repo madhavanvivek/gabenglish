@@ -53,6 +53,7 @@ export default function GabrooScreen(){
  const speechSoundRef=useRef<Audio.Sound|null>(null);
  const speechRequestAbortRef=useRef<AbortController|null>(null);
  const speechAudioUriRef=useRef<string|null>(null);
+ const speechActiveAudioIdRef=useRef<string|null>(null);
  const speechSegmentResolveRef=useRef<(()=>void)|null>(null);
  const [turnState,setTurnState]=useState<GabrooTurnState>(initialGabrooTurnState);
  const [speechNotice,setSpeechNotice]=useState("");
@@ -320,6 +321,7 @@ export default function GabrooScreen(){
  const releaseSpeechAudio=async()=>{
   const sound=speechSoundRef.current;speechSoundRef.current=null;
   const uri=speechAudioUriRef.current;speechAudioUriRef.current=null;
+  speechActiveAudioIdRef.current=null;
   if(sound){
    sound.setOnPlaybackStatusUpdate(null);
    await sound.stopAsync().catch(()=>undefined);
@@ -365,12 +367,14 @@ export default function GabrooScreen(){
     speak:async(segment)=>{
      if(run!==speechRunRef.current||requestController.signal.aborted)return;
      const synthesisRate=speechRateRef.current;
-     const uri=await synthesizeGabrooSpeech({text:segment.text,speed:synthesisRate,signal:requestController.signal});
+     const audioAsset=await synthesizeGabrooSpeech({text:segment.text,speed:synthesisRate,signal:requestController.signal});
+     const uri=audioAsset.url;
      if(run!==speechRunRef.current||requestController.signal.aborted){
       await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
       return;
      }
      speechAudioUriRef.current=uri;
+     speechActiveAudioIdRef.current=audioAsset.audioId;
      let sound:Audio.Sound|null=null;
      try{
       const created=await Audio.Sound.createAsync({uri},{shouldPlay:false,rate:speechRateRef.current,shouldCorrectPitch:true});
@@ -396,6 +400,9 @@ export default function GabrooScreen(){
        };
        sound!.setOnPlaybackStatusUpdate(status=>{
         if(run!==speechRunRef.current||requestController.signal.aborted)return;
+        // A late callback from an earlier segment must never advance the active
+        // segment's playback state, even within the same learner message.
+        if(speechActiveAudioIdRef.current!==audioAsset.audioId)return;
         if(status.isLoaded){
          // Promote playback only after Expo confirms this audio item is playing.
          if((status.isPlaying||status.didJustFinish)&&!playbackStarted){
@@ -423,6 +430,7 @@ export default function GabrooScreen(){
        await sound.unloadAsync().catch(()=>undefined);
       }
       if(speechAudioUriRef.current===uri)speechAudioUriRef.current=null;
+      if(speechActiveAudioIdRef.current===audioAsset.audioId)speechActiveAudioIdRef.current=null;
       await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
      }
     }
