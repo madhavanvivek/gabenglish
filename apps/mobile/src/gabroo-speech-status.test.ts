@@ -25,6 +25,13 @@ describe("Gabroo speech readiness contract",()=>{
   expect(parseGabrooSpeechStatus(available).capabilities).toEqual({speech_synthesis:true,character_alignment:false,phoneme_alignment:false,live_avatar_renderer:false});
   expect(parseGabrooSpeechStatus(unavailable).capabilities.speech_synthesis).toBe(false);
  });
+ it("accepts alignment only when the API explicitly advertises an injected provider",()=>{
+  const configured={...available,capabilities:{...available.capabilities,character_alignment:true,phoneme_alignment:true}};
+  expect(parseGabrooSpeechStatus(configured)).toEqual(configured);
+ });
+ it("rejects non-boolean alignment capability flags",()=>{
+  expect(()=>parseGabrooSpeechStatus({...available,capabilities:{...available.capabilities,phoneme_alignment:"yes"}})).toThrow(/invalid response/i);
+ });
  it("rejects an advertised alignment or renderer until the server implements it",()=>{
   expect(()=>parseGabrooSpeechStatus({...available,capabilities:{...available.capabilities,phoneme_alignment:true}})).toThrow(/invalid response/i);
   expect(()=>parseGabrooSpeechStatus({...available,capabilities:{...available.capabilities,character_alignment:true}})).toThrow(/invalid response/i);
