@@ -66,7 +66,14 @@ describe("GabrooNativePlaybackClock", () => {
     expect(clock.tick(snapshot(), timeline)).toBe(false);
   });
 
-  it("rejects an alignment that is not independently bound to the audio asset", async () => {\n    const { clock } = await setup();\n    clock.begin({ ...identity, alignmentAudioSha256: "f".repeat(64) });\n    expect(clock.activeGeneration).toBeNull();\n    expect(clock.tick(snapshot(), timeline)).toBe(false);\n  });\n\n  it("ignores ticks after explicit stop and is safe to stop repeatedly", async () => {
+  it("rejects an alignment that is not independently bound to the audio asset", async () => {
+    const { clock } = await setup();
+    clock.begin({ ...identity, alignmentAudioSha256: "f".repeat(64) });
+    expect(clock.activeGeneration).toBeNull();
+    expect(clock.tick(snapshot(), timeline)).toBe(false);
+  });
+
+  it("ignores ticks after explicit stop and is safe to stop repeatedly", async () => {
     const { clock, rig } = await setup();
     clock.begin(identity);
     clock.stop();
