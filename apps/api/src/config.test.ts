@@ -34,4 +34,15 @@ describe("Gabroo provider configuration",()=>{
  it("rejects a malformed provider base URL",()=>{
   expect(()=>loadConfig({NODE_ENV:"test",GABROO_API_KEY:"provider-secret",GABROO_API_MODEL:"chat-model",GABROO_API_BASE_URL:"not-a-url"})).toThrow("Invalid environment configuration");
  });
+ it("defaults Gabroo output generation to a bounded 512 tokens",()=>{
+  expect(loadConfig({NODE_ENV:"test"}).GABROO_API_MAX_OUTPUT_TOKENS).toBe(512);
+ });
+ it("accepts a configured output token budget within safe limits",()=>{
+  expect(loadConfig({NODE_ENV:"test",GABROO_API_MAX_OUTPUT_TOKENS:"768"}).GABROO_API_MAX_OUTPUT_TOKENS).toBe(768);
+ });
+ it("rejects output token budgets outside the supported range",()=>{
+  expect(()=>loadConfig({NODE_ENV:"test",GABROO_API_MAX_OUTPUT_TOKENS:"32"})).toThrow("Invalid environment configuration");
+  expect(()=>loadConfig({NODE_ENV:"test",GABROO_API_MAX_OUTPUT_TOKENS:"4096"})).toThrow("Invalid environment configuration");
+ });
+
 });
