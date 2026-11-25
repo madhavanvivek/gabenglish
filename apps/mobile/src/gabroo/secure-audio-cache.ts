@@ -199,15 +199,15 @@ export async function cleanupExpiredGabrooSpeechAudio(input: {
   const names = await input.fileSystem.readDirectoryAsync(input.cacheDirectory);
   let removed = 0;
   for (const name of names) {
-    const expiredAudio = /^gabroo-[a-f0-9]{64}-(\\d+)\\.audio$/i.exec(name);
-    const abandonedPart = /^gabroo-[a-f0-9]{64}-(\\d+)-[a-z0-9_-]{1,60}\\.part$/i.exec(name);
+    const expiredAudio = /^gabroo-[a-f0-9]{64}-(\d+)\.audio$/i.exec(name);
+    const abandonedPart = /^gabroo-[a-f0-9]{64}-(\d+)-[a-z0-9_-]{1,60}\.part$/i.exec(name);
     const expiryMs = expiredAudio ? Number(expiredAudio[1]) : null;
     const createdAtMs = abandonedPart ? Number(abandonedPart[1]) : null;
     const expired = expiryMs !== null && Number.isSafeInteger(expiryMs) && expiryMs <= nowMs;
     const abandoned = createdAtMs !== null && Number.isSafeInteger(createdAtMs)
       && createdAtMs <= nowMs && nowMs - createdAtMs >= stalePartAgeMs;
     if (!expired && !abandoned) continue;
-    await input.fileSystem.deleteAsync(`${input.cacheDirectory.replace(/\\/$/, "")}/${name}`, { idempotent: true });
+    await input.fileSystem.deleteAsync(`${input.cacheDirectory.replace(/\/$/, "")}/${name}`, { idempotent: true });
     removed += 1;
   }
   return removed;
