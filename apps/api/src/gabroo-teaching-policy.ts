@@ -13,9 +13,10 @@ export type GabrooTeachingPolicy={
   learnerContext:{preferredName?:string;learningGoal?:string;profileCorrectionPreference?:"gentle"|"balanced"|"detailed"};
   learnerMemory:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>;
   vocabularyFocus:Array<{term:string;meaning:string;reason:"difficult"|"due"}>;
+  skillFocus:Array<{skillKey:string;accuracy:number;attemptCount:number}>;
 };
 
-const policyByMode:Record<GabrooConversationMode,Omit<GabrooTeachingPolicy,"mode"|"supportLanguage"|"learningDirection"|"targetLanguage"|"addressPolicy"|"stageGuidance"|"learnerContext"|"learnerMemory"|"vocabularyFocus">>={
+const policyByMode:Record<GabrooConversationMode,Omit<GabrooTeachingPolicy,"mode"|"supportLanguage"|"learningDirection"|"targetLanguage"|"addressPolicy"|"stageGuidance"|"learnerContext"|"learnerMemory"|"vocabularyFocus"|"skillFocus">>={
   free_flow:{correction:"none",primaryGoal:"communicate",responseGuidance:["Prioritise a natural conversation over teaching.","Do not interrupt the flow for minor errors.","Offer a correction only when meaning is unclear or the learner asks."]},
   gentle_correction:{correction:"gentle",primaryGoal:"build_accuracy",responseGuidance:["Acknowledge the learner's meaning first.","Correct at most one high-value issue in a turn.","Give a short, kind explanation and one natural example."]},
   detailed_correction:{correction:"detailed",primaryGoal:"build_accuracy",responseGuidance:["Give structured feedback on meaningful grammar and word-choice issues.","Distinguish errors from valid but less natural alternatives.","Avoid overwhelming the learner; group related feedback and invite a retry."]},
@@ -25,7 +26,7 @@ const policyByMode:Record<GabrooConversationMode,Omit<GabrooTeachingPolicy,"mode
   confidence_practice:{correction:"gentle",primaryGoal:"build_confidence",responseGuidance:["Make participation feel safe and achievable.","Praise specific communication successes without exaggeration.","Choose easy next steps and avoid correcting every mistake."]}
 };
 
-export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection?:"ml_to_en"|"en_to_ml";targetLanguage?:"ml"|"en";stage?:1|2|3|4|5;preferredName?:string|null;learningGoal?:string|null;profileCorrectionPreference?:"gentle"|"balanced"|"detailed";learnerMemory?:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>;vocabularyFocus?:Array<{term:string;meaning:string;reason:"difficult"|"due"}>}):GabrooTeachingPolicy{
+export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection?:"ml_to_en"|"en_to_ml";targetLanguage?:"ml"|"en";stage?:1|2|3|4|5;preferredName?:string|null;learningGoal?:string|null;profileCorrectionPreference?:"gentle"|"balanced"|"detailed";learnerMemory?:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>;vocabularyFocus?:Array<{term:string;meaning:string;reason:"difficult"|"due"}>;skillFocus?:Array<{skillKey:string;accuracy:number;attemptCount:number}>}):GabrooTeachingPolicy{
  const selected=policyByMode[input.mode];
  const learningDirection=input.learningDirection??"ml_to_en";
  const targetLanguage=input.targetLanguage??(learningDirection==="ml_to_en"?"en":"ml");
@@ -54,7 +55,7 @@ export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;sup
   learningDirection,
   targetLanguage,
   ...selected,
-  responseGuidance:[...selected.responseGuidance,learningDirection==="ml_to_en"?"The learner is learning English; Malayalam is the support language unless their preference says otherwise. Keep English as the learning target and give useful English examples.":"The learner is learning Malayalam; English is the support language unless their preference says otherwise. Keep Malayalam as the learning target, show Malayalam script, optionally add readable romanisation, and explain register and politeness in English. Never assume casual slang is appropriate.",...(input.vocabularyFocus?.length?["When relevant, gently reuse one of the learner's difficult or due vocabulary items in a natural example. Do not turn every conversation into a quiz, interrupt the learner, or claim a word is mastered. Invite practice rather than forcing it."]:[])],
+  responseGuidance:[...selected.responseGuidance,learningDirection==="ml_to_en"?"The learner is learning English; Malayalam is the support language unless their preference says otherwise. Keep English as the learning target and give useful English examples.":"The learner is learning Malayalam; English is the support language unless their preference says otherwise. Keep Malayalam as the learning target, show Malayalam script, optionally add readable romanisation, and explain register and politeness in English. Never assume casual slang is appropriate.",...(input.vocabularyFocus?.length?["When relevant, gently reuse one of the learner's difficult or due vocabulary items in a natural example. Do not turn every conversation into a quiz, interrupt the learner, or claim a word is mastered. Invite practice rather than forcing it."]:[]),...(input.skillFocus?.length?["Use the learner's repeated exercise evidence to choose a small, relevant practice opportunity. Skill evidence indicates exercise performance only; do not invent specific errors, label the learner, or present it as a speaking/proficiency diagnosis. Ask a natural question or offer one targeted example when it fits."]:[])],
   addressPolicy:"Use the learner's explicitly chosen name if available, otherwise use respectful neutral language. Never use 'eda', 'edi' or similar overfamiliar address by default. Do not infer that a learner welcomes slang from age, gender or writing style.",
   stageGuidance,
   learnerContext:{
