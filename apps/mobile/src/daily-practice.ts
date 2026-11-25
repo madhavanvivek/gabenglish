@@ -34,11 +34,26 @@ const challengeBank:Record<string,Array<{title:string;focus:string;prompt:string
   {title:"Speak in short chunks",focus:"Clear, comfortable speech",prompt:"Describe how you make your favourite food. Speak in short meaningful phrases and pause naturally between each step. Focus on being clear, not fast."},
   {title:"Explain a process",focus:"Pace and clarity",prompt:"Explain how someone new to your town can reach a place you know well. Give the directions one step at a time, at a comfortable pace."}
  ],
- listening:[{title:"Listen and respond",focus:"Understand and answer",prompt:"Ask Gabroo to tell you a short story in simple English. Listen carefully, then retell the main events in your own words and ask one follow-up question."}],
- speaking:[{title:"Start a conversation",focus:"Confident everyday speaking",prompt:"Imagine you are meeting a new colleague. Introduce yourself, ask two friendly questions and tell them one interesting thing about your day."}],
- comprehension:[{title:"Summarise an idea",focus:"Explain what you understood",prompt:"Ask Gabroo to explain a useful everyday topic in three short points. Then summarise those points in your own words and say which one matters most to you."}],
- conversation:[{title:"Keep a conversation going",focus:"Ask natural follow-up questions",prompt:"Imagine you are chatting with a friend about a weekend trip. Share one idea, ask a follow-up question and respond naturally to Gabroo's replies."}],
- writing:[{title:"Say it another way",focus:"Rephrase your ideas",prompt:"Tell Gabroo about a goal you have. First explain it simply, then try saying the same idea in a different way using “My aim is…” or “I’m hoping to…”."}]
+ listening:[
+  {title:"Listen and respond",focus:"Understand and answer",prompt:"Ask Gabroo to tell you a short story in simple English. Listen carefully, then retell the main events in your own words and ask one follow-up question."},
+  {title:"Catch the details",focus:"Listen for key information",prompt:"Ask Gabroo to describe a simple plan with a time, place and two activities. Listen, then explain the plan back and ask about one detail you want to confirm."}
+ ],
+ speaking:[
+  {title:"Start a conversation",focus:"Confident everyday speaking",prompt:"Imagine you are meeting a new colleague. Introduce yourself, ask two friendly questions and tell them one interesting thing about your day."},
+  {title:"Make a polite request",focus:"Everyday spoken interaction",prompt:"Imagine you need help finding a place in a building. Explain where you want to go, ask for directions politely and check that you understood."}
+ ],
+ comprehension:[
+  {title:"Summarise an idea",focus:"Explain what you understood",prompt:"Ask Gabroo to explain a useful everyday topic in three short points. Then summarise those points in your own words and say which one matters most to you."},
+  {title:"Compare two options",focus:"Understand and compare",prompt:"Ask Gabroo to describe two ways to travel to a nearby place. Explain the main difference, which option you would choose and why."}
+ ],
+ conversation:[
+  {title:"Keep a conversation going",focus:"Ask natural follow-up questions",prompt:"Imagine you are chatting with a friend about a weekend trip. Share one idea, ask a follow-up question and respond naturally to Gabroo's replies."},
+  {title:"Share a different opinion",focus:"Respond naturally and respectfully",prompt:"Ask Gabroo to share a light opinion about a common everyday topic. Say whether you agree, explain your view and ask Gabroo one question in return."}
+ ],
+ writing:[
+  {title:"Say it another way",focus:"Rephrase your ideas",prompt:"Tell Gabroo about a goal you have. First explain it simply, then try saying the same idea in a different way using “My aim is…” or “I’m hoping to…”."},
+  {title:"Give a short update",focus:"Organise a clear message",prompt:"Imagine you are updating a teammate about a task. Explain what is finished, what is still pending and what you plan to do next."}
+ ]
 };
 const general=[
  {title:"A moment from today",focus:"Everyday communication",prompt:"Tell Gabroo about one thing that happened today. Explain what happened, how you felt and what you might do next."},
