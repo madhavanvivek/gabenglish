@@ -8,7 +8,8 @@ const schema=z.object({
  CORS_ORIGINS:z.string().default("http://localhost:8081,http://localhost:19006"),
  GABROO_API_KEY:z.preprocess(value=>value===""?undefined:value,z.string().min(1).optional()),
  GABROO_API_BASE_URL:z.string().url().default("https://api.openai.com/v1"),
- GABROO_API_MODEL:z.preprocess(value=>value===""?undefined:value,z.string().trim().min(1).optional())
+ GABROO_API_MODEL:z.preprocess(value=>value===""?undefined:value,z.string().trim().min(1).optional()),
+ GABROO_API_MAX_OUTPUT_TOKENS:z.coerce.number().int().min(64).max(2048).default(512)
 }).superRefine((value,ctx)=>{
  if(value.NODE_ENV==="production"&&value.AUTH_TOKEN_SECRET==="gabenglish-local-development-secret-change-before-deploy"){
   ctx.addIssue({code:"custom",path:["AUTH_TOKEN_SECRET"],message:"AUTH_TOKEN_SECRET must be replaced before production."});
