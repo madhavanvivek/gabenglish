@@ -22,6 +22,7 @@ function makeFs(initial: Record<string, Uint8Array> = {}) {
       files.set(to, value); files.delete(from);
     }),
     deleteAsync: vi.fn(async (uri) => { files.delete(uri); }),
+    readDirectoryAsync: vi.fn(async () => Array.from(files.keys()).map(uri => uri.split("/").at(-1) ?? "")),
   };
   return { fs, files };
 }
@@ -33,11 +34,12 @@ describe("Gabroo secure audio cache", () => {
       remoteUri: "https://cdn.example.test/speech?token=x",
       cacheDirectory: "file:///private/cache/",
       audioSha256: digest,
+      expiresAt: "2030-01-01T00:00:00.000Z",
       fileSystem: fs,
       nonce: "test",
     });
     expect(result).toEqual({
-      uri: `file:///private/cache/gabroo-${digest}.audio`,
+      uri: `file:///private/cache/gabroo-${digest}-${Date.parse("2030-01-01T00:00:00.000Z")}.audio`,
       audioSha256: digest,
       bytes: bytes.length,
     });
@@ -55,6 +57,7 @@ describe("Gabroo secure audio cache", () => {
       remoteUri: "https://cdn.example.test/speech",
       cacheDirectory: "file:///private/cache",
       audioSha256: digest,
+      expiresAt: "2030-01-01T00:00:00.000Z",
       fileSystem: fs,
       nonce: "bad",
     })).rejects.toThrow(/SHA-256 verification failed/i);
@@ -63,7 +66,7 @@ describe("Gabroo secure audio cache", () => {
   });
 
   it("rehashes an existing cache entry and replaces corrupt content", async () => {
-    const path = `file:///private/cache/gabroo-${digest}.audio`;
+    const path = `file:///private/cache/gabroo-${digest}-${Date.parse("2030-01-01T00:00:00.000Z")}.audio`;
     const { fs } = makeFs({ [path]: new TextEncoder().encode("corrupt") });
     const result = await cacheGabrooSpeechAudio({
       remoteUri: "https://cdn.example.test/speech",
@@ -78,11 +81,35 @@ describe("Gabroo secure audio cache", () => {
 
   it("rejects non-HTTPS sources, invalid hashes and oversized content", async () => {
     const { fs } = makeFs();
-    const input = { cacheDirectory: "file:///private/cache", audioSha256: digest, fileSystem: fs };
+    const input = { cacheDirectory: "file:///private/cache", audioSha256: digest, expiresAt: "2030-01-01T00:00:00.000Z", fileSystem: fs };
     await expect(cacheGabrooSpeechAudio({ ...input, remoteUri: "http://bad.test/a" })).rejects.toThrow();
     await expect(cacheGabrooSpeechAudio({ ...input, remoteUri: "https://ok.test/a", audioSha256: "bad" })).rejects.toThrow();
     await expect(cacheGabrooSpeechAudio({
       ...input, remoteUri: "https://ok.test/a", maxBytes: 2,
     })).rejects.toThrow(/exceeds the cache limit/i);
+  });
+});
+
+
+describe("cleanupExpiredGabrooSpeechAudio", () => {
+  it("removes only cache entries whose encoded signed expiry has elapsed", async () => {
+    const { cleanupExpiredGabrooSpeechAudio } = await import("./secure-audio-cache");
+    const expired = `gabroo-${digest}-1000.audio`;
+    const active = `gabroo-${digest}-9000.audio`;
+    const unrelated = "other.audio";
+    const { fs, files } = makeFs({
+      [`file:///private/cache/${expired}`]: bytes,
+      [`file:///private/cache/${active}`]: bytes,
+      [`file:///private/cache/${unrelated}`]: bytes,
+    });
+    const removed = await cleanupExpiredGabrooSpeechAudio({
+      cacheDirectory: "file:///private/cache",
+      fileSystem: fs,
+      nowMs: 5000,
+    });
+    expect(removed).toBe(1);
+    expect(files.has(`file:///private/cache/${expired}`)).toBe(false);
+    expect(files.has(`file:///private/cache/${active}`)).toBe(true);
+    expect(files.has(`file:///private/cache/${unrelated}`)).toBe(true);
   });
 });
