@@ -6,7 +6,7 @@ import {
 } from "@gabenglish/contracts";
 import {createGabrooSynthesizedAudioIdentity,type GabrooSynthesizedAudioIdentity} from "./gabroo-audio-identity.js";
 
-export type GabrooAlignmentLanguage="ml"|"en"|"mixed";
+export type GabrooAlignmentLanguage="ml"|"en"|"mixed";\nconst MAX_ALIGNMENT_AUDIO_BYTES=12*1024*1024;
 
 export interface GabrooSpeechAlignmentInput {
  /** Exact completed audio bytes; providers must not alter or transcode them. */
