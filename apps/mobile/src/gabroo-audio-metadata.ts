@@ -16,7 +16,7 @@ export function parseGabrooAudioResponseMetadata(headers:Pick<Headers,"get">):Ga
  if(values.some(value=>value===null))throw new Error("Gabroo returned incomplete audio alignment metadata.");
  if(!/^[a-f0-9]{64}$/.test(audioId!)||audioId!==audioSha256)throw new Error("Gabroo returned an invalid audio content identity.");
  if(!/^[a-f0-9]{64}$/.test(textSha256!))throw new Error("Gabroo returned an invalid source text fingerprint.");
- if(!/^\\d+$/.test(durationValue!))throw new Error("Gabroo returned an invalid measured audio duration.");
+ if(!/^\d+$/.test(durationValue!))throw new Error("Gabroo returned an invalid measured audio duration.");
  const durationMs=Number(durationValue);
  if(!Number.isSafeInteger(durationMs)||durationMs<=0||durationMs>10*60*1000)throw new Error("Gabroo returned an out-of-range measured audio duration.");
  return {audioId:audioId!,audioSha256:audioSha256!,textSha256:textSha256!,durationMs};
