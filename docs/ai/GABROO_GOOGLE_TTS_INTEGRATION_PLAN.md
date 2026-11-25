@@ -164,7 +164,7 @@ No candidate is automatically selected because it is the default or cheapest.
 
 - Architecture decision: approved.
 - Google Cloud TTS as initial candidate: approved for evaluation/integration.
-- Native Google REST adapter: implemented; not yet live-tested.
+- Native Google REST adapter: implemented; not yet live-tested. It now rejects oversized base64 payloads before decoded-buffer allocation and requires canonical base64 encoding.
 - Existing API auth, active-subscription checks and single-use playback tickets: present.
 - Google Cloud project/API credentials: not configured.
 - Billing: not enabled by this change.
@@ -187,4 +187,4 @@ GABROO_GOOGLE_TTS_API_KEY=... pnpm --filter @gabenglish/api audition:google-tts 
 
 The command generates four candidate folders (VOICE-01 through VOICE-04), seven matching script segments per candidate (28 MP3 files total), `reviewer-manifest.json`, and `mapping.private.json`. The reviewer manifest contains no provider or voice IDs. Keep the private mapping restricted and share only the blind-coded audio plus reviewer manifest with the independent listeners. The output directory defaults to `.local/gabroo-voice-auditions` and is excluded from Git; `GABROO_AUDITION_OUTPUT_DIR` may select a different local directory.
 
-The generator does not run during CI, application startup or deployment. No samples were generated as part of this code change, no provider credentials were accessed, and no voice was selected or approved.
+The generator does not run during CI, application startup or deployment. The Google adapter regression tests cover malformed padding and over-limit encoded payload rejection. No samples were generated as part of this code change, no provider credentials were accessed, and no voice was selected or approved.
