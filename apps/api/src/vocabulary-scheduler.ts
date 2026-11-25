@@ -3,7 +3,7 @@ export type ReviewSchedule={repetitions:number;intervalDays:number;easeFactor:nu
 export function scheduleVocabularyReview(current:Pick<ReviewSchedule,"repetitions"|"intervalDays"|"easeFactor">,rating:RecallRating,reviewedAt:Date):ReviewSchedule{
  if(!Number.isInteger(rating)||rating<0||rating>5)throw new Error("Recall rating must be an integer from 0 to 5.");
  if(!Number.isFinite(reviewedAt.getTime()))throw new Error("Review timestamp must be a valid date.");
- const ease=Math.max(1.3,current.easeFactor+(0.1-(5-rating)*(0.08+(5-rating)*0.02)));
+ const ease=Math.min(4,Math.max(1.3,current.easeFactor+(0.1-(5-rating)*(0.08+(5-rating)*0.02))));
  let repetitions:number,intervalDays:number;
  if(rating<3){repetitions=0;intervalDays=1;}
  else{
