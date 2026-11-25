@@ -20,6 +20,24 @@ function validDate(value:string){
  return Number.isFinite(parsed.getTime())&&parsed.toISOString().slice(0,10)===value;
 }
 export async function registerDailyChallengeRoutes(app:FastifyInstance,pool:Pool,config:AppConfig){
+ app.get("/api/v1/learning/daily-challenges",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view your practice history.");
+  const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);
+  if(!entitlement)return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required for daily speaking practice.");
+  const query=(request.query??{}) as {limit?:string};
+  const limit=query.limit===undefined?14:Number(query.limit);
+  if(!Number.isInteger(limit)||limit<1||limit>30)return failure(reply,request.id,400,"VALIDATION_ERROR","Choose a practice history range between 1 and 30 days.");
+  const result=await pool.query(
+   `SELECT challenge_date::text AS challenge_date,learning_direction,challenge_title,skill_key,conversation_id,completed_at
+    FROM learner_daily_challenge_completions
+    WHERE user_id=$1 AND learning_direction=COALESCE((SELECT learning_direction FROM user_preferences WHERE user_id=$1),'ml_to_en')
+      AND challenge_date >= (CURRENT_DATE - ($2::integer - 1))
+    ORDER BY challenge_date DESC LIMIT $2`,
+   [learner.id,limit]
+  );
+  return {learning_direction:(await pool.query<{learning_direction:string}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id])).rows[0]?.learning_direction??"ml_to_en",days:limit,completed_days:result.rows.length,completions:result.rows};
+ });
  app.get("/api/v1/learning/daily-challenges/:date",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view your practice history.");
