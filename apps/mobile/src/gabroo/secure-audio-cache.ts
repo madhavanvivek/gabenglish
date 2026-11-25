@@ -192,16 +192,23 @@ export async function cleanupExpiredGabrooSpeechAudio(input: {
     throw new Error("Gabroo private cache directory is invalid.");
   }
   const nowMs = input.nowMs ?? Date.now();
+  const stalePartAgeMs = input.stalePartAgeMs ?? 24 * 60 * 60 * 1000;
+  if (!Number.isSafeInteger(stalePartAgeMs) || stalePartAgeMs < 0) {
+    throw new Error("Gabroo cache cleanup age is invalid.");
+  }
   const names = await input.fileSystem.readDirectoryAsync(input.cacheDirectory);
   let removed = 0;
   for (const name of names) {
-    const match = /^gabroo-[a-f0-9]{64}-(\d+)\.audio$/i.exec(name);
-    if (!match) continue;
-    const expiryMs = Number(match[1]);
-    if (Number.isSafeInteger(expiryMs) && expiryMs <= nowMs) {
-      await input.fileSystem.deleteAsync(`${input.cacheDirectory.replace(/\/$/, "")}/${name}`, { idempotent: true });
-      removed += 1;
-    }
+    const expiredAudio = /^gabroo-[a-f0-9]{64}-(\\d+)\\.audio$/i.exec(name);
+    const abandonedPart = /^gabroo-[a-f0-9]{64}-(\\d+)-[a-z0-9_-]{1,60}\\.part$/i.exec(name);
+    const expiryMs = expiredAudio ? Number(expiredAudio[1]) : null;
+    const createdAtMs = abandonedPart ? Number(abandonedPart[1]) : null;
+    const expired = expiryMs !== null && Number.isSafeInteger(expiryMs) && expiryMs <= nowMs;
+    const abandoned = createdAtMs !== null && Number.isSafeInteger(createdAtMs)
+      && createdAtMs <= nowMs && nowMs - createdAtMs >= stalePartAgeMs;
+    if (!expired && !abandoned) continue;
+    await input.fileSystem.deleteAsync(`${input.cacheDirectory.replace(/\\/$/, "")}/${name}`, { idempotent: true });
+    removed += 1;
   }
   return removed;
 }
