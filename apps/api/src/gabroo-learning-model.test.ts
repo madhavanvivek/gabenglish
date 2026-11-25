@@ -53,6 +53,14 @@ describe("Gabroo Learning Intelligence Model v1",()=>{
   expect(decision.correctionStyle).toBe("none");
   expect(decision.focusSkill).toBeNull();
  });
+ it("does not force placement before free conversation when no evidence exists",()=>{
+  const decision=chooseGabrooLearningDecision({evidence:[],learningDirection:"ml_to_en",learnerAskedForFreeConversation:true});
+  expect(decision.status).toBe("balanced_practice");
+  expect(decision.activity).toBe("speaking_prompt");
+  expect(decision.correctionStyle).toBe("none");
+  expect(decision.focusSkill).toBeNull();
+  expect(decision.evidenceUsed).toBe(0);
+ });
  it("uses spaced-repetition context for due vocabulary practice",()=>{
   const vocabularyEvidence:GabrooSkillEvidence[]=[
    {skill:"vocabulary",score:0.4,confidence:0.9,source:"placement_assessment",observedAt:"2026-11-20T10:00:00Z",taskId:"p1"},
