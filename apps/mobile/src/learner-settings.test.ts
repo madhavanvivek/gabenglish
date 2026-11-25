@@ -6,6 +6,8 @@ import {
   GABROO_SPEECH_RATE_MIN,
   resolveLearningDirection,
   isCourseForLearningDirection,
+  resolveLearningStage,
+  GABROO_LEARNING_STAGES
 } from "./learner-settings";
 
 describe("Gabroo speech-rate preference", () => {
@@ -68,4 +70,20 @@ describe("learner learning-direction safeguards", () => {
     expect(isCourseForLearningDirection("en_to_ml", "en_to_ml")).toBe(true);
     expect(isCourseForLearningDirection("ml_to_en", "en_to_ml")).toBe(false);
   });
+});
+
+describe("learner-selected Gabenglish stage",()=>{
+ it("accepts only one of the five explicit stage choices",()=>{
+  expect([1,2,3,4,5].map(resolveLearningStage)).toEqual([1,2,3,4,5]);
+  expect(resolveLearningStage(null)).toBeNull();
+  expect(resolveLearningStage(undefined)).toBeNull();
+  expect(resolveLearningStage(0)).toBeNull();
+  expect(resolveLearningStage(6)).toBeNull();
+  expect(resolveLearningStage("3")).toBeNull();
+ });
+ it("keeps all five product stages in their approved order",()=>{
+  expect(GABROO_LEARNING_STAGES.map(item=>item.title)).toEqual([
+   "Malayalam Mode","Malayalam + English Mix","English Practice Mode","English Immersion","Expert Communication"
+  ]);
+ });
 });
