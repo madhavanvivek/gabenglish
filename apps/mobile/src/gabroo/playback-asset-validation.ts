@@ -1,5 +1,7 @@
 import {
   gabrooSpeechTimelineSchema,
+  parseActiveGabrooSpeechAsset,
+  type GabrooSpeechAsset,
   type GabrooSpeechTimeline,
 } from "@gabenglish/contracts";
 import {
@@ -27,4 +29,10 @@ export function validateGabrooPlaybackAsset(
     throw new Error("Gabroo speech alignment does not match the exact audio asset.");
   }
   return parsed.data;
+}
+
+
+/** Validate a complete server-issued speech asset immediately before playback. */
+export function validateGabrooSpeechAsset(value: unknown, nowMs = Date.now()): GabrooSpeechAsset {
+  return parseActiveGabrooSpeechAsset(value, nowMs);
 }
