@@ -91,7 +91,6 @@ export async function createGabrooGoogleTtsAuditionPack(options:{
    reviewerManifest.candidates.push({blind_code:blindCode,samples});
    privateMapping.push({blind_code:blindCode,provider:"Google Cloud Text-to-Speech",voice_id:candidate.voice,model_family:candidate.family,input_mode:inputMode});
   }
- }
  await writeFile(resolve(outputDirectory,"reviewer-manifest.json"),JSON.stringify(reviewerManifest,null,2)+"\n",{mode:0o600});
  await writeFile(resolve(outputDirectory,"mapping.private.json"),JSON.stringify({
   warning:"RESTRICTED: do not share this file with blind reviewers.",
