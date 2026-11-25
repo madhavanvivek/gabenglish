@@ -6,8 +6,8 @@ export type GabrooSpeechStatus = {
   speed: { minimum: number; maximum: number };
   capabilities: {
     speech_synthesis: boolean;
-    character_alignment: false;
-    phoneme_alignment: false;
+    character_alignment: boolean;
+    phoneme_alignment: boolean;
     live_avatar_renderer: false;
   };
 };
@@ -39,8 +39,8 @@ export function parseGabrooSpeechStatus(payload: unknown): GabrooSpeechStatus {
     !isRecord(speed) ||
     !isRecord(capabilities) ||
     typeof capabilities.speech_synthesis !== "boolean" ||
-    capabilities.character_alignment !== false ||
-    capabilities.phoneme_alignment !== false ||
+    typeof capabilities.character_alignment !== "boolean" ||
+    typeof capabilities.phoneme_alignment !== "boolean" ||
     capabilities.live_avatar_renderer !== false
   ) {
     throw new Error("Gabroo speech availability returned an invalid response.");
@@ -68,8 +68,8 @@ export function parseGabrooSpeechStatus(payload: unknown): GabrooSpeechStatus {
     speed: { minimum, maximum },
     capabilities: {
       speech_synthesis: capabilities.speech_synthesis,
-      character_alignment: false,
-      phoneme_alignment: false,
+      character_alignment: capabilities.character_alignment,
+      phoneme_alignment: capabilities.phoneme_alignment,
       live_avatar_renderer: false,
     },
   };
