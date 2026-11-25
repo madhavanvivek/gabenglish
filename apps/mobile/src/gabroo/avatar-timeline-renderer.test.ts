@@ -86,6 +86,24 @@ describe("renderGabrooTimelineFrame", () => {
     expect(rig.applyFrame).not.toHaveBeenCalled();
   });
 
+
+  it("does not let a stale timeline callback neutralize a newer playback", async () => {
+    const { gate, rig } = setup();
+    await gate.initialize();
+    const staleGeneration = gate.beginPlayback();
+    const activeGeneration = gate.beginPlayback();
+    const resetCount = vi.mocked(rig.resetToNeutral).mock.calls.length;
+
+    expect(renderGabrooTimelineFrame(gate, proof(staleGeneration), {
+      ...timeline,
+      audio_id: "stale-audio",
+    })).toBe(false);
+    expect(gate.render(proof(activeGeneration), () => ({
+      viseme: "aa", visemeWeight: 0.8, expression: "friendly", gesture: "idle",
+    }))).toBe(true);
+    expect(vi.mocked(rig.resetToNeutral).mock.calls.length).toBe(resetCount);
+  });
+
   it("does not animate when the exact playback proof is invalid", async () => {
     const { gate, rig } = setup();
     await gate.initialize();
