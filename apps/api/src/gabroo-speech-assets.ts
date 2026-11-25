@@ -61,9 +61,11 @@ export async function generateGabrooSpeechAsset(input: {
   const abortFromCaller = () => controller.abort();
   input.signal?.addEventListener("abort", abortFromCaller, { once: true });
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let timedOut = false;
   try {
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
+        timedOut = true;
         controller.abort();
         reject(new Error("Gabroo speech generation timed out."));
       }, timeoutMs);
@@ -87,6 +89,9 @@ export async function generateGabrooSpeechAsset(input: {
     }
   } catch (error) {
     if (error instanceof GabrooRecognitionError) throw error;
+    if (timedOut) {
+      throw new GabrooRecognitionError("PROVIDER_TIMEOUT", "Gabroo speech generation timed out. Please try again.");
+    }
     throw new GabrooRecognitionError("PROVIDER_UNAVAILABLE", "Gabroo speech generation is temporarily unavailable.");
   } finally {
     if (timer) clearTimeout(timer);
