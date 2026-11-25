@@ -2,7 +2,7 @@ import { readFile, appendFile, mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 const casesPath = resolve(process.env.GABROO_BENCHMARK_CASES || "docs/ai/gabroo-benchmark-cases.json");
 const outputPath = resolve(process.env.GABROO_BENCHMARK_OUTPUT || "artifacts/gabroo-benchmark-results.jsonl");
-const baseUrl = (process.env.GABROO_EVAL_BASE_URL || "https://api.openai.com/v1").replace(/\\/+$/, "");
+const baseUrl = (process.env.GABROO_EVAL_BASE_URL || "https://api.openai.com/v1").replace(/\/+$/, "");
 const apiKey = process.env.GABROO_EVAL_API_KEY || process.env.OPENAI_API_KEY;
 const model = process.env.GABROO_EVAL_MODEL;
 const repeats = Math.max(1, Math.min(10, Number.parseInt(process.env.GABROO_BENCHMARK_REPEATS || "3", 10) || 3));
