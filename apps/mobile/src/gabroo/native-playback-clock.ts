@@ -7,6 +7,8 @@ export interface GabrooPlaybackIdentity {
   audioId: string;
   audioSha256: string;
   measuredDurationMs: number;
+  alignmentAudioSha256: string;
+  alignmentDurationMs: number;
 }
 
 export interface GabrooNativePlayerSnapshot {
@@ -40,7 +42,10 @@ export class GabrooNativePlaybackClock {
       || !identity.playbackTicketId.trim()
       || typeof identity.audioId !== "string" || !identity.audioId.trim()
       || typeof identity.audioSha256 !== "string" || !/^[a-f0-9]{64}$/i.test(identity.audioSha256)
-      || !Number.isSafeInteger(identity.measuredDurationMs) || identity.measuredDurationMs <= 0) {
+      || !Number.isSafeInteger(identity.measuredDurationMs) || identity.measuredDurationMs <= 0
+      || typeof identity.alignmentAudioSha256 !== "string"
+      || identity.alignmentAudioSha256.toLowerCase() !== identity.audioSha256.toLowerCase()
+      || identity.alignmentDurationMs !== identity.measuredDurationMs) {
       return this.gate.beginPlayback();
     }
 
@@ -75,13 +80,15 @@ export class GabrooNativePlaybackClock {
       audioSha256: snapshot.audioSha256,
       expectedAudioSha256: identity.audioSha256,
       measuredDurationMs: identity.measuredDurationMs,
-      alignmentAudioSha256: identity.audioSha256,
-      alignmentDurationMs: identity.measuredDurationMs,
+      alignmentAudioSha256: identity.alignmentAudioSha256,
+      alignmentDurationMs: identity.alignmentDurationMs,
       playerLoaded: snapshot.loaded,
       playerPlaying: snapshot.playing,
       positionMs: snapshot.positionMs,
     };
-    return renderGabrooTimelineFrame(this.gate, proof, timeline);
+    const rendered = renderGabrooTimelineFrame(this.gate, proof, timeline);
+    if (!rendered) this.stop();
+    return rendered;
   }
 
   stop(): void {
