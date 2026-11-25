@@ -195,3 +195,8 @@ The generator does not run during CI, application startup or deployment. The Goo
 The Google Standard/WaveNet adapter now sends SSML rather than plain text. It preserves the configured Malayalam voice as the default and wraps contiguous Latin-script phrases in an English `<lang>` span (`en-US`). XML-reserved characters are escaped before insertion, and the locale is validated. The provider does not switch to a second English voice.
 
 Google describes `<lang>` support as best-effort and notes that mixed-language quality can vary. This implementation is a controlled pronunciation experiment, not a claim that code-switching is solved. Compare the resulting samples with plain Malayalam-locale synthesis using the same scripts and settings before retaining it for production. Chirp 3 HD remains excluded because it does not support SSML or the speaking-rate parameter used by this adapter.
+
+
+### English locale and XML escaping hardening (2026-11-25)
+
+The adapter now accepts an optional server-side `GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE` setting (default `en-US`) so English pronunciation can be evaluated with a locale such as `en-GB` without changing the primary Malayalam voice. Both locale values are shape-validated before synthesis. Regression coverage now checks quotation marks and apostrophes as well as the configurable locale. These are markup-safety and evaluation controls only; they do not establish that one English locale is best for Kerala learners. Compare real samples before choosing a default.
