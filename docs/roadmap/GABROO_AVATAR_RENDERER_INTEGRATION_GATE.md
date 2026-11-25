@@ -145,3 +145,10 @@ The native Expo playback status is also checked against the server-measured dura
 The secure cache downloader accepts an AbortSignal, checks it before cache access, after asynchronous filesystem operations, and immediately before/after cache promotion. The Expo resumable download bridge cancels the native transfer on abort and removes its listener when the transfer settles. Partial files are removed on cancellation, and a valid existing cache file is preserved if cancellation races its integrity check.
 
 The playback adapter passes the same cancellation signal through cache preparation and native player creation. If cancellation occurs while the native player is being created, the newly returned sound is unloaded before it can be used; cancellation after creation unloads the active sound and closes the avatar clock. Tests cover abort-before-download, abort-during-transfer, preservation of verified cached audio, cancellation during cache preparation, and cancellation racing native player creation.
+
+
+## Native buffering and interruption behavior
+
+The Expo AV adapter now treats native buffering as an interruption even if the platform still reports `isPlaying: true`. It neutralizes the avatar and closes the current playback generation while buffering; animation resumes only after a fresh native status tick reports playback without buffering. This avoids driving visemes and gestures from a stale playhead during Android decoder starvation, network stalls, or audio-route changes.
+
+A rejected native `playAsync()` now reports a normalized error to the consumer, invalidates any active animation generation, and rethrows so the screen can present an appropriate recovery action. Tests cover buffering/resume and playback-route failure. Device-specific validation is still required for calls, Bluetooth/headset changes, app background/foreground transitions, and vendor-specific Android audio focus behavior.
