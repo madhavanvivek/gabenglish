@@ -3,7 +3,7 @@
 Status: **Google Cloud TTS selected as the active development provider; adapter implemented with bounded timeout/cancellation; credentials, live audition and final voice approval pending**
 Decision scope (2026-11-25): Use Google Cloud Text-to-Speech as Gabroo's active provider for the current development phase, behind the Gabenglish-owned API. Keep the voice ID replaceable. This does not approve a canonical Gabroo voice, avatar, or unrestricted production spend.
 
-Last reviewed: 2026-11-22
+Last reviewed: 2026-11-25
 
 ## 1. Decision
 
@@ -185,7 +185,7 @@ Run only after confirming the Google Cloud project, billing/quota and permitted 
 GABROO_GOOGLE_TTS_API_KEY=... pnpm --filter @gabenglish/api audition:google-tts -- --confirm-provider-usage
 ```
 
-The command generates four candidate folders (VOICE-01 through VOICE-04), seven matching script segments per candidate (28 MP3 files total), `reviewer-manifest.json`, and `mapping.private.json`. The reviewer manifest contains no provider or voice IDs. Keep the private mapping restricted and share only the blind-coded audio plus reviewer manifest with the independent listeners. The output directory defaults to `.local/gabroo-voice-auditions` and is excluded from Git; `GABROO_AUDITION_OUTPUT_DIR` may select a different local directory.
+The command generates eight randomized blind sample folders (`SAMPLE-01` through `SAMPLE-08`), seven matching script segments per variant (56 MP3 files total). Every one of the four voices is synthesized once as plain text and once as bilingual SSML. `reviewer-manifest.json` contains blind codes only; `mapping.private.json` records the corresponding voice and input mode and must remain restricted. The reviewer manifest contains no provider or voice IDs. Keep the private mapping restricted and share only the blind-coded audio plus reviewer manifest with the independent listeners. The output directory defaults to `.local/gabroo-voice-auditions` and is excluded from Git; `GABROO_AUDITION_OUTPUT_DIR` may select a different local directory.
 
 The generator does not run during CI, application startup or deployment. The Google adapter regression tests cover malformed padding and over-limit encoded payload rejection. No samples were generated as part of this code change, no provider credentials were accessed, and no voice was selected or approved.
 
@@ -199,4 +199,4 @@ Google describes `<lang>` support as best-effort and notes that mixed-language q
 
 ### English locale and XML escaping hardening (2026-11-25)
 
-The adapter now accepts an optional server-side `GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE` setting (default `en-US`) so English pronunciation can be evaluated with a locale such as `en-GB` without changing the primary Malayalam voice. Both locale values are shape-validated before synthesis. Regression coverage now checks quotation marks and apostrophes as well as the configurable locale. These are markup-safety and evaluation controls only; they do not establish that one English locale is best for Kerala learners. Compare real samples before choosing a default.
+The adapter now accepts an optional server-side `GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE` setting (default `en-US`) so English pronunciation can be evaluated with a locale such as `en-GB` without changing the primary Malayalam voice. `GABROO_GOOGLE_TTS_INPUT_MODE` selects `ssml` (default) or `text`; the audition generator uses both modes to create matched blind samples for each candidate. Both locale values and the input mode are validated before synthesis. Regression coverage checks XML validity, escaping, plain-text request shape and configurable locale. These are markup-safety and evaluation controls only; they do not establish that one English locale is best for Kerala learners. Compare real samples before choosing a default.
