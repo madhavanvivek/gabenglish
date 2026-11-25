@@ -1,4 +1,4 @@
-import {createHash} from "node:crypto";
+import {createHash,randomInt} from "node:crypto";
 import {mkdir,writeFile} from "node:fs/promises";
 import {dirname,isAbsolute,relative,resolve,sep} from "node:path";
 import {fileURLToPath,pathToFileURL} from "node:url";
@@ -47,7 +47,7 @@ export async function createGabrooGoogleTtsAuditionPack(options:{
  if(!options.apiKey.trim())throw new Error("A server-side Google Cloud TTS API key is required.");
  const outputDirectory=resolve(options.outputDirectory);
  await mkdir(outputDirectory,{recursive:true});
- const synthesize=options.synthesize??(async(voice,text)=>{
+ const synthesize=options.synthesize??(async(voice,text,inputMode)=>{
   const provider=createGoogleCloudTtsProvider({
    GABROO_GOOGLE_TTS_API_KEY:options.apiKey,
    GABROO_GOOGLE_TTS_VOICE:voice,
@@ -68,12 +68,14 @@ export async function createGabrooGoogleTtsAuditionPack(options:{
   instructions:"Listen in a randomized order. Each voice appears twice: plain text and bilingual SSML. Score each blind code independently using docs/ai/GABROO_VOICE_AUDITION_PROTOCOL.md. Do not compare labels until scoring is complete. This packet does not approve a voice.",
   candidates:[] as {blind_code:string;samples:{sample_id:string;label:string;file:string}[]}[]
  };
- const privateMapping:{blind_code:string;provider:string;voice_id:string;model_family:string}[]=[];
+ const privateMapping:{blind_code:string;provider:string;voice_id:string;model_family:string;input_mode:"text"|"ssml"}[]=[];
  let sampleCount=0;
+ const tasks=CANDIDATES.flatMap(candidate=>INPUT_MODES.map(inputMode=>({candidate,inputMode})));
+ for(let index=tasks.length-1;index>0;index-=1){const swap=randomInt(index+1);[tasks[index],tasks[swap]]=[tasks[swap]!,tasks[index]!];}
  let blindIndex=0;
- for(const candidate of CANDIDATES){
-  for(const inputMode of INPUT_MODES){
-   blindIndex+=1;
+ for(const task of tasks){
+  const {candidate,inputMode}=task;
+  blindIndex+=1;
    const blindCode="SAMPLE-"+String(blindIndex).padStart(2,"0");
    const candidateDirectory=resolve(outputDirectory,blindCode);
    await mkdir(candidateDirectory,{recursive:true});
@@ -96,14 +98,14 @@ export async function createGabrooGoogleTtsAuditionPack(options:{
   generated_at:reviewerManifest.generated_at,
   candidates:privateMapping
  },null,2)+"\n",{mode:0o600});
- return {outputDirectory,candidateCount:CANDIDATES.length,sampleCount};
+ return {outputDirectory,candidateCount:tasks.length,sampleCount};
 }
 
 async function main():Promise<void>{
  const args=process.argv.slice(2);
  if(args.includes("--help")||args.includes("-h")){
   process.stdout.write("Usage: pnpm --filter @gabenglish/api audition:google-tts -- --confirm-provider-usage\n");
-  process.stdout.write("Requires GABROO_GOOGLE_TTS_API_KEY. Optional GABROO_AUDITION_OUTPUT_DIR defaults to .local/gabroo-voice-auditions. Generates 28 paid-or-quota-counted samples across four candidate voices.\n");
+  process.stdout.write("Requires GABROO_GOOGLE_TTS_API_KEY. Optional GABROO_AUDITION_OUTPUT_DIR defaults to .local/gabroo-voice-auditions. Generates 56 paid-or-quota-counted samples: four voices × two input modes × seven scripts.\n");
   return;
  }
  if(!args.includes("--confirm-provider-usage")){
