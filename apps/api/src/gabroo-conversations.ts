@@ -83,7 +83,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   const learner=await authenticateLearner(request,pool,config);if(!learner)return error(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
   const idSchemaResult=idSchema.safeParse((request.params as {id?:string}).id);if(!idSchemaResult.success)return error(reply,request.id,400,"VALIDATION_ERROR","Invalid conversation id.");
   const found=await pool.query("SELECT "+conversationSelect+" FROM gabroo_conversations WHERE id=$1 AND user_id=$2",[idSchemaResult.data,learner.id]);
-  if(!found.rows[0])return streamFailure(404,"CONVERSATION_NOT_FOUND","This conversation is not available.");
+  if(!found.rows[0])return error(reply,request.id,404,"CONVERSATION_NOT_FOUND","This conversation is not available.");
   const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);if(!entitlement)return error(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to view conversations.");
   const messages=await pool.query("SELECT id,sequence_number,role,content,created_at FROM gabroo_conversation_messages WHERE conversation_id=$1 ORDER BY sequence_number",[idSchemaResult.data]);
   return {conversation:found.rows[0],messages:messages.rows};
@@ -278,7 +278,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
    const current=await writeClient.query<{status:string;turn_count:number}>(
     "SELECT status,turn_count FROM gabroo_conversations WHERE id=$1 AND user_id=$2 FOR UPDATE",[parsedId.data,learner.id]);
    const latest=current.rows[0];
-   if(!latest){await writeClient.query("ROLLBACK");return error(reply,request.id,404,"CONVERSATION_NOT_FOUND","This conversation is not available.");}
+   if(!latest){await writeClient.query("ROLLBACK");return streamFailure(404,"CONVERSATION_NOT_FOUND","This conversation is not available.");}
    if(latest.status!=="open"){await writeClient.query("ROLLBACK");return streamFailure(409,"CONVERSATION_CLOSED","This conversation was closed while Gabroo was responding.");}
    if(latest.turn_count!==snapshot!.turn_count){await writeClient.query("ROLLBACK");return streamFailure(409,"CONVERSATION_UPDATED_RETRY","A newer message was saved first. Please reload the conversation and try again.");}
    const active=await writeClient.query("SELECT user_id FROM active_subscription_entitlements WHERE user_id=$1",[learner.id]);
