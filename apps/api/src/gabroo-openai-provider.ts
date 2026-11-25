@@ -2,6 +2,7 @@ import type {GabrooConversationProvider,GabrooMessage} from "./gabroo-conversati
 import type {GabrooTeachingPolicy} from "./gabroo-teaching-policy.js";
 
 type ProviderConfig={apiKey:string;baseUrl:string;model:string};
+export const GABROO_PROVIDER_ADAPTER_VERSION="1";
 const MAX_HISTORY_MESSAGES=16;
 const MAX_HISTORY_CHARACTERS=24_000;
 function boundedHistory(history:GabrooMessage[]):GabrooMessage[]{
