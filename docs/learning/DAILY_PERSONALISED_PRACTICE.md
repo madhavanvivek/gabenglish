@@ -1,6 +1,6 @@
 # Daily personalised speaking practice
 
-The learner Home screen presents one deterministic speaking challenge for the current UTC calendar date. The challenge is stable for that date and rotates on the next date.
+The learner Home screen presents one deterministic speaking challenge for the learner device's local calendar date. The challenge is stable for that date and rotates on the next date.
 
 ## Selection rules
 
@@ -20,10 +20,22 @@ If the conversation service is unavailable, the existing API error is shown; the
 
 Challenge selection is computed on-device from the learner's already retrieved, account-scoped insights. No additional learner profile or challenge completion data is stored. Existing conversation persistence applies once the learner starts the challenge. Raw voice audio remains subject to the separate consent and transient-capture policy.
 
+
+## Completion history
+
+The learner must explicitly choose **Mark challenge complete** after Gabroo has replied in the challenge conversation. Completion is stored against the learner, current learning direction and local challenge date, with the challenge title, optional skill key and linked Gabroo conversation. Repeated submissions for the same learner/date/direction update the same record rather than creating duplicate completions.
+
+- GET `/api/v1/learning/daily-challenges/:date` returns the current-direction completion state.
+- POST `/api/v1/learning/daily-challenges/:date/complete` records the learner-confirmed completion.
+- Both endpoints require a verified account and active subscription.
+- The linked conversation must belong to the authenticated learner.
+- Completion is an explicit self-report of practice finished; it is not an automatic judgement of speaking quality, accuracy or proficiency.
+- The Home screen displays the saved completion state for the current local date.
+
 ## Current scope
 
 - English speaking prompts for the Malayalam-to-English learning journey.
-- Stable daily rotation by UTC date.
+- Stable daily rotation by the learner's local calendar date.
 - Skill-specific prompts for sentence formation, grammar, vocabulary, fluency, pronunciation, listening, speaking, comprehension and writing.
 - General prompts when evidence is unavailable.
 
