@@ -356,6 +356,14 @@ integration("PostgreSQL placement session integration",()=>{
    expect(repeatedCompletion.statusCode).toBe(201);
    const singleCompletion=await pool.query("SELECT user_id FROM learner_daily_challenge_completions WHERE user_id=$1 AND challenge_date=$2",[userId,challengeDate]);
    expect(singleCompletion.rows).toHaveLength(1);
+   const historyList=await app.inject({method:"GET",url:"/api/v1/learning/daily-challenges?limit=14",headers});
+   expect(historyList.statusCode).toBe(200);
+   expect(historyList.json()).toMatchObject({learning_direction:"ml_to_en",limit:14,completed_days:1,total_completed_days:1});
+   expect(historyList.json().completions[0]).toMatchObject({challenge_date:challengeDate,challenge_title:"Explain your choice",skill_key:"sentence_formation"});
+   const invalidHistoryLimit=await app.inject({method:"GET",url:"/api/v1/learning/daily-challenges?limit=31",headers});
+   expect(invalidHistoryLimit.statusCode).toBe(400);
+   const unauthenticatedHistory=await app.inject({method:"GET",url:"/api/v1/learning/daily-challenges?limit=14"});
+   expect(unauthenticatedHistory.statusCode).toBe(401);
    const read=await app.inject({method:"GET",url:"/api/v1/gabroo/conversations/"+conversationId,headers});
    expect(read.statusCode).toBe(200);
    expect(read.json().messages).toHaveLength(2);
