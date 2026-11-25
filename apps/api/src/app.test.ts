@@ -81,6 +81,36 @@ describe("API foundation",()=>{
   expect(r.json().error.code).toBe("PAID_SUBSCRIPTION_REQUIRED");
   await app.close();
  });
+ it("returns a validated speech asset to a paid learner after explicit consent",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let received:{text:string;language:string;speechRate:number}|undefined;
+  const provider={generate:async(input:{text:string;language:"ml"|"en";speechRate:number;signal:AbortSignal})=>{
+   received={text:input.text,language:input.language,speechRate:input.speechRate};
+   return {
+    playbackTicketId:"ticket-1",audioId:"audio-1",audioSha256:"a".repeat(64),measuredDurationMs:1000,
+    alignmentAudioSha256:"a".repeat(64),alignmentDurationMs:1000,
+    uri:"https://cdn.example.test/audio.mp3?signature=opaque",expiresAt:"2030-01-01T00:00:00.000Z",
+    timeline:{audio_id:"audio-1",duration_ms:1000,visemes:[],expressions:[],gestures:[]}
+   };
+  }};
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,provider);
+  const r=await app.inject({method:"POST",url:"/api/v1/gabroo/speech",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET),"x-gabroo-consent":"true"},payload:{text:"  നമസ്കാരം!  ",language:"ml",speech_rate:1}});
+  expect(r.statusCode).toBe(200);
+  expect(r.json().speech_asset.audioId).toBe("audio-1");
+  expect(received).toEqual({text:"നമസ്കാരം!",language:"ml",speechRate:1});
+  await app.close();
+ });
+ it("rejects malformed Gabroo speech requests before provider invocation",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let calls=0;
+  const provider={generate:async()=>{calls+=1;return {};}};
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,provider);
+  const r=await app.inject({method:"POST",url:"/api/v1/gabroo/speech",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET),"x-gabroo-consent":"true"},payload:{text:" ",language:"ml",speech_rate:1}});
+  expect(r.statusCode).toBe(400);
+  expect(r.json().error.code).toBe("INVALID_SPEECH_REQUEST");
+  expect(calls).toBe(0);
+  await app.close();
+ });
  it("returns a validated recognition readiness response to a paid learner",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   const app=await buildApp(config,async()=>true,recognitionPool(true));
