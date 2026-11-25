@@ -38,7 +38,7 @@ function buildMessages(input:GabrooProviderInput){
   ...boundedHistory(input.history).map((message:GabrooMessage)=>({role:message.role,content:message.content}))
  ];
 }
-function providerUrl(config:ProviderConfig){return config.baseUrl.replace(/\\/+$/, "")+"/chat/completions";}
+function providerUrl(config:ProviderConfig){return config.baseUrl.replace(/\/+$/, "")+"/chat/completions";}
 function authHeaders(config:ProviderConfig){return {authorization:"Bearer "+config.apiKey,"content-type":"application/json"};}
 function parseUsage(payload:ProviderResponse){
  const usage=payload.usage?{
