@@ -3,6 +3,7 @@ import {
   GabrooNativePlaybackClock,
   type GabrooNativePlayerSnapshot,
   type GabrooPlaybackIdentity,
+  isGabrooPlaybackIdentityValid,
 } from "./native-playback-clock";
 import type { GabrooAvatarRendererGate } from "./avatar-renderer-gate";
 
@@ -30,7 +31,15 @@ export async function createGabrooExpoAvPlayback(input: {
   gate: GabrooAvatarRendererGate;
   onError?: (error: Error) => void;
 }): Promise<GabrooExpoAvPlaybackHandle> {
-  if (!input.uri.trim()) throw new Error("A playable Gabroo audio URI is required.");
+  if (typeof input.uri !== "string" || !input.uri.trim()) {
+    throw new Error("A playable Gabroo audio URI is required.");
+  }
+  if (!isGabrooPlaybackIdentityValid(input.identity)) {
+    throw new Error("Trusted Gabroo audio and alignment metadata are required.");
+  }
+  const reportError = (error: Error) => {
+    try { input.onError?.(error); } catch { /* Consumer callbacks must not escape native status dispatch. */ }
+  };
 
   const clock = new GabrooNativePlaybackClock(input.gate);
   let sound: Audio.Sound | null = null;
@@ -51,7 +60,7 @@ export async function createGabrooExpoAvPlayback(input: {
         if (closed) return;
         if (!status.isLoaded) {
           if (started) stopClock();
-          if ("error" in status && status.error) input.onError?.(new Error(status.error));
+          if ("error" in status && status.error) reportError(new Error(status.error));
           return;
         }
         if (status.didJustFinish) { stopClock(); return; }
