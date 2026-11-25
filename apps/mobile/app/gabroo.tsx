@@ -47,6 +47,7 @@ export default function GabrooScreen(){
  const transcriptionReviewRunRef=useRef(0);
  const recordingRef=useRef<Audio.Recording|null>(null);
  const recordingOperationRef=useRef(false);
+ const captureLifecycleRunRef=useRef(0);
  const appIsActiveRef=useRef(true);
  const screenFocusedRef=useRef(false);
  const speechRunRef=useRef(0);
@@ -74,6 +75,7 @@ export default function GabrooScreen(){
   void load();
   return ()=>{
    screenFocusedRef.current=false;
+   captureLifecycleRunRef.current+=1;
    transcriptionReviewRunRef.current+=1;
    setTranscriptionBusy(false);
    speechRunRef.current+=1;
@@ -183,9 +185,23 @@ export default function GabrooScreen(){
  const startTranscriptionCapture=async()=>{
   if(!appIsActiveRef.current||!screenFocusedRef.current||!transcriptionConsent||!recognitionStatus?.available||voicePermissionStatus!=="granted"||transcriptionOperationRef.current||transcriptionRecordingRef.current||recordingRef.current)return;
   transcriptionOperationRef.current=true;setTranscriptionBusy(true);setSpeechNotice("");
+  const lifecycleRun=captureLifecycleRunRef.current;
+  const lifecycleIsCurrent=()=>captureLifecycleRunRef.current===lifecycleRun&&appIsActiveRef.current&&screenFocusedRef.current;
   try{
    await Audio.setAudioModeAsync({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
+   if(!lifecycleIsCurrent()){
+    await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
+    return;
+   }
    const created=await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+   if(!lifecycleIsCurrent()){
+    created.recording.setOnRecordingStatusUpdate(null);
+    const staleUri=created.recording.getURI();
+    await created.recording.stopAndUnloadAsync().catch(()=>undefined);
+    if(staleUri)await FileSystem.deleteAsync(staleUri,{idempotent:true}).catch(()=>undefined);
+    await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
+    return;
+   }
    transcriptionRecordingRef.current=created.recording;
    created.recording.setProgressUpdateInterval(250);
    created.recording.setOnRecordingStatusUpdate(status=>{
@@ -342,6 +358,7 @@ export default function GabrooScreen(){
   const subscription=AppState.addEventListener("change",state=>{
    appIsActiveRef.current=state==="active";
    if(state!=="active"){
+    captureLifecycleRunRef.current+=1;
     transcriptionReviewRunRef.current+=1;
     setTranscriptionBusy(false);
     // Device TTS must not continue speaking behind a suspended learner screen.
