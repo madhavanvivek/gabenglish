@@ -8,6 +8,7 @@ import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
 import {buildGabrooAdaptivePractice,type GabrooExerciseOutcome} from "./gabroo-adaptive-practice.js";
 import {selectGabrooNextExercise} from "./gabroo-exercise-selector.js";
+import {buildLessonExerciseEvidenceTaskId} from "./gabroo-exercise-evidence.js";
 
 type Direction="ml_to_en"|"en_to_ml";
 type CatalogRow={
@@ -275,9 +276,9 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
    }
    let evidenceRecorded=false;
    if(["grammar","vocabulary","comprehension"].includes(String(exercise.skill))){
-    const evidenceTaskId=parsed.data.learning_session_id
-      ?"lesson-exercise-session:"+parsed.data.learning_session_id+":"+exerciseId
-      :"lesson-exercise:"+lesson.version_id+":"+exerciseId;
+    const evidenceTaskId=buildLessonExerciseEvidenceTaskId({
+     lessonVersionId:lesson.version_id,exerciseId,learningSessionId:parsed.data.learning_session_id
+    });
     const evidence=await client.query<{id:string}>(
      `INSERT INTO gabroo_skill_evidence(user_id,skill,score,confidence,source,task_id,observed_at)
       VALUES($1,$2,$3,0.75,'lesson_exercise',$4,now())
