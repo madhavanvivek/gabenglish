@@ -85,6 +85,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   let history:GabrooMessage[]=[];
   let learnerProfile:{display_name:string|null;learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed"}|undefined;
   let savedMemory:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>=[];
+ let vocabularyFocus:Array<{term:string;meaning:string;reason:"difficult"|"due"}>=[];
   try{
    await client.query("BEGIN");
    const found=await client.query<{id:string;mode:GabrooConversationMode;support_language:"ml"|"en";learning_direction:"ml_to_en"|"en_to_ml";target_language:"ml"|"en";learning_stage:1|2|3|4|5|null;status:string;turn_count:number}>(
@@ -98,6 +99,25 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
    const memory=await client.query<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>(
     "SELECT category,memory_key,content FROM gabroo_learner_memory WHERE user_id=$1 ORDER BY updated_at DESC LIMIT 20",[learner.id]);
    savedMemory=memory.rows;
+   const vocabulary=await client.query<{term:string;meaning:string;reason:"difficult"|"due"}>(
+    `SELECT vocabulary_item.value->>'term' AS term,vocabulary_item.value->>'meaning' AS meaning,
+      CASE WHEN r.last_rating<=2 THEN 'difficult' ELSE 'due' END AS reason
+     FROM learner_vocabulary_reviews r
+     JOIN lessons l ON l.id=r.lesson_id AND l.current_published_version_id=r.lesson_version_id
+     JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
+     JOIN lesson_versions lv ON lv.id=r.lesson_version_id AND lv.lesson_id=l.id
+     CROSS JOIN LATERAL jsonb_array_elements(COALESCE(lv.content->'blocks','[]'::jsonb)) AS lesson_block(value)
+     CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN lesson_block.value->>'type'='vocabulary' THEN COALESCE(lesson_block.value->'items','[]'::jsonb) ELSE '[]'::jsonb END) AS vocabulary_item(value)
+     WHERE r.user_id=$1 AND r.learning_direction=$2
+       AND l.status='published' AND c.status='published' AND lv.status='published'
+       AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')
+       AND vocabulary_item.value->>'id'=r.vocabulary_item_id
+       AND (r.last_rating<=2 OR r.due_at<=now())
+     ORDER BY CASE WHEN r.last_rating<=2 THEN 0 ELSE 1 END,r.due_at ASC
+     LIMIT 5`,
+    [learner.id,snapshot.learning_direction]
+   );
+   vocabularyFocus=vocabulary.rows;
    const existing=await client.query<{role:"user"|"assistant";content:string}>(
     "SELECT role,content FROM gabroo_conversation_messages WHERE conversation_id=$1 ORDER BY sequence_number DESC LIMIT 20",[snapshot.id]);
    history=[...existing.rows].reverse();
@@ -133,7 +153,8 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
       preferredName:learnerProfile?.display_name,
       learningGoal:learnerProfile?.learning_goal,
       profileCorrectionPreference:learnerProfile?.correction_mode,
-      learnerMemory:savedMemory.map(item=>({category:item.category,memoryKey:item.memory_key,content:item.content}))
+      learnerMemory:savedMemory.map(item=>({category:item.category,memoryKey:item.memory_key,content:item.content})),
+      vocabularyFocus
      })
     }),
     timedOut
