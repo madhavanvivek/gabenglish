@@ -3,7 +3,7 @@ import * as Speech from "expo-speech";
 import {Audio} from "expo-av";
 import * as FileSystem from "expo-file-system";
 import {confirmGabrooTranscript,GABROO_LOCAL_CAPTURE_MAX_MS,playGabrooSpeechSegments,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooVoiceSessionState,type GabrooTranscript} from "@gabenglish/contracts";
-import {Link,useFocusEffect} from "expo-router";
+import {Link,useFocusEffect,useLocalSearchParams} from "expo-router";
 import {ActivityIndicator,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
@@ -14,6 +14,7 @@ import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabroo
 const conversationModes:{value:GabrooConversationMode;label:string}[]=[{value:"free_flow",label:"Free flow"},{value:"gentle_correction",label:"Gentle correction"},{value:"detailed_correction",label:"Detailed correction"},{value:"topic_practice",label:"Topic practice"},{value:"role_play",label:"Role-play"},{value:"vocabulary_building",label:"Vocabulary"},{value:"confidence_practice",label:"Confidence"}];
 
 export default function GabrooScreen(){
+ const {challenge,challengeTitle}=useLocalSearchParams<{challenge?:string;challengeTitle?:string}>();
  const [subscription,setSubscription]=useState<SubscriptionStatus|null>(null);
  const [recognitionStatus,setRecognitionStatus]=useState<GabrooRecognitionStatus|null>(null);
  const [conversations,setConversations]=useState<GabrooConversation[]>([]);
@@ -21,6 +22,12 @@ export default function GabrooScreen(){
  const [messages,setMessages]=useState<GabrooConversationMessage[]>([]);
  const [draft,setDraft]=useState("");
  const [mode,setMode]=useState<GabrooConversationMode>("gentle_correction");
+ useEffect(()=>{
+  if(typeof challenge==="string"&&challenge.trim()){
+   setDraft(challenge.trim());
+   setMode("topic_practice");
+  }
+ },[challenge]);
  const [busy,setBusy]=useState(false);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
@@ -89,8 +96,14 @@ export default function GabrooScreen(){
  const start=async()=>{
   setBusy(true);setError("");
   try{
-   const result=await createGabrooConversation({mode,support_language:"ml"});
+   const initialPrompt=typeof challenge==="string"?challenge.trim():"";
+   const title=typeof challengeTitle==="string"?challengeTitle.trim().slice(0,120):"";
+   const result=await createGabrooConversation({title:title||undefined,mode:initialPrompt?"topic_practice":mode,support_language:"ml"});
    setActive(result.conversation);setMode(result.conversation.mode);setMessages([]);setConversations(current=>[result.conversation,...current]);
+   if(initialPrompt){
+    const firstReply=await sendGabrooMessage(result.conversation.id,initialPrompt);
+    setMessages(firstReply.messages);setDraft("");
+   }
   }catch(reason){setError(reason instanceof AuthApiError&&reason.status===503? "Gabroo's conversation service is not connected yet. Your subscription and account are unchanged.":reason instanceof Error?reason.message:"Could not start a conversation.");}
   finally{setBusy(false);}
  };
