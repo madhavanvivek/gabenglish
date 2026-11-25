@@ -11,6 +11,15 @@ type BenchmarkCase={
  history:GabrooMessage[];message:string;expected:string[];critical:string[];
 };
 type BenchmarkMessage={role:"system"|"user"|"assistant";content:string};
+export const GABROO_EVALUATION_DIMENSIONS=[
+ "intent_response","malayalam_naturalness","code_switching","english_correctness",
+ "level_fit","correction_quality","continuity","tutor_warmth","safety_respect","latency_reliability"
+] as const;
+function percentile(values:number[],fraction:number):number|null{
+ if(values.length===0)return null;
+ const sorted=[...values].sort((a,b)=>a-b);
+ return sorted[Math.max(0,Math.ceil(fraction*sorted.length)-1)];
+}
 const defaultCasesPath=resolve(process.cwd(),"../../docs/ai/gabroo-benchmark-cases.json");
 const repositoryRoot=resolve(process.cwd(),"../..");
 
@@ -56,7 +65,7 @@ async function runBenchmark(){
  const cases=JSON.parse(await readFile(casesPath,"utf8")) as BenchmarkCase[];
  if(!Array.isArray(cases)||cases.length===0)throw new Error("Benchmark cases must be a non-empty JSON array.");
  await mkdir(dirname(outputPath),{recursive:true});
- let completed=0,failed=0;
+ let completed=0,failed=0;const completedLatencies:number[]=[];
  for(const testCase of cases){
   for(let repetition=1;repetition<=repeats;repetition++){
    const started=performance.now();let record:Record<string,unknown>;
@@ -92,7 +101,7 @@ async function runBenchmark(){
    console.log(String(record.status).toUpperCase()+" "+testCase.id+" "+repetition+"/"+repeats+" "+String(record.latencyMs)+"ms");
   }
  }
- console.log(JSON.stringify({model,total:cases.length*repeats,completed,failed,outputPath,policy:"live buildGabrooTeachingPolicy"},null,2));
+ console.log(JSON.stringify({model,total:cases.length*repeats,completed,failed,errorRate:(failed/(cases.length*repeats)),successfulLatencyMs:{p50:percentile(completedLatencies,0.5),p95:percentile(completedLatencies,0.95)},outputPath,policy:"live buildGabrooTeachingPolicy"},null,2));
  if(failed>0)process.exitCode=1;
 }
 
