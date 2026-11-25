@@ -2,7 +2,7 @@ import {useCallback,useState} from "react";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {AuthApiError,getLearnerMe,getSubscriptionStatus,listGabrooConversations,updateLearnerPreferences,type LearnerMe,type SubscriptionStatus,type GabrooConversation} from "../src/auth-api";
+import {AuthApiError,getLearnerMe,getSubscriptionStatus,listGabrooConversations,updateLearnerPreferences,getVocabularyRetentionSummary,getGabrooLearningInsights,type LearnerMe,type SubscriptionStatus,type GabrooConversation,type VocabularyRetentionSummary,type GabrooLearningInsights} from "../src/auth-api";
 import {BrandMark,SurfaceCard,Eyebrow} from "../src/ui";
 import {colors,radius,space} from "../src/theme";
 import {adjustGabrooSpeechRate,resolveLearningDirection} from "../src/learner-settings";
@@ -11,6 +11,8 @@ export default function HomeScreen(){
  const [learner,setLearner]=useState<LearnerMe|null>(null);
  const [subscription,setSubscription]=useState<SubscriptionStatus|null>(null);
  const [conversations,setConversations]=useState<GabrooConversation[]>([]);
+ const [vocabularySummary,setVocabularySummary]=useState<VocabularyRetentionSummary|null>(null);
+ const [learningInsights,setLearningInsights]=useState<GabrooLearningInsights|null>(null);
  const [loading,setLoading]=useState(true);
  const [savingSpeed,setSavingSpeed]=useState(false);
  const [error,setError]=useState("");
@@ -26,9 +28,14 @@ export default function HomeScreen(){
    setLearner(me);setSpeechRate(me.preferences?.gabroo_speech_rate??1);setLearningDirection(resolveLearningDirection(me.preferences?.learning_direction));
    const status=await getSubscriptionStatus();setSubscription(status);
    if(status.active){
-    try{setConversations((await listGabrooConversations()).conversations);}
-    catch(reason){if(!(reason instanceof AuthApiError&&reason.status===403))throw reason;}
-   }else setConversations([]);
+    const [conversationResult,vocabularyResult,insightResult]=await Promise.allSettled([
+     listGabrooConversations(),getVocabularyRetentionSummary(),getGabrooLearningInsights()
+    ]);
+    if(conversationResult.status==="fulfilled")setConversations(conversationResult.value.conversations);
+    else if(!(conversationResult.reason instanceof AuthApiError&&conversationResult.reason.status===403))throw conversationResult.reason;
+    setVocabularySummary(vocabularyResult.status==="fulfilled"?vocabularyResult.value:null);
+    setLearningInsights(insightResult.status==="fulfilled"?insightResult.value:null);
+   }else{setConversations([]);setVocabularySummary(null);setLearningInsights(null);}
   }catch(reason){
    setError(reason instanceof Error?reason.message:"Could not load your learning home.");
   }finally{setLoading(false);}
@@ -62,6 +69,7 @@ export default function HomeScreen(){
    <View style={s.hero}><View style={s.heroTop}><View style={s.avatar}><Text style={s.avatarText}>G</Text></View><View style={s.heroCopy}><Text style={s.heroEyebrow}>YOUR EVERYDAY LEARNING BUDDY</Text><Text style={s.heroTitle}>Talk to Gabroo</Text></View></View><Text style={s.heroBody}>{learningDirection==="ml_to_en"?"Start with any topic. Ask a question, practise a real-life situation, or simply say hello. You don't need to choose a lesson first.":"Start a conversation with Gabroo. Malayalam-specific teaching and reviewed lessons are still being prepared."}</Text>{active?<Link href="/gabroo" asChild><Pressable style={s.heroButton}><Text style={s.heroButtonText}>Start talking with Gabroo  →</Text></Pressable></Link>:<Link href="/account" asChild><Pressable style={s.heroButton}><Text style={s.heroButtonText}>View account and subscription  →</Text></Pressable></Link>}<Text style={s.heroFoot}>{active?"Included in your active Gabenglish subscription.":"An active subscription is required for open conversations."}</Text></View>
    <View style={s.sectionHead}><Text style={s.sectionTitle}>Your learning activity</Text><Text style={s.sectionMeta}>LIVE ACCOUNT DATA</Text></View>
    <View style={s.statsRow}><SurfaceCard soft><Text style={s.statValue}>{active?conversations.length:"—"}</Text><Text style={s.statLabel}>Saved conversations</Text></SurfaceCard><SurfaceCard><Text style={[s.statValue,{color:active?colors.success:colors.warning}]}>{active?"Active":"Free access"}</Text><Text style={s.statLabel}>Subscription</Text></SurfaceCard></View>
+   <SurfaceCard><Eyebrow>TODAY'S PERSONAL PRACTICE</Eyebrow><Text style={s.cardTitle}>A small step with Gabroo</Text><Text style={s.body}>Your next practice ideas are based on the learning evidence and review schedule saved to your account.</Text><View style={s.practiceGrid}><View style={s.practiceStat}><Text style={s.practiceValue}>{vocabularySummary?.summary.due_words??"—"}</Text><Text style={s.practiceLabel}>Words due to review</Text></View><View style={s.practiceStat}><Text style={s.practiceValue}>{learningInsights?.skill_areas.filter(item=>item.evidence_status==="practice_opportunity"||item.evidence_status==="developing_exercise_performance").length??"—"}</Text><Text style={s.practiceLabel}>Skills to revisit</Text></View></View>{learningInsights?.skill_areas.some(item=>item.evidence_status==="practice_opportunity"||item.evidence_status==="developing_exercise_performance")?<Text style={s.body}>A useful focus: {learningInsights.skill_areas.find(item=>item.evidence_status==="practice_opportunity"||item.evidence_status==="developing_exercise_performance")?.skill_key.replace(/_/g," ")}. This reflects exercise attempts only, not a speaking or proficiency score.</Text>:<Text style={s.body}>Complete a few tagged exercises to build a clearer picture of which skills to practise next.</Text>}<View style={s.practiceLinks}><Link href="/vocabulary" style={s.textLink}>Review due words →</Link><Link href="/sentence-coach" style={s.textLink}>Practise a sentence →</Link><Link href="/progress" style={s.textLink}>See learning patterns →</Link></View></SurfaceCard>
    <SurfaceCard soft><View style={s.cardHeading}><View style={{flex:1}}><Eyebrow>REMEMBER MORE, EVERY DAY</Eyebrow><Text style={s.cardTitle}>Vocabulary review</Text><Text style={s.body}>Revisit useful words, reveal their meanings and tell Gabroo how well you remembered them.</Text></View></View>{active?<Link href="/vocabulary" asChild><Pressable style={s.reviewButton}><Text style={s.reviewButtonText}>Review my words  →</Text></Pressable></Link>:<Link href="/account" style={s.textLink}>Unlock vocabulary reviews →</Link>}</SurfaceCard>
    <SurfaceCard><View style={s.cardHeading}><Text style={s.cardTitle}>Continue a conversation</Text><Link href="/gabroo" style={s.textLink}>Open all →</Link></View>{!active?<Text style={s.body}>Your free English analysis and account remain available. Choose a plan from your account to unlock Gabroo conversations.</Text>:conversations.length===0?<Text style={s.body}>Your conversations will appear here after your first chat with Gabroo.</Text>:conversations.slice(0,3).map(item=><Link key={item.id} href="/gabroo" asChild><Pressable style={s.conversation}><View style={s.conversationIcon}><Text>💬</Text></View><View style={s.conversationCopy}><Text style={s.conversationTitle}>{item.title??"Conversation with Gabroo"}</Text><Text style={s.conversationMeta}>{item.turn_count} exchanges · {new Date(item.updated_at).toLocaleDateString()}</Text></View><Text style={s.chevron}>›</Text></Pressable></Link>)}</SurfaceCard>
    <SurfaceCard soft><Eyebrow>MAKE IT COMFORTABLE</Eyebrow><Text style={s.cardTitle}>Gabroo speaking speed</Text><Text style={s.body}>Choose a pace that is easy to understand. Your preference is saved to your account and used when Gabroo speaks aloud.</Text><View style={s.speedRow}><Pressable accessibilityRole="button" accessibilityLabel="Slow down Gabroo" disabled={speechRate<=.75||savingSpeed} onPress={()=>void changeSpeed(-.05)} style={[s.speedButton,(speechRate<=.75||savingSpeed)&&s.disabled]}><Text style={s.speedButtonText}>−</Text></Pressable><View style={s.speedValue}><Text style={s.speedNumber}>{speechRate.toFixed(2).replace(/0$/,"")}×</Text><Text style={s.speedCaption}>PLAYBACK SPEED</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Speed up Gabroo" disabled={speechRate>=1.5||savingSpeed} onPress={()=>void changeSpeed(.05)} style={[s.speedButton,(speechRate>=1.5||savingSpeed)&&s.disabled]}><Text style={s.speedButtonText}>+</Text></Pressable></View><Pressable onPress={()=>void changeSpeed(1-speechRate)} disabled={savingSpeed||speechRate===1} style={s.reset}><Text style={s.resetText}>Reset to normal · 1.0×</Text></Pressable></SurfaceCard>
@@ -72,6 +80,7 @@ export default function HomeScreen(){
  </ScrollView></SafeAreaView>;
 }
 const s=StyleSheet.create({
+ practiceGrid:{flexDirection:"row",gap:10,marginTop:space.sm},practiceStat:{flex:1,backgroundColor:colors.surfaceSoft,borderRadius:radius.md,padding:space.md},practiceValue:{fontSize:24,fontWeight:"900",color:colors.primaryStrong},practiceLabel:{fontSize:10,fontWeight:"700",color:colors.textMuted,marginTop:3},practiceLinks:{gap:9,marginTop:space.sm},
  reviewButton:{backgroundColor:colors.primary,borderRadius:radius.lg,padding:space.md,alignItems:"center",marginTop:space.md},reviewButtonText:{color:"#FFFFFF",fontSize:14,fontWeight:"800"},
  safe:{flex:1,backgroundColor:colors.background},page:{flexGrow:1,padding:space.xl,paddingBottom:36,gap:space.lg},
  header:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},brandRow:{flexDirection:"row",alignItems:"center",gap:11},brand:{fontSize:20,fontWeight:"900",color:colors.text},tagline:{fontSize:9,fontWeight:"900",letterSpacing:1.1,color:colors.secondary,marginTop:3},profile:{paddingVertical:9,paddingHorizontal:13,borderRadius:radius.pill,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border},profileText:{fontSize:12,fontWeight:"800",color:colors.primaryStrong},
