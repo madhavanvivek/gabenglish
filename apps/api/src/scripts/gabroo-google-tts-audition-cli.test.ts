@@ -16,7 +16,7 @@ describe("Gabroo Google TTS audition pack",()=>{
  });
  it("creates randomized paired plain-text and SSML blind variants for four voices",async()=>{
   directory=await mkdtemp(join(tmpdir(),"gabroo-audition-"));
-  const synthesize=vi.fn(async(voice:string,text:string)=>new Uint8Array([voice.length,text.length,1]));
+  const synthesize=vi.fn(async(voice:string,text:string,inputMode:"text"|"ssml")=>new Uint8Array([voice.length,text.length,inputMode==="ssml"?1:2]));
   const result=await createGabrooGoogleTtsAuditionPack({
    apiKey:"server-only-test-key",
    outputDirectory:directory,
@@ -24,6 +24,8 @@ describe("Gabroo Google TTS audition pack",()=>{
   });
   expect(result).toEqual({outputDirectory:directory,candidateCount:8,sampleCount:56});
   expect(synthesize).toHaveBeenCalledTimes(56);
+  expect(synthesize.mock.calls.filter(call=>call[2]==="text")).toHaveLength(28);
+  expect(synthesize.mock.calls.filter(call=>call[2]==="ssml")).toHaveLength(28);
   const manifest=JSON.parse(await readFile(join(directory,"reviewer-manifest.json"),"utf8")) as {
    candidates:{blind_code:string;samples:{file:string}[]}[]
   };
