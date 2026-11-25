@@ -138,3 +138,10 @@ The native playback adapter now resolves the server-issued HTTPS audio URL into 
 The local cache filename now includes the server-issued asset expiry timestamp. Before a cache fetch, the Expo bridge scans only Gabroo cache entries, removes files whose signed expiry has elapsed, and leaves unrelated cache files untouched. The playback adapter passes the expiry from the same validated asset envelope used for its URI, audio hash and alignment.
 
 The native Expo playback status is also checked against the server-measured duration. A native duration differing by more than 50 ms is rejected before an avatar frame is accepted; this tolerance accounts for small container/decoder duration rounding while rejecting a different or truncated media asset. Unit tests cover the boundary and expiry cleanup. Android device-level validation remains required.
+
+
+## Cancellation and lifecycle hardening
+
+The secure cache downloader accepts an AbortSignal, checks it before cache access, after asynchronous filesystem operations, and immediately before/after cache promotion. The Expo resumable download bridge cancels the native transfer on abort and removes its listener when the transfer settles. Partial files are removed on cancellation, and a valid existing cache file is preserved if cancellation races its integrity check.
+
+The playback adapter passes the same cancellation signal through cache preparation and native player creation. If cancellation occurs while the native player is being created, the newly returned sound is unloaded before it can be used; cancellation after creation unloads the active sound and closes the avatar clock. Tests cover abort-before-download, abort-during-transfer, preservation of verified cached audio, cancellation during cache preparation, and cancellation racing native player creation.
