@@ -53,3 +53,10 @@ This allows future providers with character-level timing to support karaoke-styl
 The character-alignment module also exports `sampleGabrooCaptionAtPlayback`. Once a provider alignment has passed the audio/text identity checks and has been converted into caption cues, the mobile player can sample the active cue using the native audio player's current position. Paused playback and stale audio IDs clear the highlight. If provider spans overlap, the cue with the latest start time wins deterministically.
 
 This sampler is a pure contract helper; the current mobile TTS response still does not return character timings, so the learner UI must not fabricate karaoke highlighting. Wire it only after a provider supplies verified offsets and the client has the matching audio identity.
+
+
+### API-side exact audio identity helper
+
+`apps/api/src/gabroo-audio-identity.ts` now provides `createGabrooSynthesizedAudioIdentity`. It computes SHA-256 over the exact completed audio bytes and exact UTF-8 synthesis text, counts source-text Unicode code points, validates the measured duration, and assigns a stable per-asset ID (or validates a supplied one). Tests cover Malayalam, supplementary emoji, byte-exact fingerprints and invalid inputs.
+
+This helper is intentionally not called from the current streaming TTS route. The route streams MP3 bytes before the complete asset and measured duration are known, and the provider currently supplies neither measured duration nor character/phoneme alignment. Do not buffer every live response or invent a duration merely to expose an identity. A future alignment-capable provider path must produce a complete bounded audio asset and verified duration (or a carefully designed streaming hash/finalization protocol) before returning alignment metadata. Until then, speech playback remains MP3-only and the caption/avatar bridges remain disabled in the learner UI.
