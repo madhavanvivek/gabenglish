@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { createGabrooExpoAvPlayback } from "./expo-av-playback-adapter";
 
+const cacheAudio = vi.fn(async () => ({ uri: "file:///private/cache/gabroo-a.audio", audioSha256: "a".repeat(64), bytes: 1024 }));
+
 const validAsset = () => ({
   playbackTicketId: "ticket-1",
   audioId: "audio-1",
@@ -24,6 +26,8 @@ describe("Gabroo Expo AV playback adapter boundary", () => {
       asset,
       gate: {} as never,
       nowMs: Date.parse("2030-01-01T00:00:00.000Z"),
+      cacheAudio,
+      cacheAudio,
       createSound: createSound as never,
     })).rejects.toThrow();
     expect(createSound).not.toHaveBeenCalled();
@@ -44,7 +48,7 @@ describe("Gabroo Expo AV playback adapter boundary", () => {
       createSound: createSound as never,
     });
     expect(createSound).toHaveBeenCalledOnce();
-    expect(createSound.mock.calls[0]?.[0]).toEqual({ uri: validAsset().uri });
+    expect(createSound.mock.calls[0]?.[0]).toEqual({ uri: "file:///private/cache/gabroo-a.audio" });
     await playback.unload();
     expect(sound.unloadAsync).toHaveBeenCalledOnce();
   });
@@ -137,6 +141,7 @@ describe("Gabroo Expo AV playback lifecycle", () => {
       gate: secondGate.gate,
       onError,
       nowMs: Date.parse("2029-12-31T23:59:00.000Z"),
+      cacheAudio,
       createSound: vi.fn(async (_source, _initial, listener) => {
         secondListener = listener as (status: never) => void;
         return { sound: secondSound };
