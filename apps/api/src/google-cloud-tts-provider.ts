@@ -52,7 +52,8 @@ const CANONICAL_BASE64=/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/
  */
 export function createGoogleCloudTtsProvider(
  config:GoogleTtsConfig,
- fetcher:FetchLike=fetch
+ fetcher:FetchLike=fetch,
+ requestTimeoutMs=REQUEST_TIMEOUT_MS
 ):GabrooSpeechSynthesisProvider|undefined{
  const apiKey=config.GABROO_GOOGLE_TTS_API_KEY?.trim();
  const voice=config.GABROO_GOOGLE_TTS_VOICE?.trim();
@@ -60,6 +61,7 @@ export function createGoogleCloudTtsProvider(
  const englishLanguageCode=config.GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE?.trim()||"en-US";
  const inputMode=config.GABROO_GOOGLE_TTS_INPUT_MODE||"ssml";
  if(inputMode!=="ssml"&&inputMode!=="text")throw new Error("Google TTS input mode must be ssml or text.");
+ if(!Number.isSafeInteger(requestTimeoutMs)||requestTimeoutMs<1||requestTimeoutMs>60_000)throw new Error("Google TTS request timeout must be between 1 and 60000 milliseconds.");
  if(!apiKey||!voice)return undefined;
  if(!/^[a-z]{2,3}-[A-Z]{2,4}$/.test(languageCode))throw new Error("Google TTS language code is invalid.");
  if(!/^[a-z]{2,3}-[A-Z]{2,4}$/.test(englishLanguageCode))throw new Error("Google TTS English language code is invalid.");
@@ -74,7 +76,7 @@ export function createGoogleCloudTtsProvider(
    if(input.signal.aborted)throw new Error("Gabroo speech synthesis was cancelled.");
    const url=new URL("https://texttospeech.googleapis.com/v1/text:synthesize");
    // Bound provider latency while preserving caller cancellation (for example, learner interruption).
-   const timeoutSignal=AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+   const timeoutSignal=AbortSignal.timeout(requestTimeoutMs);
    const signal=AbortSignal.any([input.signal,timeoutSignal]);
    const response=await fetcher(url,{
     method:"POST",
