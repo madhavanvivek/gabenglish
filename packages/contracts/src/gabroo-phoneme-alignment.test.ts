@@ -12,6 +12,13 @@ describe("Gabroo phoneme alignment",()=>{
   expect(gabrooPhonemeToViseme("u")).toBe("open_round");
   expect(gabrooPhonemeToViseme("i")).toBe("spread");
   expect(gabrooPhonemeToViseme("w")).toBe("narrow_round");
+  expect(gabrooPhonemeToViseme("aː")).toBe("open_wide");
+  expect(gabrooPhonemeToViseme("iː")).toBe("spread");
+  expect(gabrooPhonemeToViseme("uː")).toBe("open_round");
+  expect(gabrooPhonemeToViseme("eː")).toBe("open_mid");
+  // Malayalam consonants without a validated distinct rig pose remain neutral.
+  expect(gabrooPhonemeToViseme("ʈ")).toBe("neutral");
+  expect(gabrooPhonemeToViseme("ɳ")).toBe("neutral");
  });
  it("uses authoritative provider timestamps and preserves the audio identity",()=>{
   const timeline=gabrooPhonemeAlignmentToTimeline({audio_id:"audio-1",audio_sha256:"a".repeat(64),duration_ms:1000,phonemes:[
