@@ -77,3 +77,5 @@ Do not set live_avatar_renderer=true until the owner-approved Concept C source a
 Voice approval is a separate gate. The renderer must not select or lock a voice provider. No merge or production deployment is implied by this contract.
 
 Native playback status validation rejects out-of-range playheads, invalid durations and malformed audio identity before clock sampling.
+
+The Expo AV adapter now validates the complete trusted playback identity before creating a native sound instance, including bounded non-empty ticket/audio IDs, a SHA-256 audio hash, positive integer measured duration, and exact alignment hash/duration match. Consumer error callbacks are isolated so exceptions cannot escape native playback-status dispatch.
