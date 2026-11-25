@@ -133,7 +133,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
     SELECT DISTINCT ON (a.lesson_version_id,a.exercise_id,COALESCE(a.learning_session_id,'00000000-0000-0000-0000-000000000000'::uuid))
      block->>'skill' AS skill,a.is_correct AS correct,
      CASE WHEN block->>'difficulty' ~ '^[1-5]$' THEN (block->>'difficulty')::int ELSE NULL END AS difficulty,
-     a.created_at AS observed_at
+     a.attempted_at AS observed_at
     FROM learner_exercise_attempts a
     JOIN lesson_versions lv ON lv.id=a.lesson_version_id
     CROSS JOIN LATERAL jsonb_array_elements(
@@ -141,7 +141,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
     ) AS blocks(block)
     WHERE a.user_id=$1 AND block->>'type'='exercise' AND block->>'id'=a.exercise_id
      AND block->>'skill' IN ('grammar','vocabulary','comprehension')
-    ORDER BY a.lesson_version_id,a.exercise_id,COALESCE(a.learning_session_id,'00000000-0000-0000-0000-000000000000'::uuid),a.created_at DESC
+    ORDER BY a.lesson_version_id,a.exercise_id,COALESCE(a.learning_session_id,'00000000-0000-0000-0000-000000000000'::uuid),a.attempted_at DESC
    ) AS latest_outcomes ORDER BY observed_at DESC LIMIT 100`,[learner.id])
   ]);
   const adaptivePractice=buildGabrooAdaptivePractice(outcomes.rows.map(row=>({skill:row.skill,correct:row.correct,difficulty:row.difficulty??undefined,observedAt:row.observed_at.toISOString()})));
@@ -277,7 +277,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
    if(["grammar","vocabulary","comprehension"].includes(String(exercise.skill))){
     const evidenceTaskId=parsed.data.learning_session_id
       ?"lesson-exercise-session:"+parsed.data.learning_session_id+":"+exerciseId
-      :"lesson-exercise:"+attempt.id;
+      :"lesson-exercise:"+lesson.version_id+":"+exerciseId;
     const evidence=await client.query<{id:string}>(
      `INSERT INTO gabroo_skill_evidence(user_id,skill,score,confidence,source,task_id,observed_at)
       VALUES($1,$2,$3,0.75,'lesson_exercise',$4,now())
