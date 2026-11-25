@@ -94,3 +94,18 @@ The provider boundary rejects audio assets larger than 12 MiB and language tags 
 ### Reject empty timing results
 
 A provider response with an empty phoneme or character event list is rejected. An empty array must not be interpreted as successful synchronization: it could otherwise silently disable mouth movement or captions while reporting an apparently valid alignment. Provider output must contain at least one validated timed event before it can pass the API boundary.
+
+
+## Native player ownership gate (2026-11-25)
+
+The conversation-to-renderer bridge now exposes `sampleGabrooConversationFrameFromPlaybackStatus`. The caller must provide the native player's loaded/playing flags, current position in milliseconds, and the stable audio ID associated with the loaded media item.
+
+The bridge emits animation controls only when all of the following are true:
+
+- the conversation is currently in its speaking phase;
+- the native player confirms the media is loaded and actively playing;
+- the player's audio ID exactly matches the active conversation speech audio ID.
+
+A paused player, unloaded/buffering player, stale player item, interrupted conversation or missing audio ID produces a fully neutral frame with no active audio identity. Invalid playback positions or malformed status flags fail closed with an error. This prevents late native callbacks from an earlier response from animating over a newer turn.
+
+The helper is a renderer-neutral contract and regression-tested boundary. It does not add a 3D renderer, create phoneme timestamps, or enable lip-sync in the learner screen. The current mobile TTS route still returns MP3 without alignment metadata; the visual asset and renderer remain separate approval/integration gates.
