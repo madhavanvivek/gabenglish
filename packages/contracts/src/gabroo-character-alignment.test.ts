@@ -65,6 +65,10 @@ describe("Gabroo caption playback sampler",()=>{
   const overlapping=[cues[0],{...cues[1],start_ms:300}];
   expect(sampleGabrooCaptionAtPlayback(overlapping,{audioId:"audio-1",expectedAudioId:"audio-1",positionMs:400,isPlaying:true})?.cue.text).toBe("Gabroo");
  });
+ it("rejects malformed current or expected audio identities",()=>{
+  expect(()=>sampleGabrooCaptionAtPlayback(cues,{audioId:42 as unknown as string,expectedAudioId:"audio-1",positionMs:250,isPlaying:true})).toThrow(/audio identities/i);
+  expect(()=>sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",expectedAudioId:"",positionMs:250,isPlaying:true})).toThrow(/audio identities/i);
+ });
  it("rejects invalid playback positions",()=>{
   expect(()=>sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",expectedAudioId:"audio-1",positionMs:-1,isPlaying:true})).toThrow(/position/i);
   expect(()=>sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",expectedAudioId:"audio-1",positionMs:Number.NaN,isPlaying:true})).toThrow(/position/i);
