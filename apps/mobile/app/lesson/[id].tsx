@@ -23,7 +23,7 @@ function LessonBlocks({content,answers,setAnswers,results,onSubmit,busyExercise}
  </View>;
 }
 
-function RecommendedExercise({selection,answer,setAnswer,result,onSubmit,busy}:{selection:GabrooNextExerciseSelection;answer:string;setAnswer:(value:string)=>void;result:{correct:boolean;feedback:string}|null;onSubmit:()=>void;busy:boolean}){
+function RecommendedExercise({selection,answer,setAnswer,result,onSubmit,onNext,busy}:{selection:GabrooNextExerciseSelection;answer:string;setAnswer:(value:string)=>void;result:{correct:boolean;feedback:string}|null;onSubmit:()=>void;onNext:()=>void;busy:boolean}){
  const exercise=selection.exercise;
  if(!exercise)return <View style={s.contentBlock}><Text style={s.blockHeading}>Practice complete</Text><Text style={s.detail}>There are no exercises available in this lesson yet.</Text></View>;
  return <View style={s.contentBlock}>
@@ -33,7 +33,7 @@ function RecommendedExercise({selection,answer,setAnswer,result,onSubmit,busy}:{
   <Text style={s.detail}>{exercise.instruction}</Text><Text style={s.blockBody}>{exercise.prompt}</Text>
   {exercise.response_type==="single_choice"?exercise.options?.map(option=><Pressable key={option.id} accessibilityRole="radio" accessibilityState={{checked:answer===option.id}} onPress={()=>setAnswer(option.id)} style={[s.option,answer===option.id&&s.optionSelected]}><Text style={s.blockBody}>{option.label}</Text></Pressable>):<TextInput accessibilityLabel="Your answer" value={answer} onChangeText={setAnswer} multiline placeholder="Write your answer…" placeholderTextColor={colors.textMuted} style={s.answerInput}/>}
   <PrimaryButton label={busy?"Checking…":"Check this answer"} onPress={onSubmit} disabled={busy||!answer.trim()}/>
-  {result?<View style={s.feedback}><Text style={result.correct?s.correct:s.incorrect}>{result.correct?"Correct":"Keep practising"}</Text><Text style={s.blockBody}>{result.feedback}</Text></View>:null}
+  {result?<View style={s.feedback}><Text style={result.correct?s.correct:s.incorrect}>{result.correct?"Correct":"Keep practising"}</Text><Text style={s.blockBody}>{result.feedback}</Text><PrimaryButton label="Next exercise" onPress={onNext} disabled={busy}/></View>:null}
  </View>;
 }
 
@@ -54,7 +54,7 @@ export default function LessonScreen(){
  const [busyExercise,setBusyExercise]=useState<string|null>(null);
  const setAnswer=(exerciseId:string,value:string)=>setAnswersState(current=>({...current,[exerciseId]:value}));
  async function loadNextExercise(lessonId:string){setLoadingNext(true);try{const result=await getGabrooNextExercise(lessonId);setNextExercise(result.selection);setRecommendedAnswer("");setRecommendedResult(null);}catch(e){setError(e instanceof Error?e.message:"Could not load Gabroo’s next exercise.");}finally{setLoadingNext(false);}}
- async function submitRecommendedExercise(){const exercise=nextExercise?.exercise;if(!id||!exercise||busyExercise)return;setBusyExercise(exercise.id);setError("");try{const result=await submitLearningExerciseAttempt(id,exercise.id,recommendedAnswer,learningSessionId);setRecommendedResult(result.result);await loadNextExercise(id);}catch(e){setError(e instanceof Error?e.message:"Could not check this answer.");}finally{setBusyExercise(null);}}
+ async function submitRecommendedExercise(){const exercise=nextExercise?.exercise;if(!id||!exercise||busyExercise)return;setBusyExercise(exercise.id);setError("");try{const result=await submitLearningExerciseAttempt(id,exercise.id,recommendedAnswer,learningSessionId);setRecommendedResult(result.result);}catch(e){setError(e instanceof Error?e.message:"Could not check this answer.");}finally{setBusyExercise(null);}}
  async function submitExercise(exerciseId:string){if(!id||busyExercise)return;setBusyExercise(exerciseId);setError("");try{const result=await submitLearningExerciseAttempt(id,exerciseId,answers[exerciseId]??"",learningSessionId);setExerciseResults(current=>({...current,[exerciseId]:result.result}));}catch(e){setError(e instanceof Error?e.message:"Could not check this answer.");}finally{setBusyExercise(null);}}
  useEffect(()=>{let active=true;setLearningSessionId(createLearningSessionId());setNextExercise(null);if(id){void getLearningLesson(id).then(value=>{if(!active)return;setData(value);setProgress(value.progress?.progress_percent??0);}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});void getGabrooNextExercise(id).then(value=>{if(active)setNextExercise(value.selection);}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load Gabroo’s next exercise.");});}return()=>{active=false;};},[id]);
  async function save(value:number){
@@ -79,7 +79,7 @@ export default function LessonScreen(){
     {busy?<Text style={s.detail}>Saving progress…</Text>:null}{message?<Text style={s.success}>{message}</Text>:null}{error?<Text style={s.error}>{error}</Text>:null}
     <PrimaryButton label={busy?"Saving…":"Save progress"} onPress={()=>void save(progress)} disabled={busy}/>
    </SurfaceCard>
-   <SurfaceCard><Eyebrow>LEARN</Eyebrow>{loadingNext?<Text style={s.detail}>Gabroo is choosing your next exercise…</Text>:nextExercise?<RecommendedExercise selection={nextExercise} answer={recommendedAnswer} setAnswer={setRecommendedAnswer} result={recommendedResult} onSubmit={()=>void submitRecommendedExercise()} busy={busyExercise!==null}/>:null}<LessonBlocks content={data.lesson.content} answers={answers} setAnswers={setAnswer} results={exerciseResults} onSubmit={submitExercise} busyExercise={busyExercise}/></SurfaceCard>
+   <SurfaceCard><Eyebrow>LEARN</Eyebrow>{loadingNext?<Text style={s.detail}>Gabroo is choosing your next exercise…</Text>:nextExercise?<RecommendedExercise selection={nextExercise} answer={recommendedAnswer} setAnswer={setRecommendedAnswer} result={recommendedResult} onSubmit={()=>void submitRecommendedExercise()} onNext={()=>void loadNextExercise(id)} busy={busyExercise!==null}/>:null}<LessonBlocks content={data.lesson.content} answers={answers} setAnswers={setAnswer} results={exerciseResults} onSubmit={submitExercise} busyExercise={busyExercise}/></SurfaceCard>
   </>:!error?<Text style={s.detail}>Loading lesson…</Text>:null}
  </ScrollView></SafeAreaView>;
 }
