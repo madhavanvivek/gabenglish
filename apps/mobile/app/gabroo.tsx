@@ -47,6 +47,7 @@ export default function GabrooScreen(){
  const recordingRef=useRef<Audio.Recording|null>(null);
  const recordingOperationRef=useRef(false);
  const appIsActiveRef=useRef(true);
+ const screenFocusedRef=useRef(false);
  const speechRunRef=useRef(0);
  const load=useCallback(async()=>{
   setLoading(true);setError("");
@@ -68,10 +69,13 @@ export default function GabrooScreen(){
   finally{setLoading(false);}
  },[]);
  useFocusEffect(useCallback(()=>{
+  screenFocusedRef.current=true;
   void load();
   return ()=>{
+   screenFocusedRef.current=false;
    speechRunRef.current+=1;
    void Speech.stop();
+   void discardTranscriptionAudio();
    const recording=recordingRef.current;
    recordingRef.current=null;
    if(recording){
@@ -174,7 +178,7 @@ export default function GabrooScreen(){
   await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
  };
  const startTranscriptionCapture=async()=>{
-  if(!appIsActiveRef.current||!transcriptionConsent||!recognitionStatus?.available||voicePermissionStatus!=="granted"||transcriptionOperationRef.current||transcriptionRecordingRef.current||recordingRef.current)return;
+  if(!appIsActiveRef.current||!screenFocusedRef.current||!transcriptionConsent||!recognitionStatus?.available||voicePermissionStatus!=="granted"||transcriptionOperationRef.current||transcriptionRecordingRef.current||recordingRef.current)return;
   transcriptionOperationRef.current=true;setTranscriptionBusy(true);setSpeechNotice("");
   try{
    await Audio.setAudioModeAsync({allowsRecordingIOS:true,playsInSilentModeIOS:true,shouldDuckAndroid:true});
@@ -193,7 +197,7 @@ export default function GabrooScreen(){
    setSpeechNotice(reason instanceof Error?reason.message:"Could not start voice recording.");
   }finally{
    transcriptionOperationRef.current=false;setTranscriptionBusy(false);
-   if(!appIsActiveRef.current&&transcriptionRecordingRef.current)void discardTranscriptionAudio();
+   if((!appIsActiveRef.current||!screenFocusedRef.current)&&transcriptionRecordingRef.current)void discardTranscriptionAudio();
   }
  };
  const stopTranscriptionCapture=async()=>{
@@ -216,7 +220,7 @@ export default function GabrooScreen(){
   }finally{
    await Audio.setAudioModeAsync({allowsRecordingIOS:false,playsInSilentModeIOS:true}).catch(()=>undefined);
    transcriptionOperationRef.current=false;setTranscriptionBusy(false);
-   if(!appIsActiveRef.current&&transcriptionUriRef.current)void discardTranscriptionAudio();
+   if((!appIsActiveRef.current||!screenFocusedRef.current)&&transcriptionUriRef.current)void discardTranscriptionAudio();
   }
  };
  const reviewAndTranscribe=async()=>{
@@ -268,7 +272,7 @@ export default function GabrooScreen(){
   }finally{setVoicePermissionBusy(false);}
  };
  const startLocalCapture=async()=>{
-  if(!appIsActiveRef.current||!voiceCaptureConsent||voiceSessionState!=="ready"||recordingOperationRef.current||recordingRef.current||transcriptionRecordingRef.current||transcriptionUriRef.current)return;
+  if(!appIsActiveRef.current||!screenFocusedRef.current||!voiceCaptureConsent||voiceSessionState!=="ready"||recordingOperationRef.current||recordingRef.current||transcriptionRecordingRef.current||transcriptionUriRef.current)return;
   recordingOperationRef.current=true;
   setRecordingBusy(true);setSpeechNotice("");
   try{
@@ -295,7 +299,7 @@ export default function GabrooScreen(){
   }finally{
    recordingOperationRef.current=false;
    setRecordingBusy(false);
-   if(!appIsActiveRef.current&&recordingRef.current)void stopAndDiscardLocalCapture();
+   if((!appIsActiveRef.current||!screenFocusedRef.current)&&recordingRef.current)void stopAndDiscardLocalCapture();
   }
  };
  const stopAndDiscardLocalCapture=async()=>{
