@@ -20,7 +20,11 @@ const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 const BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 let tempSequence = 0;
 
-function throwIfAborted(signal?: AbortSignal): void {\n  if (signal?.aborted) throw new Error("Gabroo audio download was cancelled.");\n}\n\nfunction decodeBase64(value: string): Uint8Array {
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new Error("Gabroo audio download was cancelled.");
+}
+
+function decodeBase64(value: string): Uint8Array {
   const clean = value.replace(/\s/g, "");
   if (!clean || clean.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(clean)) {
     throw new Error("Downloaded Gabroo audio is not valid base64 data.");
@@ -49,8 +53,10 @@ export async function cacheGabrooSpeechAudio(input: {
   fileSystem: GabrooAudioCacheFileSystem;
   maxBytes?: number;
   nonce?: string;
+  signal?: AbortSignal;
 }): Promise<GabrooCachedAudio> {
-  throwIfAborted(input.signal);\n  let remote: URL;
+  throwIfAborted(input.signal);
+  let remote: URL;
   try { remote = new URL(input.remoteUri); } catch { throw new Error("Gabroo audio cache input is invalid."); }
   if (remote.protocol !== "https:" || !remote.hostname || remote.username || remote.password
     || input.remoteUri.length > 4096
@@ -63,13 +69,15 @@ export async function cacheGabrooSpeechAudio(input: {
   }
   const limit = input.maxBytes ?? MAX_AUDIO_BYTES;
   const finalUri = `${input.cacheDirectory.replace(/\/$/, "")}/gabroo-${input.audioSha256.toLowerCase()}-${expiryMs}.audio`;
-  const existing = await input.fileSystem.getInfoAsync(finalUri);\n  throwIfAborted(input.signal);
+  const existing = await input.fileSystem.getInfoAsync(finalUri);
+  throwIfAborted(input.signal);
   if (existing.exists) {
     try {
       if (typeof existing.size === "number" && existing.size > 0 && existing.size <= limit) {
         const bytes = decodeBase64(await input.fileSystem.readAsBase64Async(finalUri));
         if (bytes.length === existing.size && sha256Hex(bytes) === input.audioSha256.toLowerCase()) {
-          throwIfAborted(input.signal);\n          return { uri: finalUri, audioSha256: input.audioSha256.toLowerCase(), bytes: bytes.length };
+          throwIfAborted(input.signal);
+          return { uri: finalUri, audioSha256: input.audioSha256.toLowerCase(), bytes: bytes.length };
         }
       }
     } catch {
@@ -82,7 +90,8 @@ export async function cacheGabrooSpeechAudio(input: {
   const tempUri = `${input.cacheDirectory.replace(/\/$/, "")}/gabroo-${input.audioSha256.toLowerCase()}-${suffix}.part`;
   try {
     await input.fileSystem.deleteAsync(tempUri, { idempotent: true });
-    const result = await input.fileSystem.downloadAsync(input.remoteUri, tempUri, limit, input.signal);\n    throwIfAborted(input.signal);
+    const result = await input.fileSystem.downloadAsync(input.remoteUri, tempUri, limit, input.signal);
+    throwIfAborted(input.signal);
     if (typeof result.status === "number" && result.status !== 200) {
       throw new Error(`Gabroo audio download failed with HTTP ${result.status}.`);
     }
@@ -90,13 +99,20 @@ export async function cacheGabrooSpeechAudio(input: {
     if (!info.exists || !Number.isSafeInteger(info.size) || !info.size || info.size > limit) {
       throw new Error("Downloaded Gabroo audio is missing, empty or exceeds the cache limit.");
     }
-    const encoded = await input.fileSystem.readAsBase64Async(tempUri);\n    throwIfAborted(input.signal);\n    const bytes = decodeBase64(encoded);
+    const encoded = await input.fileSystem.readAsBase64Async(tempUri);
+    throwIfAborted(input.signal);
+    const bytes = decodeBase64(encoded);
     if (bytes.length !== info.size) throw new Error("Downloaded Gabroo audio size verification failed.");
     const actualHash = sha256Hex(bytes);
     if (actualHash !== input.audioSha256.toLowerCase()) {
       throw new Error("Downloaded Gabroo audio SHA-256 verification failed.");
     }
+    throwIfAborted(input.signal);
     await input.fileSystem.moveAsync({ from: tempUri, to: finalUri });
+    if (input.signal?.aborted) {
+      await input.fileSystem.deleteAsync(finalUri, { idempotent: true });
+      throw new Error("Gabroo audio download was cancelled.");
+    }
     return { uri: finalUri, audioSha256: actualHash, bytes: bytes.length };
   } catch (error) {
     await input.fileSystem.deleteAsync(tempUri, { idempotent: true }).catch(() => undefined);
@@ -110,6 +126,7 @@ export async function cacheGabrooSpeechAudioWithExpo(input: {
   audioSha256: string;
   expiresAt: string;
   nonce?: string;
+  signal?: AbortSignal;
 }): Promise<GabrooCachedAudio> {
   const fs = await import("expo-file-system");
   if (!fs.cacheDirectory) throw new Error("Private app cache is unavailable.");
@@ -125,6 +142,8 @@ export async function cacheGabrooSpeechAudioWithExpo(input: {
       downloadAsync: async (url, destination, maxBytes, signal) => {
         let resumable: ReturnType<typeof fs.createDownloadResumable>;
         let exceededLimit = false;
+        const cancelDownload = () => { void resumable.cancelAsync().catch(() => undefined); };
+        if (signal?.aborted) throw new Error("Gabroo audio download was cancelled.");
         resumable = fs.createDownloadResumable(url, destination, {}, progress => {
           if (!exceededLimit && (
             progress.totalBytesWritten > maxBytes
@@ -134,10 +153,16 @@ export async function cacheGabrooSpeechAudioWithExpo(input: {
             void resumable.cancelAsync().catch(() => undefined);
           }
         });
-        const result = await resumable.downloadAsync();
-        if (exceededLimit) throw new Error("Gabroo audio download exceeded the transfer limit.");
-        if (!result) throw new Error("Gabroo audio download was interrupted.");
-        return { uri: result.uri, status: result.status };
+        signal?.addEventListener("abort", cancelDownload, { once: true });
+        try {
+          const result = await resumable.downloadAsync();
+          if (signal?.aborted) throw new Error("Gabroo audio download was cancelled.");
+          if (exceededLimit) throw new Error("Gabroo audio download exceeded the transfer limit.");
+          if (!result) throw new Error("Gabroo audio download was interrupted.");
+          return { uri: result.uri, status: result.status };
+        } finally {
+          signal?.removeEventListener("abort", cancelDownload);
+        }
       },
       readAsBase64Async: uri => fs.readAsStringAsync(uri, { encoding: fs.EncodingType.Base64 }),
       moveAsync: fs.moveAsync,
