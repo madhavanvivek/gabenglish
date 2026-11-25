@@ -104,6 +104,19 @@ describe("renderGabrooTimelineFrame", () => {
     expect(vi.mocked(rig.resetToNeutral).mock.calls.length).toBe(resetCount);
   });
 
+
+  it("rejects a null or malformed proof without throwing", async () => {
+    const { gate, rig } = setup();
+    await gate.initialize();
+    const generation = gate.beginPlayback();
+
+    expect(renderGabrooTimelineFrame(gate, null as unknown as PlaybackProof, timeline)).toBe(false);
+    expect(gate.render(proof(generation), () => ({
+      viseme: "aa", visemeWeight: 0.8, expression: "friendly", gesture: "idle",
+    }))).toBe(true);
+    expect(rig.applyFrame).toHaveBeenCalledOnce();
+  });
+
   it("does not animate when the exact playback proof is invalid", async () => {
     const { gate, rig } = setup();
     await gate.initialize();
