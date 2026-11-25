@@ -51,9 +51,12 @@ describe("Google Cloud TTS provider",()=>{
   await expect(unavailable.synthesize(input)).rejects.toThrow(/status 403/);
   const missing=createGoogleCloudTtsProvider(config,async()=>Response.json({}))!;
   await expect(missing.synthesize(input)).rejects.toThrow(/no audio content/);
-  const malformed=createGoogleCloudTtsProvider(config,async()=>Response.json({audioContent:"not base64!"}))!;
-  await expect(malformed.synthesize(input)).rejects.toThrow(/malformed audio/);
-  const oversized=createGoogleCloudTtsProvider(config,async()=>Response.json({audioContent:Buffer.alloc(12*1024*1024+1).toString("base64")}))!;
+  for(const audioContent of ["not base64!","A===","abc","AAAA="]){
+   const malformed=createGoogleCloudTtsProvider(config,async()=>Response.json({audioContent}))!;
+   await expect(malformed.synthesize(input)).rejects.toThrow(/malformed audio/);
+  }
+  // This is rejected from its encoded length before Buffer allocates decoded audio.
+  const oversized=createGoogleCloudTtsProvider(config,async()=>Response.json({audioContent:"A".repeat(16*1024*1024+4)}))!;
   await expect(oversized.synthesize(input)).rejects.toThrow(/size limit/);
  });
 });
