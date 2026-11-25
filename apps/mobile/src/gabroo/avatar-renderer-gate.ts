@@ -107,6 +107,18 @@ export class GabrooAvatarRendererGate {
   private disposed = false;
   private identity: ApprovedRigIdentity | null = null;
 
+  private resetSafely(): boolean {
+    try {
+      this.rig.resetToNeutral();
+      return true;
+    } catch {
+      this.ready = false;
+      this.identity = null;
+      this.generation += 1;
+      return false;
+    }
+  }
+
   constructor(
     private readonly rig: AvatarRigAdapter,
     private readonly expectedCharacterId: string,
@@ -118,14 +130,14 @@ export class GabrooAvatarRendererGate {
     const initializationGeneration = ++this.generation;
     this.ready = false;
     this.identity = null;
+    if (!this.resetSafely()) return false;
     try {
-      this.rig.resetToNeutral();
       const identity = await this.rig.load();
       if (this.disposed || initializationGeneration !== this.generation) return false;
       if (identity.approved !== true
         || identity.characterId !== this.expectedCharacterId
         || identity.rigVersion !== this.expectedRigVersion) {
-        this.rig.resetToNeutral();
+        this.resetSafely();
         return false;
       }
       this.identity = { ...identity };
@@ -133,7 +145,7 @@ export class GabrooAvatarRendererGate {
       return true;
     } catch {
       if (!this.disposed && initializationGeneration === this.generation) {
-        this.rig.resetToNeutral();
+        this.resetSafely();
       }
       return false;
     }
@@ -142,14 +154,14 @@ export class GabrooAvatarRendererGate {
   beginPlayback(): number {
     if (this.disposed) return this.generation;
     this.generation += 1;
-    this.rig.resetToNeutral();
+    this.resetSafely();
     return this.generation;
   }
 
   /** Sample callback must return controls derived from the exact validated alignment. */
   render(proof: PlaybackProof, sample: (positionMs: number) => SampledAvatarFrame | null): boolean {
     if (this.disposed || !this.ready || !isPlaybackProofValid(proof, this.generation)) {
-      this.rig.resetToNeutral();
+      this.resetSafely();
       return false;
     }
     let sampled: SampledAvatarFrame | null = null;
@@ -158,7 +170,11 @@ export class GabrooAvatarRendererGate {
       || !EXPRESSIONS.has(sampled.expression) || !GESTURES.has(sampled.gesture)
       || !Number.isFinite(sampled.visemeWeight)
       || sampled.visemeWeight < 0 || sampled.visemeWeight > 1) {
-      this.rig.applyFrame(neutralFrame(this.generation, proof.positionMs));
+      try {
+        this.rig.applyFrame(neutralFrame(this.generation, proof.positionMs));
+      } catch {
+        this.resetSafely();
+      }
       return false;
     }
     try {
@@ -172,7 +188,7 @@ export class GabrooAvatarRendererGate {
       });
       return true;
     } catch {
-      try { this.rig.resetToNeutral(); } catch { /* Keep renderer failure contained. */ }
+      this.resetSafely();
       this.ready = false;
       this.identity = null;
       this.generation += 1;
@@ -184,7 +200,7 @@ export class GabrooAvatarRendererGate {
   stopPlayback(): void {
     if (this.disposed) return;
     this.generation += 1;
-    this.rig.resetToNeutral();
+    this.resetSafely();
   }
 
   dispose(): void {
@@ -192,8 +208,8 @@ export class GabrooAvatarRendererGate {
     this.generation += 1;
     this.ready = false;
     this.identity = null;
-    this.rig.resetToNeutral();
-    this.rig.dispose();
+    this.resetSafely();
+    try { this.rig.dispose(); } catch { /* Native resource cleanup must not crash navigation. */ }
     this.disposed = true;
   }
 
