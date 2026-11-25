@@ -208,3 +208,65 @@ describe("Gabroo playback cancellation", () => {
     expect(createSound).not.toHaveBeenCalled();
   });
 });
+
+
+describe("Gabroo native interruption and buffering handling", () => {
+  it("neutralizes while buffering and resumes from a fresh native playback snapshot", async () => {
+    const { gate, rig, frames } = await createGate();
+    let listener: ((status: never) => void) | undefined;
+    const sound = {
+      playAsync: vi.fn(async () => undefined),
+      pauseAsync: vi.fn(async () => undefined),
+      stopAsync: vi.fn(async () => undefined),
+      unloadAsync: vi.fn(async () => undefined),
+    };
+    const playback = await createGabrooExpoAvPlayback({
+      asset: validAsset(),
+      gate,
+      nowMs: Date.parse("2029-12-31T23:59:00.000Z"),
+      cacheAudio,
+      createSound: vi.fn(async (_source, _initial, callback) => {
+        listener = callback as (status: never) => void;
+        return { sound };
+      }) as never,
+    });
+    await playback.play();
+    listener?.({ isLoaded: true, isPlaying: true, isBuffering: false, positionMillis: 120, durationMillis: 1_000 } as never);
+    expect(frames.length).toBeGreaterThan(0);
+    const beforeBuffering = vi.mocked(rig.resetToNeutral).mock.calls.length;
+
+    // Expo can keep isPlaying true while the native decoder is buffering.
+    listener?.({ isLoaded: true, isPlaying: true, isBuffering: true, positionMillis: 120, durationMillis: 1_000 } as never);
+    expect(vi.mocked(rig.resetToNeutral).mock.calls.length).toBeGreaterThan(beforeBuffering);
+    const framesAtBuffering = frames.length;
+
+    // A fresh native status tick is required before animation resumes.
+    listener?.({ isLoaded: true, isPlaying: true, isBuffering: false, positionMillis: 260, durationMillis: 1_000 } as never);
+    expect(frames.length).toBeGreaterThan(framesAtBuffering);
+    expect(frames.at(-1)?.positionMs).toBe(260);
+    await playback.unload();
+  });
+
+  it("reports native play failures and invalidates any active animation generation", async () => {
+    const { gate, rig } = await createGate();
+    const onError = vi.fn();
+    const sound = {
+      playAsync: vi.fn(async () => { throw new Error("audio route unavailable"); }),
+      pauseAsync: vi.fn(async () => undefined),
+      stopAsync: vi.fn(async () => undefined),
+      unloadAsync: vi.fn(async () => undefined),
+    };
+    const playback = await createGabrooExpoAvPlayback({
+      asset: validAsset(),
+      gate,
+      onError,
+      nowMs: Date.parse("2029-12-31T23:59:00.000Z"),
+      cacheAudio,
+      createSound: vi.fn(async () => ({ sound })) as never,
+    });
+    await expect(playback.play()).rejects.toThrow("audio route unavailable");
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "audio route unavailable" }));
+    expect(rig.resetToNeutral).toHaveBeenCalled();
+    await playback.unload();
+  });
+});
