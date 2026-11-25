@@ -34,14 +34,15 @@ describe("generateGabrooSpeechAsset", () => {
   });
 
   it("sends only normalized learner text and validated preferences to the provider", async () => {
-    const generate = vi.fn(async () => asset());
+    let received: Parameters<GabrooSpeechAssetProvider["generate"]>[0] | undefined;
+    const generate: GabrooSpeechAssetProvider["generate"] = async args => {
+      received = args;
+      return asset();
+    };
     const result = await generateGabrooSpeechAsset(input({ generate }));
     expect(result.audioId).toBe("audio-1");
-    expect(generate).toHaveBeenCalledOnce();
-    expect(generate.mock.calls[0][0]).toMatchObject({
-      text: "നമസ്കാരം!", language: "ml", speechRate: 1,
-    });
-    expect(generate.mock.calls[0][0].signal).toBeInstanceOf(AbortSignal);
+    expect(received).toMatchObject({ text: "നമസ്കാരം!", language: "ml", speechRate: 1 });
+    expect(received?.signal).toBeInstanceOf(AbortSignal);
   });
 
   it.each([
@@ -74,10 +75,10 @@ describe("generateGabrooSpeechAsset", () => {
   it("aborts the provider when the caller cancels", async () => {
     const controller = new AbortController();
     let providerSignal: AbortSignal | undefined;
-    const generate = vi.fn(({ signal }: { signal: AbortSignal }) => new Promise<unknown>((_resolve, reject) => {
+    const generate: GabrooSpeechAssetProvider["generate"] = ({ signal }) => new Promise<unknown>((_resolve, reject) => {
       providerSignal = signal;
       signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
-    }));
+    });
     const pending = generateGabrooSpeechAsset({ ...input({ generate }), signal: controller.signal });
     controller.abort();
     await expect(pending).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
@@ -86,10 +87,10 @@ describe("generateGabrooSpeechAsset", () => {
 
   it("times out and aborts the provider", async () => {
     let providerSignal: AbortSignal | undefined;
-    const generate = vi.fn(({ signal }: { signal: AbortSignal }) => {
+    const generate: GabrooSpeechAssetProvider["generate"] = ({ signal }) => {
       providerSignal = signal;
       return new Promise<unknown>(() => undefined);
-    });
+    };
     await expect(generateGabrooSpeechAsset({ ...input({ generate }), timeoutMs: 5 }))
       .rejects.toMatchObject({ code: "PROVIDER_TIMEOUT" });
     expect(providerSignal?.aborted).toBe(true);
