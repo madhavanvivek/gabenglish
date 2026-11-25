@@ -256,6 +256,21 @@ describe("API foundation",()=>{
   expect(statements.some(sql=>sql.includes("ON CONFLICT(user_id,learning_direction,lesson_version_id,vocabulary_item_id)"))).toBe(true);
   await app.close();
  });
+ it("returns learner vocabulary retention counts from current published content",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const pool={query:async(sql:string)=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("FROM active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
+   if(sql.includes("WITH eligible AS"))return {rows:[{total_words:18,reviewed_words:10,mastered_words:4,developing_words:6,due_words:7,last_reviewed_at:new Date()}]};
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"GET",url:"/api/v1/learning/vocabulary/summary",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toMatchObject({learning_direction:"ml_to_en",summary:{total_words:18,reviewed_words:10,mastered_words:4,developing_words:6,due_words:7},policy:{mastery_is_a_review_schedule_signal_not_a_fluency_score:true}});
+  await app.close();
+ });
  it("rejects invalid vocabulary recall ratings before writing",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   const pool={query:async(sql:string)=>{
