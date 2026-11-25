@@ -131,3 +131,10 @@ The Expo AV adapter now exposes an injectable sound factory for deterministic te
 ## Integrity-verified private audio cache
 
 The native playback adapter now resolves the server-issued HTTPS audio URL into an app-private cache file before opening Expo AV. The cache layer bounds downloads to 25 MiB, validates the HTTPS source and SHA-256 envelope, downloads to a temporary file, verifies the exact downloaded bytes with SHA-256, and only then promotes the file into the cache. Existing cache entries are re-hashed before reuse; corrupt entries are removed and fetched again. Temporary downloads are cleaned on failure, and the adapter refuses playback unless the cache result's digest matches the server-issued audio digest. Tests cover SHA-256 standard vectors, verified promotion, tampered-byte rejection, corrupt-cache repair, invalid sources and size limits. This verifies byte integrity against the server-issued digest; it does not independently verify codec/container validity or measured media duration. Native Android device and network-interruption acceptance remain outstanding.
+
+
+## Asset expiry and native media-duration checks
+
+The local cache filename now includes the server-issued asset expiry timestamp. Before a cache fetch, the Expo bridge scans only Gabroo cache entries, removes files whose signed expiry has elapsed, and leaves unrelated cache files untouched. The playback adapter passes the expiry from the same validated asset envelope used for its URI, audio hash and alignment.
+
+The native Expo playback status is also checked against the server-measured duration. A native duration differing by more than 50 ms is rejected before an avatar frame is accepted; this tolerance accounts for small container/decoder duration rounding while rejecting a different or truncated media asset. Unit tests cover the boundary and expiry cleanup. Android device-level validation remains required.
