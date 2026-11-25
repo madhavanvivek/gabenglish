@@ -17,6 +17,7 @@ export interface GabrooCachedAudio {
 
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 const BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+let tempSequence = 0;
 
 function decodeBase64(value: string): Uint8Array {
   const clean = value.replace(/\s/g, "");
@@ -47,7 +48,10 @@ export async function cacheGabrooSpeechAudio(input: {
   maxBytes?: number;
   nonce?: string;
 }): Promise<GabrooCachedAudio> {
-  if (!/^https:\/\//.test(input.remoteUri) || input.remoteUri.length > 4096
+  let remote: URL;
+  try { remote = new URL(input.remoteUri); } catch { throw new Error("Gabroo audio cache input is invalid."); }
+  if (remote.protocol !== "https:" || !remote.hostname || remote.username || remote.password
+    || input.remoteUri.length > 4096
     || !/^[a-f0-9]{64}$/i.test(input.audioSha256) || !input.cacheDirectory.startsWith("file:///")) {
     throw new Error("Gabroo audio cache input is invalid.");
   }
@@ -55,16 +59,20 @@ export async function cacheGabrooSpeechAudio(input: {
   const finalUri = `${input.cacheDirectory.replace(/\/$/, "")}/gabroo-${input.audioSha256.toLowerCase()}.audio`;
   const existing = await input.fileSystem.getInfoAsync(finalUri);
   if (existing.exists) {
-    if (typeof existing.size === "number" && existing.size > 0 && existing.size <= limit) {
-      const bytes = decodeBase64(await input.fileSystem.readAsBase64Async(finalUri));
-      if (bytes.length === existing.size && sha256Hex(bytes) === input.audioSha256.toLowerCase()) {
-        return { uri: finalUri, audioSha256: input.audioSha256.toLowerCase(), bytes: bytes.length };
+    try {
+      if (typeof existing.size === "number" && existing.size > 0 && existing.size <= limit) {
+        const bytes = decodeBase64(await input.fileSystem.readAsBase64Async(finalUri));
+        if (bytes.length === existing.size && sha256Hex(bytes) === input.audioSha256.toLowerCase()) {
+          return { uri: finalUri, audioSha256: input.audioSha256.toLowerCase(), bytes: bytes.length };
+        }
       }
+    } catch {
+      // A corrupt cache entry is disposable; fetch and verify a clean copy below.
     }
     await input.fileSystem.deleteAsync(finalUri, { idempotent: true });
   }
 
-  const suffix = (input.nonce ?? "download").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40) || "download";
+  const suffix = (input.nonce ?? `dl-${Date.now()}-${++tempSequence}`).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 60) || `dl-${++tempSequence}`;
   const tempUri = `${input.cacheDirectory.replace(/\/$/, "")}/gabroo-${input.audioSha256.toLowerCase()}-${suffix}.part`;
   try {
     await input.fileSystem.deleteAsync(tempUri, { idempotent: true });
