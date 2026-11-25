@@ -10,7 +10,7 @@ import {buildGabrooFeedbackPrompt,parseGabrooFeedback} from "./gabroo-feedback.j
 export type GabrooConversationMode="free_flow"|"gentle_correction"|"detailed_correction"|"topic_practice"|"role_play"|"vocabulary_building"|"confidence_practice";
 export type GabrooMessage={role:"user"|"assistant";content:string};
 export type GabrooConversationProvider={
-  reply(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection:"ml_to_en"|"en_to_ml";targetLanguage:"ml"|"en";history:GabrooMessage[];signal:AbortSignal;teachingPolicy:GabrooTeachingPolicy}):Promise<{content:string}>;
+  reply(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection:"ml_to_en"|"en_to_ml";targetLanguage:"ml"|"en";history:GabrooMessage[];signal:AbortSignal;teachingPolicy:GabrooTeachingPolicy}):Promise<{content:string;model?:string;usage?:{promptTokens?:number;completionTokens?:number;totalTokens?:number}}>;
 };
 const PROVIDER_TIMEOUT_MS=15_000;
 const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
