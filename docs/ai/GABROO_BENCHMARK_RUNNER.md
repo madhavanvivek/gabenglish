@@ -22,7 +22,7 @@ Each response records case ID, repetition, model ID, endpoint, SHA-256 fingerpri
 4. Compare quality, p50/p95 latency, error rate and cost per completed case. Calculate cost from provider usage/billing data; this runner does not guess token prices.
 5. Retain model ID, endpoint, date, case-file version and teaching-policy version for reproducibility.
 
-The runner uses the production provider adapter and live policy builder, but it does not yet support streaming/audio. The adapter is OpenAI-compatible; select a provider endpoint and model that support the chat-completions contract.
+The production adapter bounds each provider request to the newest 16 conversation messages and 24,000 characters, retaining the latest learner turn. This protects inference latency and cost while keeping recent conversational context. Older history is currently omitted rather than summarized. The runner uses the production provider adapter and live policy builder, but it does not yet support streaming/audio. The adapter is OpenAI-compatible; select a provider endpoint and model that support the chat-completions contract.
 
 ## Production API configuration
 
