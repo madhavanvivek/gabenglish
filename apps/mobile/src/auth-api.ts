@@ -356,6 +356,18 @@ export async function saveLearningLessonProgress(id:string,progress_percent:numb
  return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(id)+"/progress","POST",{progress_percent}) as {lesson_id:string;learning_direction:"ml_to_en"|"en_to_ml";progress:{status:string;progress_percent:number;updated_at:string};course_progress:{progress_percent:number;completed_lessons:number;total_started_lessons:number}};
 }
 
-export async function submitLearningExerciseAttempt(lessonId:string,exerciseId:string,response:string){
- return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(lessonId)+"/exercises/"+encodeURIComponent(exerciseId)+"/attempts","POST",{response}) as {lesson_id:string;exercise_id:string;result:{correct:boolean;feedback:string}};
+function createRequestUuid(){
+ return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,(token)=>{
+  const value=Math.floor(Math.random()*16);
+  return (token==="x"?value:(value&0x3)|0x8).toString(16);
+ });
+}
+
+/** Create one stable identity when a learner begins a deliberate lesson practice session. */
+export function createLearningSessionId(){return createRequestUuid();}
+
+export async function submitLearningExerciseAttempt(lessonId:string,exerciseId:string,response:string,learningSessionId:string){
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(learningSessionId))
+  throw new AuthApiError("This learning session is invalid. Reopen the lesson and try again.");
+ return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(lessonId)+"/exercises/"+encodeURIComponent(exerciseId)+"/attempts","POST",{response,idempotency_key:createRequestUuid(),learning_session_id:learningSessionId}) as {lesson_id:string;exercise_id:string;attempt_id:string;result:{correct:boolean;feedback:string};evidence_recorded:boolean};
 }
