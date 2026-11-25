@@ -18,4 +18,17 @@ describe("learning session identities",()=>{
   expect(isLearningSessionId("not-a-uuid")).toBe(false);
   expect(isLearningSessionId("00000000-0000-0000-0000-000000000000")).toBe(false);
  });
+ it("keeps practice-session identity separate from submission retry identity",()=>{
+  const session=createLearningSessionId();
+  const retryKey=createExerciseSubmissionIdempotencyKey();
+  expect(isLearningSessionId(session)).toBe(true);
+  expect(isLearningSessionId(retryKey)).toBe(true);
+  expect(retryKey).not.toBe(session);
+ });
+ it("creates independent identities when a learner starts a new practice session",()=>{
+  const first=createLearningSessionId();
+  const second=createLearningSessionId();
+  expect(first).not.toBe(second);
+ });
+
 });
