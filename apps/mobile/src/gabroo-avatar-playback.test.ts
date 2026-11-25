@@ -39,6 +39,12 @@ describe("Gabroo mobile avatar playback bridge",()=>{
   expect(sampleGabrooMobileAvatarPlayback({...input,isLoaded:false}).controls.viseme.shape).toBe("neutral");
   expect(sampleGabrooMobileAvatarPlayback({...input,isPlaying:false}).controls.viseme.shape).toBe("neutral");
  });
+ it("rejects malformed runtime timeline events without throwing",()=>{
+  const malformed={...timeline,visemes:[{shape:"not-a-viseme",start_ms:0,end_ms:200,weight:1}]};
+  expect(sampleGabrooMobileAvatarPlayback({...input,timeline:malformed as never}).controls.viseme.shape).toBe("neutral");
+  const outOfBounds={...timeline,visemes:[{shape:"open_wide" as const,start_ms:900,end_ms:1100,weight:1}]};
+  expect(sampleGabrooMobileAvatarPlayback({...input,timeline:outOfBounds as never}).controls.viseme.shape).toBe("neutral");
+ });
  it("does not share a mutable neutral frame between stale playback samples",()=>{
   const first=sampleGabrooMobileAvatarPlayback({...input,playbackId:"stale"});
   first.controls.viseme.weight=0.8;
