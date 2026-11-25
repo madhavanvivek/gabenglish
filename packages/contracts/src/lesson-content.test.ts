@@ -11,6 +11,15 @@ describe("learner-safe lesson content",()=>{
   ]};
   expect(learnerLessonContentSchema.safeParse(content).success).toBe(true);
  });
+ it("supports stable vocabulary IDs while keeping legacy items valid",()=>{
+  const legacy={schema_version:1,blocks:[{type:"vocabulary",items:[{term:"hello",meaning:"നമസ്കാരം"}]}]};
+  const stable={schema_version:1,blocks:[{type:"vocabulary",items:[{id:"greeting_hello",term:"hello",meaning:"നമസ്കാരം"}]}]};
+  const invalid={schema_version:1,blocks:[{type:"vocabulary",items:[{id:"bad id",term:"hello",meaning:"നമസ്കാരം"}]}]};
+  expect(learnerLessonContentSchema.safeParse(legacy).success).toBe(true);
+  expect(learnerLessonContentSchema.safeParse(stable).success).toBe(true);
+  expect(projectLearnerLessonContent(stable)?.blocks[0]).toMatchObject({items:[{id:"greeting_hello"}]});
+  expect(learnerLessonContentSchema.safeParse(invalid).success).toBe(false);
+ });
  it("rejects malformed or unsupported content blocks",()=>{
   expect(learnerLessonContentSchema.safeParse({schema_version:1,blocks:[{type:"video",url:"https://example.com"}]}).success).toBe(false);
   expect(learnerLessonContentSchema.safeParse({schema_version:2,blocks:[{type:"text",body:"Hello"}]}).success).toBe(false);
