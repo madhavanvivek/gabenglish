@@ -1,5 +1,4 @@
 import type {GabrooConversationProvider,GabrooMessage,GabrooProviderInput} from "./gabroo-conversations.js";
-import type {GabrooTeachingPolicy} from "./gabroo-teaching-policy.js";
 
 type ProviderConfig={apiKey:string;baseUrl:string;model:string;maxOutputTokens?:number};
 export const GABROO_PROVIDER_ADAPTER_VERSION="1";
