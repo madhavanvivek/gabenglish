@@ -1,0 +1,189 @@
+[
+  {
+    "id": "C01",
+    "title": "Beginner gentle correction",
+    "mode": "gentle_correction",
+    "direction": "ml_to_en",
+    "supportLanguage": "ml",
+    "stage": 1,
+    "history": [],
+    "message": "I am go to office yesterday.",
+    "expected": [
+      "Correct one high-value issue kindly",
+      "Model: I went to the office yesterday",
+      "Briefly explain past tense",
+      "Invite one retry"
+    ],
+    "critical": [
+      "Do not label learner weak",
+      "Do not introduce unrelated grammar"
+    ]
+  },
+  {
+    "id": "C02",
+    "title": "Doubt interrupts role-play",
+    "mode": "role_play",
+    "direction": "ml_to_en",
+    "supportLanguage": "ml",
+    "stage": 2,
+    "history": [
+      {
+        "role": "assistant",
+        "content": "Welcome to the restaurant. What would you like to order?"
+      }
+    ],
+    "message": "What is the difference between could and can?",
+    "expected": [
+      "Answer the exact question",
+      "Give a concise contextual contrast",
+      "Offer a natural bridge back to restaurant role-play"
+    ],
+    "critical": [
+      "Do not ignore the question"
+    ]
+  },
+  {
+    "id": "C03",
+    "title": "Malayalam-English code-switching",
+    "mode": "gentle_correction",
+    "direction": "ml_to_en",
+    "supportLanguage": "ml",
+    "stage": 2,
+    "history": [],
+    "message": "ഞാൻ ഇന്നലെ friend-നെ കണ്ടു, we discussed about the project.",
+    "expected": [
+      "Understand mixed-language meaning",
+      "Model: I met my friend yesterday, and we discussed the project",
+      "Explain discuss + topic briefly"
+    ],
+    "critical": [
+      "Do not treat code-switching itself as an error",
+      "Do not invent intent"
+    ]
+  },
+  {
+    "id": "C04",
+    "title": "Accept valid English",
+    "mode": "gentle_correction",
+    "direction": "ml_to_en",
+    "supportLanguage": "ml",
+    "stage": 3,
+    "history": [],
+    "message": "Could you please give me a moment?",
+    "expected": [
+      "Recognise correct natural English",
+      "Optionally explain polite tone"
+    ],
+    "critical": [
+      "Do not invent an error"
+    ]
+  },
+  {
+    "id": "C05",
+    "title": "Learner asks for simpler language",
+    "mode": "free_flow",
+    "direction": "ml_to_en",
+    "supportLanguage": "ml",
+    "stage": 4,
+    "history": [],
+    "message": "Please explain in simple English and Malayalam.",
+    "expected": [
+      "Simplify immediately",
+      "Use selected support language"
+    ],
+    "critical": [
+      "Do not insist on immersion"
+    ]
+  },
+  {
+    "id": "C06",
+    "title": "Learner asks for stretch",
+    "mode": "topic_practice",
+    "direction": "ml_to_en",
+    "supportLanguage": "ml",
+    "stage": 3,
+    "history": [],
+    "message": "I understand. Give me a more professional way to say it.",
+    "expected": [
+      "Offer one polished alternative",
+      "Explain register in context"
+    ],
+    "critical": [
+      "Do not flood with synonyms"
+    ]
+  },
+  {
+    "id": "C07",
+    "title": "Respectful Kerala Malayalam",
+    "mode": "gentle_correction",
+    "direction": "ml_to_en",
+    "supportLanguage": "ml",
+    "stage": 1,
+    "history": [],
+    "message": "എനിക്ക് ഇത് എങ്ങനെ പറയണമെന്ന് അറിയില്ല.",
+    "expected": [
+      "Supportive Malayalam explanation",
+      "Respectful neutral address"
+    ],
+    "critical": [
+      "Never use eda or edi by default",
+      "Avoid caricatured slang"
+    ]
+  },
+  {
+    "id": "C08",
+    "title": "Ambiguous reference",
+    "mode": "free_flow",
+    "direction": "ml_to_en",
+    "supportLanguage": "ml",
+    "stage": 2,
+    "history": [],
+    "message": "That one is not working.",
+    "expected": [
+      "Ask one concise clarifying question"
+    ],
+    "critical": [
+      "Do not fabricate context"
+    ]
+  },
+  {
+    "id": "C09",
+    "title": "Role-play correction boundary",
+    "mode": "role_play",
+    "direction": "ml_to_en",
+    "supportLanguage": "ml",
+    "stage": 2,
+    "history": [
+      {
+        "role": "assistant",
+        "content": "You are the restaurant host. Welcome the guest."
+      }
+    ],
+    "message": "I want book a table for two.",
+    "expected": [
+      "Stay in restaurant role-play",
+      "Respond naturally",
+      "At most one brief correction"
+    ],
+    "critical": [
+      "Do not break character with a long lecture"
+    ]
+  },
+  {
+    "id": "C10",
+    "title": "Transcript uncertainty guardrail",
+    "mode": "free_flow",
+    "direction": "ml_to_en",
+    "supportLanguage": "ml",
+    "stage": 2,
+    "history": [],
+    "message": "[Possibly imperfect speech transcript] I sink the meeting is tomorrow.",
+    "expected": [
+      "Treat text as potentially imperfect transcript",
+      "Clarify meaning if uncertain"
+    ],
+    "critical": [
+      "Do not infer pronunciation, accent, fluency or speaking proficiency from text"
+    ]
+  }
+]
