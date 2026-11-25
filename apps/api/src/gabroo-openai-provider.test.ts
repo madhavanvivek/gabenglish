@@ -7,11 +7,11 @@ const input={mode:"gentle_correction" as const,supportLanguage:"ml" as const,lea
 
 describe("OpenAI-compatible Gabroo provider",()=>{
  it("sends the live policy and conversation history and returns provider text",async()=>{
-  const fetchMock=vi.fn().mockResolvedValue(new Response(JSON.stringify({choices:[{message:{content:"Good try! Say: I am going to the office."}}]}),{status:200,headers:{"content-type":"application/json"}}));
+  const fetchMock=vi.fn().mockResolvedValue(new Response(JSON.stringify({model:"provider-model-v2",usage:{prompt_tokens:123,completion_tokens:45,total_tokens:168},choices:[{message:{content:"Good try! Say: I am going to the office."}}]}),{status:200,headers:{"content-type":"application/json"}}));
   vi.stubGlobal("fetch",fetchMock);
   try{
    const provider=createOpenAICompatibleGabrooProvider({apiKey:"test-secret",baseUrl:"https://provider.example/v1/",model:"gabroo-test"});
-   await expect(provider.reply(input)).resolves.toEqual({content:"Good try! Say: I am going to the office."});
+   await expect(provider.reply(input)).resolves.toEqual({content:"Good try! Say: I am going to the office.",model:"provider-model-v2",usage:{promptTokens:123,completionTokens:45,totalTokens:168}});
    expect(fetchMock).toHaveBeenCalledOnce();
    const [url,init]=fetchMock.mock.calls[0] as [string,RequestInit];
    expect(url).toBe("https://provider.example/v1/chat/completions");
@@ -53,6 +53,17 @@ describe("OpenAI-compatible Gabroo provider",()=>{
    expect((fetchMock.mock.calls[0]?.[1] as RequestInit).signal).toBe(controller.signal);
   }finally{vi.unstubAllGlobals();}
  });
+ it("ignores invalid provider token counts rather than persisting malformed usage",async()=>{
+  vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response(JSON.stringify({
+   model:"provider-model",usage:{prompt_tokens:-1,completion_tokens:"bad",total_tokens:42},
+   choices:[{message:{content:"Hello there."}}]
+  }),{status:200})));
+  try{
+   const provider=createOpenAICompatibleGabrooProvider({apiKey:"test-secret",baseUrl:"https://provider.example/v1",model:"gabroo-test"});
+   await expect(provider.reply(input)).resolves.toEqual({content:"Hello there.",model:"provider-model",usage:{totalTokens:42}});
+  }finally{vi.unstubAllGlobals();}
+ });
+
  it("keeps instruction-like saved phrases inside learner data rather than tutor instructions",async()=>{
   const injectedPolicy=buildGabrooTeachingPolicy({
    mode:"free_flow",supportLanguage:"ml",learnerMemory:[{
