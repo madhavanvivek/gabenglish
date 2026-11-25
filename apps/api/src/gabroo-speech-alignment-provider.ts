@@ -45,6 +45,8 @@ export interface GabrooSpeechAlignmentProvider {
 export function assertGabrooSpeechAlignmentInputIdentity(
  input:Pick<GabrooSpeechAlignmentInput,"audio"|"text"|"identity"|"language">
 ):void {
+ if(input.audio.byteLength===0||input.audio.byteLength>MAX_ALIGNMENT_AUDIO_BYTES)throw new Error("Gabroo alignment audio must be between 1 byte and 12 MiB.");
+ if(!["ml","en","mixed"].includes(input.language))throw new Error("Gabroo alignment language must be ml, en, or mixed.");
  const recomputed=createGabrooSynthesizedAudioIdentity({
   audio:input.audio,
   text:input.text,
