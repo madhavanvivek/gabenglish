@@ -17,6 +17,7 @@ import type { GabrooNativePlayerSnapshot, GabrooPlaybackIdentity } from "./nativ
 export interface ExpoPlaybackStatusLike {
   isLoaded: boolean;
   isPlaying?: boolean;
+  isBuffering?: boolean;
   positionMillis?: number;
   durationMillis?: number;
   didJustFinish?: boolean;
