@@ -2,7 +2,15 @@ import type {GabrooConversationProvider,GabrooMessage} from "./gabroo-conversati
 import type {GabrooTeachingPolicy} from "./gabroo-teaching-policy.js";
 
 type ProviderConfig={apiKey:string;baseUrl:string;model:string};
-type ProviderResponse={choices?:Array<{message?:{content?:unknown}}>;error?:{message?:string}};
+type ProviderResponse={
+ choices?:Array<{message?:{content?:unknown}}>;
+ error?:{message?:string};
+ model?:unknown;
+ usage?:{prompt_tokens?:unknown;completion_tokens?:unknown;total_tokens?:unknown}
+};
+function tokenCount(value:unknown):number|undefined{
+ return typeof value==="number"&&Number.isSafeInteger(value)&&value>=0?value:undefined;
+}
 
 export function createOpenAICompatibleGabrooProvider(config:ProviderConfig):GabrooConversationProvider{
  const baseUrl=config.baseUrl.replace(/\/+$/,"");
@@ -36,7 +44,16 @@ export function createOpenAICompatibleGabrooProvider(config:ProviderConfig):Gabr
    }
    const content=payload.choices?.[0]?.message?.content;
    if(typeof content!=="string"||!content.trim())throw new Error("Gabroo provider returned no text response.");
-   return {content:content.trim()};
+   const usage=payload.usage?{
+    promptTokens:tokenCount(payload.usage.prompt_tokens),
+    completionTokens:tokenCount(payload.usage.completion_tokens),
+    totalTokens:tokenCount(payload.usage.total_tokens)
+   }:undefined;
+   return {
+    content:content.trim(),
+    ...(typeof payload.model==="string"?{model:payload.model}:{}),
+    ...(usage&&Object.values(usage).some(value=>value!==undefined)?{usage}:{})
+   };
   }
  };
 }
