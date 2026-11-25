@@ -8,6 +8,7 @@ export interface GabrooAudioCacheFileSystem {
   readAsBase64Async(uri: string): Promise<string>;
   moveAsync(input: { from: string; to: string }): Promise<void>;
   deleteAsync(uri: string, options?: { idempotent?: boolean }): Promise<void>;
+  readDirectoryAsync(uri: string): Promise<string[]>;
 }
 export interface GabrooCachedAudio {
   uri: string;
@@ -44,6 +45,7 @@ export async function cacheGabrooSpeechAudio(input: {
   remoteUri: string;
   cacheDirectory: string;
   audioSha256: string;
+  expiresAt: string;
   fileSystem: GabrooAudioCacheFileSystem;
   maxBytes?: number;
   nonce?: string;
@@ -55,8 +57,12 @@ export async function cacheGabrooSpeechAudio(input: {
     || !/^[a-f0-9]{64}$/i.test(input.audioSha256) || !input.cacheDirectory.startsWith("file:///")) {
     throw new Error("Gabroo audio cache input is invalid.");
   }
+  const expiryMs = Date.parse(input.expiresAt);
+  if (!Number.isFinite(expiryMs) || expiryMs <= Date.now()) {
+    throw new Error("Gabroo speech asset has expired.");
+  }
   const limit = input.maxBytes ?? MAX_AUDIO_BYTES;
-  const finalUri = `${input.cacheDirectory.replace(/\/$/, "")}/gabroo-${input.audioSha256.toLowerCase()}.audio`;
+  const finalUri = `${input.cacheDirectory.replace(/\/$/, "")}/gabroo-${input.audioSha256.toLowerCase()}-${expiryMs}.audio`;
   const existing = await input.fileSystem.getInfoAsync(finalUri);
   if (existing.exists) {
     try {
@@ -102,6 +108,7 @@ export async function cacheGabrooSpeechAudio(input: {
 export async function cacheGabrooSpeechAudioWithExpo(input: {
   remoteUri: string;
   audioSha256: string;
+  expiresAt: string;
   nonce?: string;
 }): Promise<GabrooCachedAudio> {
   const fs = await import("expo-file-system");
@@ -118,6 +125,43 @@ export async function cacheGabrooSpeechAudioWithExpo(input: {
       readAsBase64Async: uri => fs.readAsStringAsync(uri, { encoding: fs.EncodingType.Base64 }),
       moveAsync: fs.moveAsync,
       deleteAsync: fs.deleteAsync,
+      readDirectoryAsync: fs.readDirectoryAsync,
     },
+  });
+}
+
+
+/** Remove cached Gabroo audio whose server-issued asset expiry has elapsed. */
+export async function cleanupExpiredGabrooSpeechAudio(input: {
+  cacheDirectory: string;
+  fileSystem: Pick<GabrooAudioCacheFileSystem, "readDirectoryAsync" | "deleteAsync">;
+  nowMs?: number;
+}): Promise<number> {
+  if (!input.cacheDirectory.startsWith("file:///")) {
+    throw new Error("Gabroo private cache directory is invalid.");
+  }
+  const nowMs = input.nowMs ?? Date.now();
+  const names = await input.fileSystem.readDirectoryAsync(input.cacheDirectory);
+  let removed = 0;
+  for (const name of names) {
+    const match = /^gabroo-[a-f0-9]{64}-(\\d+)\\.audio$/i.exec(name);
+    if (!match) continue;
+    const expiryMs = Number(match[1]);
+    if (Number.isSafeInteger(expiryMs) && expiryMs <= nowMs) {
+      await input.fileSystem.deleteAsync(`${input.cacheDirectory.replace(/\\/$/, "")}/${name}`, { idempotent: true });
+      removed += 1;
+    }
+  }
+  return removed;
+}
+
+/** Expo SDK 53 bridge for opportunistic expired-audio cleanup. */
+export async function cleanupExpiredGabrooSpeechAudioWithExpo(nowMs = Date.now()): Promise<number> {
+  const fs = await import("expo-file-system");
+  if (!fs.cacheDirectory) return 0;
+  return cleanupExpiredGabrooSpeechAudio({
+    cacheDirectory: fs.cacheDirectory,
+    nowMs,
+    fileSystem: { readDirectoryAsync: fs.readDirectoryAsync, deleteAsync: fs.deleteAsync },
   });
 }
