@@ -48,6 +48,9 @@ describe('isPlaybackProofValid', () => {
     expect(isPlaybackProofValid({ ...validProof(1), audioSha256: 'not-a-hash' }, 1)).toBe(false);
     expect(isPlaybackProofValid({ ...validProof(1), measuredDurationMs: 0 }, 1)).toBe(false);
     expect(isPlaybackProofValid({ ...validProof(1), positionMs: 2_000 }, 1)).toBe(false);
+    expect(isPlaybackProofValid(null as unknown as PlaybackProof, 1)).toBe(false);
+    expect(isPlaybackProofValid({ ...validProof(1), playbackTicketId: null } as unknown as PlaybackProof, 1)).toBe(false);
+    expect(isPlaybackProofValid({ ...validProof(1), alignmentAudioSha256: undefined } as unknown as PlaybackProof, 1)).toBe(false);
   });
 });
 
@@ -97,6 +100,21 @@ describe('GabrooAvatarRendererGate', () => {
     expect(await pending).toBe(false);
     expect(gate.getRigIdentity()).toBeNull();
     expect(rig.dispose).toHaveBeenCalledOnce();
+  });
+
+  it('contains rig adapter frame failures and disables that renderer instance', async () => {
+    const { rig } = makeRig();
+    rig.applyFrame = vi.fn(() => { throw new Error('native renderer failed'); });
+    const gate = new GabrooAvatarRendererGate(rig, 'gabroo-approved', 'v1');
+    await gate.initialize();
+    const generation = gate.beginPlayback();
+    expect(gate.render(validProof(generation), () => ({
+      viseme: 'aa', visemeWeight: 0.7, expression: 'friendly', gesture: 'idle',
+    }))).toBe(false);
+    expect(gate.getRigIdentity()).toBeNull();
+    expect(gate.render(validProof(generation), () => ({
+      viseme: 'aa', visemeWeight: 0.7, expression: 'friendly', gesture: 'idle',
+    }))).toBe(false);
   });
 
   it('invalidates prior playback frames on stop and dispose', async () => {
