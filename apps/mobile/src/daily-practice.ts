@@ -60,7 +60,7 @@ export function buildDailySpeakingChallenge(date:string,skills:DailyPracticeSkil
  const candidates=savedPhrases.map(parseSavedPracticePhrase).filter(item=>item.original||item.practiceVersion||item.fallback);
  const uniquePhrases=new Map<string,ParsedSavedPracticePhrase>();
  for(const phrase of candidates){
-  const stableKey=[phrase.original,phrase.practiceVersion,phrase.fallback].map(value=>(value??"").trim().toLocaleLowerCase()).join("\\u0000");
+  const stableKey=JSON.stringify([phrase.original??"",phrase.practiceVersion??"",phrase.original||phrase.practiceVersion?"":phrase.fallback].map(value=>value.trim().toLowerCase()));
   if(!uniquePhrases.has(stableKey))uniquePhrases.set(stableKey,phrase);
  }
  // Journal APIs need not return rows in a stable order. Sort before date-based rotation
