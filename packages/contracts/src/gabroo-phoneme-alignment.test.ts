@@ -1,0 +1,33 @@
+import {describe,expect,it} from "vitest";
+import {gabrooPhonemeAlignmentToTimeline,gabrooPhonemeToViseme,gabrooPhonemeAlignmentSchema} from "./gabroo-phoneme-alignment.js";
+
+describe("Gabroo phoneme alignment",()=>{
+ it("maps common Malayalam and English phoneme classes to canonical visemes",()=>{
+  expect(gabrooPhonemeToViseme("m")).toBe("closed_lips");
+  expect(gabrooPhonemeToViseme("f")).toBe("lip_teeth");
+  expect(gabrooPhonemeToViseme("θ")).toBe("tongue_teeth");
+  expect(gabrooPhonemeToViseme("ɑ")).toBe("open_wide");
+  expect(gabrooPhonemeToViseme("ə")).toBe("open_mid");
+  expect(gabrooPhonemeToViseme("u")).toBe("open_round");
+  expect(gabrooPhonemeToViseme("i")).toBe("spread");
+  expect(gabrooPhonemeToViseme("w")).toBe("narrow_round");
+ });
+ it("uses authoritative provider timestamps and preserves the audio identity",()=>{
+  const timeline=gabrooPhonemeAlignmentToTimeline({audio_id:"audio-1",duration_ms:1000,phonemes:[
+   {phoneme:"m",start_ms:0,end_ms:120},{phoneme:"a",start_ms:120,end_ms:420},{phoneme:"unknown",start_ms:420,end_ms:500}
+  ]});
+  expect(timeline.audio_id).toBe("audio-1");
+  expect(timeline.visemes.map(x=>[x.shape,x.start_ms,x.end_ms])).toEqual([
+   ["closed_lips",0,120],["open_wide",120,420],["neutral",420,500]
+  ]);
+  expect(timeline.expressions).toEqual([]);
+  expect(timeline.gestures).toEqual([]);
+ });
+ it("rejects phoneme events outside the audio duration",()=>{
+  expect(gabrooPhonemeAlignmentSchema.safeParse({audio_id:"audio",duration_ms:100,phonemes:[{phoneme:"a",start_ms:90,end_ms:110}]}).success).toBe(false);
+ });
+ it("rejects malformed and oversized alignments",()=>{
+  expect(gabrooPhonemeAlignmentSchema.safeParse({audio_id:"audio",duration_ms:100,phonemes:[{phoneme:"a",start_ms:10,end_ms:10}]}).success).toBe(false);
+  expect(gabrooPhonemeAlignmentSchema.safeParse({audio_id:"audio",duration_ms:100,phonemes:Array.from({length:4097},()=>({phoneme:"a",start_ms:0,end_ms:1}))}).success).toBe(false);
+ });
+});
