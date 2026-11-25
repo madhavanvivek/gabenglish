@@ -26,6 +26,11 @@ export const placementReportSchema=z.object({
   brief_samples:z.number().int().nonnegative(),
   response_metrics:z.object({average_words_per_response:z.number().nonnegative(),average_unique_word_ratio:z.number().min(0).max(1),average_words_per_sentence:z.number().nonnegative()}),
   grammar_review_items:z.array(z.object({category:z.enum(["subject_verb_agreement","verb_form","past_tense_form"]),example:z.string(),note:z.string(),support_note_ml:z.string(),suggestion:z.string()})).max(8),
+  assessment_coverage:z.array(z.object({
+    skill:z.enum(["grammar","vocabulary","comprehension","communication","fluency","pronunciation","confidence"]),
+    status:z.enum(["examples_only","elicited_not_scored","not_assessed"]),
+    basis:z.string()
+  })),
   observed_patterns:z.array(z.string()),
   limitations:z.array(z.string()),
   next_steps:z.array(z.string())
