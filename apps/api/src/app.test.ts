@@ -63,7 +63,7 @@ describe("API foundation",()=>{
   const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,provider);
   const status=await app.inject({method:"GET",url:"/api/v1/gabroo/speech/status",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
   expect(status.statusCode).toBe(200);
-  expect(status.json()).toEqual({available:false,formats:[],speed:{minimum:0.75,maximum:1.5}});
+  expect(status.json()).toEqual({available:false,formats:[],speed:{minimum:0.75,maximum:1.5},capabilities:{speech_synthesis:false,character_alignment:false,phoneme_alignment:false,live_avatar_renderer:false}});
   const speech=await app.inject({method:"POST",url:"/api/v1/gabroo/speech",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{text:"Hello Gabroo",speed:1}});
   expect(speech.statusCode).toBe(503);
   expect(speech.json().error.code).toBe("SPEECH_TEMPORARILY_DISABLED");
@@ -79,7 +79,7 @@ describe("API foundation",()=>{
   const app=await buildApp(config,async()=>true,recognitionPool(true));
   const response=await app.inject({method:"GET",url:"/api/v1/gabroo/speech/status",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
   expect(response.statusCode).toBe(200);
-  expect(response.json()).toEqual({available:false,formats:[],speed:{minimum:0.75,maximum:1.5}});
+  expect(response.json()).toEqual({available:false,formats:[],speed:{minimum:0.75,maximum:1.5},capabilities:{speech_synthesis:false,character_alignment:false,phoneme_alignment:false,live_avatar_renderer:false}});
   await app.close();
  });
  it("reports only the configured MP3 capability and supported speed range to a paid learner",async()=>{
@@ -88,7 +88,7 @@ describe("API foundation",()=>{
   const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,provider);
   const response=await app.inject({method:"GET",url:"/api/v1/gabroo/speech/status",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
   expect(response.statusCode).toBe(200);
-  expect(response.json()).toEqual({available:true,formats:["audio/mpeg"],speed:{minimum:0.75,maximum:1.5}});
+  expect(response.json()).toEqual({available:true,formats:["audio/mpeg"],speed:{minimum:0.75,maximum:1.5},capabilities:{speech_synthesis:true,character_alignment:false,phoneme_alignment:false,live_avatar_renderer:false}});
   await app.close();
  });
  it("does not expose Gabroo speech to a free learner",async()=>{
