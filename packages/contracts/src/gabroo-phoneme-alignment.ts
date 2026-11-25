@@ -13,6 +13,8 @@ export const gabrooPhonemeEventSchema=z.object({
 
 export const gabrooPhonemeAlignmentSchema=z.object({
  audio_id:z.string().trim().min(1).max(160),
+ /** SHA-256 of the exact audio bytes this alignment was measured against. */
+ audio_sha256:z.string().regex(/^[a-f0-9]{64}$/i),
  duration_ms:z.number().finite().positive().max(10*60*1000),
  phonemes:z.array(gabrooPhonemeEventSchema).max(4096)
 }).strict().superRefine((alignment,ctx)=>{
@@ -23,6 +25,24 @@ export const gabrooPhonemeAlignmentSchema=z.object({
  });
 });
 export type GabrooPhonemeAlignment=z.infer<typeof gabrooPhonemeAlignmentSchema>;
+
+export interface GabrooAudioAlignmentIdentity {
+ audioId:string;
+ audioSha256:string;
+ durationMs:number;
+}
+
+/** Fail closed when an alignment belongs to different audio bytes or duration. */
+export function isGabrooPhonemeAlignmentForAudio(
+ alignment:GabrooPhonemeAlignment,
+ audio:GabrooAudioAlignmentIdentity
+):boolean{
+ const parsed=gabrooPhonemeAlignmentSchema.safeParse(alignment);
+ if(!parsed.success)return false;
+ return parsed.data.audio_id===audio.audioId
+  &&parsed.data.audio_sha256.toLowerCase()===audio.audioSha256.toLowerCase()
+  &&Math.abs(parsed.data.duration_ms-audio.durationMs)<=1;
+}
 
 const visemeByPhoneme:Readonly<Record<string,GabrooVisemeShape>>={
  // Bilabial closure
