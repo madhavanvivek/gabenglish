@@ -1,6 +1,6 @@
 # Gabroo benchmark runner
 
-The API benchmark runner sends twelve versioned seed cases to an OpenAI-compatible chat-completions endpoint and stores raw text responses, per-case latency, provider usage and evaluator placeholders as JSONL. Crucially, it imports the same `buildGabrooTeachingPolicy` function used by the live conversation API, so candidate models receive the current production teaching policy. It does not automatically grade language quality.
+The API benchmark runner sends twelve versioned seed cases to an OpenAI-compatible chat-completions endpoint and stores raw text responses, per-case latency, provider usage, a ten-dimension human scoring rubric and evaluator placeholders as JSONL. Crucially, it imports the same `buildGabrooTeachingPolicy` function used by the live conversation API, so candidate models receive the current production teaching policy. It does not automatically grade language quality.
 
 ## Run
 
@@ -12,7 +12,7 @@ For OpenAI, the default endpoint is https://api.openai.com/v1. The API key is re
 
 Optional variables: GABROO_BENCHMARK_CASES (fixture path), GABROO_BENCHMARK_OUTPUT (JSONL output path; default artifacts/gabroo-benchmark-results.jsonl), GABROO_BENCHMARK_REPEATS (1–10; default 3).
 
-Each response records case ID, repetition, model ID, endpoint, live policy version marker, latency, output, provider-reported token usage when available, expected checks and critical checks. Requests have a 90-second timeout. Provider errors are recorded without stopping remaining cases. Output is append-only; choose a new path for a clean run.
+Each response records case ID, repetition, model ID, endpoint, SHA-256 fingerprint of the live policy configuration, latency, output, provider-reported token usage when available, expected checks, critical checks and ten blank 0–4 evaluator dimensions. The run summary reports error rate and successful-response p50/p95 latency. Requests have a 90-second timeout. Provider errors are recorded without stopping remaining cases. Output is append-only; choose a new path for a clean run.
 
 ## Evaluation workflow
 
