@@ -218,3 +218,9 @@ The API now provides a learner-owned private memory store with four intentionall
 Only learner-saved entries enter this store in the current implementation. The system does not automatically extract facts from transcripts, infer sensitive personal attributes, or promote conversation content into shared curriculum. The provider receives at most the 20 most recently updated saved entries as bounded structured context. This context is separate from the current conversation history and from the shared lesson library.
 
 The mobile account screen now exposes the learner's saved memory, category selection, create/edit/delete controls and an explanation of what is used. A confirmed clear-all control is also available. A separate disable-personalisation toggle and a more explicit memory settings policy remain follow-up work. Account deletion cascades the memory records. No raw transcript or hidden model reasoning is stored as memory.
+
+## 17. Evidence-based skill focus in conversation (25 November 2026)
+
+For each authenticated conversation turn, the API may load up to three learner skill areas with at least five distinct exercise records and recent accuracy at or below 50%. The calculation uses only the latest attempt per lesson/exercise, is scoped to the learner and conversation learning direction, and is ordered by the weakest observed exercise accuracy.
+
+These records are exercise-performance signals, not a diagnosis of speaking ability, pronunciation, fluency or general proficiency. Gabroo receives only the skill key, bounded accuracy and evidence count. The policy asks it to offer a small, relevant practice opportunity when the conversation naturally permits; it must not invent the learner's exact errors or label the learner. Skill evidence below the minimum threshold is omitted. This complements the existing vocabulary focus and does not replace the learner's selected conversation mode.
