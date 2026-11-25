@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { GabrooAvatarRendererGate, type AvatarRigAdapter, type AvatarRigFrame } from "./avatar-renderer-gate";
-import { GabrooNativePlaybackClock, type GabrooNativePlayerSnapshot } from "./native-playback-clock";
+import { GabrooNativePlaybackClock, isGabrooPlaybackIdentityValid, type GabrooNativePlayerSnapshot } from "./native-playback-clock";
 
 const hash = "e".repeat(64);
 const identity = { playbackTicketId: "ticket-a", audioId: "audio-a", audioSha256: hash, measuredDurationMs: 1_000, alignmentAudioSha256: hash, alignmentDurationMs: 1_000 };
@@ -32,6 +32,18 @@ async function setup() {
   await gate.initialize();
   return { clock: new GabrooNativePlaybackClock(gate), gate, rig, frames };
 }
+
+describe("isGabrooPlaybackIdentityValid", () => {
+  it("accepts only complete, audio-bound metadata with bounded identifiers", () => {
+    expect(isGabrooPlaybackIdentityValid(identity)).toBe(true);
+    expect(isGabrooPlaybackIdentityValid(null)).toBe(false);
+    expect(isGabrooPlaybackIdentityValid({ ...identity, playbackTicketId: " " })).toBe(false);
+    expect(isGabrooPlaybackIdentityValid({ ...identity, audioId: "x".repeat(161) })).toBe(false);
+    expect(isGabrooPlaybackIdentityValid({ ...identity, measuredDurationMs: 0 })).toBe(false);
+    expect(isGabrooPlaybackIdentityValid({ ...identity, alignmentDurationMs: 999 })).toBe(false);
+    expect(isGabrooPlaybackIdentityValid({ ...identity, alignmentAudioSha256: "f".repeat(64) })).toBe(false);
+  });
+});
 
 describe("GabrooNativePlaybackClock", () => {
   it("uses native snapshots to sample exact audio-bound timeline frames", async () => {
