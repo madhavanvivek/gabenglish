@@ -126,16 +126,173 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
    return failure(reply,request.id,400,"INVALID_LEARNING_SESSION_ID","This learning session is invalid. Reopen the lesson and try again.");
   const [attempts,outcomes]=await Promise.all([
    pool.query<{exercise_id:string}>("SELECT DISTINCT exercise_id FROM learner_exercise_attempts WHERE user_id=$1 AND lesson_version_id=$2 AND ($3::uuid IS NULL OR learning_session_id=$3)",[learner.id,lesson.version_id,requestedSessionId??null]),
-   pool.query<{skill:GabrooExerciseOutcome["skill"];correct:boolean;difficulty:number|null;observed_at:Date}>(`SELECT DISTINCT ON (a.lesson_version_id,a.exercise_id,COALESCE(a.learning_session_id,'00000000-0000-0000-0000-000000000000'::uuid))
-    block->>'skill' AS skill,a.is_correct AS correct,
-    CASE WHEN block->>'difficulty' ~ '^[1-5]$' THEN (block->>'difficulty')::int ELSE NULL END AS difficulty,
-    a.created_at AS observed_at
+   pool.query<{skill:GabrooExerciseOutcome["skill"];correct:boolean;difficulty:number|null;observed_at:Date}>(`SELECT skill,correct,difficulty,observed_at FROM (
+    SELECT DISTINCT ON (a.lesson_version_id,a.exercise_id,COALESCE(a.learning_session_id,'00000000-0000-0000-0000-000000000000'::uuid))
+     block->>'skill' AS skill,a.is_correct AS correct,
+     CASE WHEN block->>'difficulty' ~ '^[1-5]
+  ]);
+  const adaptivePractice=buildGabrooAdaptivePractice(outcomes.rows.map(row=>({skill:row.skill,correct:row.correct,difficulty:row.difficulty??undefined,observedAt:row.observed_at.toISOString()})));
+  const selection=selectGabrooNextExercise({content:safeContent,attemptedExerciseIds:attempts.rows.map(row=>row.exercise_id),adaptivePractice});
+  return {lesson_id:id,selection};
+ });
+ app.post("/api/v1/learning/lessons/:id/progress",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to save lesson progress.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to save lesson progress.");
+  const id=(request.params as {id?:string}).id??"";
+  if(!lessonIdPattern.test(id))return failure(reply,request.id,400,"INVALID_LESSON_ID","This lesson link is invalid.");
+  const body=request.body as {progress_percent?:unknown}|null;
+  const percent=body?.progress_percent;
+  if(!body||typeof percent!=="number"||!Number.isInteger(percent)||percent<0||percent>100||Object.keys(body).some(key=>key!=="progress_percent")){
+   return failure(reply,request.id,400,"VALIDATION_ERROR","Progress must be a whole number from 0 to 100.");
+  }
+  const client=await pool.connect();
+  try{
+   await client.query("BEGIN");
+   const current=await client.query<{course_id:string;direction:Direction;version_id:string}>(
+    `SELECT c.id AS course_id,c.learning_direction AS direction,lv.id AS version_id
+     FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
+     JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id
+     WHERE l.id=$1 AND l.status='published' AND c.status='published' AND lv.status='published'
+       AND c.learning_direction=COALESCE((SELECT learning_direction FROM user_preferences WHERE user_id=$2),'ml_to_en')
+       AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')
+     FOR SHARE OF l,c,lv`,
+    [id,learner.id]
+   );
+   const lesson=current.rows[0];
+   if(!lesson){await client.query("ROLLBACK");return failure(reply,request.id,404,"LESSON_NOT_FOUND","This lesson is not published for your selected learning direction.");}
+   const status=percent===100?"completed":percent>0?"in_progress":"not_started";
+   const saved=await client.query<{status:string;progress_percent:string;updated_at:Date}>(
+    `INSERT INTO learner_lesson_progress(user_id,course_id,lesson_id,lesson_version_id,learning_direction,status,progress_percent,started_at,completed_at)
+     VALUES($1,$2,$3,$4,$5,$6,$7,CASE WHEN $6<>'not_started' THEN now() ELSE NULL END,CASE WHEN $6='completed' THEN now() ELSE NULL END)
+     ON CONFLICT(user_id,lesson_id,lesson_version_id,learning_direction)
+     DO UPDATE SET status=CASE WHEN learner_lesson_progress.status='completed' THEN 'completed' ELSE EXCLUDED.status END,
+       progress_percent=CASE WHEN learner_lesson_progress.status='completed' THEN 100 ELSE EXCLUDED.progress_percent END,
+       started_at=COALESCE(learner_lesson_progress.started_at,EXCLUDED.started_at),
+       completed_at=COALESCE(learner_lesson_progress.completed_at,EXCLUDED.completed_at),updated_at=now()
+     RETURNING status,progress_percent::text,updated_at`,
+    [learner.id,lesson.course_id,id,lesson.version_id,lesson.direction,status,percent]
+   );
+   const aggregate=await client.query<{average:string;total:number;completed:number}>(
+    `SELECT COALESCE(AVG(COALESCE(p.progress_percent,0)),0)::numeric(5,2)::text AS average,
+      COUNT(l.id)::int AS total,COUNT(*) FILTER(WHERE p.status='completed')::int AS completed
+     FROM lessons l JOIN modules m ON m.id=l.module_id
+     JOIN courses c ON c.id=m.course_id
+     JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id
+     LEFT JOIN learner_lesson_progress p ON p.user_id=$1 AND p.lesson_id=l.id
+       AND p.lesson_version_id=lv.id AND p.learning_direction=c.learning_direction
+     WHERE c.id=$2 AND c.learning_direction=$3 AND c.status='published'
+       AND l.status='published' AND lv.status='published'
+       AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')`,
+    [learner.id,lesson.course_id,lesson.direction]
+   );
+   await client.query(
+    `INSERT INTO learner_course_progress(user_id,course_id,learning_direction,status,progress_percent,started_at,completed_at)
+     VALUES($1,$2,$3,$4,$5,now(),CASE WHEN $4='completed' THEN now() ELSE NULL END)
+     ON CONFLICT(user_id,course_id,learning_direction)
+     DO UPDATE SET status=CASE WHEN learner_course_progress.status='completed' THEN 'completed' ELSE EXCLUDED.status END,
+      progress_percent=CASE WHEN learner_course_progress.status='completed' THEN 100 ELSE EXCLUDED.progress_percent END,
+      started_at=COALESCE(learner_course_progress.started_at,EXCLUDED.started_at),
+      completed_at=COALESCE(learner_course_progress.completed_at,EXCLUDED.completed_at),updated_at=now()`,
+    [learner.id,lesson.course_id,lesson.direction,aggregate.rows[0]!.total>0&&aggregate.rows[0]!.completed===aggregate.rows[0]!.total?"completed":aggregate.rows[0]!.completed===0&&Number(aggregate.rows[0]!.average)===0?"not_started":"in_progress",Number(aggregate.rows[0]!.average)]
+   );
+   await client.query("COMMIT");
+   return {lesson_id:id,learning_direction:lesson.direction,progress:{status:saved.rows[0]!.status,progress_percent:Number(saved.rows[0]!.progress_percent),updated_at:saved.rows[0]!.updated_at},course_progress:{progress_percent:Number(aggregate.rows[0]!.average),completed_lessons:aggregate.rows[0]!.completed,total_started_lessons:aggregate.rows[0]!.total}};
+  }catch(error){
+   await client.query("ROLLBACK").catch(()=>undefined);
+   request.log.error({request_id:request.id},"Lesson progress save failed");
+   return failure(reply,request.id,503,"PROGRESS_SAVE_UNAVAILABLE","Your progress could not be saved. Please try again.");
+  }finally{client.release();}
+ });
+
+ app.post("/api/v1/learning/lessons/:id/exercises/:exerciseId/attempts",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to submit an exercise.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to submit exercises.");
+  const params=request.params as {id?:string;exerciseId?:string};
+  const id=params.id??"",exerciseId=params.exerciseId??"";
+  if(!lessonIdPattern.test(id)||!/^[a-z0-9_-]{1,64}$/i.test(exerciseId))return failure(reply,request.id,400,"INVALID_EXERCISE_REFERENCE","This exercise link is invalid.");
+  const parsed=z.object({response:z.string().trim().min(1).max(2000),idempotency_key:z.string().uuid(),learning_session_id:z.string().uuid().optional()}).strict().safeParse(request.body);
+  if(!parsed.success)return failure(reply,request.id,400,"VALIDATION_ERROR","Provide an answer and a valid idempotency key.");
+  const result=await pool.query<{course_id:string;learning_direction:Direction;version_id:string;content:unknown}>(
+   `SELECT c.id AS course_id,c.learning_direction,lv.id AS version_id,lv.content
+    FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
+    JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id
+    WHERE l.id=$1 AND l.status='published' AND c.status='published' AND lv.status='published'
+      AND c.learning_direction=COALESCE((SELECT learning_direction FROM user_preferences WHERE user_id=$2),'ml_to_en')
+      AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')`,
+   [id,learner.id]
+  );
+  const lesson=result.rows[0];
+  if(!lesson)return failure(reply,request.id,404,"LESSON_NOT_FOUND","This lesson is not published for your selected learning direction.");
+  const raw=lesson.content as {blocks?:unknown};
+  const blocks=Array.isArray(raw?.blocks)?raw.blocks:[];
+  const exercise=blocks.find((item):item is Record<string,unknown>=>typeof item==="object"&&item!==null&&(item as Record<string,unknown>).type==="exercise"&&(item as Record<string,unknown>).id===exerciseId);
+  if(!exercise)return failure(reply,request.id,404,"EXERCISE_NOT_FOUND","This exercise is not part of the published lesson.");
+  const evaluated=evaluateAuthoredExercise(exercise,parsed.data.response);
+  if(!evaluated){
+   if(exercise.response_type==="single_choice"&&Array.isArray(exercise.options)){
+    const exists=exercise.options.some(option=>typeof option==="object"&&option!==null&&(option as Record<string,unknown>).id===parsed.data.response);
+    if(!exists)return failure(reply,request.id,400,"INVALID_EXERCISE_RESPONSE","Choose one of the available answers.");
+   }
+   return failure(reply,request.id,503,"EXERCISE_NOT_CONFIGURED","This exercise is awaiting a valid answer key or accepted-answer rubric.");
+  }
+  const client=await pool.connect();
+  try{
+   await client.query("BEGIN");
+   const saved=await client.query<{id:string;is_correct:boolean;feedback:string}>(
+    `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback,idempotency_key,learning_session_id)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+     ON CONFLICT(user_id,lesson_version_id,exercise_id,idempotency_key)
+       WHERE idempotency_key IS NOT NULL DO NOTHING
+     RETURNING id,is_correct,feedback`,
+    [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,parsed.data.response,evaluated.correct,evaluated.feedback,parsed.data.idempotency_key,parsed.data.learning_session_id??null]
+   );
+   let attempt=saved.rows[0];
+   if(!attempt){
+    const previous=await client.query<{id:string;is_correct:boolean;feedback:string;response:string;learning_session_id:string|null}>(
+     "SELECT id,is_correct,feedback,response,learning_session_id FROM learner_exercise_attempts WHERE user_id=$1 AND lesson_version_id=$2 AND exercise_id=$3 AND idempotency_key=$4 FOR UPDATE",
+     [learner.id,lesson.version_id,exerciseId,parsed.data.idempotency_key]
+    );
+    const replay=previous.rows[0];
+    if(!replay){await client.query("ROLLBACK");return failure(reply,request.id,503,"ATTEMPT_SAVE_UNAVAILABLE","Your answer could not be saved. Please retry.");}
+    if(replay.response!==parsed.data.response){await client.query("ROLLBACK");return failure(reply,request.id,409,"IDEMPOTENCY_KEY_REUSED","This submission key was already used for a different answer.");}
+    if((replay.learning_session_id??null)!==(parsed.data.learning_session_id??null)){await client.query("ROLLBACK");return failure(reply,request.id,409,"IDEMPOTENCY_SESSION_MISMATCH","This submission key was already used in a different learning session.");}
+    attempt={id:replay.id,is_correct:replay.is_correct,feedback:replay.feedback};
+   }
+   let evidenceRecorded=false;
+   if(["grammar","vocabulary","comprehension"].includes(String(exercise.skill))){
+    const evidenceTaskId=parsed.data.learning_session_id
+      ?"lesson-exercise-session:"+parsed.data.learning_session_id+":"+exerciseId
+      :"lesson-exercise:"+attempt.id;
+    const evidence=await client.query<{id:string}>(
+     `INSERT INTO gabroo_skill_evidence(user_id,skill,score,confidence,source,task_id,observed_at)
+      VALUES($1,$2,$3,0.75,'lesson_exercise',$4,now())
+      ON CONFLICT(user_id,skill,source,task_id) DO NOTHING
+      RETURNING id`,
+     [learner.id,exercise.skill,attempt.is_correct?1:0,evidenceTaskId]
+    );
+    evidenceRecorded=evidence.rows.length>0;
+   }
+   await client.query("COMMIT");
+   return {lesson_id:id,exercise_id:exerciseId,attempt_id:attempt.id,result:{correct:attempt.is_correct,feedback:attempt.feedback},evidence_recorded:evidenceRecorded};
+  }catch(error){
+   await client.query("ROLLBACK").catch(()=>undefined);
+   request.log.error({request_id:request.id},"Exercise attempt persistence failed");
+   return failure(reply,request.id,503,"ATTEMPT_SAVE_UNAVAILABLE","Your answer could not be saved. Please try again.");
+  }finally{client.release();}
+ });
+
+}
+ THEN (block->>'difficulty')::int ELSE NULL END AS difficulty,
+     a.created_at AS observed_at
     FROM learner_exercise_attempts a
     JOIN lesson_versions lv ON lv.id=a.lesson_version_id
     CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(lv.content->'blocks')='array' THEN lv.content->'blocks' ELSE '[]'::jsonb END) AS blocks(block)
     WHERE a.user_id=$1 AND block->>'type'='exercise' AND block->>'id'=a.exercise_id
       AND block->>'skill' IN ('grammar','vocabulary','comprehension')
-    ORDER BY a.lesson_version_id,a.exercise_id,COALESCE(a.learning_session_id,'00000000-0000-0000-0000-000000000000'::uuid),a.created_at DESC LIMIT 100`,[learner.id])
+    ORDER BY a.lesson_version_id,a.exercise_id,COALESCE(a.learning_session_id,'00000000-0000-0000-0000-000000000000'::uuid),a.created_at DESC
+   ) AS latest_outcomes ORDER BY observed_at DESC LIMIT 100`,[learner.id])
   ]);
   const adaptivePractice=buildGabrooAdaptivePractice(outcomes.rows.map(row=>({skill:row.skill,correct:row.correct,difficulty:row.difficulty??undefined,observedAt:row.observed_at.toISOString()})));
   const selection=selectGabrooNextExercise({content:safeContent,attemptedExerciseIds:attempts.rows.map(row=>row.exercise_id),adaptivePractice});
