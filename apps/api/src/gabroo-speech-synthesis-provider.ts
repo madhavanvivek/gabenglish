@@ -96,7 +96,7 @@ export function createGabrooSpeechSynthesisProvider(
    return {audio:limiter,contentType:"audio/mpeg",contentLength};
   },
   async synthesize(input){
-   const {body}=await requestAudio(input);
+   const {body,contentLength}=await requestAudio(input);
    const reader=body.getReader();
    const chunks:Uint8Array[]=[];
    let total=0;
@@ -122,6 +122,7 @@ export function createGabrooSpeechSynthesisProvider(
     input.signal.removeEventListener("abort",cancelOnAbort);
    }
    if(total===0)throw new Error("Gabroo speech synthesis returned empty audio.");
+   if(contentLength!==undefined&&total!==contentLength)throw new Error("Gabroo speech provider audio length did not match its content-length header.");
    const audio=new Uint8Array(total);
    let offset=0;
    for(const chunk of chunks){audio.set(chunk,offset);offset+=chunk.byteLength;}
