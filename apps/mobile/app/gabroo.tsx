@@ -370,7 +370,8 @@ export default function GabrooScreen(){
      const audioAsset=await synthesizeGabrooSpeech({text:segment.text,speed:synthesisRate,signal:requestController.signal});
      const uri=audioAsset.url;
      if(run!==speechRunRef.current||requestController.signal.aborted){
-      await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+      // Playback tickets are remote one-time URLs, not local files.
+      if(uri.startsWith("file://"))await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
       return;
      }
      speechAudioUriRef.current=uri;
@@ -431,7 +432,8 @@ export default function GabrooScreen(){
       }
       if(speechAudioUriRef.current===uri)speechAudioUriRef.current=null;
       if(speechActiveAudioIdRef.current===audioAsset.audioId)speechActiveAudioIdRef.current=null;
-      await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+      // Do not pass remote playback ticket URLs to the local filesystem API.
+      if(uri.startsWith("file://"))await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
      }
     }
    },speechRate,()=>run!==speechRunRef.current||requestController.signal.aborted);
