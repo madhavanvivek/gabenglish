@@ -55,3 +55,15 @@ The Malayalam-learning direction needs its own educator-reviewed Malayalam promp
 - The prompt invites the learner to use the saved phrase naturally in a new situation with Gabroo. It does not grade the phrase, assign a skill score, or treat challenge completion as evidence of improvement.
 - If no usable saved phrase exists, the existing exercise-evidence/general challenge selection remains unchanged.
 - Phrase selection is local to the Home screen and is not copied into a new server record; the daily completion record still stores only the challenge title, skill focus and optional conversation reference.
+
+## Unified learner practice queue
+
+The mobile `/practice-queue` screen brings existing learner-owned practice sources into one view:
+- Current due/first-review vocabulary from the Word Garden queue.
+- Original phrases explicitly saved in the Speaking Journal.
+- The weakest skill area with sufficient tagged exercise evidence, when available.
+- Recent learner-confirmed daily challenge completions.
+
+The screen loads each source independently. A temporary failure in one source does not hide the other available practice items. Actions open the existing vocabulary, journal, progress and Gabroo experiences; this screen does not create a second copy of learner data.
+
+The suggested skill is based only on exercise attempts. Saved phrases are learner-selected content. Completed challenges remain self-reported practice records. None of these signals is presented as an overall proficiency or speaking score.
