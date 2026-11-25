@@ -60,3 +60,8 @@ This sampler is a pure contract helper; the current mobile TTS response still do
 `apps/api/src/gabroo-audio-identity.ts` now provides `createGabrooSynthesizedAudioIdentity`. It computes SHA-256 over the exact completed audio bytes and exact UTF-8 synthesis text, counts source-text Unicode code points, validates the measured duration, and assigns a stable per-asset ID (or validates a supplied one). Tests cover Malayalam, supplementary emoji, byte-exact fingerprints and invalid inputs.
 
 This helper is intentionally not called from the current streaming TTS route. The route streams MP3 bytes before the complete asset and measured duration are known, and the provider currently supplies neither measured duration nor character/phoneme alignment. Do not buffer every live response or invent a duration merely to expose an identity. A future alignment-capable provider path must produce a complete bounded audio asset and verified duration (or a carefully designed streaming hash/finalization protocol) before returning alignment metadata. Until then, speech playback remains MP3-only and the caption/avatar bridges remain disabled in the learner UI.
+
+
+## Provider audio integrity gate
+
+Both provider response modes now verify declared MP3 content length against the bytes actually received. The streaming transform checks the count at flush; the buffered synthesis path now applies the same check before returning the assembled audio asset. A mismatch fails synthesis instead of producing an asset whose fingerprint could later be mistaken for a complete provider response. This check is transport integrity only: it does not infer audio duration or supply phoneme/character timestamps.
