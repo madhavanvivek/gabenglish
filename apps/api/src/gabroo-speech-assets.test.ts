@@ -91,7 +91,7 @@ describe("generateGabrooSpeechAsset", () => {
       return new Promise<unknown>(() => undefined);
     });
     await expect(generateGabrooSpeechAsset({ ...input({ generate }), timeoutMs: 5 }))
-      .rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
+      .rejects.toMatchObject({ code: "PROVIDER_TIMEOUT" });
     expect(providerSignal?.aborted).toBe(true);
   });
 });
