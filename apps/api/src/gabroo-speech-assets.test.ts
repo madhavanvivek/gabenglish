@@ -75,10 +75,11 @@ describe("generateGabrooSpeechAsset", () => {
   it("aborts the provider when the caller cancels", async () => {
     const controller = new AbortController();
     let providerSignal: AbortSignal | undefined;
-    const generate: GabrooSpeechAssetProvider["generate"] = ({ signal }) => new Promise<unknown>((_resolve, reject) => {
+    const generate: GabrooSpeechAssetProvider["generate"] = ({ signal }) => {
       providerSignal = signal;
-      signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
-    });
+      // Simulate a vendor SDK that ignores AbortSignal and never settles.
+      return new Promise<unknown>(() => undefined);
+    };
     const pending = generateGabrooSpeechAsset({ ...input({ generate }), signal: controller.signal });
     controller.abort();
     await expect(pending).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
