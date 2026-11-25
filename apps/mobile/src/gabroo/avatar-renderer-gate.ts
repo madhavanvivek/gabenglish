@@ -174,9 +174,9 @@ export class GabrooAvatarRendererGate {
     if (this.disposed || !this.ready) return false;
     if (!isPlaybackProofValid(proof, this.generation)) {
       // A queued callback from an older playback must never neutralize a newer one.
-      if (proof && typeof proof === 'object'
-        && Number.isSafeInteger(proof.generation)
-        && proof.generation !== this.generation) return false;
+      if (!proof || typeof proof !== 'object'
+        || !Number.isSafeInteger(proof.generation)
+        || proof.generation !== this.generation) return false;
       this.stopPlayback(this.generation);
       return false;
     }
