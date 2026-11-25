@@ -7,7 +7,7 @@ import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
 import type {GabrooSpeechSynthesisProvider} from "./gabroo-speech-synthesis-provider.js";
 import {GabrooSpeechQuotaExceededError,reserveGabrooSpeechUsage} from "./gabroo-speech-usage.js";
-import type {GabrooSpeechAlignmentProvider,GabrooAlignmentLanguage} from "./gabroo-speech-alignment-provider.js";
+import type {GabrooSpeechAlignmentProvider} from "./gabroo-speech-alignment-provider.js";
 import {runGabrooSpeechAlignment} from "./gabroo-speech-alignment-provider.js";
 import {createGabrooSynthesizedAudioIdentity} from "./gabroo-audio-identity.js";
 import {measureGabrooMp3DurationMs} from "./gabroo-mp3-metadata.js";
