@@ -94,12 +94,14 @@ export function validateGabrooSpeechAlignmentResult(
 /** Reject promptly on cancellation even when a provider ignores AbortSignal. */
 function awaitGabrooAlignmentOrAbort<T>(operation:Promise<T>,signal:AbortSignal):Promise<T>{
  return new Promise<T>((resolve,reject)=>{
-  const onAbort=()=>reject(new Error("Gabroo speech alignment was cancelled."));
+  const cleanup=()=>signal.removeEventListener("abort",onAbort);
+  const onAbort=()=>{cleanup();reject(new Error("Gabroo speech alignment was cancelled."));};
   if(signal.aborted){onAbort();return;}
   signal.addEventListener("abort",onAbort,{once:true});
-  operation.then(resolve,reject);
- }).finally(()=>{
-  // AbortSignal listeners are one-shot; they are removed when fired.
+  operation.then(
+   value=>{cleanup();resolve(value);},
+   error=>{cleanup();reject(error);}
+  );
  });
 }
 
