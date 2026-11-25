@@ -10,7 +10,7 @@ const MAX_TEXT_CHARACTERS=4_000;
 const MAX_AUDIO_BYTES=12*1024*1024;
 const MAX_BASE64_AUDIO_CHARACTERS=Math.ceil(MAX_AUDIO_BYTES/3)*4;
 const REQUEST_TIMEOUT_MS=15_000;
-const ENGLISH_RUN=/[A-Za-z][A-Za-z0-9]*(?:[’'][A-Za-z]+)*(?:[ \\t]+[A-Za-z][A-Za-z0-9]*(?:[’'][A-Za-z]+)*)*/g;
+const ENGLISH_RUN=/[A-Za-z][A-Za-z0-9]*(?:[’'][A-Za-z]+)*(?:[ ]+[A-Za-z][A-Za-z0-9]*(?:[’'][A-Za-z]+)*)*/g;
 function escapeXmlText(value:string):string{return value.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;").replace(/'/g,"&apos;");}
 export function buildGabrooGoogleTtsSsml(text:string,englishLanguageCode="en-US"):string{
  if(!/^[a-z]{2,3}-[A-Z]{2,4}$/.test(englishLanguageCode))throw new Error("Google TTS English language code is invalid.");
