@@ -14,6 +14,7 @@ describe("Gabenglish runtime configuration",()=>{
   expect(config.GABROO_GOOGLE_TTS_VOICE).toBeUndefined();
   expect(config.GABROO_GOOGLE_TTS_LANGUAGE_CODE).toBe("ml-IN");
   expect(config.GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE).toBe("en-US");
+  expect(config.GABROO_GOOGLE_TTS_INPUT_MODE).toBe("ssml");
   expect(config.GABROO_TTS_DAILY_CHARACTER_LIMIT).toBe(10_000);
   expect(config.GABROO_TTS_MONTHLY_CHARACTER_LIMIT).toBe(100_000);
   expect(config.GABROO_LLM_BASE_URL).toBe("https://api.openai.com/v1");
@@ -46,6 +47,11 @@ describe("Gabenglish runtime configuration",()=>{
   expect(()=>loadConfig({NODE_ENV:"test",GABROO_GOOGLE_TTS_API_KEY:"secret"})).toThrow("Invalid environment configuration");
   expect(()=>loadConfig({NODE_ENV:"test",GABROO_GOOGLE_TTS_VOICE:"ml-IN-Standard-B"})).toThrow("Invalid environment configuration");
   expect(()=>loadConfig({NODE_ENV:"test",GABROO_GOOGLE_TTS_API_KEY:"secret",GABROO_GOOGLE_TTS_VOICE:"en-US-Standard-C"})).toThrow("Invalid environment configuration");
+ });
+ it("supports only explicit text or SSML Google TTS input modes",()=>{
+  expect(loadConfig({NODE_ENV:"test",GABROO_GOOGLE_TTS_INPUT_MODE:"text"}).GABROO_GOOGLE_TTS_INPUT_MODE).toBe("text");
+  expect(loadConfig({NODE_ENV:"test",GABROO_GOOGLE_TTS_INPUT_MODE:"ssml"}).GABROO_GOOGLE_TTS_INPUT_MODE).toBe("ssml");
+  expect(()=>loadConfig({NODE_ENV:"test",GABROO_GOOGLE_TTS_INPUT_MODE:"auto"})).toThrow("Invalid environment configuration");
  });
  it("allows a configured English locale for bilingual Google SSML and rejects malformed values",()=>{
   const config=loadConfig({NODE_ENV:"test",GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE:"en-GB"});
