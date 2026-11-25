@@ -102,7 +102,8 @@ export async function registerGabrooSpeechRoutes(
  app:FastifyInstance,
  pool:Pool,
  config:AppConfig,
- provider?:GabrooSpeechSynthesisProvider
+ provider?:GabrooSpeechSynthesisProvider,
+ alignmentProvider?:GabrooSpeechAlignmentProvider
 ){
  app.get("/api/v1/gabroo/speech/usage",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
