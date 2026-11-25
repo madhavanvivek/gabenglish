@@ -57,7 +57,7 @@ describe("daily speaking challenge",()=>{
  it("deduplicates identical saved phrases before rotating",()=>{
   const phrase={memory_key:"Useful phrase",content:"Learner phrase: Could you please clarify?"};
   const unique=buildDailySpeakingChallenge("2026-11-25",[],[phrase,{memory_key:"Another key",content:"Learner phrase: I will check and confirm."}]);
-  const duplicated=buildDailySpeakingChallenge("2026-11-25",[],[phrase,phrase,{memory_key:"Another key",content:"Learner phrase: I will check and confirm."}]);
+  const duplicated=buildDailySpeakingChallenge("2026-11-25",[],[phrase,{memory_key:"Duplicate journal entry",content:"Learner phrase: Could you please clarify?"},{memory_key:"Another key",content:"Learner phrase: I will check and confirm."}]);
   expect(duplicated).toEqual(unique);
  });
  it("rotates through distinct saved phrases across consecutive local dates",()=>{
