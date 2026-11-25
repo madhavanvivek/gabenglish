@@ -106,5 +106,41 @@ describe("OpenAI-compatible Gabroo provider",()=>{
   }finally{vi.unstubAllGlobals();}
  });
 
+ it("streams incremental text deltas from an OpenAI-compatible SSE response",async()=>{
+  const encoder=new TextEncoder();
+  const chunks=[
+   'data: {"choices":[{"delta":{"content":"Namaskaar"}}]}\\n\\n',
+   'data: {"choices":[{"delta":{"content":"! How are you?"}}]}\\n\\ndata: [DONE]\\n\\n'
+  ];
+  const body=new ReadableStream<Uint8Array>({
+   start(controller){for(const chunk of chunks)controller.enqueue(encoder.encode(chunk));controller.close();}
+  });
+  const fetchMock=vi.fn().mockResolvedValue(new Response(body,{status:200,headers:{"content-type":"text/event-stream"}}));
+  vi.stubGlobal("fetch",fetchMock);
+  try{
+   const provider=createOpenAICompatibleGabrooProvider({apiKey:"test-secret",baseUrl:"https://provider.example/v1",model:"gabroo-test"});
+   const streamed:string[]=[];
+   for await(const fragment of provider.stream!(input))streamed.push(fragment);
+   expect(streamed).toEqual(["Namaskaar","! How are you?"]);
+   const bodySent=JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+   expect(bodySent.stream).toBe(true);
+   expect(bodySent.stream_options).toEqual({include_usage:true});
+  }finally{vi.unstubAllGlobals();}
+ });
+ it("propagates abort signals to streaming provider requests",async()=>{
+  const controller=new AbortController();
+  const fetchMock=vi.fn().mockImplementation((_url:string,init:RequestInit)=>new Promise((_resolve,reject)=>{
+   init.signal?.addEventListener("abort",()=>reject(new DOMException("Aborted","AbortError")),{once:true});
+  }));
+  vi.stubGlobal("fetch",fetchMock);
+  try{
+   const provider=createOpenAICompatibleGabrooProvider({apiKey:"test-secret",baseUrl:"https://provider.example/v1",model:"gabroo-test"});
+   const pending=(async()=>{for await(const _fragment of provider.stream!({...input,signal:controller.signal})){};})();
+   controller.abort();
+   await expect(pending).rejects.toThrow();
+   expect((fetchMock.mock.calls[0]?.[1] as RequestInit).signal).toBe(controller.signal);
+  }finally{vi.unstubAllGlobals();}
+ });
+
 
 });
