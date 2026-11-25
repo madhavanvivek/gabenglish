@@ -221,7 +221,7 @@ Latency percentiles are computed from recorded trial values; keep the original t
 
 ### Evidence-completeness gate
 
-Technical evidence is marked complete only when at least five trials exist, supporting evidence references are supplied, commercial rights, data-retention terms and model-training terms are verified, and every recorded slow-playback naturalness rating is at least 3/5. This is a minimum evidence gate, not a claim that a candidate meets a latency target or is suitable for production. The owner must still inspect the actual measurements, licensing documents, privacy terms and blind listener scorecards.
+Technical evidence is marked complete only when at least five uniquely identified trials exist, including at least one normal-speed (1.0×) trial and one slow-speed (0.85× or slower) trial; supporting evidence references are supplied; commercial rights, data-retention terms and model-training terms are verified; and every recorded slow-playback naturalness rating is at least 3/5. This is a minimum evidence gate, not a claim that a candidate meets a latency target or is suitable for production. The owner must still inspect the actual measurements, licensing documents, privacy terms and blind listener scorecards.
 
 No latency threshold is silently treated as an approved product requirement. Compare observed values and make an explicit owner decision before selecting a provider.
 
