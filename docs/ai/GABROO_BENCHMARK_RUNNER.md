@@ -12,7 +12,7 @@ For OpenAI, the default endpoint is https://api.openai.com/v1. The API key is re
 
 Optional variables: GABROO_BENCHMARK_CASES (fixture path), GABROO_BENCHMARK_OUTPUT (JSONL output path; default artifacts/gabroo-benchmark-results.jsonl), GABROO_BENCHMARK_REPEATS (1–10; default 3).
 
-Each response records case ID, repetition, model ID, endpoint, provider-adapter version, SHA-256 fingerprint of the fixture file and live policy configuration, latency, output, expected checks, critical checks and ten blank 0–4 evaluator dimensions. The provider adapter normalizes provider-reported model IDs and prompt/completion/total token counts when available; unsupported or malformed usage fields are omitted. The run summary reports error rate and successful-response p50/p95 latency. Requests have a 90-second timeout. Provider errors are recorded without stopping remaining cases. Output is append-only; choose a new path for a clean run.
+Each response records case ID, repetition, model ID, endpoint, provider-adapter version, SHA-256 fingerprint of the fixture file and live policy configuration, latency, output, expected checks, critical checks and ten blank 0–4 evaluator dimensions. The provider adapter normalizes provider-reported model IDs and prompt/completion/total token counts when available; unsupported or malformed usage fields are omitted. The run summary reports error rate and successful-response p50/p95 latency. Benchmark requests have a 90-second timeout. Live conversation requests have a separate 15-second server timeout, and client disconnects abort provider fetches; interrupted turns are not committed. Provider errors are recorded without stopping remaining cases. Output is append-only; choose a new path for a clean run.
 
 ## Evaluation workflow
 
