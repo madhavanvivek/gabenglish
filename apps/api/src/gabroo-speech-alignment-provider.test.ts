@@ -1,5 +1,6 @@
 import {describe,expect,it} from "vitest";
-import {assertGabrooSpeechAlignmentInputIdentity,validateGabrooSpeechAlignmentResult} from "./gabroo-speech-alignment-provider.js";\nimport {createGabrooSynthesizedAudioIdentity} from "./gabroo-audio-identity.js";
+import {assertGabrooSpeechAlignmentInputIdentity,validateGabrooSpeechAlignmentResult} from "./gabroo-speech-alignment-provider.js";
+import {createGabrooSynthesizedAudioIdentity} from "./gabroo-audio-identity.js";
 import type {GabrooSynthesizedAudioIdentity} from "./gabroo-audio-identity.js";
 
 const identity:GabrooSynthesizedAudioIdentity={
@@ -37,4 +38,13 @@ describe("Gabroo speech alignment provider boundary",()=>{
   const result={kind:"phoneme" as const,alignment:{audio_id:identity.audio_id,audio_sha256:identity.audio_sha256,duration_ms:1000,phonemes:[{phoneme:"m",start_ms:90,end_ms:20}]}};
   expect(()=>validateGabrooSpeechAlignmentResult(result,identity,"Hello")).toThrow();
  });
+ it("recomputes identity from the exact alignment audio bytes and text",()=>{
+  const audio=Buffer.from([1,2,3,4]);
+  const text="ഹായ് Gabroo 😊";
+  const exactIdentity=createGabrooSynthesizedAudioIdentity({audio,text,durationMs:900,audioId:"verified-audio"});
+  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio,text,identity:exactIdentity})).not.toThrow();
+  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio:Buffer.from([1,2,3,5]),text,identity:exactIdentity})).toThrow(/exact audio bytes/i);
+  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio,text:"മറ്റൊരു വാചകം",identity:exactIdentity})).toThrow(/exact audio bytes/i);
+ });
+
 });
