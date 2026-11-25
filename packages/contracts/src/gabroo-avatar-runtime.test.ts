@@ -111,4 +111,11 @@ describe("Gabroo conversation-to-renderer bridge",()=>{
    isLoaded:"yes" as unknown as boolean,isPlaying:true,positionMillis:180,audioId:"gabroo-runtime-audio"
   })).toThrow(/loaded and playing/i);
  });
+ 
+ it("rejects malformed native audio identity instead of treating it as a stale item",()=>{
+  expect(()=>sampleGabrooConversationFrameFromPlaybackStatus(speaking(),{
+   isLoaded:true,isPlaying:true,positionMillis:180,audioId:42 as unknown as string
+  })).toThrow(/audio identity/i);
+ });
+
 });
