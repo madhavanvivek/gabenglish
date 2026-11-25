@@ -162,3 +162,8 @@ This is application-level lifecycle handling. Validate on physical Android devic
 
 
 Screen navigation blur is handled separately from OS backgrounding: leaving the Gabroo route stops device TTS, discards temporary transcription audio, and blocks new microphone capture until the route is focused again. Pending native recording operations check both app-active and screen-focused state when they settle, so a recording created during a navigation/background race is discarded rather than retained.
+
+
+## Abandoned cache-download cleanup
+
+A process kill can leave a temporary `.part` file even though normal cancellation and failure paths already delete it. Temporary filenames now include their creation timestamp. The opportunistic private-cache sweep removes only recognized Gabroo partial downloads older than 24 hours, alongside expired signed `.audio` entries. Fresh in-progress downloads, malformed names and unrelated cache files are preserved. Unit tests cover the age boundary and isolation from unrelated files.
