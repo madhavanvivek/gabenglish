@@ -408,7 +408,7 @@ export default function GabrooScreen(){
         if(speechActiveAudioIdRef.current!==audioAsset.audioId)return;
         if(status.isLoaded){
          if(status.isPlaying&&speechPlaybackClockRef.current.audioId===audioAsset.audioId){
-          speechPlaybackClockRef.current={audioId:audioAsset.audioId,positionMillis:status.positionMillis,nativeDurationMs:status.durationMillis??null,measuredDurationMs:audioAsset.metadata?.durationMs??null};
+          speechPlaybackClockRef.current={audioId:audioAsset.audioId,positionMillis:status.positionMillis??0,nativeDurationMs:status.durationMillis??null,measuredDurationMs:audioAsset.metadata?.durationMs??null};
          }
          // Promote playback only after Expo confirms this audio item is playing.
          if((status.isPlaying||status.didJustFinish)&&!playbackStarted){
