@@ -405,6 +405,42 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
     interval_days:saved.rows[0]!.interval_days,ease_factor:Number(saved.rows[0]!.ease_factor)}};
  });
  
+ app.get("/api/v1/learning/vocabulary/summary",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view vocabulary progress.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to view vocabulary insights.");
+  const preference=await pool.query<{learning_direction:Direction}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preference.rows[0]?.learning_direction??"ml_to_en";
+  const result=await pool.query<{total_words:number;reviewed_words:number;mastered_words:number;developing_words:number;due_words:number;last_reviewed_at:Date|null}>(
+   `WITH eligible AS (
+     SELECT l.id AS lesson_id,lv.id AS lesson_version_id,vocabulary_item.value->>'id' AS item_id
+     FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
+     JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id
+     CROSS JOIN LATERAL jsonb_array_elements(COALESCE(lv.content->'blocks','[]'::jsonb)) AS lesson_block(value)
+     CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN lesson_block.value->>'type'='vocabulary' THEN COALESCE(lesson_block.value->'items','[]'::jsonb) ELSE '[]'::jsonb END) AS vocabulary_item(value)
+     WHERE l.status='published' AND c.status='published' AND lv.status='published'
+       AND c.learning_direction=$2 AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')
+       AND vocabulary_item.value->>'id' IS NOT NULL
+   ), progress AS (
+     SELECT e.lesson_id,e.lesson_version_id,e.item_id,r.last_reviewed_at,r.due_at,
+       COALESCE(r.repetitions,0)::int AS repetitions,COALESCE(r.interval_days,0)::int AS interval_days
+     FROM eligible e LEFT JOIN learner_vocabulary_reviews r
+       ON r.user_id=$1 AND r.learning_direction=$2 AND r.lesson_version_id=e.lesson_version_id
+       AND r.vocabulary_item_id=e.item_id
+   )
+   SELECT COUNT(*)::int AS total_words,
+     COUNT(*) FILTER(WHERE last_reviewed_at IS NOT NULL)::int AS reviewed_words,
+     COUNT(*) FILTER(WHERE repetitions>=3 AND interval_days>=7)::int AS mastered_words,
+     COUNT(*) FILTER(WHERE last_reviewed_at IS NOT NULL AND NOT(repetitions>=3 AND interval_days>=7))::int AS developing_words,
+     COUNT(*) FILTER(WHERE last_reviewed_at IS NULL OR due_at<=now())::int AS due_words,
+     MAX(last_reviewed_at) AS last_reviewed_at
+   FROM progress`,
+   [learner.id,direction]
+  );
+  const row=result.rows[0]??{total_words:0,reviewed_words:0,mastered_words:0,developing_words:0,due_words:0,last_reviewed_at:null};
+  return {learning_direction:direction,summary:row,policy:{mastery_is_a_review_schedule_signal_not_a_fluency_score:true,only_current_published_versions:true}};
+ });
+
  app.get("/api/v1/learning/skill-profile",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view your learning profile.");
