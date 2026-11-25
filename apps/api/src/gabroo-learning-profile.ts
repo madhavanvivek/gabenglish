@@ -34,13 +34,25 @@ export async function recordGabrooSkillEvidence(pool:Pool,userId:string,input:Ga
 }
 
 export async function registerGabrooLearningProfileRoutes(app:FastifyInstance,pool:Pool,config:AppConfig){
+ app.patch("/api/v1/gabroo/learning-stage",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return reply.code(401).send({error:{code:"VERIFIED_ACCOUNT_REQUIRED",message:"Please sign in with your verified account.",request_id:request.id}});
+  const parsed=z.object({stage:z.number().int().min(1).max(5).nullable()}).strict().safeParse(request.body);
+  if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Choose a Gabenglish stage from 1 to 5, or clear your selection.",request_id:request.id}});
+  const saved=await pool.query<{preferred_learning_stage:number|null}>(
+   "INSERT INTO user_preferences(user_id,preferred_learning_stage) VALUES($1,$2) ON CONFLICT(user_id) DO UPDATE SET preferred_learning_stage=EXCLUDED.preferred_learning_stage,updated_at=now() RETURNING preferred_learning_stage",
+   [learner.id,parsed.data.stage]
+  );
+  return {preferred_learning_stage:saved.rows[0]?.preferred_learning_stage??null,source:parsed.data.stage===null?"not_selected":"learner_selected"};
+ });
  app.get("/api/v1/gabroo/learning-profile",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return reply.code(401).send({error:{code:"VERIFIED_ACCOUNT_REQUIRED",message:"Please sign in with your verified account.",request_id:request.id}});
-  const preferences=await pool.query<{learning_direction:"ml_to_en"|"en_to_ml"}>(
-   "SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]
+  const preferences=await pool.query<{learning_direction:"ml_to_en"|"en_to_ml";preferred_learning_stage:number|null}>(
+   "SELECT learning_direction,preferred_learning_stage FROM user_preferences WHERE user_id=$1",[learner.id]
   );
   const learningDirection=preferences.rows[0]?.learning_direction??"ml_to_en";
+  const preferredLearningStage=preferences.rows[0]?.preferred_learning_stage??null;
   const [observations,due,exerciseOutcomes]=await Promise.all([
    pool.query<{skill:GabrooSkill;score:string;confidence:string;source:GabrooSkillEvidence["source"];task_id:string;observed_at:Date}>(`
     SELECT skill,score::text,confidence::text,source,task_id,observed_at
@@ -84,6 +96,8 @@ export async function registerGabrooLearningProfileRoutes(app:FastifyInstance,po
    model:{name:"Gabroo Learning Intelligence Model",version:"1.0.0"},
    learning_direction:learningDirection,
    target_language:decision.targetLanguage,
+   preferred_learning_stage:preferredLearningStage,
+   preferred_learning_stage_source:preferredLearningStage===null?"not_selected":"learner_selected",
    support_language:decision.supportLanguage,
    skill_estimates:estimates,
    next_learning_decision:decision,
