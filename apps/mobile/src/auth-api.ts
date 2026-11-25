@@ -110,7 +110,7 @@ export type SavedFreeDiagnosticReport={
   response_count:number;extended_samples:number;brief_samples:number;
   response_metrics:{average_words_per_response:number;average_unique_word_ratio:number;average_words_per_sentence:number};
   grammar_review_items?:{category:"subject_verb_agreement"|"verb_form"|"past_tense_form";example:string;note:string;support_note_ml:string;suggestion:string}[];
-  assessment_coverage:{skill:"grammar"|"vocabulary"|"comprehension"|"communication"|"fluency"|"pronunciation"|"confidence";status:"examples_only"|"elicited_not_scored"|"not_assessed";basis:string}[];
+  assessment_coverage?:{skill:"grammar"|"vocabulary"|"comprehension"|"communication"|"fluency"|"pronunciation"|"confidence";status:"examples_only"|"elicited_not_scored"|"not_assessed";basis:string}[];
   observed_patterns:string[];limitations:string[];next_steps:string[];
  };
  gabroo_explanation:string;assessment_mode:"text"|"voice_transcript"|"mixed";learning_direction:"ml_to_en"|"en_to_ml";target_language:"en"|"ml";created_at:string;access:"free";
