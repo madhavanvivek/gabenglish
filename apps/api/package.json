@@ -14,7 +14,8 @@
     "benchmark:report": "tsx src/scripts/gabroo-speech-benchmark-report-cli.ts",
     "benchmark:compare": "tsx src/scripts/gabroo-speech-benchmark-comparison-cli.ts",
     "benchmark:fingerprint": "tsx src/scripts/gabroo-speech-benchmark-fingerprint.ts",
-    "benchmark:playback-rate": "tsx src/scripts/gabroo-playback-rate-report-cli.ts"
+    "benchmark:playback-rate": "tsx src/scripts/gabroo-playback-rate-report-cli.ts",
+    "audition:google-tts": "tsx src/scripts/gabroo-google-tts-audition-cli.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.0.1",
