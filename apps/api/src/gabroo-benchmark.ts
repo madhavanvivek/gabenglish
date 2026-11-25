@@ -72,7 +72,8 @@ async function runBenchmark(){
     });
     const content=response.content;
     record={
-     caseId:testCase.id,title:testCase.title,repetition,model:response.model??model,providerBaseUrl:baseUrl,\n     providerAdapterVersion:GABROO_PROVIDER_ADAPTER_VERSION,caseFileSha256,
+     caseId:testCase.id,title:testCase.title,repetition,model:response.model??model,providerBaseUrl:baseUrl,
+     providerAdapterVersion:GABROO_PROVIDER_ADAPTER_VERSION,caseFileSha256,
      teachingPolicyVersion:getGabrooBenchmarkPolicyVersion(testCase),latencyMs:Math.round(performance.now()-started),
      status:"completed",response:content.trim(),usage:response.usage??null,
      expectedChecks:testCase.expected,criticalChecks:testCase.critical,
@@ -80,7 +81,8 @@ async function runBenchmark(){
     };completed++;completedLatencies.push(Number(record.latencyMs));
    }catch(error){
     record={
-     caseId:testCase.id,title:testCase.title,repetition,model,providerBaseUrl:baseUrl,\n     providerAdapterVersion:GABROO_PROVIDER_ADAPTER_VERSION,caseFileSha256,
+     caseId:testCase.id,title:testCase.title,repetition,model,providerBaseUrl:baseUrl,
+     providerAdapterVersion:GABROO_PROVIDER_ADAPTER_VERSION,caseFileSha256,
      teachingPolicyVersion:getGabrooBenchmarkPolicyVersion(testCase),latencyMs:Math.round(performance.now()-started),
      status:"error",error:error instanceof Error?error.message:String(error),
      evaluatorScore:null,evaluatorNotes:null,evaluatorRubric:GABROO_EVALUATION_DIMENSIONS.map(dimension=>({dimension,score:null,notes:null})),recordedAt:new Date().toISOString()
@@ -90,7 +92,7 @@ async function runBenchmark(){
    console.log(String(record.status).toUpperCase()+" "+testCase.id+" "+repetition+"/"+repeats+" "+String(record.latencyMs)+"ms");
   }
  }
- console.log(JSON.stringify({model,total:cases.length*repeats,completed,failed,errorRate:(failed/(cases.length*repeats)),successfulLatencyMs:{p50:percentile(completedLatencies,0.5),p95:percentile(completedLatencies,0.95)},outputPath,policy:"live buildGabrooTeachingPolicy + production OpenAI-compatible adapter",usageNote:"Provider token usage is not exposed by the production conversation-provider interface."},null,2));
+ console.log(JSON.stringify({model,total:cases.length*repeats,completed,failed,errorRate:(failed/(cases.length*repeats)),successfulLatencyMs:{p50:percentile(completedLatencies,0.5),p95:percentile(completedLatencies,0.95)},outputPath,policy:"live buildGabrooTeachingPolicy + production OpenAI-compatible adapter",usageNote:"Token counts are included only when the provider returns valid usage metadata."},null,2));
  if(failed>0)process.exitCode=1;
 }
 
