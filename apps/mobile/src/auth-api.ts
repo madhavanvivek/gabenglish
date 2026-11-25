@@ -7,6 +7,7 @@ import {parseGabrooPlaybackTicket} from "./gabroo-playback-ticket";
 import {parseGabrooAudioResponseMetadata} from "./gabroo-audio-metadata";
 import {authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus,type GabrooSpeechTimeline} from "@gabenglish/contracts";
 import {parseGabrooPhonemeTimelineForAudio} from "./gabroo-phoneme-timeline";
+import {assertGabrooAlignmentAudioSize,validateGabrooAlignmentRequest} from "./gabroo-alignment-request";
 
 const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
 const ACCESS_KEY="gabenglish.auth.access";
@@ -257,39 +258,33 @@ export async function requestGabrooPhonemeTimeline(input:{
  audioUri:string;text:string;metadata:NonNullable<GabrooSynthesizedMobileAudio["metadata"]>;
  language:"ml"|"en"|"mixed";signal?:AbortSignal;
 }):Promise<GabrooSpeechTimeline|null>{
- const metadata=input.metadata;
- const text=input.text.trim();
- if(!metadata||!text)return null;
- if(text.length>4_000)throw new AuthApiError("Gabroo alignment text exceeds the permitted length.");
- if(!/^[a-f0-9]{64}$/.test(metadata.audioId)||metadata.audioId!==metadata.audioSha256
-  ||!/^[a-f0-9]{64}$/.test(metadata.textSha256)
-  ||!Number.isSafeInteger(metadata.durationMs)||metadata.durationMs<=0||metadata.durationMs>10*60*1000){
-  throw new AuthApiError("Gabroo audio identity is invalid for alignment.");
- }
  if(input.signal?.aborted)throw new AuthApiError("Gabroo alignment request was cancelled.");
-
- // Do not upload cached audio unless the server explicitly advertises a
- // phoneme aligner. Google Cloud TTS alone does not provide this capability.
+ // Do not read or upload cached audio unless the server explicitly advertises
+ // a phoneme aligner. Google Cloud TTS alone does not provide this capability.
  const readiness=await getGabrooSpeechStatus();
- if(!readiness.capabilities.phoneme_alignment)return null;
+ let validated:{ok:true;text:string}|{ok:false;reason:"unavailable"|"missing_input"};
+ try{
+  validated=validateGabrooAlignmentRequest({
+   text:input.text,metadata:input.metadata,phonemeAlignmentAvailable:readiness.capabilities.phoneme_alignment
+  });
+ }catch(error){
+  throw new AuthApiError(error instanceof Error?error.message:"Gabroo alignment request is invalid.");
+ }
+ if(!validated.ok)return null;
  if(input.signal?.aborted)throw new AuthApiError("Gabroo alignment request was cancelled.");
-
  let audioBase64:string;
  try{
   const info=await FileSystem.getInfoAsync(input.audioUri);
-  if(!info.exists||typeof info.size!=="number"||!Number.isSafeInteger(info.size)
-   ||info.size<=0||info.size>12*1024*1024){
-   throw new AuthApiError("The cached Gabroo audio is missing or exceeds the alignment size limit.");
-  }
+  assertGabrooAlignmentAudioSize(info.exists?info.size:undefined);
   audioBase64=await FileSystem.readAsStringAsync(input.audioUri,{encoding:FileSystem.EncodingType.Base64});
  }catch(error){
-  if(error instanceof AuthApiError)throw error;
-  throw new AuthApiError("The cached Gabroo audio could not be read for alignment.");
+  throw new AuthApiError(error instanceof Error?error.message:"The cached Gabroo audio could not be read for alignment.");
  }
  if(input.signal?.aborted)throw new AuthApiError("Gabroo alignment request was cancelled.");
  if(!audioBase64)throw new AuthApiError("The cached Gabroo audio is empty.");
+ const metadata=input.metadata!;
  const payload=await authorized("/api/v1/gabroo/speech/alignment","POST",{
-  audio_base64:audioBase64,text,audio_id:metadata.audioId,
+  audio_base64:audioBase64,text:validated.text,audio_id:metadata.audioId,
   audio_sha256:metadata.audioSha256,text_sha256:metadata.textSha256,
   duration_ms:metadata.durationMs,language:input.language
  },input.signal) as unknown;
