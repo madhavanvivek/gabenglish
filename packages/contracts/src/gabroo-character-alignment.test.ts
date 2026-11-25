@@ -9,16 +9,16 @@ describe("Gabroo character alignment",()=>{
  const text="ഹായ് Gabroo 😊";
  const identity={audioId:"audio-caption-1",audioSha256:"a".repeat(64),textSha256:"b".repeat(64),durationMs:1200};
  const alignment={audio_id:"audio-caption-1",audio_sha256:"a".repeat(64),text_sha256:"b".repeat(64),text_length:Array.from(text).length,duration_ms:1200,characters:[
-  {start_index:0,end_index:3,start_ms:0,end_ms:250},
-  {start_index:4,end_index:10,start_ms:300,end_ms:850},
-  {start_index:11,end_index:12,start_ms:900,end_ms:1100}
+  {start_index:0,end_index:4,start_ms:0,end_ms:250},
+  {start_index:5,end_index:11,start_ms:300,end_ms:850},
+  {start_index:12,end_index:13,start_ms:900,end_ms:1100}
  ]};
 
  it("creates caption cues from provider character timestamps and Unicode code-point offsets",()=>{
   expect(gabrooCharacterAlignmentToCaptionCues(alignment,identity,text)).toEqual([
-   {text:"ഹായ്",start_index:0,end_index:3,start_ms:0,end_ms:250},
-   {text:"Gabroo",start_index:4,end_index:10,start_ms:300,end_ms:850},
-   {text:"😊",start_index:11,end_index:12,start_ms:900,end_ms:1100}
+   {text:"ഹായ്",start_index:0,end_index:4,start_ms:0,end_ms:250},
+   {text:"Gabroo",start_index:5,end_index:11,start_ms:300,end_ms:850},
+   {text:"😊",start_index:12,end_index:13,start_ms:900,end_ms:1100}
   ]);
  });
 
