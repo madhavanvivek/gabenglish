@@ -55,9 +55,9 @@ export interface SampledAvatarFrame {
   viseme: AvatarViseme;
   visemeWeight: number;
   expression: AvatarExpression;
-  expressionWeight: number;
+  expressionWeight?: number;
   gesture: AvatarGesture;
-  gestureWeight: number;
+  gestureWeight?: number;
 }
 
 const VISemes = new Set<AvatarViseme>([
@@ -175,8 +175,8 @@ export class GabrooAvatarRendererGate {
       || !EXPRESSIONS.has(sampled.expression) || !GESTURES.has(sampled.gesture)
       || !Number.isFinite(sampled.visemeWeight)
       || sampled.visemeWeight < 0 || sampled.visemeWeight > 1
-      || !Number.isFinite(sampled.expressionWeight) || sampled.expressionWeight < 0 || sampled.expressionWeight > 1
-      || !Number.isFinite(sampled.gestureWeight) || sampled.gestureWeight < 0 || sampled.gestureWeight > 1) {
+      || !Number.isFinite(sampled.expressionWeight ?? 0) || (sampled.expressionWeight ?? 0) < 0 || (sampled.expressionWeight ?? 0) > 1
+      || !Number.isFinite(sampled.gestureWeight ?? 0) || (sampled.gestureWeight ?? 0) < 0 || (sampled.gestureWeight ?? 0) > 1) {
       try {
         this.rig.applyFrame(neutralFrame(this.generation, proof.positionMs));
       } catch {
@@ -191,9 +191,9 @@ export class GabrooAvatarRendererGate {
         viseme: sampled.viseme,
         visemeWeight: sampled.viseme === 'neutral' ? 0 : sampled.visemeWeight,
         expression: sampled.expression,
-        expressionWeight: sampled.expression === 'neutral' ? 0 : sampled.expressionWeight,
+        expressionWeight: sampled.expression === 'neutral' ? 0 : (sampled.expressionWeight ?? 0),
         gesture: sampled.gesture,
-        gestureWeight: sampled.gesture === 'idle' ? 0 : sampled.gestureWeight,
+        gestureWeight: sampled.gesture === 'idle' ? 0 : (sampled.gestureWeight ?? 0),
       });
       return true;
     } catch {
