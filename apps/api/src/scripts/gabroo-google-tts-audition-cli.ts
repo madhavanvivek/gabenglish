@@ -1,7 +1,7 @@
 import {createHash} from "node:crypto";
 import {mkdir,writeFile} from "node:fs/promises";
-import {resolve} from "node:path";
-import {pathToFileURL} from "node:url";
+import {dirname,relative,resolve,sep} from "node:path";
+import {fileURLToPath,pathToFileURL} from "node:url";
 import {createGoogleCloudTtsProvider} from "../google-cloud-tts-provider.js";
 
 const CANDIDATES=[
@@ -10,6 +10,22 @@ const CANDIDATES=[
  {blindCode:"VOICE-03",voice:"ml-IN-Wavenet-B",family:"WaveNet"},
  {blindCode:"VOICE-04",voice:"ml-IN-Wavenet-D",family:"WaveNet"}
 ] as const;
+
+const REPOSITORY_ROOT=resolve(dirname(fileURLToPath(import.meta.url)),"../../../..");
+const DEFAULT_OUTPUT_DIRECTORY=resolve(REPOSITORY_ROOT,".local/gabroo-voice-auditions");
+
+function isWithin(parent:string,child:string):boolean{
+ const rel=relative(parent,child);
+ return rel===""||(!rel.startsWith(".."+sep)&&rel!==".."&&!resolve(rel).startsWith(sep));
+}
+
+export function resolveGabrooAuditionOutputDirectory(configured?:string):string{
+ const candidate=configured?resolve(REPOSITORY_ROOT,configured):DEFAULT_OUTPUT_DIRECTORY;
+ if(isWithin(REPOSITORY_ROOT,candidate)&&!isWithin(DEFAULT_OUTPUT_DIRECTORY,candidate)){
+  throw new Error("Audition samples inside the repository must remain under the git-ignored .local/gabroo-voice-auditions directory.");
+ }
+ return candidate;
+}
 
 const SEGMENTS=[
  {id:"01-greeting",label:"Greeting and introduction",text:"ഹായ്, വിവേക്! ഞാൻ ഗബ്രൂ. ഇന്ന് നമുക്ക് ഇംഗ്ലീഷ് കുറച്ച് കുറച്ചായി, സുഖമായി പഠിക്കാം. തെറ്റുകൾ വന്നാലും പ്രശ്നമില്ല. ഞാൻ കൂടെയുണ്ട്!"},
@@ -95,7 +111,7 @@ async function main():Promise<void>{
  try{
   const result=await createGabrooGoogleTtsAuditionPack({
    apiKey,
-   outputDirectory:process.env.GABROO_AUDITION_OUTPUT_DIR??".local/gabroo-voice-auditions"
+   outputDirectory:resolveGabrooAuditionOutputDirectory(process.env.GABROO_AUDITION_OUTPUT_DIR)
   });
   process.stdout.write(JSON.stringify(result,null,2)+"\n");
   process.stdout.write("Keep mapping.private.json restricted. Share only the blind-coded MP3 folders and reviewer-manifest.json.\n");
