@@ -37,6 +37,13 @@ describe("Google Cloud TTS provider",()=>{
    audioConfig:{audioEncoding:"MP3",speakingRate:0.9}
   });
  });
+ it("can synthesize plain text for controlled SSML comparison",async()=>{
+  let body:Record<string,unknown>|undefined;
+  const fetcher=vi.fn(async(_url:string|URL|Request,init?:RequestInit)=>{body=JSON.parse(String(init?.body));return Response.json({audioContent:Buffer.from([1,2,3]).toString("base64")});});
+  const provider=createGoogleCloudTtsProvider({...config,GABROO_GOOGLE_TTS_INPUT_MODE:"text"},fetcher)!;
+  await provider.synthesize({text:"നമസ്കാരം! Please practise.",speed:1,signal:new AbortController().signal});
+  expect(body?.input).toEqual({text:"നമസ്കാരം! Please practise."});
+ });
  it("rejects an invalid configured English SSML locale",()=>{ expect(()=>createGoogleCloudTtsProvider({...config,GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE:"bad-locale"})).toThrow(/English language code/i); });
  it("rejects a voice that does not match the configured locale",()=>{
   expect(()=>createGoogleCloudTtsProvider({...config,GABROO_GOOGLE_TTS_VOICE:"en-US-Standard-C"})).toThrow(/match the configured language/i);
