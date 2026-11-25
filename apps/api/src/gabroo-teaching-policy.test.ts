@@ -57,6 +57,32 @@ describe("Gabroo teaching policy",()=>{
   expect(policy.responseGuidance.join(" ")).toContain("do not invent specific errors");
   expect(buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"}).skillFocus).toEqual([]);
  });
+ it("resolves learner doubts before resuming an earlier conversation thread",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",stage:2});
+  const guidance=policy.responseGuidance.join(" ");
+  expect(guidance).toContain("resolve that doubt first");
+  expect(guidance).toContain("reconnect to the earlier topic");
+  expect(guidance).toContain("do not make the learner repeat context");
+ });
+ it("uses one manageable stretch element instead of forcing advanced language every turn",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"topic_practice",supportLanguage:"ml",stage:1});
+  const guidance=policy.responseGuidance.join(" ");
+  expect(guidance).toContain("at most one manageable new phrase");
+  expect(guidance).toContain("one natural next step");
+  expect(guidance).toContain("not with a repetitive quiz");
+ });
+ it("keeps adaptive conversational guidance across all modes and language directions",()=>{
+  const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
+  for(const mode of modes){
+   for(const direction of ["ml_to_en","en_to_ml"] as const){
+    const policy=buildGabrooTeachingPolicy({mode,supportLanguage:direction==="ml_to_en"?"ml":"en",learningDirection:direction});
+    const guidance=policy.responseGuidance.join(" ");
+    expect(guidance).toContain("identify the immediate intent");
+    expect(guidance).toContain("resolve that doubt first");
+    expect(guidance).toContain("comprehensible stretch");
+   }
+  }
+ });
  it("defines distinct correction and learning goals for each mode",()=>{
   const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
   const policies=modes.map(mode=>buildGabrooTeachingPolicy({mode,supportLanguage:"en"}));
