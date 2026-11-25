@@ -192,6 +192,15 @@ export async function getGabrooConversation(id:string){return await authorized("
 export async function createGabrooConversation(input:{mode?:GabrooConversationMode;support_language?:"ml"|"en";title?:string}={}){
  return await authorized("/api/v1/gabroo/conversations","POST",input) as {conversation:GabrooConversation};
 }
+export type GabrooLearningInsights={
+ learning_direction:"ml_to_en"|"en_to_ml";
+ skill_areas:Array<{skill_key:string;attempt_count:number;correct_count:number;accuracy:number;evidence_status:"building_evidence"|"strong_exercise_performance"|"practice_opportunity"|"developing_exercise_performance"}>;
+ saved_practice_phrases:number;
+ interpretation:{exercise_results_are_not_speaking_or_overall_proficiency_scores:boolean;latest_attempt_per_exercise_and_skill:boolean;minimum_evidence_for_coaching:number};
+};
+export async function getGabrooLearningInsights(){
+ return await authorized("/api/v1/gabroo/learning-insights","GET") as GabrooLearningInsights;
+}
 export type GabrooSentenceFeedbackItem={category:"grammar"|"word_choice"|"naturalness";original:string;suggested:string;explanation:string;alternative?:string};
 export type GabrooSentenceFeedback={feedback:GabrooSentenceFeedbackItem[];encouragement:string};
 export async function requestGabrooSentenceFeedback(text:string){
