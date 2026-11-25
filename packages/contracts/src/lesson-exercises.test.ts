@@ -22,3 +22,9 @@ describe("authored exercise evaluation",()=>{
   expect(evaluateAuthoredExercise(choice," ".repeat(3))).toBeNull();
  });
 });
+ it("accepts valid optional curriculum stage tags and rejects out-of-range stages",()=>{
+  expect(authoredExerciseSchema.safeParse({...choice,stage:3}).success).toBe(true);
+  expect(authoredExerciseSchema.safeParse({...choice,stage:6}).success).toBe(false);
+  expect(authoredExerciseSchema.safeParse({...choice,stage:0}).success).toBe(false);
+ });
+
