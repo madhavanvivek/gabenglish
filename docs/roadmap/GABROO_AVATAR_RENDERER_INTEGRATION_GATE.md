@@ -79,3 +79,5 @@ Voice approval is a separate gate. The renderer must not select or lock a voice 
 Native playback status validation rejects out-of-range playheads, invalid durations and malformed audio identity before clock sampling.
 
 The Expo AV adapter now validates the complete trusted playback identity before creating a native sound instance, including bounded non-empty ticket/audio IDs, a SHA-256 audio hash, positive integer measured duration, and exact alignment hash/duration match. Consumer error callbacks are isolated so exceptions cannot escape native playback-status dispatch.
+
+Native playback now performs a complete speech-asset preflight before `Audio.Sound.createAsync`: the untrusted alignment timeline is parsed with the shared contract, and its audio ID and duration must exactly match the validated playback identity. The accepted timeline is a fresh parsed copy, so later caller mutation cannot alter the animation data used by native playback.
