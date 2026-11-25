@@ -46,3 +46,10 @@ Character timestamps are a separate capability from phoneme alignment. The contr
 - Provider offset semantics must be verified against real samples. If a provider reports byte offsets, UTF-16 offsets, word timings or token timings, an explicit verified conversion adapter is required; never reinterpret them as code-point indices.
 
 This allows future providers with character-level timing to support karaoke-style highlighting while the phoneme-driven avatar remains independently gated.
+
+
+### Playback-clock caption highlighting
+
+The character-alignment module also exports `sampleGabrooCaptionAtPlayback`. Once a provider alignment has passed the audio/text identity checks and has been converted into caption cues, the mobile player can sample the active cue using the native audio player's current position. Paused playback and stale audio IDs clear the highlight. If provider spans overlap, the cue with the latest start time wins deterministically.
+
+This sampler is a pure contract helper; the current mobile TTS response still does not return character timings, so the learner UI must not fabricate karaoke highlighting. Wire it only after a provider supplies verified offsets and the client has the matching audio identity.
