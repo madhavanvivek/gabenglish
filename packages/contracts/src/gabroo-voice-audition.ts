@@ -30,14 +30,37 @@ const ratingsSchema=z.object({
  gentleHumour:rating,emotionalRange:rating,longSessionComfort:rating,
  slowSpeedIntelligibility:rating
 }).strict();
+const ratingEvidenceSchema=z.object({
+ keralaMalayalamAuthenticity:z.string().trim().min(1).max(300).optional(),
+ malayalamPronunciation:z.string().trim().min(1).max(300).optional(),
+ codeSwitching:z.string().trim().min(1).max(300).optional(),
+ englishTeachingClarity:z.string().trim().min(1).max(300).optional(),
+ warmthRespect:z.string().trim().min(1).max(300).optional(),
+ energyPersonality:z.string().trim().min(1).max(300).optional(),
+ gentleHumour:z.string().trim().min(1).max(300).optional(),
+ emotionalRange:z.string().trim().min(1).max(300).optional(),
+ longSessionComfort:z.string().trim().min(1).max(300).optional(),
+ slowSpeedIntelligibility:z.string().trim().min(1).max(300).optional()
+}).strict();
 
 export const gabrooVoiceAuditionReviewSchema=z.object({
  blindCode:z.enum(["VOICE-01","VOICE-02","VOICE-03"]),
  reviewerLabel:z.string().trim().min(1).max(80),
  ratings:ratingsSchema,
+ ratingEvidence:ratingEvidenceSchema.optional(),
  rejectionGates:z.array(z.enum(GABROO_VOICE_AUDITION_REJECTION_GATES)).max(7),
- evidenceNotes:z.string().max(1200).optional()
-}).strict();
+ evidenceNotes:z.string().trim().min(1).max(1200).optional()
+}).strict().superRefine((review,ctx)=>{
+ for(const dimension of GABROO_VOICE_AUDITION_DIMENSIONS){
+  const score=review.ratings[dimension.key];
+  if((score===1||score===2||score===5)&&!review.ratingEvidence?.[dimension.key]){
+   ctx.addIssue({code:"custom",path:["ratingEvidence",dimension.key],message:"Add a short evidence note for ratings of 1, 2 or 5."});
+  }
+ }
+ if(review.rejectionGates.length>0&&!review.evidenceNotes){
+  ctx.addIssue({code:"custom",path:["evidenceNotes"],message:"Explain the observed rejection gate before submitting the scorecard."});
+ }
+});
 
 export type GabrooVoiceAuditionReview=z.infer<typeof gabrooVoiceAuditionReviewSchema>;
 export interface GabrooVoiceAuditionCandidateSummary {
