@@ -28,7 +28,7 @@ export async function registerDailyChallengeRoutes(app:FastifyInstance,pool:Pool
   const date=(request.params as {date?:string}).date??"";
   if(!validDate(date))return failure(reply,request.id,400,"VALIDATION_ERROR","Please provide a valid challenge date.");
   const result=await pool.query(
-   "SELECT challenge_date,learning_direction,challenge_title,skill_key,conversation_id,completed_at FROM learner_daily_challenge_completions WHERE user_id=$1 AND challenge_date=$2",
+   "SELECT challenge_date,learning_direction,challenge_title,skill_key,conversation_id,completed_at FROM learner_daily_challenge_completions WHERE user_id=$1 AND challenge_date=$2 AND learning_direction=COALESCE((SELECT learning_direction FROM user_preferences WHERE user_id=$1),'ml_to_en')",
    [learner.id,date]
   );
   return {completion:result.rows[0]??null};
