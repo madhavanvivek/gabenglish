@@ -2,7 +2,8 @@ import type {LearnerLessonContent} from "@gabenglish/contracts";
 import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system";
 import { parseGabrooSpeechStatus, type GabrooSpeechStatus } from "./gabroo/speech-status";
-import {parseActiveGabrooSpeechAsset,type GabrooSpeechAsset,authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
+import { buildGabrooSpeechRequest, parseGabrooSpeechResponse } from "./gabroo/speech-request";
+import {type GabrooSpeechAsset,authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
 
 const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
 const ACCESS_KEY="gabenglish.auth.access";
@@ -181,10 +182,11 @@ export async function recognizeGabrooAudio(input:{
 
 export type {GabrooRecognitionStatus};
 export async function generateGabrooSpeech(input:{text:string;language:"ml"|"en";speech_rate:number;consentGranted:true}):Promise<GabrooSpeechAsset>{
- if(input.consentGranted!==true)throw new AuthApiError("Explicit consent is required before generating Gabroo speech.");
- const payload=await authorized("/api/v1/gabroo/speech","POST",{text:input.text,language:input.language,speech_rate:input.speech_rate},{"x-gabroo-consent":"true"});
- if(typeof payload!=="object"||payload===null||!("speech_asset" in payload))throw new AuthApiError("Gabroo speech generation returned an invalid response.");
- try{return parseActiveGabrooSpeechAsset(payload.speech_asset);}
+ let request:ReturnType<typeof buildGabrooSpeechRequest>;
+ try{request=buildGabrooSpeechRequest(input);}
+ catch(error){throw new AuthApiError(error instanceof Error?error.message:"Gabroo speech request is invalid.");}
+ const payload=await authorized("/api/v1/gabroo/speech","POST",request.body,request.headers);
+ try{return parseGabrooSpeechResponse(payload);}
  catch{throw new AuthApiError("Gabroo returned an invalid or expired speech asset.");}
 }
 
