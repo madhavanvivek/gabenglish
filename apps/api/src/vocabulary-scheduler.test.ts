@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {initialVocabularyReview,scheduleVocabularyReview} from "./vocabulary-scheduler.js";
+import {initialVocabularyReview,scheduleVocabularyReview,type RecallRating} from "./vocabulary-scheduler.js";
 describe("vocabulary spaced repetition scheduler",()=>{
  const at=new Date("2026-11-25T00:00:00.000Z");
  it("starts new vocabulary as due immediately",()=>{expect(initialVocabularyReview(at)).toMatchObject({repetitions:0,intervalDays:0,easeFactor:2.5,dueAt:at});});
@@ -25,7 +25,7 @@ describe("vocabulary spaced repetition scheduler",()=>{
   expect(next.easeFactor).toBe(4);
  });
  it("rejects invalid ratings and dates",()=>{
-  expect(()=>scheduleVocabularyReview({repetitions:0,intervalDays:0,easeFactor:2.5},6,at)).toThrow();
+  expect(()=>scheduleVocabularyReview({repetitions:0,intervalDays:0,easeFactor:2.5},6 as unknown as RecallRating,at)).toThrow();
   expect(()=>scheduleVocabularyReview({repetitions:0,intervalDays:0,easeFactor:2.5},3,new Date("invalid"))).toThrow();
  });
 });
