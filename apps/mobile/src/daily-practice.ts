@@ -57,7 +57,15 @@ export function buildDailySpeakingChallenge(date:string,skills:DailyPracticeSkil
  const focusSkill=skills.filter(item=>item.evidence_status==="practice_opportunity"||item.evidence_status==="developing_exercise_performance").sort((a,b)=>a.accuracy-b.accuracy||b.attempt_count-a.attempt_count)[0];
  const bank=focusSkill?challengeBank[focusSkill.skill_key]??general:general;
  const selected=bank[((index%bank.length)+bank.length)%bank.length]!;
- const usablePhrases=savedPhrases.map(parseSavedPracticePhrase).filter(item=>item.original||item.practiceVersion||item.fallback).slice(0,50);
+ const candidates=savedPhrases.map(parseSavedPracticePhrase).filter(item=>item.original||item.practiceVersion||item.fallback);
+ const uniquePhrases=new Map<string,ParsedSavedPracticePhrase>();
+ for(const phrase of candidates){
+  const stableKey=[phrase.original,phrase.practiceVersion,phrase.fallback].map(value=>(value??"").trim().toLocaleLowerCase()).join("\\u0000");
+  if(!uniquePhrases.has(stableKey))uniquePhrases.set(stableKey,phrase);
+ }
+ // Journal APIs need not return rows in a stable order. Sort before date-based rotation
+ // so a refresh or pagination-order change does not unexpectedly change today's phrase.
+ const usablePhrases=[...uniquePhrases.entries()].sort(([a],[b])=>a<b?-1:a>b?1:0).slice(0,50).map(([,phrase])=>phrase);
  if(usablePhrases.length){
   const saved=usablePhrases[((index%usablePhrases.length)+usablePhrases.length)%usablePhrases.length]!;
   const original=saved.original??saved.fallback;
