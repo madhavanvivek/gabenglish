@@ -17,6 +17,8 @@ Gabroo's canonical avatar runtime samples mouth and expression controls from the
 - Never estimate phoneme timing from character count, word length, sentence duration or a generic animation timer.
 - Alignment timestamps must refer to the exact synthesized audio bytes. Every alignment carries a SHA-256 fingerprint and stable audio ID; a timeline from a different voice, text revision, playback segment or audio asset must be rejected.
 - Unknown phonemes map to a neutral viseme. The mapper must not invent mouth movement for unknown symbols.
+- Common long-vowel IPA tokens are mapped to the same coarse viseme class as their short-vowel counterparts (for example, `aː`, `iː`, `uː`, and `eː`). This preserves a usable jaw/lip target without pretending vowel duration or coarticulation is validated.
+- Malayalam retroflex consonants such as `ʈ` and `ɳ` intentionally remain neutral until the approved rig has a validated visual pose for them; do not collapse them into dental visemes.
 - The current IPA-to-viseme mapping is a coarse starting point for the shared rig, not a validated Malayalam phonetics model. Native Malayalam phoneme coverage, coarticulation, timing offsets and visual quality still require native-speaker and device review.
 - Expression and gesture tracks are intentionally empty in this adapter. They must be driven by separately authored/validated conversational cues, not inferred from phonemes.
 - The current TTS response path returns MP3 audio only. It does not yet provide phoneme alignment, so this contract alone does not make production lip-sync operational.
