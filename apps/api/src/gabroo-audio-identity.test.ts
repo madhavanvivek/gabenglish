@@ -28,6 +28,10 @@ describe("Gabroo synthesized audio identity",()=>{
    expect(()=>createGabrooSynthesizedAudioIdentity({audio:Buffer.from([1]),text:"Hello",durationMs})).toThrow(/duration/i);
   }
  });
+ it("rejects audio larger than the shared 12 MiB synthesis limit before hashing",()=>{
+  const oversized=Buffer.alloc(12*1024*1024+1);
+  expect(()=>createGabrooSynthesizedAudioIdentity({audio:oversized,text:"Hello",durationMs:100})).toThrow(/12 MiB/i);
+ });
  it("rejects invalid explicit audio IDs",()=>{
   expect(()=>createGabrooSynthesizedAudioIdentity({audio:Buffer.from([1]),text:"Hello",durationMs:100,audioId:"  "})).toThrow(/audio ID/i);
   expect(()=>createGabrooSynthesizedAudioIdentity({audio:Buffer.from([1]),text:"Hello",durationMs:100,audioId:" sample "})).toThrow(/audio ID/i);
