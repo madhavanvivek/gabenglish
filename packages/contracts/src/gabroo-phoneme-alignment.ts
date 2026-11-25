@@ -56,12 +56,17 @@ const visemeByPhoneme:Readonly<Record<string,GabrooVisemeShape>>={
  "θ":"tongue_teeth","ð":"tongue_teeth","t̪":"tongue_teeth","d̪":"tongue_teeth",
  // Open vowels
  a:"open_wide","ɑ":"open_wide","æ":"open_wide","ɐ":"open_wide",
+ // Explicit long-vowel tokens used by IPA aligners for Malayalam and English.
+ "aː":"open_wide","ɑː":"open_wide","ɐː":"open_wide",
  // Mid vowels
  e:"open_mid","ɛ":"open_mid","ə":"open_mid","ɜ":"open_mid","ʌ":"open_mid",
+ "eː":"open_mid","ɛː":"open_mid",
  // Rounded vowels
  o:"open_round","ɔ":"open_round","u":"open_round","ʊ":"open_round","ɒ":"open_round",
+ "oː":"open_round","ɔː":"open_round","uː":"open_round","ʊː":"open_round",
  // Close/front vowels and palatal glide
  i:"spread","ɪ":"spread","j":"spread",
+ "iː":"spread","ɪː":"spread",
  // Close rounded vowels and labial-velar glide
  y:"narrow_round","ʉ":"narrow_round","ʊ̈":"narrow_round","w":"narrow_round"
 };
