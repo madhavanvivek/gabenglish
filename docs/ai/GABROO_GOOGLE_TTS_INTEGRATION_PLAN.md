@@ -142,7 +142,7 @@ No candidate is automatically selected because it is the default or cheapest.
 3. Add explicit server-side configuration, mutually exclusive provider selection and test doubles. **Done.**
 4. Reuse the existing authenticated speech API and one-time playback-ticket flow. **Already present; Google adapter is wired into server startup.**
 5. Add durable usage metering, quotas and timeout policy. **Initial implementation done:** PostgreSQL day/month buckets, atomic reservations, configurable 10,000 daily / 100,000 monthly character defaults, and quota rejection responses. Subscription-plan-specific quota mapping, retention cleanup and a separate operational cost kill switch remain pending.
-6. Add a restricted audition command for candidate voice IDs. **Implemented:** `pnpm --filter @gabenglish/api audition:google-tts -- --confirm-provider-usage` generates 28 identical-script MP3 samples across four Standard/WaveNet candidates, with a blind reviewer manifest and a separate private provider-to-code mapping. The command requires explicit confirmation and a server-side API key; output is git-ignored.
+6. Add a restricted audition command for candidate voice IDs. **Implemented:** `pnpm --filter @gabenglish/api audition:google-tts -- --confirm-provider-usage` generates 56 identical-script MP3 samples across four Standard/WaveNet voices and two input modes (plain text and bilingual SSML), with randomized blind codes, a reviewer manifest and a separate private voice/mode mapping. The command requires explicit confirmation and a server-side API key; output is git-ignored.
 7. Add/verify mobile playback integration through Gabenglish API, never direct Google calls. **Pending verification.**
 8. Run staging tests only after credentials and billing are separately authorized.
 9. Capture audition samples and technical scorecard for owner review.
@@ -170,7 +170,7 @@ No candidate is automatically selected because it is the default or cheapest.
 - Billing: not enabled by this change.
 - Usage metering and atomic daily/monthly character quotas: implemented in migration 0026; defaults are 10,000/day and 100,000/month and are configurable. Subscription-specific quota policy, request-rate controls, usage retention cleanup and cost kill switch: pending.
 - Blind audition generator: implemented; it is not run automatically. Actual samples still require an authorized server-side Google Cloud key and confirmed provider usage.
-- Final Gabroo voice: **not approved**. The four Google voice IDs remain audition candidates only; owner approval is still required.
+- Final Gabroo voice: **not approved**. The four Google voice IDs and both synthesis modes remain audition candidates only; owner approval is still required.
 - Production use: **not authorized yet**.
 
 
@@ -190,11 +190,11 @@ The command generates eight randomized blind sample folders (`SAMPLE-01` through
 The generator does not run during CI, application startup or deployment. The Google adapter regression tests cover malformed padding and over-limit encoded payload rejection. No samples were generated as part of this code change, no provider credentials were accessed, and no voice was selected or approved.
 
 
-## 12. Malayalam-English SSML handling (2026-11-25)
+## 12. Malayalam-English SSML handling and matched A/B auditions (2026-11-25)
 
 The Google Standard/WaveNet adapter now sends SSML rather than plain text. It preserves the configured Malayalam voice as the default and wraps contiguous Latin-script phrases in an English `<lang>` span (`en-US`). XML-reserved characters are escaped before insertion, and the locale is validated. The provider does not switch to a second English voice.
 
-Google describes `<lang>` support as best-effort and notes that mixed-language quality can vary. This implementation is a controlled pronunciation experiment, not a claim that code-switching is solved. Compare the resulting samples with plain Malayalam-locale synthesis using the same scripts and settings before retaining it for production. Chirp 3 HD remains excluded because it does not support SSML or the speaking-rate parameter used by this adapter.
+Google describes `<lang>` support as best-effort and notes that mixed-language quality can vary. This implementation is a controlled pronunciation experiment, not a claim that code-switching is solved. The audition generator now produces a matched plain-text control for every Standard/WaveNet voice, with identical text, speed and script segments. It randomizes eight blind sample codes and stores the voice/mode key separately in the restricted mapping. Compare samples blind before retaining SSML for production. Chirp 3 HD remains excluded because it does not support SSML or the speaking-rate parameter used by this adapter.
 
 
 ### English locale and XML escaping hardening (2026-11-25)
