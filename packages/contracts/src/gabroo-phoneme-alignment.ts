@@ -89,3 +89,14 @@ export function gabrooPhonemeAlignmentToTimeline(input:GabrooPhonemeAlignment):G
   gestures:[]
  });
 }
+
+/** Convert only after proving the alignment belongs to the exact playback asset. */
+export function gabrooPhonemeAlignmentToTimelineForAudio(
+ input:GabrooPhonemeAlignment,
+ audio:GabrooAudioAlignmentIdentity
+):GabrooSpeechTimeline{
+ if(!isGabrooPhonemeAlignmentForAudio(input,audio)){
+  throw new Error("Gabroo phoneme alignment does not match the active audio asset.");
+ }
+ return gabrooPhonemeAlignmentToTimeline(input);
+}
