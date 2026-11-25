@@ -4,12 +4,14 @@ import {parseGabrooSpeechStatus} from "./gabroo-speech-status";
 const available={
  available:true,
  formats:["audio/mpeg"],
- speed:{minimum:0.75,maximum:1.5}
+ speed:{minimum:0.75,maximum:1.5},
+ capabilities:{speech_synthesis:true,character_alignment:false,phoneme_alignment:false,live_avatar_renderer:false}
 };
 const unavailable={
  available:false,
  formats:[],
- speed:{minimum:0.75,maximum:1.5}
+ speed:{minimum:0.75,maximum:1.5},
+ capabilities:{speech_synthesis:false,character_alignment:false,phoneme_alignment:false,live_avatar_renderer:false}
 };
 
 describe("Gabroo speech readiness contract",()=>{
@@ -18,6 +20,15 @@ describe("Gabroo speech readiness contract",()=>{
  });
  it("accepts an unavailable provider without advertising formats",()=>{
   expect(parseGabrooSpeechStatus(unavailable)).toEqual(unavailable);
+ });
+ it("reports the current runtime honestly: speech only, no alignment or live avatar renderer",()=>{
+  expect(parseGabrooSpeechStatus(available).capabilities).toEqual({speech_synthesis:true,character_alignment:false,phoneme_alignment:false,live_avatar_renderer:false});
+  expect(parseGabrooSpeechStatus(unavailable).capabilities.speech_synthesis).toBe(false);
+ });
+ it("rejects an advertised alignment or renderer until the server implements it",()=>{
+  expect(()=>parseGabrooSpeechStatus({...available,capabilities:{...available.capabilities,phoneme_alignment:true}})).toThrow(/invalid response/i);
+  expect(()=>parseGabrooSpeechStatus({...available,capabilities:{...available.capabilities,character_alignment:true}})).toThrow(/invalid response/i);
+  expect(()=>parseGabrooSpeechStatus({...available,capabilities:{...available.capabilities,live_avatar_renderer:true}})).toThrow(/invalid response/i);
  });
  it("rejects unknown audio formats instead of treating them as playable",()=>{
   expect(()=>parseGabrooSpeechStatus({...available,formats:["application/json"]})).toThrow(/invalid response/i);
