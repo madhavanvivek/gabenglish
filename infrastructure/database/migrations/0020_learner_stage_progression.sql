@@ -5,7 +5,7 @@ CREATE TABLE learner_learning_stages (
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   learning_direction text NOT NULL CHECK (learning_direction IN ('ml_to_en','en_to_ml')),
   stage smallint NOT NULL CHECK (stage BETWEEN 1 AND 5),
-  stage_source text NOT NULL CHECK (stage_source IN ('learner_selected','assessment_recommended')),
+  stage_source text NOT NULL CHECK (stage_source IN ('learner_selected','assessment_recommended','evidence_progression')),
   updated_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, learning_direction)
 );
