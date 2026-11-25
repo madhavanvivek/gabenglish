@@ -242,13 +242,15 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
    [learner.id,lesson.learning_direction]
   );
   const currentStage=stageRow.rows[0]?.stage??null;
+  const exerciseStage=typeof exercise.stage==="number"&&Number.isInteger(exercise.stage)&&exercise.stage>=1&&exercise.stage<=5?exercise.stage as LearningStage:null;
+  const evidenceStage=currentStage!==null&&exerciseStage===currentStage?currentStage:null;
   await pool.query(
    `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback,learner_stage)
     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-   [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,submitted,correct,feedback,currentStage]
+   [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,submitted,correct,feedback,evidenceStage]
   );
   let stageProgression:ReturnType<typeof evaluateLearningStage>|null=null;
-  if(currentStage!==null){
+  if(currentStage!==null&&evidenceStage===currentStage){
    const recent=await pool.query<{is_correct:boolean}>(
     `SELECT is_correct FROM learner_exercise_attempts
      WHERE user_id=$1 AND learning_direction=$2 AND learner_stage=$3
@@ -268,7 +270,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
    current_stage:stageProgression.currentStage,next_stage:stageProgression.nextStage,outcome:stageProgression.outcome,
    sample_size:stageProgression.sampleSize,correct_count:stageProgression.correctCount,accuracy:stageProgression.accuracy,
    rationale:stageProgression.rationale
-  }:null};
+  }:null,stage_evidence:{eligible:evidenceStage!==null,reason:evidenceStage!==null?"Exercise is tagged for the learner’s confirmed stage.":exerciseStage===null?"Exercise has no curriculum stage tag.":"Exercise stage does not match the learner’s confirmed stage."}};
  });
 
 }
