@@ -36,6 +36,27 @@ export interface GabrooSpeechAlignmentProvider {
  * against both the exact audio and exact UTF-8 text fingerprints; phoneme
  * timing is checked against the exact audio. Unknown result kinds fail closed.
  */
+
+/**
+ * Recompute fingerprints at the provider boundary so a caller cannot pair a
+ * valid identity record with a different audio buffer or source transcript.
+ */
+export function assertGabrooSpeechAlignmentInputIdentity(
+ input:Pick<GabrooSpeechAlignmentInput,"audio"|"text"|"identity">
+):void {
+ const recomputed=createGabrooSynthesizedAudioIdentity({
+  audio:input.audio,
+  text:input.text,
+  durationMs:input.identity.duration_ms,
+  audioId:input.identity.audio_id
+ });
+ if(recomputed.audio_sha256.toLowerCase()!==input.identity.audio_sha256.toLowerCase()
+  ||recomputed.text_sha256.toLowerCase()!==input.identity.text_sha256.toLowerCase()
+  ||recomputed.text_length!==input.identity.text_length){
+  throw new Error("Gabroo alignment input identity does not match the exact audio bytes and source text.");
+ }
+}
+
 export function validateGabrooSpeechAlignmentResult(
  result:GabrooSpeechAlignmentResult,
  identity:GabrooSynthesizedAudioIdentity,
