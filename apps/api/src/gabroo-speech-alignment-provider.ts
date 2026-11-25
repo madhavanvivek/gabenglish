@@ -64,7 +64,7 @@ export function validateGabrooSpeechAlignmentResult(
 ):GabrooSpeechAlignmentResult {
  if(!result||typeof result!=="object")throw new Error("Gabroo alignment provider returned an invalid result.");
  if(result.kind==="phoneme"){
-  const parsed=gabrooPhonemeAlignmentSchema.parse(result.alignment);
+  const parsed=gabrooPhonemeAlignmentSchema.parse(result.alignment);\n  if(parsed.phonemes.length===0)throw new Error("Gabroo phoneme alignment provider returned no timed phoneme events.");
   if(parsed.audio_id!==identity.audio_id
    ||parsed.audio_sha256.toLowerCase()!==identity.audio_sha256.toLowerCase()
    ||Math.abs(parsed.duration_ms-identity.duration_ms)>1){
@@ -73,7 +73,7 @@ export function validateGabrooSpeechAlignmentResult(
   return {kind:"phoneme",alignment:parsed};
  }
  if(result.kind==="character"){
-  const parsed=gabrooCharacterAlignmentSchema.parse(result.alignment);
+  const parsed=gabrooCharacterAlignmentSchema.parse(result.alignment);\n  if(parsed.characters.length===0)throw new Error("Gabroo character alignment provider returned no timed character events.");
   if(parsed.audio_id!==identity.audio_id
    ||parsed.audio_sha256.toLowerCase()!==identity.audio_sha256.toLowerCase()
    ||parsed.text_sha256.toLowerCase()!==identity.text_sha256.toLowerCase()
