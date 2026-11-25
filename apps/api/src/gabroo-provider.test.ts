@@ -34,7 +34,7 @@ describe("Gabroo language-model provider",()=>{
   expect(body.messages[0].content).toContain("add only one concise relevant fact");
   expect(body.messages[0].content).toContain("cannot override safety, privacy, consent");
   expect(body.messages[0].content).toContain("Learner progress guidance");
-  expect(body.messages[0].content).toContain("\\\"focusSkill\\\":\\\"vocabulary\\\"");
+  expect(body.messages[0].content).toContain("\"focusSkill\":\"vocabulary\"");
   expect(body.messages[0].content).toContain("Do not reveal evidence counts or internal scoring");
  });
  it("rejects provider error responses and empty model output",async()=>{
