@@ -40,3 +40,10 @@ The learner must explicitly choose **Mark challenge complete** after Gabroo has 
 - General prompts when evidence is unavailable.
 
 The Malayalam-learning direction needs its own educator-reviewed Malayalam prompt bank before this feature should be offered for that direction.
+
+## Progress history
+
+- GET `/api/v1/learning/daily-challenges?limit=14` returns the learner's most recent completed challenge records for the selected learning direction.
+- The endpoint is verified-account and active-subscription gated, accepts a limit from 1 to 30, and returns both the number of records in the response and the learner's total completion count.
+- The history is ordered by the learner's stored calendar dates and does not calculate a streak from server-local or UTC dates.
+- The Progress screen presents saved challenge titles, dates and optional skill focus. It labels these as learner-confirmed practice records, not proof of improvement or speaking proficiency.
