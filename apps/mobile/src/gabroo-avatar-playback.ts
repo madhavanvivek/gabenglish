@@ -1,4 +1,5 @@
 import {
+ gabrooSpeechTimelineSchema,
  sampleGabrooConversationFrameFromPlaybackStatus,
  type GabrooRenderedFrame,
  type GabrooSpeechTimeline
@@ -42,17 +43,22 @@ export function sampleGabrooMobileAvatarPlayback(input:{
  if(typeof input.expectedPlaybackId!=="string"||input.expectedPlaybackId.length===0
   ||input.playbackId!==input.expectedPlaybackId)return neutral();
  const metadata=input.metadata;
- if(!/^[a-f0-9]{64}$/.test(metadata.audioId)||metadata.audioId!==metadata.audioSha256
+ if(typeof metadata.audioId!=="string"||typeof metadata.audioSha256!=="string"
+  ||typeof metadata.textSha256!=="string"
+  ||!/^[a-f0-9]{64}$/.test(metadata.audioId)||metadata.audioId!==metadata.audioSha256
   ||!/^[a-f0-9]{64}$/.test(metadata.textSha256)
   ||!Number.isSafeInteger(metadata.durationMs)||metadata.durationMs<=0
   ||input.timeline.audio_id!==metadata.audioId
-  ||!Number.isFinite(input.timeline.duration_ms)
   ||Math.abs(input.timeline.duration_ms-metadata.durationMs)>1){
   return neutral();
  }
+ // Treat the timeline as untrusted at the renderer boundary: callers may
+ // bypass the provider parser or restore stale/corrupt cached state.
+ const parsedTimeline=gabrooSpeechTimelineSchema.safeParse(input.timeline);
+ if(!parsedTimeline.success)return neutral();
  return sampleGabrooConversationFrameFromPlaybackStatus({
   phase:"speaking",
-  activeSpeech:input.timeline,
+  activeSpeech:parsedTimeline.data,
   lastError:null
  },{
   isLoaded:input.isLoaded,
