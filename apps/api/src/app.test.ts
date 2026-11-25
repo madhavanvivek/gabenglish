@@ -1,9 +1,11 @@
-import {createHmac} from "node:crypto";
+import {createHash,createHmac} from "node:crypto";
 import {request as httpRequest} from "node:http";
 import {Readable} from "node:stream";
 import {describe,it,expect} from "vitest";
 import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
+import {createGabrooSynthesizedAudioIdentity} from "./gabroo-audio-identity.js";
+import {measureGabrooMp3DurationMs} from "./gabroo-mp3-metadata.js";
 
 function learnerAuthHeader(secret:string){
  const payload=Buffer.from(JSON.stringify({
@@ -113,6 +115,40 @@ describe("API foundation",()=>{
   expect(response.headers["cache-control"]).toBe("private, no-store");
   expect(response.rawPayload).toEqual(Buffer.from([1,2,3]));
   expect(captured).toEqual({text:"നമസ്കാരം! Let's practise.",speed:0.9});
+  await app.close();
+ });
+
+ it("keeps alignment unavailable unless a real provider is injected",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const app=await buildApp(config,async()=>true,recognitionPool(true));
+  const response=await app.inject({method:"POST",url:"/api/v1/gabroo/speech/alignment",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{}});
+  expect(response.statusCode).toBe(503);
+  expect(response.json().error.code).toBe("ALIGNMENT_PROVIDER_UNAVAILABLE");
+  await app.close();
+ });
+ it("validates exact MP3 and transcript identity before requesting phoneme alignment",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const audio=Buffer.alloc(834);
+  for(let offset=0;offset<audio.length;offset+=417)audio.set([0xff,0xfb,0x90,0x00],offset);
+  const text="ഹായ് Gabroo!";
+  const durationMs=measureGabrooMp3DurationMs(audio);
+  const identity=createGabrooSynthesizedAudioIdentity({audio,text,durationMs,audioId:createHash("sha256").update(audio).digest("hex")});
+  let calls=0;
+  const provider={align:async(input:any)=>{
+   calls++;
+   return {kind:"phoneme" as const,alignment:{audio_id:input.identity.audio_id,audio_sha256:input.identity.audio_sha256,duration_ms:input.identity.duration_ms,phonemes:[{phoneme:"m",start_ms:0,end_ms:Math.min(20,input.identity.duration_ms)}]}};
+  }};
+  const app=await buildApp(config,async()=>true,recognitionPool(true),undefined,undefined,undefined,undefined,undefined,provider);
+  const headers={authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)};
+  const payload={audio_base64:audio.toString("base64"),text,audio_id:identity.audio_id,audio_sha256:identity.audio_sha256,text_sha256:identity.text_sha256,duration_ms:durationMs,language:"mixed"};
+  const valid=await app.inject({method:"POST",url:"/api/v1/gabroo/speech/alignment",headers,payload});
+  expect(valid.statusCode).toBe(200);
+  expect(valid.json().alignment.kind).toBe("phoneme");
+  expect(calls).toBe(1);
+  const altered=await app.inject({method:"POST",url:"/api/v1/gabroo/speech/alignment",headers,payload:{...payload,text:"മാറ്റിയ വാചകം"}});
+  expect(altered.statusCode).toBe(400);
+  expect(altered.json().error.code).toBe("ALIGNMENT_IDENTITY_MISMATCH");
+  expect(calls).toBe(1);
   await app.close();
  });
  it("rejects unsupported Gabroo speech speed and does not call the provider",async()=>{
