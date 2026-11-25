@@ -4,6 +4,7 @@ import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system";
 import {readGabrooAudioBytes} from "./gabroo-audio-response";
 import {parseGabrooPlaybackTicket} from "./gabroo-playback-ticket";
+import {parseGabrooAudioResponseMetadata} from "./gabroo-audio-metadata";
 import {authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
 
 const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
@@ -223,30 +224,71 @@ export async function recognizeGabrooAudio(input:{
  * returned URL directly to Expo AV so native networking fetches the MP3;
  * learner text is sent only in the authenticated POST body, never in a URL.
  */
-export async function synthesizeGabrooSpeech(input:{text:string;speed:number;signal?:AbortSignal}):Promise<{url:string;audioId:string}>{
+function encodeGabrooAudioBase64(bytes:Uint8Array):string{
+ const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+ let output="";
+ for(let index=0;index<bytes.length;index+=3){
+  const a=bytes[index]!;
+  const hasB=index+1<bytes.length,hasC=index+2<bytes.length;
+  const b=hasB?bytes[index+1]!:0,c=hasC?bytes[index+2]!:0;
+  output+=alphabet[a>>2];
+  output+=alphabet[((a&3)<<4)|(b>>4)];
+  output+=hasB?alphabet[((b&15)<<2)|(c>>6)]:"=";
+  output+=hasC?alphabet[c&63]:"=";
+ }
+ return output;
+}
+
+export type GabrooSynthesizedMobileAudio={
+ url:string;
+ /** One-time native playback identity; distinct from the MP3 content hash. */
+ audioId:string;
+ metadata:ReturnType<typeof parseGabrooAudioResponseMetadata>;
+};
+
+export async function synthesizeGabrooSpeech(input:{text:string;speed:number;signal?:AbortSignal}):Promise<GabrooSynthesizedMobileAudio>{
  const text=input.text.trim();
  if(!text||text.length>4_000)throw new AuthApiError("Gabroo speech must contain between 1 and 4000 characters.");
  if(!Number.isFinite(input.speed)||input.speed<0.75||input.speed>1.5)throw new AuthApiError("Gabroo speaking speed must be between 0.75× and 1.5×.");
  if(input.signal?.aborted)throw new AuthApiError("Gabroo speech request was cancelled.");
  const controller=new AbortController();
  let timedOut=false;
+ let localUri:string|undefined;
  const abortFromCaller=()=>controller.abort();
  input.signal?.addEventListener("abort",abortFromCaller,{once:true});
- const timeout=setTimeout(()=>{timedOut=true;controller.abort();},15_000);
+ const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30_000);
  try{
   const payload=await authorized("/api/v1/gabroo/speech/playback-ticket","POST",{text,speed:input.speed},controller.signal) as unknown;
   if(input.signal?.aborted)throw new AuthApiError("Gabroo speech request was cancelled.");
   let ticket:{url:string;audioId:string;expiresAt:string};
   try{ticket=parseGabrooPlaybackTicket(payload);}
   catch(error){throw new AuthApiError(error instanceof Error?error.message:"Gabroo returned an invalid native playback ticket.");}
-  // The one-time ticket token is a stable per-asset playback ID, not a content hash.
-  return {url:new URL(ticket.url,baseUrl()+"/").toString(),audioId:ticket.audioId};
+  // Fetch the one-time URL ourselves so the measured response headers and bytes
+  // are available to the app. Expo AV cannot expose response headers to JS.
+  const response=await fetch(new URL(ticket.url,baseUrl()+"/").toString(),{
+   method:"GET",headers:{accept:"audio/mpeg"},signal:controller.signal
+  });
+  if(!response.ok)await parseResponse(response);
+  const bytes=await readGabrooAudioBytes(response,controller.signal);
+  if(input.signal?.aborted)throw new AuthApiError("Gabroo speech request was cancelled.");
+  const metadata=parseGabrooAudioResponseMetadata(response.headers);
+  const cacheDirectory=FileSystem.cacheDirectory;
+  if(!cacheDirectory)throw new AuthApiError("Gabroo audio storage is unavailable on this device.");
+  localUri=cacheDirectory+"gabroo-"+ticket.audioId+".mp3";
+  await FileSystem.writeAsStringAsync(localUri,encodeGabrooAudioBase64(bytes),{encoding:FileSystem.EncodingType.Base64});
+  if(input.signal?.aborted){
+   await FileSystem.deleteAsync(localUri,{idempotent:true}).catch(()=>undefined);
+   localUri=undefined;
+   throw new AuthApiError("Gabroo speech request was cancelled.");
+  }
+  return {url:localUri,audioId:ticket.audioId,metadata};
  }catch(error){
+  if(localUri)await FileSystem.deleteAsync(localUri,{idempotent:true}).catch(()=>undefined);
   if(input.signal?.aborted)throw new AuthApiError("Gabroo speech request was cancelled.");
   if(timedOut)throw new AuthApiError("Gabroo took too long to prepare this speech. Please try again.");
   if(error instanceof AuthApiError)throw error;
   if(error instanceof Error&&error.name==="AbortError")throw new AuthApiError("Gabroo speech request was interrupted.");
-  throw new AuthApiError("Could not prepare Gabroo audio. Check your connection and try again.");
+  throw new AuthApiError(error instanceof Error?error.message:"Could not prepare Gabroo audio. Check your connection and try again.");
  }finally{
   clearTimeout(timeout);
   input.signal?.removeEventListener("abort",abortFromCaller);
