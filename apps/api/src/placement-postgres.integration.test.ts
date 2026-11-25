@@ -745,6 +745,42 @@ integration("PostgreSQL placement session integration",()=>{
   await app.close();
  });
 
+ it("persists narrow pilot evidence without deriving a learner stage",async()=>{
+  if(!pool||!migrationApplied)return;
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  const email="placement-pilot-"+randomUUID()+"@example.test";
+  try{
+   const token=await createVerifiedTestSession(app,email,pool);
+   const response=await app.inject({
+    method:"POST",url:"/api/v1/placement/assessments/submit",
+    headers:{authorization:"Bearer "+token},
+    payload:{idempotency_key:randomUUID(),answers:[
+     {question_id:"q1",option_id:"b"},{question_id:"q2",option_id:"a"},
+     {question_id:"q3",option_id:"c"},{question_id:"q4",option_id:"a"},
+     {question_id:"q5",option_id:"a"}
+    ]}
+   });
+   expect(response.statusCode).toBe(200);
+   expect(response.json()).toMatchObject({score:5,total:5,percentage:100,recommendation_status:"not_yet_available"});
+   expect(response.json()).not.toHaveProperty("suggested_stage");
+   expect(response.json().assessment_coverage).toEqual(expect.arrayContaining([
+    expect.objectContaining({skill:"grammar",status:"sampled_limited"}),
+    expect.objectContaining({skill:"comprehension",status:"sampled_limited"}),
+    expect.objectContaining({skill:"vocabulary",status:"not_assessed"}),
+    expect.objectContaining({skill:"fluency",status:"not_assessed"}),
+    expect.objectContaining({skill:"pronunciation",status:"not_assessed"})
+   ]));
+   const saved=await pool.query<{result:Record<string,unknown>}>(
+    "SELECT result FROM gabroo_placement_attempts WHERE user_id=(SELECT id FROM users WHERE email_normalized=$1) ORDER BY created_at DESC LIMIT 1",[email]
+   );
+   expect(saved.rows[0]?.result).toMatchObject({recommendation_status:"not_yet_available"});
+   expect(saved.rows[0]?.result).not.toHaveProperty("suggested_stage");
+  }finally{
+   await pool.query("DELETE FROM users WHERE email_normalized=$1",[email]);
+   await app.close();
+  }
+ });
+
  it("keeps vocabulary learner-owned and only creates it from an explicitly saved Gabroo phrase",async()=>{
   if(!pool||!migrationApplied)return;
   const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
