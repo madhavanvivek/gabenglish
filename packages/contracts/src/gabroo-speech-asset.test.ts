@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gabrooSpeechAssetSchema, parseActiveGabrooSpeechAsset } from "./gabroo-speech-asset";
+import { gabrooSpeechAssetSchema, parseActiveGabrooSpeechAsset } from "./gabroo-speech-asset.js";
 
 const validAsset = () => ({
   playbackTicketId: "ticket-1",
