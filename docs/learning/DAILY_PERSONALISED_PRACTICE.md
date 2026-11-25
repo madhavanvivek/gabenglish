@@ -47,3 +47,11 @@ The Malayalam-learning direction needs its own educator-reviewed Malayalam promp
 - The endpoint is verified-account and active-subscription gated, accepts a limit from 1 to 30, and returns both the number of records in the response and the learner's total completion count.
 - The history is ordered by the learner's stored calendar dates and does not calculate a streak from server-local or UTC dates.
 - The Progress screen presents saved challenge titles, dates and optional skill focus. It labels these as learner-confirmed practice records, not proof of improvement or speaking proficiency.
+
+## Learner-saved phrase challenges
+
+- When the learner has explicitly saved one or more `saved_phrase` entries in Speaking Journal, the Home screen can select one deterministically for that day's optional challenge.
+- The app reads only the learner's own saved journal entries. It extracts the explicitly learner-entered `Learner phrase:` line and does not infer corrections from conversation transcripts.
+- The prompt invites the learner to use the saved phrase naturally in a new situation with Gabroo. It does not grade the phrase, assign a skill score, or treat challenge completion as evidence of improvement.
+- If no usable saved phrase exists, the existing exercise-evidence/general challenge selection remains unchanged.
+- Phrase selection is local to the Home screen and is not copied into a new server record; the daily completion record still stores only the challenge title, skill focus and optional conversation reference.
