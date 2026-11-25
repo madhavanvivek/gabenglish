@@ -47,6 +47,16 @@ describe("Gabroo speech alignment provider boundary",()=>{
   expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio,text:"മറ്റൊരു വാചകം",language:"ml",identity:exactIdentity})).toThrow(/exact audio bytes and source text/i);
  });
 
+ it("rejects malformed identity metadata before invoking a provider",()=>{
+  const audio=Buffer.from([1,2,3]);
+  const text="Hello";
+  const exactIdentity=createGabrooSynthesizedAudioIdentity({audio,text,durationMs:500,audioId:"identity-bounds"});
+  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio,text,language:"en",identity:{...exactIdentity,audio_id:" ".repeat(2)}})).toThrow(/identity is malformed/i);
+  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio,text,language:"en",identity:{...exactIdentity,audio_sha256:"bad"}})).toThrow(/identity is malformed/i);
+  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio,text,language:"en",identity:{...exactIdentity,text_length:4_001}})).toThrow(/identity is malformed/i);
+  expect(()=>assertGabrooSpeechAlignmentInputIdentity({audio,text,language:"en",identity:{...exactIdentity,duration_ms:Number.POSITIVE_INFINITY}})).toThrow(/identity is malformed/i);
+ });
+
  it("runs providers only after verifying input identity and validates their response",async()=>{
   const audio=Buffer.from([9,8,7]);
   const text="Hello";
