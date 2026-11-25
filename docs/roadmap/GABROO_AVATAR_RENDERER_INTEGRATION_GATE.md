@@ -167,3 +167,8 @@ Screen navigation blur is handled separately from OS backgrounding: leaving the 
 ## Abandoned cache-download cleanup
 
 A process kill can leave a temporary `.part` file even though normal cancellation and failure paths already delete it. Temporary filenames now include their creation timestamp. The opportunistic private-cache sweep removes only recognized Gabroo partial downloads older than 24 hours, alongside expired signed `.audio` entries. Fresh in-progress downloads, malformed names and unrelated cache files are preserved. Unit tests cover the age boundary and isolation from unrelated files.
+
+
+## Transcription interruption safety
+
+A transcription request may already be in flight when the learner backgrounds the app or navigates away. Gabroo now invalidates that request's UI generation on either interruption, resets the busy state, and ignores any late transcript response. The pending local recording is discarded by the existing lifecycle cleanup. This prevents a late response from repopulating a transcript after the learner has left the screen; it does not claim to cancel a network upload that the platform has already started.
