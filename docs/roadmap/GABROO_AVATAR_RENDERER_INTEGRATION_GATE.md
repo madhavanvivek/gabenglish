@@ -109,3 +109,7 @@ CI exposed a cancellation edge case when a speech vendor ignores its AbortSignal
 ## Mobile speech-readiness integration
 
 The learner app now calls the authenticated speech-status endpoint when an active subscription is present and surfaces whether the generated-voice provider is available. If the provider is not configured, the screen clearly says that playback still uses the installed device voice; if readiness cannot be checked, it avoids implying that generated speech is available. This is readiness discovery only: it does not submit learner text for generation, change consent, or replace the device-voice fallback.
+
+## Readiness contract validation
+
+The mobile client now validates the speech-readiness response through a pure, dependency-free runtime parser before exposing it to the UI. It rejects unexpected fields, malformed availability flags, duplicate or unsupported languages, invalid speed ranges, and missing explicit-consent requirements. Unit tests cover available/unavailable responses and malformed payloads. This is deliberately a readiness contract only; it does not enable speech generation.
