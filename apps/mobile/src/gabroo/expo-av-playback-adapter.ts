@@ -3,11 +3,11 @@ import {
   GabrooNativePlaybackClock,
   type GabrooNativePlayerSnapshot,
   type GabrooPlaybackIdentity,
-  isGabrooPlaybackIdentityValid,
 } from "./native-playback-clock";
 import type { GabrooAvatarRendererGate } from "./avatar-renderer-gate";
 
 import { toGabrooNativePlayerSnapshot } from "./expo-av-playback-status";
+import { validateGabrooPlaybackAsset } from "./playback-asset-validation";
 
 export interface GabrooExpoAvPlaybackHandle {
   play(): Promise<void>;
@@ -34,9 +34,7 @@ export async function createGabrooExpoAvPlayback(input: {
   if (typeof input.uri !== "string" || !input.uri.trim()) {
     throw new Error("A playable Gabroo audio URI is required.");
   }
-  if (!isGabrooPlaybackIdentityValid(input.identity)) {
-    throw new Error("Trusted Gabroo audio and alignment metadata are required.");
-  }
+  const validatedTimeline = validateGabrooPlaybackAsset(input.identity, input.timeline);
   const reportError = (error: Error) => {
     try { input.onError?.(error); } catch { /* Consumer callbacks must not escape native status dispatch. */ }
   };
@@ -71,7 +69,7 @@ export async function createGabrooExpoAvPlayback(input: {
         if (!started) clock.begin(input.identity);
         started = true;
         const snapshot = toGabrooNativePlayerSnapshot(status, input.identity);
-        if (!snapshot || !clock.tick(snapshot, input.timeline)) stopClock();
+        if (!snapshot || !clock.tick(snapshot, validatedTimeline)) stopClock();
       },
     );
     sound = created.sound;
