@@ -6,9 +6,12 @@ export type DailyPracticeSkill={
 };
 export type DailySpeakingChallenge={date:string;title:string;focus:string;prompt:string;skillKey:string|null};
 export type SavedPracticePhrase={memory_key:string;content:string};
-function learnerSavedPhrase(item:SavedPracticePhrase):string{
- const saved=item.content.split("\n").find(line=>line.startsWith("Learner phrase: "))?.slice("Learner phrase: ".length).trim();
- return (saved||item.memory_key.trim()).slice(0,180);
+type PracticePhrase={original:string|null;practiceVersion:string|null;fallback:string};
+function learnerSavedPhrase(item:SavedPracticePhrase):PracticePhrase{
+ const lines=item.content.split("\n");
+ const original=lines.find(line=>line.startsWith("Learner phrase: "))?.slice("Learner phrase: ".length).trim().slice(0,180)||null;
+ const practiceVersion=lines.find(line=>line.startsWith("Practice version: "))?.slice("Practice version: ".length).trim().slice(0,180)||null;
+ return {original,practiceVersion,fallback:item.memory_key.trim().slice(0,180)};
 }
 const challengeBank:Record<string,Array<{title:string;focus:string;prompt:string}>>={
  sentence_formation:[
@@ -31,21 +34,11 @@ const challengeBank:Record<string,Array<{title:string;focus:string;prompt:string
   {title:"Speak in short chunks",focus:"Clear, comfortable speech",prompt:"Describe how you make your favourite food. Speak in short meaningful phrases and pause naturally between each step. Focus on being clear, not fast."},
   {title:"Explain a process",focus:"Pace and clarity",prompt:"Explain how someone new to your town can reach a place you know well. Give the directions one step at a time, at a comfortable pace."}
  ],
- listening:[
-  {title:"Listen and respond",focus:"Understand and answer",prompt:"Ask Gabroo to tell you a short story in simple English. Listen carefully, then retell the main events in your own words and ask one follow-up question."}
- ],
- speaking:[
-  {title:"Start a conversation",focus:"Confident everyday speaking",prompt:"Imagine you are meeting a new colleague. Introduce yourself, ask two friendly questions and tell them one interesting thing about your day."}
- ],
- comprehension:[
-  {title:"Summarise an idea",focus:"Explain what you understood",prompt:"Ask Gabroo to explain a useful everyday topic in three short points. Then summarise those points in your own words and say which one matters most to you."}
- ],
- conversation:[
-  {title:"Keep a conversation going",focus:"Ask natural follow-up questions",prompt:"Imagine you are chatting with a friend about a weekend trip. Share one idea, ask a follow-up question and respond naturally to Gabroo's replies."}
- ],
- writing:[
-  {title:"Say it another way",focus:"Rephrase your ideas",prompt:"Tell Gabroo about a goal you have. First explain it simply, then try saying the same idea in a different way using “My aim is…” or “I’m hoping to…”."}
- ]
+ listening:[{title:"Listen and respond",focus:"Understand and answer",prompt:"Ask Gabroo to tell you a short story in simple English. Listen carefully, then retell the main events in your own words and ask one follow-up question."}],
+ speaking:[{title:"Start a conversation",focus:"Confident everyday speaking",prompt:"Imagine you are meeting a new colleague. Introduce yourself, ask two friendly questions and tell them one interesting thing about your day."}],
+ comprehension:[{title:"Summarise an idea",focus:"Explain what you understood",prompt:"Ask Gabroo to explain a useful everyday topic in three short points. Then summarise those points in your own words and say which one matters most to you."}],
+ conversation:[{title:"Keep a conversation going",focus:"Ask natural follow-up questions",prompt:"Imagine you are chatting with a friend about a weekend trip. Share one idea, ask a follow-up question and respond naturally to Gabroo's replies."}],
+ writing:[{title:"Say it another way",focus:"Rephrase your ideas",prompt:"Tell Gabroo about a goal you have. First explain it simply, then try saying the same idea in a different way using “My aim is…” or “I’m hoping to…”."}]
 };
 const general=[
  {title:"A moment from today",focus:"Everyday communication",prompt:"Tell Gabroo about one thing that happened today. Explain what happened, how you felt and what you might do next."},
@@ -66,10 +59,15 @@ export function buildDailySpeakingChallenge(date:string,skills:DailyPracticeSkil
   .sort((a,b)=>a.accuracy-b.accuracy||b.attempt_count-a.attempt_count)[0];
  const bank=focusSkill?challengeBank[focusSkill.skill_key]??general:general;
  const selected=bank[((index%bank.length)+bank.length)%bank.length]!;
- const usablePhrases=savedPhrases.map(learnerSavedPhrase).filter(phrase=>phrase.length>0).slice(0,50);
+ const usablePhrases=savedPhrases.map(learnerSavedPhrase).filter(item=>item.original||item.practiceVersion||item.fallback).slice(0,50);
  if(usablePhrases.length){
-  const phrase=usablePhrases[((index%usablePhrases.length)+usablePhrases.length)%usablePhrases.length]!;
-  return {date,title:"Bring a saved phrase to life",focus:"Practise a phrase you chose to keep",prompt:"You saved this phrase in your Speaking Journal: “"+phrase+"”. Start a natural conversation with Gabroo where you can use this phrase. Ask Gabroo to help you practise using it in a different everyday situation. Keep the meaning you intended, and do not treat this practice as a score.",skillKey:null};
+  const saved=usablePhrases[((index%usablePhrases.length)+usablePhrases.length)%usablePhrases.length]!;
+  const original=saved.original??saved.fallback;
+  const target=saved.practiceVersion??original;
+  const prompt=saved.practiceVersion&&saved.original
+   ?"You saved this original phrase in your Speaking Journal: “"+saved.original+"”. You also chose this practice version: “"+saved.practiceVersion+"”. Try using the practice version in a natural conversation with Gabroo. Keep the meaning you intended in the original phrase; if the new wording does not feel right, discuss another way to say it. This is practice, not a score."
+   :"You saved this phrase in your Speaking Journal: “"+target+"”. Start a natural conversation with Gabroo where you can use this phrase in a different everyday situation. Keep the meaning you intended, and do not treat this practice as a score.";
+  return {date,title:"Bring a saved phrase to life",focus:saved.practiceVersion?"Practise a version you chose to improve":"Practise a phrase you chose to keep",prompt,skillKey:null};
  }
  return {date,title:selected.title,focus:selected.focus,prompt:selected.prompt,skillKey:focusSkill?.skill_key??null};
 }
