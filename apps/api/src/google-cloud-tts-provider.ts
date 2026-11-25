@@ -4,6 +4,7 @@ type GoogleTtsConfig={
  GABROO_GOOGLE_TTS_API_KEY?:string;
  GABROO_GOOGLE_TTS_VOICE?:string;
  GABROO_GOOGLE_TTS_LANGUAGE_CODE?:string;
+ GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE?:string;
 };
 type FetchLike=(input:string|URL|Request,init?:RequestInit)=>Promise<Response>;
 const MAX_TEXT_CHARACTERS=4_000;
@@ -33,8 +34,10 @@ export function createGoogleCloudTtsProvider(
  const apiKey=config.GABROO_GOOGLE_TTS_API_KEY?.trim();
  const voice=config.GABROO_GOOGLE_TTS_VOICE?.trim();
  const languageCode=config.GABROO_GOOGLE_TTS_LANGUAGE_CODE?.trim()||"ml-IN";
+ const englishLanguageCode=config.GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE?.trim()||"en-US";
  if(!apiKey||!voice)return undefined;
  if(!/^[a-z]{2,3}-[A-Z]{2,4}$/.test(languageCode))throw new Error("Google TTS language code is invalid.");
+ if(!/^[a-z]{2,3}-[A-Z]{2,4}$/.test(englishLanguageCode))throw new Error("Google TTS English language code is invalid.");
  if(!voice.startsWith(languageCode+"-"))throw new Error("Google TTS voice must match the configured language code.");
  // This adapter sends speakingRate, which is supported by Standard/WaveNet but not Chirp 3 HD.
  if(!/^[a-z]{2,3}-[A-Z]{2,4}-(Standard|Wavenet)-[A-Z]$/.test(voice))throw new Error("Google TTS audition adapter currently supports Standard and WaveNet voice IDs only.");
@@ -52,7 +55,7 @@ export function createGoogleCloudTtsProvider(
     method:"POST",
     headers:{"content-type":"application/json",accept:"application/json","x-goog-api-key":apiKey},
     body:JSON.stringify({
-     input:{ssml:buildGabrooGoogleTtsSsml(text)},
+     input:{ssml:buildGabrooGoogleTtsSsml(text,englishLanguageCode)},
      voice:{languageCode,name:voice},
      audioConfig:{audioEncoding:"MP3",speakingRate:input.speed}
     }),
