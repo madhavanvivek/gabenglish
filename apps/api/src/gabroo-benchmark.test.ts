@@ -1,5 +1,6 @@
 import {describe,expect,it} from "vitest";
 import {buildGabrooBenchmarkPolicy,getGabrooBenchmarkPolicyVersion,GABROO_EVALUATION_DIMENSIONS} from "./gabroo-benchmark.js";
+import {GABROO_PROVIDER_ADAPTER_VERSION} from "./gabroo-openai-provider.js";
 
 describe("Gabroo benchmark policy",()=>{
  it("uses the live English-learning policy for the scenario stage",()=>{
@@ -40,4 +41,8 @@ describe("Gabroo benchmark policy",()=>{
    "level_fit","correction_quality","continuity","tutor_warmth","safety_respect","latency_reliability"
   ]);
  });
+ it("uses a versioned provider adapter for repeatable comparisons",()=>{
+  expect(GABROO_PROVIDER_ADAPTER_VERSION).toBe("1");
+ });
+
 });
