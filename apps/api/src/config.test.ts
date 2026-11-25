@@ -47,7 +47,12 @@ describe("Gabenglish runtime configuration",()=>{
   expect(()=>loadConfig({NODE_ENV:"test",GABROO_GOOGLE_TTS_VOICE:"ml-IN-Standard-B"})).toThrow("Invalid environment configuration");
   expect(()=>loadConfig({NODE_ENV:"test",GABROO_GOOGLE_TTS_API_KEY:"secret",GABROO_GOOGLE_TTS_VOICE:"en-US-Standard-C"})).toThrow("Invalid environment configuration");
  });
- it("allows a configured English locale for bilingual Google SSML and rejects malformed values",()=>{\n  const config=loadConfig({NODE_ENV:"test",GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE:"en-GB"});\n  expect(config.GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE).toBe("en-GB");\n  expect(()=>loadConfig({NODE_ENV:"test",GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE:"english"})).toThrow("Invalid environment configuration");\n });\n it("prevents two TTS providers from being configured simultaneously",()=>{
+ it("allows a configured English locale for bilingual Google SSML and rejects malformed values",()=>{
+  const config=loadConfig({NODE_ENV:"test",GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE:"en-GB"});
+  expect(config.GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE).toBe("en-GB");
+  expect(()=>loadConfig({NODE_ENV:"test",GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE:"english"})).toThrow("Invalid environment configuration");
+ });
+ it("prevents two TTS providers from being configured simultaneously",()=>{
   expect(()=>loadConfig({NODE_ENV:"test",GABROO_GOOGLE_TTS_API_KEY:"secret",GABROO_GOOGLE_TTS_VOICE:"ml-IN-Standard-B",GABROO_LLM_API_KEY:"secret",GABROO_LLM_MODEL:"chat",GABROO_TTS_MODEL:"tts",GABROO_TTS_VOICE:"voice"})).toThrow("Invalid environment configuration");
  });
  it("validates configurable daily and monthly speech quotas",()=>{
