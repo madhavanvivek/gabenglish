@@ -20,6 +20,14 @@ describe("Gabroo blind voice audition scorecards",()=>{
   expect(summarizeGabrooVoiceAuditions([review()])[0].eligibleForOwnerReview).toBe(false);
   expect(()=>summarizeGabrooVoiceAuditions([review(),review()])).toThrow("Duplicate reviewer");
  });
+ it("normalizes reviewer labels and rejects case/whitespace duplicate identities",()=>{
+  expect(()=>summarizeGabrooVoiceAuditions([
+   review({reviewerLabel:" Kerala Reviewer "}),
+   review({reviewerLabel:"kerala reviewer"})
+  ])).toThrow("Duplicate reviewer");
+  const result=summarizeGabrooVoiceAuditions([review({reviewerLabel:"  Reviewer One  "})])[0];
+  expect(result.weightedScoresByReviewer[0].reviewerLabel).toBe("Reviewer One");
+ });
  it("validates the fixed 1-to-5 rubric",()=>{
   expect(()=>summarizeGabrooVoiceAuditions([review({ratings:{...review().ratings,slowSpeedIntelligibility:6}})])).toThrow("Invalid voice audition review");
  });
