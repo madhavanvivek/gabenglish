@@ -22,6 +22,24 @@ describe("Gabroo canonical avatar animation contract",()=>{
   expect(timeline().audio_id).toBe("sample-audio-1");
  });
 
+ it("bounds animation timeline duration and cue counts",()=>{
+  expect(gabrooSpeechTimelineSchema.safeParse({
+   audio_id:"too-long",duration_ms:10*60*1000+1
+  }).success).toBe(false);
+  expect(gabrooSpeechTimelineSchema.safeParse({
+   audio_id:"too-many-visemes",duration_ms:1000,
+   visemes:Array.from({length:4097},()=>({start_ms:0,end_ms:1,shape:"neutral"}))
+  }).success).toBe(false);
+  expect(gabrooSpeechTimelineSchema.safeParse({
+   audio_id:"too-many-expressions",duration_ms:1000,
+   expressions:Array.from({length:257},()=>({start_ms:0,end_ms:1,expression:"neutral"}))
+  }).success).toBe(false);
+  expect(gabrooSpeechTimelineSchema.safeParse({
+   audio_id:"too-many-gestures",duration_ms:1000,
+   gestures:Array.from({length:129},()=>({start_ms:0,end_ms:1,gesture:"gentle_nod"}))
+  }).success).toBe(false);
+ });
+
  it("rejects events that extend beyond the spoken audio",()=>{
   expect(gabrooSpeechTimelineSchema.safeParse({
    audio_id:"short-audio",
