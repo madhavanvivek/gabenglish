@@ -69,7 +69,9 @@ describe("Gabroo phoneme alignment",()=>{
    duration_ms:600,
    phonemes:[{phoneme:"m",start_ms:0,end_ms:180},{phoneme:"a",start_ms:180,end_ms:420}]
   });
-  const thinking=reduceGabrooConversation(initialGabrooConversationState,{type:"learner_turn_started"});
+  const greeting=reduceGabrooConversation(initialGabrooConversationState,{type:"begin_greeting"});
+  const listening=reduceGabrooConversation(greeting,{type:"greeting_finished"});
+  const thinking=reduceGabrooConversation(listening,{type:"learner_turn_started"});
   const speaking=reduceGabrooConversation(thinking,{type:"response_speech_started",timeline});
   const current=sampleGabrooConversationFrameFromPlaybackStatus(speaking,{
    isLoaded:true,isPlaying:true,positionMillis:100,audioId:"native-audio-1"
