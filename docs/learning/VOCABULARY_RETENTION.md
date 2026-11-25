@@ -35,3 +35,9 @@ The screen uses the authenticated mobile API client, so access tokens remain in 
 The authenticated endpoint `GET /api/v1/learning/vocabulary/summary` aggregates only stable-ID vocabulary in the learner's current published curriculum direction and current published lesson versions. It returns total tagged words, words reviewed at least once, words still developing recall, words due now, and the most recent review timestamp.
 
 “Stable recall” is a scheduling signal defined as at least three successful repetitions with a seven-day-or-longer interval. It is not a fluency, vocabulary-size, or proficiency score. The endpoint requires an active subscription, and the mobile progress screen shows the summary when available while keeping the free diagnostic report independent.
+
+## Gabroo conversation integration
+
+When a learner starts or continues a conversation, the API now loads up to five of that learner's difficult or due vocabulary items from the current published lesson versions in the selected learning direction. Only learner-owned review rows are considered; English-to-Malayalam content must still be educator-approved.
+
+The items are passed to Gabroo's teaching policy as bounded context. Gabroo is instructed to reuse a relevant word naturally when it fits the conversation, without turning every chat into a quiz, interrupting the learner, or claiming mastery. A conversation without eligible review evidence receives an empty vocabulary focus and behaves as before. The learner's normal conversation history and saved memory remain separate.
