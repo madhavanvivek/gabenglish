@@ -24,6 +24,16 @@ describe("Gabroo mobile phoneme timeline",()=>{
   expect(parseGabrooPhonemeTimelineForAudio({...alignment,audio_id:"d".repeat(64)},metadata)).toBeNull();
   expect(parseGabrooPhonemeTimelineForAudio({...alignment,duration_ms:998},metadata)).toBeNull();
  });
+ it("fails closed when the measured metadata is malformed",()=>{
+  expect(parseGabrooPhonemeTimelineForAudio(alignment,{...metadata,audioSha256:"c".repeat(64)})).toBeNull();
+  expect(parseGabrooPhonemeTimelineForAudio(alignment,{...metadata,textSha256:"not-a-hash"})).toBeNull();
+  expect(parseGabrooPhonemeTimelineForAudio(alignment,{...metadata,durationMs:0})).toBeNull();
+  expect(parseGabrooPhonemeTimelineForAudio(alignment,{...metadata,durationMs:1000.5})).toBeNull();
+ });
+ it("accepts an alignment hash with equivalent hexadecimal casing",()=>{
+  const upper={...alignment,audio_sha256:audioId.toUpperCase()};
+  expect(parseGabrooPhonemeTimelineForAudio(upper,metadata)?.audio_id).toBe(audioId);
+ });
  it("refuses malformed or missing provider alignment instead of guessing timing",()=>{
   expect(parseGabrooPhonemeTimelineForAudio({audio_id:audioId,phonemes:[]},metadata)).toBeNull();
   expect(parseGabrooPhonemeTimelineForAudio(alignment,null)).toBeNull();
