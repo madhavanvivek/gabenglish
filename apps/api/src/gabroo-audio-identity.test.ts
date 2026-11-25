@@ -21,12 +21,12 @@ describe("Gabroo synthesized audio identity",()=>{
  });
  it("rejects empty audio, empty text and invalid durations",()=>{
   expect(()=>createGabrooSynthesizedAudioIdentity({audio:new Uint8Array(),text:"Hello",durationMs:100})).toThrow(/audio bytes/i);
-  expect(()=>createGabrooSynthesizedAudioIdentity({audio:Buffer.from([1]),text:"",durationMs:100})).toThrow(/text/i);
+  expect(()=>createGabrooSynthesizedAudioIdentity({audio:Buffer.from([1]),text:"",durationMs:100})).toThrow(/text/i);\n  expect(()=>createGabrooSynthesizedAudioIdentity({audio:Buffer.from([1]),text:"   ",durationMs:100})).toThrow(/text/i);\n  expect(()=>createGabrooSynthesizedAudioIdentity({audio:Buffer.from([1]),text:"x".repeat(4001),durationMs:100})).toThrow(/4000/i);
   for(const durationMs of [0,-1,Number.NaN,600001]){
    expect(()=>createGabrooSynthesizedAudioIdentity({audio:Buffer.from([1]),text:"Hello",durationMs})).toThrow(/duration/i);
   }
  });
  it("rejects invalid explicit audio IDs",()=>{
-  expect(()=>createGabrooSynthesizedAudioIdentity({audio:Buffer.from([1]),text:"Hello",durationMs:100,audioId:"  "})).toThrow(/audio ID/i);
+  expect(()=>createGabrooSynthesizedAudioIdentity({audio:Buffer.from([1]),text:"Hello",durationMs:100,audioId:"  "})).toThrow(/audio ID/i);\n  expect(()=>createGabrooSynthesizedAudioIdentity({audio:Buffer.from([1]),text:"Hello",durationMs:100,audioId:" sample "})).toThrow(/audio ID/i);
  });
 });
