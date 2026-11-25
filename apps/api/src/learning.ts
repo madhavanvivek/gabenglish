@@ -335,15 +335,15 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   if(!Number.isInteger(limit)||limit<1||limit>50)return failure(reply,request.id,400,"VALIDATION_ERROR","Review queue limit must be from 1 to 50.");
   const due=await pool.query<{lesson_id:string;lesson_title:string;lesson_version_id:string;vocabulary_item_id:string;term:string;meaning:string;pronunciation:string|null;example:string|null;due_at:Date;repetitions:number;interval_days:number}>(
    `SELECT l.id AS lesson_id,l.title AS lesson_title,lv.id AS lesson_version_id,
-      item->>'id' AS vocabulary_item_id,item->>'term' AS term,item->>'meaning' AS meaning,
-      item->>'pronunciation' AS pronunciation,item->>'example' AS example,
+      vocabulary_item.value->>'id' AS vocabulary_item_id,vocabulary_item.value->>'term' AS term,vocabulary_item.value->>'meaning' AS meaning,
+      vocabulary_item.value->>'pronunciation' AS pronunciation,vocabulary_item.value->>'example' AS example,
       COALESCE(r.due_at,now()) AS due_at,COALESCE(r.repetitions,0)::int AS repetitions,
       COALESCE(r.interval_days,0)::int AS interval_days
     FROM lessons l
     JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
     JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id
-    CROSS JOIN LATERAL jsonb_array_elements(COALESCE(lv.content->'blocks','[]'::jsonb)) block
-    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN block->>'type'='vocabulary' THEN COALESCE(block->'items','[]'::jsonb) ELSE '[]'::jsonb END) item
+    CROSS JOIN LATERAL jsonb_array_elements(COALESCE(lv.content->'blocks','[]'::jsonb)) AS lesson_block(value)
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN lesson_block.value->>'type'='vocabulary' THEN COALESCE(lesson_block.value->'items','[]'::jsonb) ELSE '[]'::jsonb END) AS vocabulary_item(value)
     LEFT JOIN learner_vocabulary_reviews r ON r.user_id=$1 AND r.learning_direction=$2
       AND r.lesson_version_id=lv.id AND r.vocabulary_item_id=item->>'id'
     WHERE l.status='published' AND c.status='published' AND lv.status='published'
