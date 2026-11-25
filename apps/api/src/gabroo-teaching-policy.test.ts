@@ -59,4 +59,29 @@ describe("Gabroo teaching policy",()=>{
   expect(policy.stageGuidance).toContain("do not infer proficiency");
  });
 
+
+ it("preserves the target-language contract across every teaching mode and both learning directions",()=>{
+  const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
+  for(const mode of modes){
+   const english=buildGabrooTeachingPolicy({mode,supportLanguage:"ml",learningDirection:"ml_to_en",targetLanguage:"en"});
+   expect(english.learningDirection).toBe("ml_to_en");
+   expect(english.targetLanguage).toBe("en");
+   expect(english.supportLanguage).toBe("ml");
+   expect(english.responseGuidance.join(" ")).toContain("learner is learning English");
+   const malayalam=buildGabrooTeachingPolicy({mode,supportLanguage:"en",learningDirection:"en_to_ml",targetLanguage:"ml"});
+   expect(malayalam.learningDirection).toBe("en_to_ml");
+   expect(malayalam.targetLanguage).toBe("ml");
+   expect(malayalam.supportLanguage).toBe("en");
+   expect(malayalam.responseGuidance.join(" ")).toContain("learner is learning Malayalam");
+   expect(malayalam.responseGuidance.join(" ")).toContain("Never assume casual slang");
+   expect(malayalam.addressPolicy).toContain("Never use 'eda', 'edi'");
+  }
+ });
+ it("keeps Malayalam script and register guidance available when learning direction is Malayalam",()=>{
+  for(const stage of [1,2,3,4,5] as const){
+   const policy=buildGabrooTeachingPolicy({mode:"topic_practice",supportLanguage:"en",learningDirection:"en_to_ml",targetLanguage:"ml",stage});
+   expect(policy.stageGuidance).toContain(`Malayalam Stage ${stage}`);
+   expect(policy.stageGuidance).toContain("register");
+  }
+ });
 });
