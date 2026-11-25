@@ -7,6 +7,7 @@ import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
 import {evaluateLearningStage, type LearningStage} from "./learning-stage.js";
 import {selectNextLessonRecommendation,type RecommendationCandidate} from "./lesson-recommendation.js";
+import {initialVocabularyReview,scheduleVocabularyReview,type RecallRating} from "./vocabulary-scheduler.js";
 
 type Direction="ml_to_en"|"en_to_ml";
 type CatalogRow={
@@ -323,6 +324,85 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   };
  });
 
+ app.get("/api/v1/learning/vocabulary/reviews",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to review vocabulary.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to access vocabulary reviews.");
+  const preference=await pool.query<{learning_direction:Direction}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preference.rows[0]?.learning_direction??"ml_to_en";
+  const query=(request.query??{}) as {limit?:string};
+  const limit=query.limit===undefined?20:Number(query.limit);
+  if(!Number.isInteger(limit)||limit<1||limit>50)return failure(reply,request.id,400,"VALIDATION_ERROR","Review queue limit must be from 1 to 50.");
+  const due=await pool.query<{lesson_id:string;lesson_title:string;lesson_version_id:string;vocabulary_item_id:string;term:string;meaning:string;pronunciation:string|null;example:string|null;due_at:Date;repetitions:number;interval_days:number}>(
+   `SELECT l.id AS lesson_id,l.title AS lesson_title,lv.id AS lesson_version_id,
+      item->>'id' AS vocabulary_item_id,item->>'term' AS term,item->>'meaning' AS meaning,
+      item->>'pronunciation' AS pronunciation,item->>'example' AS example,
+      r.due_at,r.repetitions,r.interval_days
+    FROM learner_vocabulary_reviews r
+    JOIN lessons l ON l.id=r.lesson_id AND l.status='published'
+    JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id AND c.status='published'
+    JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.id=r.lesson_version_id AND lv.status='published'
+    CROSS JOIN LATERAL jsonb_array_elements(COALESCE(lv.content->'blocks','[]'::jsonb)) block
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN block->>'type'='vocabulary' THEN COALESCE(block->'items','[]'::jsonb) ELSE '[]'::jsonb END) item
+    WHERE r.user_id=$1 AND r.learning_direction=$2 AND r.due_at<=now()
+      AND c.learning_direction=$2 AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')
+      AND item->>'id'=r.vocabulary_item_id
+    ORDER BY r.due_at ASC LIMIT $3`,
+   [learner.id,direction,limit]
+  );
+  return {learning_direction:direction,due_count:due.rows.length,items:due.rows.map(row=>({
+   lesson_id:row.lesson_id,lesson_title:row.lesson_title,lesson_version_id:row.lesson_version_id,
+   vocabulary_item_id:row.vocabulary_item_id,term:row.term,meaning:row.meaning,
+   pronunciation:row.pronunciation,example:row.example,due_at:row.due_at,
+   repetitions:row.repetitions,interval_days:row.interval_days
+  })),policy:{only_current_published_versions:true,learner_reports_recall:true,missed_reviews_never_block_lessons:true}};
+ });
+
+ app.post("/api/v1/learning/lessons/:id/vocabulary/:itemId/review",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to save your vocabulary review.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to save vocabulary reviews.");
+  const params=request.params as {id?:string;itemId?:string};
+  const lessonId=params.id??"",itemId=params.itemId??"";
+  if(!lessonIdPattern.test(lessonId)||!/^[a-zA-Z0-9_-]{1,64}$/.test(itemId))return failure(reply,request.id,400,"INVALID_VOCABULARY_REFERENCE","This vocabulary review link is invalid.");
+  const body=request.body as {rating?:unknown}|null;
+  if(!body||typeof body.rating!=="number"||!Number.isInteger(body.rating)||body.rating<0||body.rating>5||Object.keys(body).some(key=>key!=="rating"))return failure(reply,request.id,400,"VALIDATION_ERROR","Recall rating must be a whole number from 0 to 5.");
+  const preference=await pool.query<{learning_direction:Direction}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preference.rows[0]?.learning_direction??"ml_to_en";
+  const published=await pool.query<{lesson_version_id:string}>(
+   `SELECT lv.id AS lesson_version_id
+    FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
+    JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id
+    CROSS JOIN LATERAL jsonb_array_elements(COALESCE(lv.content->'blocks','[]'::jsonb)) block
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN block->>'type'='vocabulary' THEN COALESCE(block->'items','[]'::jsonb) ELSE '[]'::jsonb END) item
+    WHERE l.id=$1 AND l.status='published' AND c.status='published' AND lv.status='published'
+      AND c.learning_direction=$2 AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')
+      AND item->>'id'=$3 LIMIT 1`,
+   [lessonId,direction,itemId]
+  );
+  const versionId=published.rows[0]?.lesson_version_id;
+  if(!versionId)return failure(reply,request.id,404,"VOCABULARY_ITEM_NOT_FOUND","This vocabulary item is not in your current published learning content.");
+  const existing=await pool.query<{repetitions:number;interval_days:number;ease_factor:string}>(
+   "SELECT repetitions,interval_days,ease_factor::text FROM learner_vocabulary_reviews WHERE user_id=$1 AND learning_direction=$2 AND lesson_version_id=$3 AND vocabulary_item_id=$4",
+   [learner.id,direction,versionId,itemId]
+  );
+  const previous=existing.rows[0]??initialVocabularyReview();
+  const schedule=scheduleVocabularyReview({repetitions:previous.repetitions,intervalDays:previous.interval_days,easeFactor:Number(previous.ease_factor)},body.rating as RecallRating,new Date());
+  const saved=await pool.query<{due_at:Date;repetitions:number;interval_days:number;ease_factor:string}>(
+   `INSERT INTO learner_vocabulary_reviews(user_id,learning_direction,lesson_id,lesson_version_id,vocabulary_item_id,repetitions,interval_days,ease_factor,due_at,last_rating,last_reviewed_at,updated_at)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now(),now())
+    ON CONFLICT(user_id,learning_direction,lesson_version_id,vocabulary_item_id)
+    DO UPDATE SET repetitions=EXCLUDED.repetitions,interval_days=EXCLUDED.interval_days,
+      ease_factor=EXCLUDED.ease_factor,due_at=EXCLUDED.due_at,last_rating=EXCLUDED.last_rating,
+      last_reviewed_at=now(),updated_at=now()
+    RETURNING due_at,repetitions,interval_days,ease_factor::text`,
+   [learner.id,direction,lessonId,versionId,itemId,schedule.repetitions,schedule.intervalDays,schedule.easeFactor,schedule.dueAt,body.rating]
+  );
+  return {lesson_id:lessonId,vocabulary_item_id:itemId,learning_direction:direction,
+   rating:body.rating,schedule:{due_at:saved.rows[0]!.due_at,repetitions:saved.rows[0]!.repetitions,
+    interval_days:saved.rows[0]!.interval_days,ease_factor:Number(saved.rows[0]!.ease_factor)}};
+ });
+ 
  app.get("/api/v1/learning/skill-profile",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view your learning profile.");
