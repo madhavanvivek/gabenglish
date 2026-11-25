@@ -9,8 +9,7 @@ function audioFrameStart(audio:Uint8Array):number{
  const sizeBytes=audio.subarray(6,10);
  if(sizeBytes.some(value=>(value&0x80)!==0))throw new Error("Gabroo MP3 contains an invalid ID3v2 size.");
  const size=(sizeBytes[0]!<<21)|(sizeBytes[1]!<<14)|(sizeBytes[2]!<<7)|sizeBytes[3]!;
- const footer=(audio[3]!>=4&&(audio[5]!&0x10)!==0)?10:0;
- const start=10+size+footer;
+ const start=10+size;
  if(start>audio.length)throw new Error("Gabroo MP3 contains a truncated ID3v2 tag.");
  return start;
 }
