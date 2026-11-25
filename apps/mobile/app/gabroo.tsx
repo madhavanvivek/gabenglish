@@ -88,6 +88,12 @@ export default function GabrooScreen(){
  const sendInFlightRef=useRef(false);
  const speechPreferenceSequenceRef=useRef(0);
  const playbackStateRef=useRef<GabrooPlaybackState>(initialGabrooPlaybackState);
+ const [playbackState,setPlaybackState]=useState<GabrooPlaybackState>(initialGabrooPlaybackState);
+ const dispatchPlayback=(event:Parameters<typeof reduceGabrooPlayback>[1])=>{
+  const next=reduceGabrooPlayback(playbackStateRef.current,event);
+  playbackStateRef.current=next;
+  setPlaybackState(next);
+ };
  const audioModeQueueRef=useRef<ReturnType<typeof createGabrooAudioModeQueue>|null>(null);
  if(audioModeQueueRef.current===null)audioModeQueueRef.current=createGabrooAudioModeQueue();
  const audioModeQueue=audioModeQueueRef.current;
@@ -301,7 +307,7 @@ export default function GabrooScreen(){
   finishPendingSegment?.();
   const activePlayback=playbackStateRef.current;
   if(activePlayback.phase==="speaking"&&activePlayback.playback_id){
-   playbackStateRef.current=reduceGabrooPlayback(activePlayback,{type:"interrupted",playback_id:activePlayback.playback_id});
+   dispatchPlayback({type:"interrupted",playback_id:activePlayback.playback_id});
   }
   // Native speech shutdown can reject on device/audio-route transitions. A newer
   // playback may start while this await is pending, so stale shutdowns must not
@@ -335,7 +341,7 @@ export default function GabrooScreen(){
   const playbackId=`${message.id}:${run}`;
   const previousPlayback=playbackStateRef.current;
   if(previousPlayback.phase==="speaking"&&previousPlayback.playback_id){
-   playbackStateRef.current=reduceGabrooPlayback(previousPlayback,{type:"interrupted",playback_id:previousPlayback.playback_id});
+   dispatchPlayback({type:"interrupted",playback_id:previousPlayback.playback_id});
   }
   try{
    // Recording mode is explicitly disabled before tutor playback. This also
@@ -374,7 +380,7 @@ export default function GabrooScreen(){
       await sound.setRateAsync(speechRateRef.current,true);
       if(run!==speechRunRef.current||requestController.signal.aborted)return;
       if(!playbackStarted){
-       playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"started",playback_id:playbackId});
+       dispatchPlayback({type:"started",playback_id:playbackId});
        setSpeakingMessageId(message.id);setSpeechNotice("");
        playbackStarted=true;
       }
@@ -402,6 +408,7 @@ export default function GabrooScreen(){
        });
        void sound!.playAsync().catch(fail);
       });
+      if(run===speechRunRef.current&&!requestController.signal.aborted)dispatchPlayback({type:"segment_completed",playback_id:playbackId});
      }finally{
       if(sound){
        sound.setOnPlaybackStatusUpdate(null);
@@ -419,10 +426,7 @@ export default function GabrooScreen(){
     // The queue returns this count after its final cancellation check.
     const current=playbackStateRef.current;
     if(playbackStarted&&current.phase==="speaking"&&current.playback_id===playbackId){
-     for(let index=0;index<completed;index+=1){
-      playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"segment_completed",playback_id:playbackId});
-     }
-     playbackStateRef.current=reduceGabrooPlayback(playbackStateRef.current,{type:"finished",playback_id:playbackId});
+     dispatchPlayback({type:"finished",playback_id:playbackId});
     }
     setSpeakingMessageId(null);
     if(completed===0&&segments.length>0)setSpeechNotice("Gabroo's speech was interrupted.");
@@ -431,7 +435,7 @@ export default function GabrooScreen(){
    if(run===speechRunRef.current){
     const current=playbackStateRef.current;
     if(current.phase==="speaking"&&current.playback_id===playbackId){
-     playbackStateRef.current=reduceGabrooPlayback(current,{type:"failed",playback_id:playbackId,reason:reason instanceof Error?reason.message:"Speech playback failed."});
+     dispatchPlayback({type:"failed",playback_id:playbackId,reason:reason instanceof Error?reason.message:"Speech playback failed."});
     }
     setSpeakingMessageId(null);
     setSpeechNotice(reason instanceof AuthApiError&&reason.status===503?
@@ -835,6 +839,9 @@ export default function GabrooScreen(){
     </View>
     <Text style={s.modeLabel}>Conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>void changeMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View>{messages.length===0?<View style={s.emptyPanel}><Text style={s.title}>Hi! I'm Gabroo.</Text><Text style={s.copy}>Let's have a natural conversation. What's on your mind today?</Text></View>:messages.map(message=><View key={message.id} style={[s.bubble,message.role==="user"?s.userBubble:s.gabrooBubble]}><Text style={s.speaker}>{message.role==="user"?"YOU":"GABROO"}</Text><Text style={s.message}>{message.content}</Text>{message.role==="assistant"?<View style={s.replyActions}><Pressable accessibilityRole="button" onPress={()=>void speakMessage(message)} style={s.listenButton}><Text style={s.listenButtonText}>{speakingMessageId===message.id?"Stop speaking":"Listen to Gabroo"}</Text></Pressable><Pressable accessibilityRole="button" disabled={savingPhraseId!==null||savedPhraseIds.includes(message.id)} onPress={()=>void saveReplyAsPhrase(message)} style={[s.savePhraseButton,(savingPhraseId!==null||savedPhraseIds.includes(message.id))&&s.disabled]}><Text style={s.savePhraseText}>{savingPhraseId===message.id?"Saving…":savedPhraseIds.includes(message.id)?"Saved to memory":"Save useful phrase"}</Text></Pressable>{practiceDraft?<Pressable accessibilityRole="button" disabled={savingRevisionId!==null||savedRevisionIds.includes(message.id)} onPress={()=>void saveImprovedSentence(message)} style={[s.savePhraseButton,(savingRevisionId!==null||savedRevisionIds.includes(message.id))&&s.disabled]}><Text style={s.savePhraseText}>{savingRevisionId===message.id?"Saving revision…":savedRevisionIds.includes(message.id)?"Revision saved":"Save improved sentence"}</Text></Pressable>:null}</View>:null}</View>)}
     {turnState.phase==="thinking"?<Text accessibilityLiveRegion="polite" style={s.turnStatus}>Gabroo is thinking…</Text>:null}
+    {playbackState.phase==="speaking"?<Text accessibilityLiveRegion="polite" style={s.turnStatus}>Gabroo is speaking… ({playbackState.completed_segments} segments completed)</Text>:null}
+    {playbackState.phase==="interrupted"?<Text accessibilityLiveRegion="polite" style={s.turnStatus}>Gabroo's speech was interrupted.</Text>:null}
+    {playbackState.phase==="failed"?<Text accessibilityLiveRegion="polite" style={s.turnStatus}>Gabroo's audio playback stopped unexpectedly.</Text>:null}
     <TextInput value={draft} onChangeText={setDraft} placeholder="Write your message…" multiline style={s.input} editable={!busy}/>
     <Pressable disabled={!draft.trim()||busy} onPress={send} style={[s.button,(!draft.trim()||busy)&&s.disabled]}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Send message</Text>}</Pressable>
     <Text style={s.hint}>You can ask for gentle corrections, detailed explanations or just a natural chat. Listen uses Gabroo’s configured server voice. The final approved character voice and live voice conversations are still being developed.</Text>{speechNotice?<Text style={s.speechNotice}>{speechNotice}</Text>:null}
