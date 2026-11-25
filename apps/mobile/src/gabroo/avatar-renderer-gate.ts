@@ -160,7 +160,8 @@ export class GabrooAvatarRendererGate {
 
   /** Sample callback must return controls derived from the exact validated alignment. */
   render(proof: PlaybackProof, sample: (positionMs: number) => SampledAvatarFrame | null): boolean {
-    if (this.disposed || !this.ready || !isPlaybackProofValid(proof, this.generation)) {
+    if (this.disposed || !this.ready) return false;
+    if (!isPlaybackProofValid(proof, this.generation)) {
       this.resetSafely();
       return false;
     }
@@ -189,9 +190,6 @@ export class GabrooAvatarRendererGate {
       return true;
     } catch {
       this.resetSafely();
-      this.ready = false;
-      this.identity = null;
-      this.generation += 1;
       return false;
     }
   }
