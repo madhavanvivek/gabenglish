@@ -14,7 +14,7 @@ describe("daily speaking challenge",()=>{
    {skill_key:"fluency",attempt_count:2,accuracy:.2,evidence_status:"building_evidence"}
   ]);
   expect(challenge.skillKey).toBe("vocabulary");
-  expect(challenge.focus).toBe("Choose useful words");
+  expect(challenge.focus).toBe("Use precise words");
  });
  it("does not infer a weakness from insufficient or strong evidence",()=>{
   const challenge=buildDailySpeakingChallenge("2026-11-25",[
