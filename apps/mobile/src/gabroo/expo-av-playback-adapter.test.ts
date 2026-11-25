@@ -1,54 +1,51 @@
-import { describe, expect, it } from "vitest";
-import { isGabrooPlayableAudioUri, toGabrooNativePlayerSnapshot, type ExpoPlaybackStatusLike } from "./expo-av-playback-status";
+import { describe, expect, it, vi } from "vitest";
+import { createGabrooExpoAvPlayback } from "./expo-av-playback-adapter";
 
-describe("Expo AV playback status mapping", () => {
-  it("maps only loaded native playback state into the clock snapshot", () => {
-    const status: ExpoPlaybackStatusLike = {
-      isLoaded: true, isPlaying: true, positionMillis: 420, durationMillis: 2_000, didJustFinish: false,
-    };
-    expect(toGabrooNativePlayerSnapshot(status, {
-      playbackTicketId: "ticket", audioId: "audio", audioSha256: "a".repeat(64),
-    })).toEqual({
-      playbackTicketId: "ticket", audioId: "audio", audioSha256: "a".repeat(64),
-      durationMs: 2_000, loaded: true, playing: true, positionMs: 420,
-    });
-  });
-
-
-  it("rejects impossible playheads, invalid durations and malformed audio identity", () => {
-    const identity = { playbackTicketId: "ticket", audioId: "audio", audioSha256: "a".repeat(64) };
-    const valid = { isLoaded: true, isPlaying: true, positionMillis: 20, durationMillis: 100 };
-    expect(toGabrooNativePlayerSnapshot({ ...valid, positionMillis: -1 }, identity)).toBeNull();
-    expect(toGabrooNativePlayerSnapshot({ ...valid, positionMillis: 100 }, identity)).toBeNull();
-    expect(toGabrooNativePlayerSnapshot({ ...valid, durationMillis: 0 }, identity)).toBeNull();
-    expect(toGabrooNativePlayerSnapshot({ ...valid, durationMillis: Number.NaN }, identity)).toBeNull();
-    expect(toGabrooNativePlayerSnapshot(valid, { ...identity, audioSha256: "bad" })).toBeNull();
-    expect(toGabrooNativePlayerSnapshot(valid, { ...identity, playbackTicketId: " " })).toBeNull();
-  });
-
-  it("rejects unloaded, paused or incomplete status instead of fabricating a playhead", () => {
-    const identity = { playbackTicketId: "ticket", audioId: "audio", audioSha256: "a".repeat(64) };
-    expect(toGabrooNativePlayerSnapshot({ isLoaded: false }, identity)).toBeNull();
-    expect(toGabrooNativePlayerSnapshot({ isLoaded: true, isPlaying: false }, identity)).toBeNull();
-    expect(toGabrooNativePlayerSnapshot({ isLoaded: true, isPlaying: true, positionMillis: 1 }, identity)).toBeNull();
-  });
+const validAsset = () => ({
+  playbackTicketId: "ticket-1",
+  audioId: "audio-1",
+  audioSha256: "a".repeat(64),
+  measuredDurationMs: 1_000,
+  alignmentAudioSha256: "a".repeat(64),
+  alignmentDurationMs: 1_000,
+  uri: "https://cdn.example.test/audio.mp3?signature=opaque",
+  expiresAt: "2030-01-01T00:00:00.000Z",
+  timeline: { audio_id: "audio-1", duration_ms: 1_000, visemes: [], expressions: [], gestures: [] },
 });
 
-
-describe("Gabroo playable audio URI validation", () => {
-  it("accepts HTTPS assets and app-private file cache URIs", () => {
-    expect(isGabrooPlayableAudioUri("https://cdn.example.test/audio/clip.mp3")).toBe(true);
-    expect(isGabrooPlayableAudioUri("file:///data/user/0/app/cache/gabroo.mp3")).toBe(true);
+describe("Gabroo Expo AV playback adapter boundary", () => {
+  it.each([
+    ["expired", { ...validAsset(), expiresAt: "2029-12-31T23:59:59.000Z" }],
+    ["cross-audio alignment", { ...validAsset(), timeline: { ...validAsset().timeline, audio_id: "other-audio" } }],
+    ["unsafe URL", { ...validAsset(), uri: "http://cdn.example.test/audio.mp3" }],
+  ])("does not open native audio for %s assets", async (_label, asset) => {
+    const createSound = vi.fn();
+    await expect(createGabrooExpoAvPlayback({
+      asset,
+      gate: {} as never,
+      nowMs: Date.parse("2030-01-01T00:00:00.000Z"),
+      createSound: createSound as never,
+    })).rejects.toThrow();
+    expect(createSound).not.toHaveBeenCalled();
   });
 
-  it("rejects executable, credential-bearing, malformed and oversized URIs", () => {
-    expect(isGabrooPlayableAudioUri("javascript:alert(1)")).toBe(false);
-    expect(isGabrooPlayableAudioUri("data:audio/mpeg;base64,AAAA")).toBe(false);
-    expect(isGabrooPlayableAudioUri("http://cdn.example.test/audio.mp3")).toBe(false);
-    expect(isGabrooPlayableAudioUri("https://user:pass@example.test/audio.mp3")).toBe(false);
-    expect(isGabrooPlayableAudioUri("file://relative/path.mp3")).toBe(false);
-    expect(isGabrooPlayableAudioUri(" https://example.test/audio.mp3")).toBe(false);
-    expect(isGabrooPlayableAudioUri("https://example.test/" + "a".repeat(4100))).toBe(false);
-    expect(isGabrooPlayableAudioUri(null)).toBe(false);
+  it("loads only the validated URI and unloads the native sound", async () => {
+    const sound = {
+      playAsync: vi.fn(async () => undefined),
+      pauseAsync: vi.fn(async () => undefined),
+      stopAsync: vi.fn(async () => undefined),
+      unloadAsync: vi.fn(async () => undefined),
+    };
+    const createSound = vi.fn(async () => ({ sound }));
+    const playback = await createGabrooExpoAvPlayback({
+      asset: validAsset(),
+      gate: {} as never,
+      nowMs: Date.parse("2029-12-31T23:59:00.000Z"),
+      createSound: createSound as never,
+    });
+    expect(createSound).toHaveBeenCalledOnce();
+    expect(createSound.mock.calls[0]?.[0]).toEqual({ uri: validAsset().uri });
+    await playback.unload();
+    expect(sound.unloadAsync).toHaveBeenCalledOnce();
   });
 });
