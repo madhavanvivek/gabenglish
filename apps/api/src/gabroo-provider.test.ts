@@ -51,7 +51,7 @@ describe("Gabroo language-model provider",()=>{
  });
 
  it("keeps English-to-Malayalam learners focused on Malayalam acquisition",async()=>{
-  const fetcher=vi.fn(async()=>new Response(JSON.stringify({choices:[{message:{content:"നമസ്കാരം! ഇത് ഒരു നല്ല തുടക്കമാണ്."}}]}),{status:200}));
+  const fetcher=vi.fn(async(_url:string|URL|Request,_init?:RequestInit)=>new Response(JSON.stringify({choices:[{message:{content:"നമസ്കാരം! ഇത് ഒരു നല്ല തുടക്കമാണ്."}}]}),{status:200}));
   const provider=createGabrooConversationProvider({GABROO_LLM_API_KEY:"test-secret",GABROO_LLM_MODEL:"test-model",GABROO_LLM_BASE_URL:"https://llm.example/v1"},fetcher)!;
   await provider.reply({
    mode:"topic_practice",supportLanguage:"en",learningDirection:"en_to_ml",targetLanguage:"ml",
@@ -69,7 +69,7 @@ describe("Gabroo language-model provider",()=>{
   expect(system).toContain("Malayalam Stage 1");
  });
  it("keeps Malayalam-to-English learners focused on English acquisition",async()=>{
-  const fetcher=vi.fn(async()=>new Response(JSON.stringify({choices:[{message:{content:"Let's practise a useful English sentence."}}]}),{status:200}));
+  const fetcher=vi.fn(async(_url:string|URL|Request,_init?:RequestInit)=>new Response(JSON.stringify({choices:[{message:{content:"Let's practise a useful English sentence."}}]}),{status:200}));
   const provider=createGabrooConversationProvider({GABROO_LLM_API_KEY:"test-secret",GABROO_LLM_MODEL:"test-model",GABROO_LLM_BASE_URL:"https://llm.example/v1"},fetcher)!;
   await provider.reply({
    mode:"gentle_correction",supportLanguage:"ml",learningDirection:"ml_to_en",targetLanguage:"en",
