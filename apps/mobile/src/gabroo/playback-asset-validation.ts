@@ -44,12 +44,14 @@ export function validateGabrooSpeechAsset(value: unknown, nowMs = Date.now()): G
  */
 export function prepareGabrooPlaybackAsset(value: unknown, nowMs = Date.now()): {
   uri: string;
+  expiresAt: string;
   identity: GabrooPlaybackIdentity;
   timeline: GabrooSpeechTimeline;
 } {
   const asset = validateGabrooSpeechAsset(value, nowMs);
   return {
     uri: asset.uri,
+    expiresAt: asset.expiresAt,
     identity: {
       playbackTicketId: asset.playbackTicketId,
       audioId: asset.audioId,
