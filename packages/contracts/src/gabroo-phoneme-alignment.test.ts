@@ -1,5 +1,6 @@
 import {describe,expect,it} from "vitest";
 import {gabrooPhonemeAlignmentToTimeline,gabrooPhonemeToViseme,gabrooPhonemeAlignmentSchema} from "./gabroo-phoneme-alignment.js";
+import {sampleGabrooAvatarFrame} from "./gabroo-avatar.js";
 
 describe("Gabroo phoneme alignment",()=>{
  it("maps common Malayalam and English phoneme classes to canonical visemes",()=>{
@@ -23,7 +24,7 @@ describe("Gabroo phoneme alignment",()=>{
   expect(timeline.expressions).toEqual([]);
   expect(timeline.gestures).toEqual([]);
  });
- it("rejects phoneme events outside the audio duration",()=>{
+ it("feeds the existing playback-clock avatar sampler without changing its contract",()=>{\n  const timeline=gabrooPhonemeAlignmentToTimeline({audio_id:"audio-2",duration_ms:500,phonemes:[{phoneme:"m",start_ms:0,end_ms:150}]});\n  expect(sampleGabrooAvatarFrame(timeline,75).viseme.shape).toBe("closed_lips");\n  expect(sampleGabrooAvatarFrame(timeline,200).viseme.shape).toBe("neutral");\n });\n it("rejects phoneme events outside the audio duration",()=>{
   expect(gabrooPhonemeAlignmentSchema.safeParse({audio_id:"audio",duration_ms:100,phonemes:[{phoneme:"a",start_ms:90,end_ms:110}]}).success).toBe(false);
  });
  it("rejects malformed and oversized alignments",()=>{
