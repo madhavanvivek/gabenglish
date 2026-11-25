@@ -125,23 +125,22 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   if(requestedSessionId!==undefined&&!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestedSessionId))
    return failure(reply,request.id,400,"INVALID_LEARNING_SESSION_ID","This learning session is invalid. Reopen the lesson and try again.");
   const [attempts,outcomes]=await Promise.all([
-   pool.query<{exercise_id:string}>("SELECT DISTINCT exercise_id FROM learner_exercise_attempts WHERE user_id=$1 AND lesson_version_id=$2 AND ($3::uuid IS NULL OR learning_session_id=$3)",[learner.id,lesson.version_id,requestedSessionId??null]),
+   pool.query<{exercise_id:string}>(
+    "SELECT DISTINCT exercise_id FROM learner_exercise_attempts WHERE user_id=$1 AND lesson_version_id=$2 AND ($3::uuid IS NULL OR learning_session_id=$3)",
+    [learner.id,lesson.version_id,requestedSessionId??null]
+   ),
    pool.query<{skill:GabrooExerciseOutcome["skill"];correct:boolean;difficulty:number|null;observed_at:Date}>(`SELECT skill,correct,difficulty,observed_at FROM (
     SELECT DISTINCT ON (a.lesson_version_id,a.exercise_id,COALESCE(a.learning_session_id,'00000000-0000-0000-0000-000000000000'::uuid))
      block->>'skill' AS skill,a.is_correct AS correct,
-     CASE WHEN block->>'difficulty' ~ '^[1-5]
-  ]);
-  const adaptivePractice=buildGabrooAdaptivePractice(outcomes.rows.map(row=>({skill:row.skill,correct:row.correct,difficulty:row.difficulty??undefined,observedAt:row.observed_at.toISOString()})));
-  const selection=selectGabrooNextExercise({content:safeContent,attemptedExerciseIds:attempts.rows.map(row=>row.exercise_id),adaptivePractice});
-  return {lesson_id:id,selection};
- });
- THEN (block->>'difficulty')::int ELSE NULL END AS difficulty,
+     CASE WHEN block->>'difficulty' ~ '^[1-5]$' THEN (block->>'difficulty')::int ELSE NULL END AS difficulty,
      a.created_at AS observed_at
     FROM learner_exercise_attempts a
     JOIN lesson_versions lv ON lv.id=a.lesson_version_id
-    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(lv.content->'blocks')='array' THEN lv.content->'blocks' ELSE '[]'::jsonb END) AS blocks(block)
+    CROSS JOIN LATERAL jsonb_array_elements(
+     CASE WHEN jsonb_typeof(lv.content->'blocks')='array' THEN lv.content->'blocks' ELSE '[]'::jsonb END
+    ) AS blocks(block)
     WHERE a.user_id=$1 AND block->>'type'='exercise' AND block->>'id'=a.exercise_id
-      AND block->>'skill' IN ('grammar','vocabulary','comprehension')
+     AND block->>'skill' IN ('grammar','vocabulary','comprehension')
     ORDER BY a.lesson_version_id,a.exercise_id,COALESCE(a.learning_session_id,'00000000-0000-0000-0000-000000000000'::uuid),a.created_at DESC
    ) AS latest_outcomes ORDER BY observed_at DESC LIMIT 100`,[learner.id])
   ]);
