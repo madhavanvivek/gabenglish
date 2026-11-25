@@ -7,7 +7,7 @@ export type DailyPracticeSkill={
 export type DailySpeakingChallenge={date:string;title:string;focus:string;prompt:string;skillKey:string|null};
 export type SavedPracticePhrase={memory_key:string;content:string};
 function learnerSavedPhrase(item:SavedPracticePhrase):string{
- const saved=item.content.split("\\n").find(line=>line.startsWith("Learner phrase: "))?.slice("Learner phrase: ".length).trim();
+ const saved=item.content.split("\n").find(line=>line.startsWith("Learner phrase: "))?.slice("Learner phrase: ".length).trim();
  return saved||item.memory_key.trim();
 }
 const challengeBank:Record<string,Array<{title:string;focus:string;prompt:string}>>={
