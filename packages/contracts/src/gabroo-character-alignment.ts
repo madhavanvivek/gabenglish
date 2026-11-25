@@ -103,6 +103,7 @@ export function gabrooCharacterAlignmentToCaptionCues(
 
 export interface GabrooCaptionPlaybackStatus {
  audioId:string;
+ expectedAudioId:string;
  positionMs:number;
  isPlaying:boolean;
 }
@@ -119,7 +120,7 @@ export function sampleGabrooCaptionAtPlayback(
   throw new Error("Caption playback position must be a finite, non-negative value.");
  }
  if(typeof status.isPlaying!=="boolean")throw new Error("Caption playback status must include a playing state.");
- if(!status.isPlaying||!status.audioId)return null;
+ if(!status.isPlaying||!status.audioId||status.audioId!==status.expectedAudioId)return null;
  let selectedIndex=-1;
  let selectedStart=-1;
  for(let index=0;index<cues.length;index+=1){
