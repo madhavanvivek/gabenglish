@@ -185,5 +185,43 @@
     "critical": [
       "Do not infer pronunciation, accent, fluency or speaking proficiency from text"
     ]
+  },
+  {
+    "id": "C11",
+    "title": "Beginner polite Malayalam greeting",
+    "mode": "role_play",
+    "direction": "en_to_ml",
+    "supportLanguage": "en",
+    "stage": 1,
+    "history": [],
+    "message": "I am meeting my manager for the first time. How should I greet them in Malayalam?",
+    "expected": [
+      "Give a respectful Malayalam phrase in script",
+      "Add readable romanisation and English meaning",
+      "Explain why the polite form fits"
+    ],
+    "critical": [
+      "Do not default to casual or overfamiliar slang",
+      "Do not present romanisation as a replacement for script"
+    ]
+  },
+  {
+    "id": "C12",
+    "title": "Malayalam register and formality",
+    "mode": "topic_practice",
+    "direction": "en_to_ml",
+    "supportLanguage": "en",
+    "stage": 4,
+    "history": [],
+    "message": "How would I say 'Could you please help me?' casually to a friend and politely to an older person?",
+    "expected": [
+      "Distinguish casual and respectful forms",
+      "Explain context and register",
+      "Keep both examples natural"
+    ],
+    "critical": [
+      "Do not stereotype based on age or gender",
+      "Do not imply one form is universally correct in every context"
+    ]
   }
 ]
