@@ -102,22 +102,26 @@ export class GabrooAvatarRendererGate {
 
   async initialize(): Promise<boolean> {
     if (this.disposed) return false;
-    this.reset();
+    const initializationGeneration = ++this.generation;
+    this.ready = false;
+    this.identity = null;
+    this.rig.resetToNeutral();
     try {
       const identity = await this.rig.load();
-      if (this.disposed || identity.approved !== true
+      if (this.disposed || initializationGeneration !== this.generation) return false;
+      if (identity.approved !== true
         || identity.characterId !== this.expectedCharacterId
         || identity.rigVersion !== this.expectedRigVersion) {
         this.rig.resetToNeutral();
-        this.ready = false;
         return false;
       }
-      this.identity = identity;
+      this.identity = { ...identity };
       this.ready = true;
       return true;
     } catch {
-      this.rig.resetToNeutral();
-      this.ready = false;
+      if (!this.disposed && initializationGeneration === this.generation) {
+        this.rig.resetToNeutral();
+      }
       return false;
     }
   }
