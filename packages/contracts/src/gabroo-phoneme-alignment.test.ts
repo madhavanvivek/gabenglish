@@ -42,6 +42,12 @@ describe("Gabroo phoneme alignment",()=>{
  it("rejects phoneme events outside the audio duration",()=>{
   expect(gabrooPhonemeAlignmentSchema.safeParse({audio_id:"audio",audio_sha256:"c".repeat(64),duration_ms:100,phonemes:[{phoneme:"a",start_ms:90,end_ms:110}]}).success).toBe(false);
  });
+
+ it("rejects out-of-order provider timestamps",()=>{
+  expect(gabrooPhonemeAlignmentSchema.safeParse({audio_id:"audio",audio_sha256:"c".repeat(64),duration_ms:100,phonemes:[
+   {phoneme:"a",start_ms:50,end_ms:70},{phoneme:"m",start_ms:10,end_ms:30}
+  ]}).success).toBe(false);
+ });
  it("rejects malformed and oversized alignments",()=>{
   expect(gabrooPhonemeAlignmentSchema.safeParse({audio_id:"audio",audio_sha256:"c".repeat(64),duration_ms:100,phonemes:[{phoneme:"a",start_ms:10,end_ms:10}]}).success).toBe(false);
   expect(gabrooPhonemeAlignmentSchema.safeParse({audio_id:"audio",audio_sha256:"c".repeat(64),duration_ms:100,phonemes:Array.from({length:4097},()=>({phoneme:"a",start_ms:0,end_ms:1}))}).success).toBe(false);
