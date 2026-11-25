@@ -97,8 +97,13 @@ describe("Google Cloud TTS provider",()=>{
  });
  it("bounds the provider JSON response while streaming before buffering it",async()=>{
   let cancelled=false;
+  let sent=0;
   const body=new ReadableStream<Uint8Array>({
-   start(controller){controller.enqueue(new Uint8Array(1024));controller.enqueue(new Uint8Array(1024));},
+   pull(controller){
+    if(sent>=18){controller.close();return;}
+    sent++;
+    controller.enqueue(new Uint8Array(1024*1024));
+   },
    cancel(){cancelled=true;}
   });
   const provider=createGoogleCloudTtsProvider(config,async()=>new Response(body,{headers:{"content-type":"application/json"}}))!;
