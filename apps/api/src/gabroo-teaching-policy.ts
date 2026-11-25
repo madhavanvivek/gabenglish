@@ -54,7 +54,7 @@ export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;sup
   learningDirection,
   targetLanguage,
   ...selected,
-  responseGuidance:[...selected.responseGuidance,learningDirection==="ml_to_en"?"The learner is learning English; Malayalam is the support language unless their preference says otherwise. Keep English as the learning target and give useful English examples.":"The learner is learning Malayalam; English is the support language unless their preference says otherwise. Keep Malayalam as the learning target, show Malayalam script, optionally add readable romanisation, and explain register and politeness in English. Never assume casual slang is appropriate."],
+  responseGuidance:[...selected.responseGuidance,learningDirection==="ml_to_en"?"The learner is learning English; Malayalam is the support language unless their preference says otherwise. Keep English as the learning target and give useful English examples.":"The learner is learning Malayalam; English is the support language unless their preference says otherwise. Keep Malayalam as the learning target, show Malayalam script, optionally add readable romanisation, and explain register and politeness in English. Never assume casual slang is appropriate.",...(input.vocabularyFocus?.length?["When relevant, gently reuse one of the learner's difficult or due vocabulary items in a natural example. Do not turn every conversation into a quiz, interrupt the learner, or claim a word is mastered. Invite practice rather than forcing it."]:[])],
   addressPolicy:"Use the learner's explicitly chosen name if available, otherwise use respectful neutral language. Never use 'eda', 'edi' or similar overfamiliar address by default. Do not infer that a learner welcomes slang from age, gender or writing style.",
   stageGuidance,
   learnerContext:{
@@ -63,7 +63,6 @@ export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;sup
    ...(input.profileCorrectionPreference?{profileCorrectionPreference:input.profileCorrectionPreference}:{})
   },
   learnerMemory:(input.learnerMemory??[]).slice(0,20).map(item=>({category:item.category,memoryKey:item.memoryKey.slice(0,80),content:item.content.slice(0,500)})),
-  vocabularyFocus:(input.vocabularyFocus??[]).filter(item=>item.term.trim()&&item.meaning.trim()).slice(0,5).map(item=>({term:item.term.slice(0,120),meaning:item.meaning.slice(0,240),reason:item.reason})),
-  ...(input.vocabularyFocus?.length?{responseGuidance:[...selected.responseGuidance,"When relevant, gently reuse one of the learner's difficult or due vocabulary items in a natural example. Do not turn every conversation into a quiz, interrupt the learner, or claim a word is mastered. Invite practice rather than forcing it."]}:{})
+  vocabularyFocus:(input.vocabularyFocus??[]).filter(item=>item.term.trim()&&item.meaning.trim()).slice(0,5).map(item=>({term:item.term.slice(0,120),meaning:item.meaning.slice(0,240),reason:item.reason}))
  };
 }
