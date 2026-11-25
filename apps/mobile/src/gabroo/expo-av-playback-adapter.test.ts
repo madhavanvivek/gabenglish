@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toGabrooNativePlayerSnapshot, type ExpoPlaybackStatusLike } from "./expo-av-playback-status";
+import { isGabrooPlayableAudioUri, toGabrooNativePlayerSnapshot, type ExpoPlaybackStatusLike } from "./expo-av-playback-status";
 
 describe("Expo AV playback status mapping", () => {
   it("maps only loaded native playback state into the clock snapshot", () => {
@@ -31,5 +31,24 @@ describe("Expo AV playback status mapping", () => {
     expect(toGabrooNativePlayerSnapshot({ isLoaded: false }, identity)).toBeNull();
     expect(toGabrooNativePlayerSnapshot({ isLoaded: true, isPlaying: false }, identity)).toBeNull();
     expect(toGabrooNativePlayerSnapshot({ isLoaded: true, isPlaying: true, positionMillis: 1 }, identity)).toBeNull();
+  });
+});
+
+
+describe("Gabroo playable audio URI validation", () => {
+  it("accepts HTTPS assets and app-private file cache URIs", () => {
+    expect(isGabrooPlayableAudioUri("https://cdn.example.test/audio/clip.mp3")).toBe(true);
+    expect(isGabrooPlayableAudioUri("file:///data/user/0/app/cache/gabroo.mp3")).toBe(true);
+  });
+
+  it("rejects executable, credential-bearing, malformed and oversized URIs", () => {
+    expect(isGabrooPlayableAudioUri("javascript:alert(1)")).toBe(false);
+    expect(isGabrooPlayableAudioUri("data:audio/mpeg;base64,AAAA")).toBe(false);
+    expect(isGabrooPlayableAudioUri("http://cdn.example.test/audio.mp3")).toBe(false);
+    expect(isGabrooPlayableAudioUri("https://user:pass@example.test/audio.mp3")).toBe(false);
+    expect(isGabrooPlayableAudioUri("file://relative/path.mp3")).toBe(false);
+    expect(isGabrooPlayableAudioUri(" https://example.test/audio.mp3")).toBe(false);
+    expect(isGabrooPlayableAudioUri("https://example.test/" + "a".repeat(4100))).toBe(false);
+    expect(isGabrooPlayableAudioUri(null)).toBe(false);
   });
 });
