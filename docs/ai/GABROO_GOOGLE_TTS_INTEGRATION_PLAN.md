@@ -1,13 +1,13 @@
 # Gabroo Google Cloud Text-to-Speech Integration Plan
 
-Status: **Google adapter implemented with bounded timeout/cancellation; credentials, audition and voice approval pending**
-Decision scope: Google Cloud Text-to-Speech is the first speech provider to evaluate behind the Gabenglish-owned API. This does not approve a canonical Gabroo voice, avatar, or unrestricted production spend.
+Status: **Google Cloud TTS selected as the active development provider; adapter implemented with bounded timeout/cancellation; credentials, live audition and final voice approval pending**
+Decision scope (2026-11-25): Use Google Cloud Text-to-Speech as Gabroo's active provider for the current development phase, behind the Gabenglish-owned API. Keep the voice ID replaceable. This does not approve a canonical Gabroo voice, avatar, or unrestricted production spend.
 
 Last reviewed: 2026-11-22
 
 ## 1. Decision
 
-- Use Google Cloud Text-to-Speech as the first speech-generation provider candidate.
+- Use Google Cloud Text-to-Speech as the active speech-generation provider for current development and the first end-to-end voice integration.
 - Keep provider selection behind a Gabenglish-owned server-side Speech Gateway.
 - Keep the provider adapter replaceable so self-hosted Gabroo models or another provider can be added without changing mobile clients.
 - Benchmark Standard, WaveNet and Chirp 3 HD voices using the canonical audition script.
@@ -44,7 +44,7 @@ The live Google voice catalogue is the source of truth for availability, voice g
 ### Capability differences to account for
 - Standard and WaveNet support SSML controls and speaking-rate/pitch parameters, subject to voice/API support.
 - Chirp 3 HD does not support SSML input or speaking-rate/pitch-audio parameters. It has its own streaming and audio-control capabilities.
-- Do not apply one shared settings profile to every voice family. The adapter must validate and map supported controls per model. The current implementation intentionally accepts Standard and WaveNet IDs only because it sends `speakingRate`; Chirp 3 HD remains excluded until a separate adapter supports its control contract.
+- Do not apply one shared settings profile to every voice family. The adapter must validate and map supported controls per model. The current implementation intentionally accepts Standard and WaveNet IDs only because it sends `speakingRate`; Chirp 3 HD remains excluded until a separate adapter supports its control contract. For this development phase, configure one explicit Standard/WaveNet Malayalam voice and use Google as the preferred provider.
 
 ## 3. Speech Gateway architecture
 
@@ -163,14 +163,14 @@ No candidate is automatically selected because it is the default or cheapest.
 ## 10. Current status
 
 - Architecture decision: approved.
-- Google Cloud TTS as initial candidate: approved for evaluation/integration.
+- Google Cloud TTS as active development provider: selected by the product owner on 2026-11-25; voice/model selection remains pending.
 - Native Google REST adapter: implemented; not yet live-tested. It now rejects oversized base64 payloads before decoded-buffer allocation and requires canonical base64 encoding.
 - Existing API auth, active-subscription checks and single-use playback tickets: present.
 - Google Cloud project/API credentials: not configured.
 - Billing: not enabled by this change.
 - Usage metering and atomic daily/monthly character quotas: implemented in migration 0026; defaults are 10,000/day and 100,000/month and are configurable. Subscription-specific quota policy, request-rate controls, usage retention cleanup and cost kill switch: pending.
 - Blind audition generator: implemented; it is not run automatically. Actual samples still require an authorized server-side Google Cloud key and confirmed provider usage.
-- Final Gabroo voice: **not approved**. The four generated candidate IDs remain evaluation candidates only; owner approval is still required.
+- Final Gabroo voice: **not approved**. The four Google voice IDs remain audition candidates only; owner approval is still required.
 - Production use: **not authorized yet**.
 
 
