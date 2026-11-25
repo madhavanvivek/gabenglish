@@ -95,6 +95,16 @@ describe("Google Cloud TTS provider",()=>{
   await provider.synthesize({text:"നമസ്കാരം! Please practise.",speed:1,signal:new AbortController().signal});
   expect(body?.input).toEqual({text:"നമസ്കാരം! Please practise."});
  });
+ it("bounds the provider JSON response while streaming before buffering it",async()=>{
+  let cancelled=false;
+  const body=new ReadableStream<Uint8Array>({
+   start(controller){controller.enqueue(new Uint8Array(1024));controller.enqueue(new Uint8Array(1024));},
+   cancel(){cancelled=true;}
+  });
+  const provider=createGoogleCloudTtsProvider(config,async()=>new Response(body,{headers:{"content-type":"application/json"}}))!;
+  await expect(provider.synthesize({text:"hello",speed:1,signal:new AbortController().signal})).rejects.toThrow(/size limit/i);
+  expect(cancelled).toBe(true);
+ });
  it("rejects an invalid configured English SSML locale",()=>{ expect(()=>createGoogleCloudTtsProvider({...config,GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE:"bad-locale"})).toThrow(/English language code/i); });
  it("rejects a voice that does not match the configured locale",()=>{
   expect(()=>createGoogleCloudTtsProvider({...config,GABROO_GOOGLE_TTS_VOICE:"en-US-Standard-C"})).toThrow(/match the configured language/i);
