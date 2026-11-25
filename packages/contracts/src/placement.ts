@@ -30,7 +30,7 @@ export const placementReportSchema=z.object({
     skill:z.enum(["grammar","vocabulary","comprehension","communication","fluency","pronunciation","confidence"]),
     status:z.enum(["examples_only","elicited_not_scored","not_assessed"]),
     basis:z.string()
-  })),
+  })).optional(),
   observed_patterns:z.array(z.string()),
   limitations:z.array(z.string()),
   next_steps:z.array(z.string())
