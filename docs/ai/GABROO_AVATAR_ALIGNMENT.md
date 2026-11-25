@@ -74,3 +74,8 @@ The API identity helper also enforces the synthesis input boundary: non-blank so
 `apps/api/src/gabroo-speech-alignment-provider.ts` defines an optional provider capability separate from speech synthesis. It accepts the exact completed audio bytes, exact source text, language mode (`ml`, `en`, or `mixed`) and computed audio identity. Providers may return either genuine IPA phoneme events or character timing events; the discriminant is explicit, and word/token timings must not be relabelled as either capability.
 
 The API validation boundary parses each result with the shared contracts and rejects mismatched audio ID, audio hash, duration, or (for character timing) source-text hash and Unicode code-point length. This is an interface and validation layer only: no vendor is selected, no provider is called by the current TTS route, and no alignment data is exposed to the learner app until a provider passes Malayalam/code-switching, latency, rights and retention evaluation.
+
+
+### Exact input identity verification
+
+Before an alignment provider receives an alignment request, callers can use `assertGabrooSpeechAlignmentInputIdentity` to recompute the SHA-256 fingerprints from the exact supplied MP3 bytes and source text, then compare them with the audio identity record. This prevents a caller from pairing a legitimate identity object with a different byte buffer or transcript. Regression tests include a Malayalam/English/emoji source string and altered audio/text cases.
