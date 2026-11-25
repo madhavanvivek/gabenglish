@@ -6,7 +6,7 @@ import {
 } from "./native-playback-clock";
 import type { GabrooAvatarRendererGate } from "./avatar-renderer-gate";
 
-import { toGabrooNativePlayerSnapshot } from "./expo-av-playback-status";
+import { isGabrooPlayableAudioUri, toGabrooNativePlayerSnapshot } from "./expo-av-playback-status";
 import { validateGabrooPlaybackAsset } from "./playback-asset-validation";
 
 export interface GabrooExpoAvPlaybackHandle {
@@ -31,7 +31,7 @@ export async function createGabrooExpoAvPlayback(input: {
   gate: GabrooAvatarRendererGate;
   onError?: (error: Error) => void;
 }): Promise<GabrooExpoAvPlaybackHandle> {
-  if (typeof input.uri !== "string" || !input.uri.trim()) {
+  if (!isGabrooPlayableAudioUri(input.uri)) {
     throw new Error("A playable Gabroo audio URI is required.");
   }
   const validatedTimeline = validateGabrooPlaybackAsset(input.identity, input.timeline);
