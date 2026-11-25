@@ -114,3 +114,42 @@ describe("cleanupExpiredGabrooSpeechAudio", () => {
     expect(files.has(`file:///private/cache/${unrelated}`)).toBe(true);
   });
 });
+
+
+describe("Gabroo audio download cancellation", () => {
+  it("does not start a download when already cancelled", async () => {
+    const { fs } = makeFs();
+    const controller = new AbortController();
+    controller.abort();
+    await expect(cacheGabrooSpeechAudio({
+      remoteUri: "https://cdn.example.test/speech",
+      cacheDirectory: "file:///private/cache",
+      audioSha256: digest,
+      expiresAt: "2030-01-01T00:00:00.000Z",
+      fileSystem: fs,
+      signal: controller.signal,
+    })).rejects.toThrow(/cancelled/i);
+    expect(fs.downloadAsync).not.toHaveBeenCalled();
+  });
+
+  it("removes a partially downloaded file when cancellation occurs during transfer", async () => {
+    const { fs, files } = makeFs();
+    const controller = new AbortController();
+    vi.mocked(fs.downloadAsync).mockImplementationOnce(async (_remote, local) => {
+      files.set(local, bytes.slice(0, 5));
+      controller.abort();
+      return { uri: local, status: 200 };
+    });
+    await expect(cacheGabrooSpeechAudio({
+      remoteUri: "https://cdn.example.test/speech",
+      cacheDirectory: "file:///private/cache",
+      audioSha256: digest,
+      expiresAt: "2030-01-01T00:00:00.000Z",
+      fileSystem: fs,
+      nonce: "cancelled",
+      signal: controller.signal,
+    })).rejects.toThrow(/cancelled/i);
+    expect(files.size).toBe(0);
+    expect(fs.moveAsync).not.toHaveBeenCalled();
+  });
+});
