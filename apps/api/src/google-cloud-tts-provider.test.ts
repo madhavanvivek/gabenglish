@@ -47,7 +47,7 @@ describe("Google Cloud TTS provider",()=>{
  });
  it("can synthesize plain text for controlled SSML comparison",async()=>{
   let body:Record<string,unknown>|undefined;
-  const fetcher=vi.fn(async(_url:string|URL|Request,init?:RequestInit)=>{body=JSON.parse(String(init?.body));return Response.json({audioContent:Buffer.from([1,2,3]).toString("base64")});});
+  const fetcher=vi.fn(async(_url:string|URL|Request,init?:RequestInit)=>{body=JSON.parse(String(init?.body));return Response.json({audioContent:Buffer.from(validMp3()).toString("base64")});});
   const provider=createGoogleCloudTtsProvider({...config,GABROO_GOOGLE_TTS_INPUT_MODE:"text"},fetcher)!;
   await provider.synthesize({text:"നമസ്കാരം! Please practise.",speed:1,signal:new AbortController().signal});
   expect(body?.input).toEqual({text:"നമസ്കാരം! Please practise."});
