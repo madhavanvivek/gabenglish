@@ -6,7 +6,8 @@ import {
 } from "@gabenglish/contracts";
 import {createGabrooSynthesizedAudioIdentity,type GabrooSynthesizedAudioIdentity} from "./gabroo-audio-identity.js";
 
-export type GabrooAlignmentLanguage="ml"|"en"|"mixed";\nconst MAX_ALIGNMENT_AUDIO_BYTES=12*1024*1024;
+export type GabrooAlignmentLanguage="ml"|"en"|"mixed";
+const MAX_ALIGNMENT_AUDIO_BYTES=12*1024*1024;
 
 export interface GabrooSpeechAlignmentInput {
  /** Exact completed audio bytes; providers must not alter or transcode them. */
@@ -64,7 +65,8 @@ export function validateGabrooSpeechAlignmentResult(
 ):GabrooSpeechAlignmentResult {
  if(!result||typeof result!=="object")throw new Error("Gabroo alignment provider returned an invalid result.");
  if(result.kind==="phoneme"){
-  const parsed=gabrooPhonemeAlignmentSchema.parse(result.alignment);\n  if(parsed.phonemes.length===0)throw new Error("Gabroo phoneme alignment provider returned no timed phoneme events.");
+  const parsed=gabrooPhonemeAlignmentSchema.parse(result.alignment);
+  if(parsed.phonemes.length===0)throw new Error("Gabroo phoneme alignment provider returned no timed phoneme events.");
   if(parsed.audio_id!==identity.audio_id
    ||parsed.audio_sha256.toLowerCase()!==identity.audio_sha256.toLowerCase()
    ||Math.abs(parsed.duration_ms-identity.duration_ms)>1){
@@ -73,7 +75,8 @@ export function validateGabrooSpeechAlignmentResult(
   return {kind:"phoneme",alignment:parsed};
  }
  if(result.kind==="character"){
-  const parsed=gabrooCharacterAlignmentSchema.parse(result.alignment);\n  if(parsed.characters.length===0)throw new Error("Gabroo character alignment provider returned no timed character events.");
+  const parsed=gabrooCharacterAlignmentSchema.parse(result.alignment);
+  if(parsed.characters.length===0)throw new Error("Gabroo character alignment provider returned no timed character events.");
   if(parsed.audio_id!==identity.audio_id
    ||parsed.audio_sha256.toLowerCase()!==identity.audio_sha256.toLowerCase()
    ||parsed.text_sha256.toLowerCase()!==identity.text_sha256.toLowerCase()
