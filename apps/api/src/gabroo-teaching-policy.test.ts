@@ -32,6 +32,17 @@ describe("Gabroo teaching policy",()=>{
   expect(policy.learnerMemory).toEqual([{category:"saved_phrase",memoryKey:"Useful phrase",content:"Could you please clarify?"}]);
   expect(buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"}).learnerMemory).toEqual([]);
  });
+ it("adds bounded difficult and due vocabulary without turning chat into forced quizzes",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",vocabularyFocus:[
+   {term:"hesitate",meaning:"to pause before doing something",reason:"difficult"},
+   {term:"confident",meaning:"feeling sure of yourself",reason:"due"},
+   ...Array.from({length:6},(_,index)=>({term:"word"+index,meaning:"meaning"+index,reason:"due" as const}))
+  ]});
+  expect(policy.vocabularyFocus).toHaveLength(5);
+  expect(policy.vocabularyFocus[0]).toEqual({term:"hesitate",meaning:"to pause before doing something",reason:"difficult"});
+  expect(policy.responseGuidance.join(" ")).toContain("Do not turn every conversation into a quiz");
+  expect(buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"}).vocabularyFocus).toEqual([]);
+ });
  it("defines distinct correction and learning goals for each mode",()=>{
   const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
   const policies=modes.map(mode=>buildGabrooTeachingPolicy({mode,supportLanguage:"en"}));
