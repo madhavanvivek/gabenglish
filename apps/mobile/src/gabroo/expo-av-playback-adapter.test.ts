@@ -256,17 +256,23 @@ describe("Gabroo native interruption and buffering handling", () => {
       stopAsync: vi.fn(async () => undefined),
       unloadAsync: vi.fn(async () => undefined),
     };
+    let listener: ((status: never) => void) | undefined;
     const playback = await createGabrooExpoAvPlayback({
       asset: validAsset(),
       gate,
       onError,
       nowMs: Date.parse("2029-12-31T23:59:00.000Z"),
       cacheAudio,
-      createSound: vi.fn(async () => ({ sound })) as never,
+      createSound: vi.fn(async (_source, _initial, callback) => {
+        listener = callback as (status: never) => void;
+        return { sound };
+      }) as never,
     });
+    listener?.({ isLoaded: true, isPlaying: true, positionMillis: 120, durationMillis: 1_000 } as never);
+    const resetsBeforeFailure = vi.mocked(rig.resetToNeutral).mock.calls.length;
     await expect(playback.play()).rejects.toThrow("audio route unavailable");
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "audio route unavailable" }));
-    expect(rig.resetToNeutral).toHaveBeenCalled();
+    expect(vi.mocked(rig.resetToNeutral).mock.calls.length).toBeGreaterThan(resetsBeforeFailure);
     await playback.unload();
   });
 });
