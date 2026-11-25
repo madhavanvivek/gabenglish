@@ -44,7 +44,7 @@ export type PlacementEvidence=z.infer<typeof placementEvidenceSchema>;
 export const placementAnswerSchema=z.object({question_id:z.string().min(1),option_id:z.string().min(1)});
 export const placementSubmissionSchema=z.object({answers:z.array(placementAnswerSchema).min(1).max(20)});
 export type PlacementSubmission=z.infer<typeof placementSubmissionSchema>;
-export const placementResultSchema=z.object({score:z.number().int().min(0),total:z.number().int().positive(),percentage:z.number().min(0).max(100),suggested_stage:placementStageSchema,notice:z.string()});
+export const placementResultSchema=z.object({score:z.number().int().min(0),total:z.number().int().positive(),percentage:z.number().min(0).max(100),recommendation_status:z.literal("not_yet_available"),notice:z.string()});
 export type PlacementResult=z.infer<typeof placementResultSchema>;
 
 export const authenticatedPlacementSubmissionSchema=z.object({
