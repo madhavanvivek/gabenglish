@@ -403,14 +403,18 @@ export default function GabrooScreen(){
           setSpeakingMessageId(message.id);setSpeechNotice("");
           playbackStarted=true;
          }
-         if(status.didJustFinish)finish();
+         // Count the segment exactly once, before the promise resolves. A
+         // completion event arriving after the final reducer transition is stale.
+         if(status.didJustFinish&&!settled){
+          dispatchPlayback({type:"segment_completed",playback_id:playbackId});
+          finish();
+         }
         }else if(status.error){
          fail(new Error(status.error));
         }
        });
        void sound!.playAsync().catch(fail);
       });
-      if(run===speechRunRef.current&&!requestController.signal.aborted)dispatchPlayback({type:"segment_completed",playback_id:playbackId});
      }finally{
       if(sound){
        sound.setOnPlaybackStatusUpdate(null);
