@@ -9,7 +9,7 @@ import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
 import {adjustGabrooSpeechRate} from "../src/learner-settings";
 import {BrandMark} from "../src/ui";
-import {AuthApiError,completeDailyChallenge,createGabrooConversation,deleteGabrooConversation,getDailyChallengeCompletion,getGabrooConversation,getGabrooRecognitionStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,sendGabrooMessageStream,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences} from "../src/auth-api";
+import {AuthApiError,completeDailyChallenge,createGabrooConversation,deleteGabrooConversation,getDailyChallengeCompletion,getGabrooConversation,getGabrooRecognitionStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessageStream,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences} from "../src/auth-api";
 
 const conversationModes:{value:GabrooConversationMode;label:string}[]=[{value:"free_flow",label:"Free flow"},{value:"gentle_correction",label:"Gentle correction"},{value:"detailed_correction",label:"Detailed correction"},{value:"topic_practice",label:"Topic practice"},{value:"role_play",label:"Role-play"},{value:"vocabulary_building",label:"Vocabulary"},{value:"confidence_practice",label:"Confidence"}];
 
@@ -116,11 +116,12 @@ export default function GabrooScreen(){
    const result=await createGabrooConversation({title:title||undefined,mode:initialPrompt?"topic_practice":mode,support_language:"ml"});
    setActive(result.conversation);setMode(result.conversation.mode);setMessages([]);setConversations(current=>[result.conversation,...current]);
    if(initialPrompt){
-    const firstReply=await sendGabrooMessage(result.conversation.id,initialPrompt);
-    setMessages(firstReply.messages);setDraft("");
+    const controller=new AbortController();requestControllerRef.current=controller;setStreamingReply("");
+    const firstReply=await sendGabrooMessageStream(result.conversation.id,initialPrompt,controller.signal,fragment=>setStreamingReply(current=>current+fragment));
+    setMessages(firstReply.messages);setStreamingReply("");setDraft("");
    }
   }catch(reason){setError(reason instanceof AuthApiError&&reason.status===503? "Gabroo's conversation service is not connected yet. Your subscription and account are unchanged.":reason instanceof Error?reason.message:"Could not start a conversation.");}
-  finally{setBusy(false);}
+  finally{requestControllerRef.current=null;setStreamingReply("");setBusy(false);}
  };
  const changeMode=async(next:GabrooConversationMode)=>{
   setMode(next);
