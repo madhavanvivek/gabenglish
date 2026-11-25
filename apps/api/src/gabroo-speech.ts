@@ -13,6 +13,8 @@ import {createGabrooSynthesizedAudioIdentity} from "./gabroo-audio-identity.js";
 import {measureGabrooMp3DurationMs} from "./gabroo-mp3-metadata.js";
 
 const activeSpeechLearners=new Set<string>();
+const activeAlignmentLearners=new Set<string>();
+const GABROO_ALIGNMENT_TIMEOUT_MS=12_000;
 const alignmentRequestSchema=z.object({
  audio_base64:z.string().min(4).max(16_777_216),text:z.string().trim().min(1).max(4_000),
  audio_id:z.string().regex(/^[a-f0-9]{64}$/),audio_sha256:z.string().regex(/^[a-f0-9]{64}$/),
@@ -160,7 +162,11 @@ export async function registerGabrooSpeechRoutes(
   const identity=createGabrooSynthesizedAudioIdentity({audio,text:parsed.data.text,durationMs:measuredDuration,audioId:parsed.data.audio_id});
   if(identity.audio_sha256!==parsed.data.audio_sha256||identity.audio_sha256!==parsed.data.audio_id||identity.text_sha256!==parsed.data.text_sha256)
    return sendError(reply,request.id,400,"ALIGNMENT_IDENTITY_MISMATCH","The supplied audio or text identity does not match the exact content.");
+  if(activeAlignmentLearners.has(learner.id))return sendError(reply,request.id,429,"ALIGNMENT_REQUEST_IN_PROGRESS","Please wait for Gabroo to finish aligning the current audio.");
+  activeAlignmentLearners.add(learner.id);
   const controller=new AbortController(),onAborted=()=>controller.abort();
+  let timedOut=false;
+  const timeout=setTimeout(()=>{timedOut=true;controller.abort();},GABROO_ALIGNMENT_TIMEOUT_MS);
   request.raw.once("aborted",onAborted);
   try{
    const result=await runGabrooSpeechAlignment(alignmentProvider,{audio,text:parsed.data.text,language:parsed.data.language,identity,signal:controller.signal});
@@ -168,10 +174,16 @@ export async function registerGabrooSpeechRoutes(
    reply.header("cache-control","private, no-store");
    return {alignment:result};
   }catch{
+   if(request.raw.aborted)return;
+   if(timedOut)return sendError(reply,request.id,504,"ALIGNMENT_TIMEOUT","Gabroo audio alignment took too long. Please try again.");
    if(controller.signal.aborted)return;
    request.log.warn({request_id:request.id},"Gabroo alignment provider rejected or failed the request");
    return sendError(reply,request.id,502,"ALIGNMENT_FAILED","Gabroo could not align this audio. Please try again.");
-  }finally{request.raw.removeListener("aborted",onAborted);}
+  }finally{
+   clearTimeout(timeout);
+   request.raw.removeListener("aborted",onAborted);
+   activeAlignmentLearners.delete(learner.id);
+  }
  });
  app.post("/api/v1/gabroo/speech/playback-ticket",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
