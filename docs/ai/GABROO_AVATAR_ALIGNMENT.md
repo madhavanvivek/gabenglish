@@ -67,3 +67,10 @@ This helper is intentionally not called from the current streaming TTS route. Th
 Both provider response modes now verify declared MP3 content length against the bytes actually received. The streaming transform checks the count at flush; the buffered synthesis path now applies the same check before returning the assembled audio asset. A mismatch fails synthesis instead of producing an asset whose fingerprint could later be mistaken for a complete provider response. This check is transport integrity only: it does not infer audio duration or supply phoneme/character timestamps.
 
 The API identity helper also enforces the synthesis input boundary: non-blank source text is limited to 4,000 Unicode code points, and explicit audio IDs must already be trimmed and canonical. It rejects malformed identity inputs rather than silently normalizing values that could make alignment identity ambiguous.
+
+
+## Provider-neutral alignment boundary
+
+`apps/api/src/gabroo-speech-alignment-provider.ts` defines an optional provider capability separate from speech synthesis. It accepts the exact completed audio bytes, exact source text, language mode (`ml`, `en`, or `mixed`) and computed audio identity. Providers may return either genuine IPA phoneme events or character timing events; the discriminant is explicit, and word/token timings must not be relabelled as either capability.
+
+The API validation boundary parses each result with the shared contracts and rejects mismatched audio ID, audio hash, duration, or (for character timing) source-text hash and Unicode code-point length. This is an interface and validation layer only: no vendor is selected, no provider is called by the current TTS route, and no alignment data is exposed to the learner app until a provider passes Malayalam/code-switching, latency, rights and retention evaluation.
