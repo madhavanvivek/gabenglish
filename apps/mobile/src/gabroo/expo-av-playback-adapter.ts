@@ -7,7 +7,7 @@ import {
 import type { GabrooAvatarRendererGate } from "./avatar-renderer-gate";
 
 import { isGabrooPlayableAudioUri, toGabrooNativePlayerSnapshot } from "./expo-av-playback-status";
-import { validateGabrooPlaybackAsset } from "./playback-asset-validation";
+import { prepareGabrooPlaybackAsset } from "./playback-asset-validation";
 
 export interface GabrooExpoAvPlaybackHandle {
   play(): Promise<void>;
@@ -25,16 +25,17 @@ export interface GabrooExpoAvPlaybackHandle {
  * service for this exact audio asset.
  */
 export async function createGabrooExpoAvPlayback(input: {
-  uri: string;
-  identity: GabrooPlaybackIdentity;
-  timeline: unknown;
+  asset: unknown;
   gate: GabrooAvatarRendererGate;
   onError?: (error: Error) => void;
+  nowMs?: number;
 }): Promise<GabrooExpoAvPlaybackHandle> {
-  if (!isGabrooPlayableAudioUri(input.uri)) {
+  const prepared = prepareGabrooPlaybackAsset(input.asset, input.nowMs);
+  if (!isGabrooPlayableAudioUri(prepared.uri)) {
     throw new Error("A playable Gabroo audio URI is required.");
   }
-  const validatedTimeline = validateGabrooPlaybackAsset(input.identity, input.timeline);
+  const identity = prepared.identity;
+  const validatedTimeline = prepared.timeline;
   const reportError = (error: Error) => {
     try { input.onError?.(error); } catch { /* Consumer callbacks must not escape native status dispatch. */ }
   };
@@ -52,7 +53,7 @@ export async function createGabrooExpoAvPlayback(input: {
 
   try {
     const created = await Audio.Sound.createAsync(
-      { uri: input.uri },
+      { uri: prepared.uri },
       { shouldPlay: false, progressUpdateIntervalMillis: 40 },
       status => {
         if (closed) return;
@@ -66,9 +67,9 @@ export async function createGabrooExpoAvPlayback(input: {
           if (started) { clock.stop(); started = false; }
           return;
         }
-        if (!started) clock.begin(input.identity);
+        if (!started) clock.begin(identity);
         started = true;
-        const snapshot = toGabrooNativePlayerSnapshot(status, input.identity);
+        const snapshot = toGabrooNativePlayerSnapshot(status, identity);
         if (!snapshot || !clock.tick(snapshot, validatedTimeline)) stopClock();
       },
     );
