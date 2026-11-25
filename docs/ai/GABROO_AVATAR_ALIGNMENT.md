@@ -89,3 +89,8 @@ Before an alignment provider receives an alignment request, callers can use `ass
 ### Alignment request bounds
 
 The provider boundary rejects audio assets larger than 12 MiB and language tags outside the explicit `ml`, `en`, and `mixed` set before recomputing fingerprints or invoking a provider. This mirrors the bounded synthesis payload and prevents unbounded audio buffers or silently unsupported language modes from crossing the provider boundary.
+
+
+### Reject empty timing results
+
+A provider response with an empty phoneme or character event list is rejected. An empty array must not be interpreted as successful synchronization: it could otherwise silently disable mouth movement or captions while reporting an apparently valid alignment. Provider output must contain at least one validated timed event before it can pass the API boundary.
