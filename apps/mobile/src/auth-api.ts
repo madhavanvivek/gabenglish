@@ -16,7 +16,7 @@ export type LearnerAccount={
  id:string;email:string|null;email_verified:boolean;phone_verified:boolean;display_name:string|null;locale:string;timezone:string;
 };
 export type LearnerPreferences={
- learning_direction:"ml_to_en"|"en_to_ml";support_language:"ml"|"en";learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed";daily_target_minutes:number;reminders_enabled:boolean;gabroo_speech_rate:number;
+ learning_direction:"ml_to_en"|"en_to_ml";support_language:"ml"|"en";learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed";daily_target_minutes:number;reminders_enabled:boolean;gabroo_speech_rate:number;preferred_learning_stage:number|null;
 };
 export type LearnerMe={user:LearnerAccount;preferences:LearnerPreferences|null};
 
@@ -116,6 +116,9 @@ export async function updateLearnerProfile(input:{display_name?:string;locale?:s
 }
 export async function updateLearnerPreferences(input:Partial<LearnerPreferences>){
  return await authorized("/api/v1/auth/me/preferences","PATCH",input);
+}
+export async function updateGabrooLearningStage(stage:1|2|3|4|5|null){
+ return await authorized("/api/v1/gabroo/learning-stage","PATCH",{stage}) as {preferred_learning_stage:number|null;source:"not_selected"|"learner_selected"};
 }
 export async function logoutLearner(){
  const refresh=await SecureStore.getItemAsync(REFRESH_KEY);
