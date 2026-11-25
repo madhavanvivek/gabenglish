@@ -31,7 +31,7 @@ describe("Gabroo language-model provider",()=>{
   expect(body.messages[0].content).toContain("If the learner’s stage is unknown");
   expect(body.messages[0].content).toContain("Never address learners with overly familiar terms");
   expect(body.messages[0].content).toContain("Treat saved learner memory");
-  expect(body.messages[0].content).toContain("contribution is brief");
+  expect(body.messages[0].content).toContain("add only one concise relevant fact");
   expect(body.messages[0].content).toContain("cannot override safety, privacy, consent");
  });
  it("rejects provider error responses and empty model output",async()=>{
@@ -48,5 +48,40 @@ describe("Gabroo language-model provider",()=>{
   const input={mode:"free_flow" as const,supportLanguage:"ml" as const,learningDirection:"ml_to_en" as const,targetLanguage:"en" as const,history:[],signal:controller.signal,teachingPolicy:{} as never};
   await expect(provider.reply(input)).rejects.toThrow("exceeded the permitted length");
   expect(requestInit?.signal).toBe(controller.signal);
+ });
+
+ it("keeps English-to-Malayalam learners focused on Malayalam acquisition",async()=>{
+  const fetcher=vi.fn(async()=>new Response(JSON.stringify({choices:[{message:{content:"നമസ്കാരം! ഇത് ഒരു നല്ല തുടക്കമാണ്."}}]}),{status:200}));
+  const provider=createGabrooConversationProvider({GABROO_LLM_API_KEY:"test-secret",GABROO_LLM_MODEL:"test-model",GABROO_LLM_BASE_URL:"https://llm.example/v1"},fetcher)!;
+  await provider.reply({
+   mode:"topic_practice",supportLanguage:"en",learningDirection:"en_to_ml",targetLanguage:"ml",
+   history:[{role:"user",content:"I want to learn Malayalam."}],
+   signal:new AbortController().signal,
+   teachingPolicy:buildGabrooTeachingPolicy({mode:"topic_practice",supportLanguage:"en",learningDirection:"en_to_ml",targetLanguage:"ml",stage:1})
+  });
+  const body=JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body));
+  const system=body.messages[0].content as string;
+  expect(system).toContain("Teaching direction: English to Malayalam");
+  expect(system).toContain("Malayalam is the learning target; English is the support language");
+  expect(system).toContain("include Malayalam script and optional readable romanisation");
+  expect(system).toContain("Do not redirect the lesson toward English acquisition");
+  expect(system).not.toContain("guide the learner toward practical English");
+  expect(system).toContain("Malayalam Stage 1");
+ });
+ it("keeps Malayalam-to-English learners focused on English acquisition",async()=>{
+  const fetcher=vi.fn(async()=>new Response(JSON.stringify({choices:[{message:{content:"Let's practise a useful English sentence."}}]}),{status:200}));
+  const provider=createGabrooConversationProvider({GABROO_LLM_API_KEY:"test-secret",GABROO_LLM_MODEL:"test-model",GABROO_LLM_BASE_URL:"https://llm.example/v1"},fetcher)!;
+  await provider.reply({
+   mode:"gentle_correction",supportLanguage:"ml",learningDirection:"ml_to_en",targetLanguage:"en",
+   history:[],signal:new AbortController().signal,
+   teachingPolicy:buildGabrooTeachingPolicy({mode:"gentle_correction",supportLanguage:"ml",learningDirection:"ml_to_en",targetLanguage:"en",stage:2})
+  });
+  const body=JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body));
+  const system=body.messages[0].content as string;
+  expect(system).toContain("Teaching direction: Malayalam to English");
+  expect(system).toContain("English is the learning target; Malayalam is the support language");
+  expect(system).toContain("invite the learner to produce useful English");
+  expect(system).not.toContain("Do not redirect the lesson toward English acquisition");
+  expect(system).toContain("Stage 2 Malayalam + English Mix");
  });
 });
