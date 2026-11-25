@@ -98,7 +98,7 @@ describe("Gabroo learner-selected stage endpoint",()=>{
   });
   expect(query).toHaveBeenCalledTimes(2);
   expect(query.mock.calls[1]?.[1]).toEqual([learner.id,4]);
-  expect(query.mock.calls[1]?.[0]).toContain("ON CONFLICT(user_id,preferred_learning_stage)");
+  expect(query.mock.calls[1]?.[0]).toContain("ON CONFLICT(user_id)");
  });
 
  it("allows a learner to clear a prior stage selection",async()=>{
