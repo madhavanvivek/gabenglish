@@ -274,9 +274,9 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   const exerciseStage=typeof exercise.stage==="number"&&Number.isInteger(exercise.stage)&&exercise.stage>=1&&exercise.stage<=5?exercise.stage as LearningStage:null;
   const evidenceStage=currentStage!==null&&exerciseStage===currentStage?currentStage:null;
   await pool.query(
-   `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback,learner_stage)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-   [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,submitted,correct,feedback,evidenceStage]
+   `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback,learner_stage,skill_key)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+   [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,submitted,correct,feedback,evidenceStage,typeof exercise.skill_key==="string"?exercise.skill_key:null]
   );
   let stageProgression:ReturnType<typeof evaluateLearningStage>|null=null;
   if(currentStage!==null&&evidenceStage===currentStage){
@@ -323,6 +323,35 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   };
  });
 
+ app.get("/api/v1/learning/skill-profile",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view your learning profile.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to view detailed learning insights.");
+  const preference=await pool.query<{learning_direction:Direction}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preference.rows[0]?.learning_direction??"ml_to_en";
+  const stage=await pool.query<{stage:LearningStage}>("SELECT stage FROM learner_learning_stages WHERE user_id=$1 AND learning_direction=$2",[learner.id,direction]);
+  const evidence=await pool.query<{skill_key:string;attempt_count:number;correct_count:number;last_attempt_at:Date;recent_accuracy:string}>(
+   `SELECT skill_key,COUNT(*)::int AS attempt_count,
+      COUNT(*) FILTER(WHERE is_correct)::int AS correct_count,
+      MAX(attempted_at) AS last_attempt_at,
+      ROUND(AVG(CASE WHEN is_correct THEN 1.0 ELSE 0.0 END)::numeric,2)::text AS recent_accuracy
+    FROM (
+      SELECT DISTINCT ON (lesson_id,exercise_id) skill_key,is_correct,attempted_at
+      FROM learner_exercise_attempts
+      WHERE user_id=$1 AND learning_direction=$2 AND skill_key IS NOT NULL
+      ORDER BY lesson_id,exercise_id,attempted_at DESC
+    ) latest
+    GROUP BY skill_key ORDER BY skill_key`,
+   [learner.id,direction]
+  );
+  return {learning_direction:direction,stage:stage.rows[0]?.stage??null,
+   skills:evidence.rows.map(row=>({skill_key:row.skill_key,attempt_count:row.attempt_count,
+    correct_count:row.correct_count,accuracy:Number(row.recent_accuracy),
+    status:row.attempt_count<5?"insufficient_evidence":Number(row.recent_accuracy)>=0.8?"strong":Number(row.recent_accuracy)<=0.5?"needs_practice":"developing",
+    last_attempt_at:row.last_attempt_at})),
+   profile_policy:{only_latest_attempt_per_exercise:true,minimum_evidence_for_status:5,not_a_proficiency_certificate:true}};
+ });
+ 
  app.get("/api/v1/learning/stage",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view your learning stage.");
