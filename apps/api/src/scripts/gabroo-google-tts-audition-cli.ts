@@ -5,10 +5,10 @@ import {fileURLToPath,pathToFileURL} from "node:url";
 import {createGoogleCloudTtsProvider} from "../google-cloud-tts-provider.js";
 
 const CANDIDATES=[
- {blindCode:"VOICE-01",voice:"ml-IN-Standard-B",family:"Standard"},
- {blindCode:"VOICE-02",voice:"ml-IN-Standard-D",family:"Standard"},
- {blindCode:"VOICE-03",voice:"ml-IN-Wavenet-B",family:"WaveNet"},
- {blindCode:"VOICE-04",voice:"ml-IN-Wavenet-D",family:"WaveNet"}
+ {voice:"ml-IN-Standard-B",family:"Standard"},
+ {voice:"ml-IN-Standard-D",family:"Standard"},
+ {voice:"ml-IN-Wavenet-B",family:"WaveNet"},
+ {voice:"ml-IN-Wavenet-D",family:"WaveNet"}
 ] as const;
 
 const INPUT_MODES=["text","ssml"] as const;
@@ -77,21 +77,21 @@ export async function createGabrooGoogleTtsAuditionPack(options:{
  for(const task of tasks){
   const {candidate,inputMode}=task;
   blindIndex+=1;
-   const blindCode="SAMPLE-"+String(blindIndex).padStart(2,"0");
-   const candidateDirectory=resolve(outputDirectory,blindCode);
-   await mkdir(candidateDirectory,{recursive:true,mode:0o700});
-   await chmod(candidateDirectory,0o700);
-   const samples:{sample_id:string;label:string;file:string}[]=[];
-   for(const segment of SEGMENTS){
+  const blindCode="SAMPLE-"+String(blindIndex).padStart(2,"0");
+  const candidateDirectory=resolve(outputDirectory,blindCode);
+  await mkdir(candidateDirectory,{recursive:true,mode:0o700});
+  await chmod(candidateDirectory,0o700);
+  const samples:{sample_id:string;label:string;file:string}[]=[];
+  for(const segment of SEGMENTS){
    const audio=await synthesize(candidate.voice,segment.text,inputMode);
    if(audio.byteLength===0)throw new Error("Provider returned empty audio for "+blindCode+"/"+segment.id+".");
    const filename=segment.id+".mp3";
    await writeFile(resolve(candidateDirectory,filename),audio,{mode:0o600});
    samples.push({sample_id:segment.id,label:segment.label,file:blindCode+"/"+filename});
    sampleCount+=1;
-   }
-   reviewerManifest.variants.push({blind_code:blindCode,samples});
-   privateMapping.push({blind_code:blindCode,provider:"Google Cloud Text-to-Speech",voice_id:candidate.voice,model_family:candidate.family,input_mode:inputMode});
+  }
+  reviewerManifest.variants.push({blind_code:blindCode,samples});
+  privateMapping.push({blind_code:blindCode,provider:"Google Cloud Text-to-Speech",voice_id:candidate.voice,model_family:candidate.family,input_mode:inputMode});
   }
  await writeFile(resolve(outputDirectory,"reviewer-manifest.json"),JSON.stringify(reviewerManifest,null,2)+"\n",{mode:0o600});
  await writeFile(resolve(outputDirectory,"mapping.private.json"),JSON.stringify({
