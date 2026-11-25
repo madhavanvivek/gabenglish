@@ -54,19 +54,19 @@ describe("Gabroo caption playback sampler",()=>{
  ];
  it("highlights only the cue active at the native audio playback position",()=>{
   expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",expectedAudioId:"audio-1",positionMs:250,isPlaying:true})?.cue.text).toBe("നമസ്കാരം");
-  expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",positionMs:750,isPlaying:true})?.cue.text).toBe("Gabroo");
-  expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",positionMs:950,isPlaying:true})).toBeNull();
+  expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",expectedAudioId:"audio-1",positionMs:750,isPlaying:true})?.cue.text).toBe("Gabroo");
+  expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",expectedAudioId:"audio-1",positionMs:950,isPlaying:true})).toBeNull();
  });
  it("clears highlighting on pause or stale playback identity",()=>{
-  expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",positionMs:250,isPlaying:false})).toBeNull();
+  expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",expectedAudioId:"audio-1",positionMs:250,isPlaying:false})).toBeNull();
   expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-old",expectedAudioId:"audio-1",positionMs:250,isPlaying:true})).toBeNull();
  });
  it("chooses the latest-starting active cue when provider spans overlap",()=>{
   const overlapping=[cues[0],{...cues[1],start_ms:300}];
-  expect(sampleGabrooCaptionAtPlayback(overlapping,{audioId:"audio-1",positionMs:400,isPlaying:true})?.cue.text).toBe("Gabroo");
+  expect(sampleGabrooCaptionAtPlayback(overlapping,{audioId:"audio-1",expectedAudioId:"audio-1",positionMs:400,isPlaying:true})?.cue.text).toBe("Gabroo");
  });
  it("rejects invalid playback positions",()=>{
-  expect(()=>sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",positionMs:-1,isPlaying:true})).toThrow(/position/i);
-  expect(()=>sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",positionMs:Number.NaN,isPlaying:true})).toThrow(/position/i);
+  expect(()=>sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",expectedAudioId:"audio-1",positionMs:-1,isPlaying:true})).toThrow(/position/i);
+  expect(()=>sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",expectedAudioId:"audio-1",positionMs:Number.NaN,isPlaying:true})).toThrow(/position/i);
  });
 });
