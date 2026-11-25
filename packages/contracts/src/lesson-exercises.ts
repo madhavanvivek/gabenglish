@@ -2,6 +2,7 @@ import {z} from "zod";
 
 export const authoredChoiceExerciseSchema=z.object({
  type:z.literal("exercise"),id:z.string().regex(/^[a-z0-9_-]{1,64}$/i),
+ stage:z.number().int().min(1).max(5).optional(),
  instruction:z.string().trim().min(1).max(500),prompt:z.string().trim().min(1).max(1000),
  response_type:z.literal("single_choice"),
  options:z.array(z.object({id:z.string().regex(/^[a-z0-9_-]{1,32}$/i),label:z.string().trim().min(1).max(300)})).min(2).max(8),
@@ -12,6 +13,7 @@ export const authoredChoiceExerciseSchema=z.object({
 });
 export const authoredTextExerciseSchema=z.object({
  type:z.literal("exercise"),id:z.string().regex(/^[a-z0-9_-]{1,64}$/i),
+ stage:z.number().int().min(1).max(5).optional(),
  instruction:z.string().trim().min(1).max(500),prompt:z.string().trim().min(1).max(1000),
  response_type:z.literal("text"),accepted_answers:z.array(z.string().trim().min(1).max(500)).min(1).max(30),
  correct_feedback:z.string().trim().max(1000).optional(),incorrect_feedback:z.string().trim().max(1000).optional()
