@@ -100,3 +100,8 @@ Added `GET /api/v1/gabroo/speech/status` and `POST /api/v1/gabroo/speech`. Both 
 ## Speech route integration verification
 
 The API route is now covered by an end-to-end Fastify injection test using a deterministic provider stub. It verifies consented Malayalam text is normalized and passed to the provider, a content-bound speech asset is validated and returned, and malformed requests are rejected before provider invocation. A CI-discovered missing provider-type export was corrected. The tests use a stub only; they do not represent a production voice vendor or real generated audio.
+
+
+## Cancellation hardening
+
+CI exposed a cancellation edge case when a speech vendor ignores its AbortSignal: the provider promise could remain pending after the learner disconnected. The generation boundary now races provider completion against an explicit caller-cancellation promise, re-checks cancellation after listener registration, and still aborts the provider signal. The regression test now deliberately uses a provider stub that ignores cancellation and never settles. This ensures the API request can terminate promptly even when a vendor SDK does not cooperate.
