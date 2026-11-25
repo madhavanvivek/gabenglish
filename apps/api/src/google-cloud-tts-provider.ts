@@ -8,7 +8,9 @@ type GoogleTtsConfig={
 type FetchLike=(input:string|URL|Request,init?:RequestInit)=>Promise<Response>;
 const MAX_TEXT_CHARACTERS=4_000;
 const MAX_AUDIO_BYTES=12*1024*1024;
+const MAX_BASE64_AUDIO_CHARACTERS=Math.ceil(MAX_AUDIO_BYTES/3)*4;
 const REQUEST_TIMEOUT_MS=15_000;
+const CANONICAL_BASE64=/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
 /**
  * Native Google Cloud Text-to-Speech REST adapter.
@@ -51,10 +53,13 @@ export function createGoogleCloudTtsProvider(
    if(!response.ok)throw new Error("Google Cloud Text-to-Speech request failed with status "+response.status);
    const payload=await response.json() as {audioContent?:unknown};
    if(typeof payload.audioContent!=="string"||!payload.audioContent)throw new Error("Google Cloud Text-to-Speech returned no audio content.");
-   if(!/^[A-Za-z0-9+/]+={0,2}$/.test(payload.audioContent))throw new Error("Google Cloud Text-to-Speech returned malformed audio content.");
+   // Reject an oversized encoded payload before allocating its decoded Buffer.
+   if(payload.audioContent.length>MAX_BASE64_AUDIO_CHARACTERS)throw new Error("Google Cloud Text-to-Speech response exceeded the audio size limit.");
+   if(!CANONICAL_BASE64.test(payload.audioContent))throw new Error("Google Cloud Text-to-Speech returned malformed audio content.");
    const audio=Buffer.from(payload.audioContent,"base64");
    if(audio.byteLength===0)throw new Error("Google Cloud Text-to-Speech returned empty audio.");
    if(audio.byteLength>MAX_AUDIO_BYTES)throw new Error("Google Cloud Text-to-Speech response exceeded the audio size limit.");
+   if(audio.toString("base64")!==payload.audioContent)throw new Error("Google Cloud Text-to-Speech returned malformed audio content.");
    return {audio:new Uint8Array(audio),contentType:"audio/mpeg"};
   }
  };
