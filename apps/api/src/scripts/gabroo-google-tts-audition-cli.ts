@@ -1,6 +1,6 @@
 import {createHash} from "node:crypto";
 import {mkdir,writeFile} from "node:fs/promises";
-import {dirname,relative,resolve,sep} from "node:path";
+import {dirname,isAbsolute,relative,resolve,sep} from "node:path";
 import {fileURLToPath,pathToFileURL} from "node:url";
 import {createGoogleCloudTtsProvider} from "../google-cloud-tts-provider.js";
 
@@ -16,7 +16,7 @@ const DEFAULT_OUTPUT_DIRECTORY=resolve(REPOSITORY_ROOT,".local/gabroo-voice-audi
 
 function isWithin(parent:string,child:string):boolean{
  const rel=relative(parent,child);
- return rel===""||(!rel.startsWith(".."+sep)&&rel!==".."&&!resolve(rel).startsWith(sep));
+ return rel===""||(!rel.startsWith(".."+sep)&&rel!==".."&&!isAbsolute(rel));
 }
 
 export function resolveGabrooAuditionOutputDirectory(configured?:string):string{
