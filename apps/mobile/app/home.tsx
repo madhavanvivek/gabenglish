@@ -2,7 +2,7 @@ import {useCallback,useState} from "react";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {AuthApiError,getDailyChallengeCompletion,getLearnerMe,getSubscriptionStatus,listGabrooConversations,updateLearnerPreferences,getVocabularyRetentionSummary,getGabrooLearningInsights,type LearnerMe,type SubscriptionStatus,type GabrooConversation,type VocabularyRetentionSummary,type GabrooLearningInsights} from "../src/auth-api";
+import {AuthApiError,getDailyChallengeCompletion,getLearnerMe,getSubscriptionStatus,listGabrooConversations,listGabrooMemory,updateLearnerPreferences,getVocabularyRetentionSummary,getGabrooLearningInsights,type GabrooMemoryItem,type LearnerMe,type SubscriptionStatus,type GabrooConversation,type VocabularyRetentionSummary,type GabrooLearningInsights} from "../src/auth-api";
 import {BrandMark,SurfaceCard,Eyebrow} from "../src/ui";
 import {colors,radius,space} from "../src/theme";
 import {adjustGabrooSpeechRate,resolveLearningDirection} from "../src/learner-settings";
@@ -14,6 +14,7 @@ export default function HomeScreen(){
  const [conversations,setConversations]=useState<GabrooConversation[]>([]);
  const [vocabularySummary,setVocabularySummary]=useState<VocabularyRetentionSummary|null>(null);
  const [learningInsights,setLearningInsights]=useState<GabrooLearningInsights|null>(null);
+ const [savedPracticePhrases,setSavedPracticePhrases]=useState<GabrooMemoryItem[]>([]);
  const [dailyChallengeCompleted,setDailyChallengeCompleted]=useState(false);
  const [loading,setLoading]=useState(true);
  const [savingSpeed,setSavingSpeed]=useState(false);
@@ -30,15 +31,16 @@ export default function HomeScreen(){
    setLearner(me);setSpeechRate(me.preferences?.gabroo_speech_rate??1);setLearningDirection(resolveLearningDirection(me.preferences?.learning_direction));
    const status=await getSubscriptionStatus();setSubscription(status);
    if(status.active){
-    const [conversationResult,vocabularyResult,insightResult,challengeResult]=await Promise.allSettled([
-     listGabrooConversations(),getVocabularyRetentionSummary(),getGabrooLearningInsights(),getDailyChallengeCompletion(localPracticeDateKey())
+    const [conversationResult,vocabularyResult,insightResult,challengeResult,memoryResult]=await Promise.allSettled([
+     listGabrooConversations(),getVocabularyRetentionSummary(),getGabrooLearningInsights(),getDailyChallengeCompletion(localPracticeDateKey()),listGabrooMemory()
     ]);
     if(conversationResult.status==="fulfilled")setConversations(conversationResult.value.conversations);
     else if(!(conversationResult.reason instanceof AuthApiError&&conversationResult.reason.status===403))throw conversationResult.reason;
     setVocabularySummary(vocabularyResult.status==="fulfilled"?vocabularyResult.value:null);
     setLearningInsights(insightResult.status==="fulfilled"?insightResult.value:null);
     setDailyChallengeCompleted(challengeResult.status==="fulfilled"&&!!challengeResult.value.completion);
-   }else{setConversations([]);setVocabularySummary(null);setLearningInsights(null);setDailyChallengeCompleted(false);}
+    setSavedPracticePhrases(memoryResult.status==="fulfilled"?memoryResult.value.memory.filter(item=>item.category==="saved_phrase"):[]);
+   }else{setConversations([]);setVocabularySummary(null);setLearningInsights(null);setDailyChallengeCompleted(false);setSavedPracticePhrases([]);}
   }catch(reason){
    setError(reason instanceof Error?reason.message:"Could not load your learning home.");
   }finally{setLoading(false);}
@@ -64,7 +66,7 @@ export default function HomeScreen(){
  };
  const firstName=learner?.user.display_name?.trim().split(/\s+/)[0];
  const active=subscription?.active===true;
- const dailyChallenge=buildDailySpeakingChallenge(localPracticeDateKey(),learningInsights?.skill_areas??[]);
+ const dailyChallenge=buildDailySpeakingChallenge(localPracticeDateKey(),learningInsights?.skill_areas??[],savedPracticePhrases);
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
   <View style={s.header}><View style={s.brandRow}><BrandMark size={42}/><View><Text style={s.brand}>Gabenglish</Text><Text style={s.tagline}>YOUR ENGLISH, YOUR PACE</Text></View></View><Link href="/account" asChild><Pressable accessibilityRole="button" style={s.profile}><Text style={s.profileText}>Profile</Text></Pressable></Link></View>
   {loading?<View style={s.loading}><ActivityIndicator size="large" color={colors.primary}/><Text style={s.muted}>Getting your learning space ready…</Text></View>:<>
