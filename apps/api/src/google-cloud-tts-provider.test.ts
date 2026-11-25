@@ -29,7 +29,7 @@ describe("Google Cloud TTS provider",()=>{
   controller.abort();
   expect(captured.init.signal?.aborted).toBe(true);
   expect(JSON.parse(String(captured?.init.body))).toEqual({
-   input:{ssml:"<speak>നമസ്കാരം! <lang xml:lang=\"en-US\">Hello world</lang>.</speak>"},
+   input:{ssml:buildGabrooGoogleTtsSsml("നമസ്കാരം! Let's practise.")},
    voice:{languageCode:"ml-IN",name:"ml-IN-Standard-B"},
    audioConfig:{audioEncoding:"MP3",speakingRate:0.9}
   });
