@@ -140,3 +140,10 @@ The next-exercise selector prefers an unseen exercise in the recommended skill a
 ## Adaptive outcome integrity
 
 Adaptive outcome queries tolerate malformed or missing lesson block arrays and ignore difficulty values outside the authored 1–5 range instead of allowing a cast error to break the learner profile or next-exercise endpoint. For each learner, lesson version and exercise, adaptive sequencing uses the latest recorded attempt rather than counting repeated submissions of the same exercise as independent evidence. This limits retry-driven inflation; distinct exercises remain separate observations. A future learning-session model may distinguish deliberate spaced re-attempts of the same exercise from transport retries.
+
+
+## Learning-session identity for exercise evidence
+
+Exercise submissions may include an optional UUID `learning_session_id`, separate from the per-request `idempotency_key`. The idempotency key protects a single network submission from duplicate writes; the learning-session ID groups deliberate practice across multiple exercises and attempts. When a session ID is supplied, GLIM records at most one evidence observation per learner, skill, exercise and learning session, using the first successfully persisted outcome for that exercise in the session. A later deliberate practice session can contribute a new observation. When no session ID is supplied, legacy behavior remains compatible and the attempt ID is used as the evidence task identity.
+
+Adaptive sequencing keeps the latest attempt for each exercise within each identified learning session. Historical attempts without a session ID are collapsed to the latest attempt per exercise/version. This allows spaced practice sessions to count independently without allowing same-session retries to inflate the signal. The API client should create one UUID when a learner starts a practice session and reuse it for all exercise submissions in that session; it should create a new UUID for a later practice session.
