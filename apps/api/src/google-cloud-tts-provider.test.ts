@@ -106,6 +106,17 @@ describe("Google Cloud TTS provider",()=>{
   expect(read).toBe(false);
   expect(cancelled).toBe(true);
  });
+ it("cancels non-success provider response bodies before returning the status error",async()=>{
+  let cancelled=false,read=false;
+  const body=new ReadableStream<Uint8Array>({
+   pull(controller){read=true;controller.enqueue(new Uint8Array([1]));},
+   cancel(){cancelled=true;}
+  },{highWaterMark:0});
+  const provider=createGoogleCloudTtsProvider(config,async()=>new Response(body,{status:429,statusText:"Too Many Requests"}))!;
+  await expect(provider.synthesize({text:"hello",speed:1,signal:new AbortController().signal})).rejects.toThrow(/status 429/i);
+  expect(read).toBe(false);
+  expect(cancelled).toBe(true);
+ });
  it("rejects malformed JSON and empty provider response bodies explicitly",async()=>{
   const malformed=createGoogleCloudTtsProvider(config,async()=>new Response("{not-json",{headers:{"content-type":"application/json"}}))!;
   await expect(malformed.synthesize({text:"hello",speed:1,signal:new AbortController().signal})).rejects.toThrow(/malformed JSON/i);
