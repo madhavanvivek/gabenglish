@@ -79,3 +79,8 @@ The API validation boundary parses each result with the shared contracts and rej
 ### Exact input identity verification
 
 Before an alignment provider receives an alignment request, callers can use `assertGabrooSpeechAlignmentInputIdentity` to recompute the SHA-256 fingerprints from the exact supplied MP3 bytes and source text, then compare them with the audio identity record. This prevents a caller from pairing a legitimate identity object with a different byte buffer or transcript. Regression tests include a Malayalam/English/emoji source string and altered audio/text cases.
+
+
+### Guarded provider execution and cancellation
+
+`runGabrooSpeechAlignment` now wraps the provider lifecycle: it checks cancellation before work, recomputes audio/text identity before calling the provider, validates the returned alignment against the same identity, and checks cancellation again before exposing the result. A provider response that completes after the caller has cancelled is discarded. This helper is still an opt-in backend boundary and is not connected to the learner-facing TTS route.
