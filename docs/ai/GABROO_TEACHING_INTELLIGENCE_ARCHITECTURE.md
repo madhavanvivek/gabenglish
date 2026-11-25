@@ -238,3 +238,11 @@ The authenticated `POST /api/v1/gabroo/feedback` endpoint accepts only a learner
 The provider is instructed to return a strict JSON response with at most three feedback items. Each item must identify a bounded category (grammar, word choice or naturalness), the original phrase, a suggested alternative and a short explanation; an optional alternative may be included. The server validates the complete response with a strict schema, rejects malformed or oversized output and deduplicates repeated source phrases. It never derives pronunciation, accent, fluency or proficiency scores from text.
 
 The mobile Sentence Coach presents the original and suggested text separately. The learner must explicitly save an item before it enters the existing private Speaking Journal. The API does not persist learner text or provider feedback automatically. An empty feedback array is valid when no clear correction is needed. This is coaching assistance, not a formal assessment or guaranteed grammar verdict; learners should review alternatives in context.
+
+## 20. Personal learning insights endpoint and progress panel (25 November 2026)
+
+The authenticated, active-subscription-gated `GET /api/v1/gabroo/learning-insights` endpoint combines two bounded evidence sources: latest learner exercise attempts grouped by skill and the count of learner-saved `saved_phrase` journal entries. Exercise evidence is scoped to the learner and selected learning direction. Only the latest attempt for each lesson/exercise/skill contributes.
+
+Skill areas expose attempt count, correct count, accuracy and a descriptive evidence band. Fewer than five attempts are labelled as building evidence; at least five attempts can be described as strong exercise performance (80% or above), a practice opportunity (50% or below), or developing exercise performance. These labels describe tagged exercise outcomes only and must not be presented as a diagnosis of speaking, pronunciation, fluency or overall English proficiency.
+
+The mobile Progress screen displays these skill signals and the number of learner-saved practice phrases, with direct links to Sentence Coach and Speaking Journal. No learner text is sent to an AI provider by this endpoint, and no new learner profile or mistake record is inferred from free-form conversations.
