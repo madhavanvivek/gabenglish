@@ -395,6 +395,7 @@ export default function GabrooScreen(){
         reject(reason instanceof Error?reason:new Error("Gabroo audio playback failed."));
        };
        sound!.setOnPlaybackStatusUpdate(status=>{
+        if(run!==speechRunRef.current||requestController.signal.aborted)return;
         if(status.isLoaded){
          // Promote playback only after Expo confirms this audio item is playing.
          if((status.isPlaying||status.didJustFinish)&&!playbackStarted){
