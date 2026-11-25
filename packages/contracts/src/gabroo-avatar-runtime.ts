@@ -11,8 +11,25 @@ export interface GabrooRenderedFrame {
  audioId:string|null;
 }
 
+export interface GabrooNativePlaybackStatus {
+ /** Native player status must explicitly confirm the media item is loaded. */
+ isLoaded:boolean;
+ isPlaying:boolean;
+ positionMillis:number;
+ /** Stable ID associated with the media item loaded into the native player. */
+ audioId:string|null;
+}
+
+const neutralControls=():GabrooAvatarFrame=>({
+ viseme:{shape:"neutral",weight:0},
+ expression:"neutral",
+ expressionWeight:0,
+ gesture:null,
+ gestureWeight:0
+});
+
 /**
- * Bridge the deterministic conversation state and the canonical rig controls.
+ * Bridge the deterministic conversation state and canonical rig controls.
  * The caller supplies the real audio player's elapsed time on every render
  * frame; this module never invents speech timing or an idle talking animation.
  */
@@ -21,19 +38,35 @@ export function sampleGabrooConversationFrame(
  playbackMs:number
 ):GabrooRenderedFrame{
  const active=conversation.phase==="speaking"?conversation.activeSpeech:null;
- const controls=active
-  ?sampleGabrooAvatarFrame(active,playbackMs)
-  :{
-   viseme:{shape:"neutral" as const,weight:0},
-   expression:"neutral" as const,
-   expressionWeight:0,
-   gesture:null,
-   gestureWeight:0
-  };
  return {
   state:conversation.phase,
-  controls,
+  controls:active?sampleGabrooAvatarFrame(active,playbackMs):neutralControls(),
   audioId:active?.audio_id??null
+ };
+}
+
+/**
+ * Safely bridge native player status to the renderer. A stale media item,
+ * unloaded/buffering player, paused player, or non-speaking conversation
+ * always yields a neutral frame. This prevents a previous turn's visemes from
+ * animating over a newer utterance.
+ */
+export function sampleGabrooConversationFrameFromPlaybackStatus(
+ conversation:GabrooConversationState,
+ status:GabrooNativePlaybackStatus
+):GabrooRenderedFrame{
+ if(typeof status.isLoaded!=="boolean"||typeof status.isPlaying!=="boolean"){
+  throw new Error("Native playback status must include loaded and playing states.");
+ }
+ if(!Number.isFinite(status.positionMillis)||status.positionMillis<0){
+  throw new Error("Native playback position must be finite and non-negative.");
+ }
+ const active=conversation.phase==="speaking"?conversation.activeSpeech:null;
+ const current=Boolean(active&&status.isLoaded&&status.isPlaying&&status.audioId===active.audio_id);
+ return {
+  state:conversation.phase,
+  controls:current?sampleGabrooAvatarFrame(active!,status.positionMillis):neutralControls(),
+  audioId:current?active!.audio_id:null
  };
 }
 
