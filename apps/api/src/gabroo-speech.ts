@@ -109,7 +109,13 @@ export async function registerGabrooSpeechRoutes(
   if(!learner)return sendError(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account to check Gabroo speech availability.");
   const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);
   if(!entitlement)return sendError(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to use Gabroo speech.");
-  return {available:config.GABROO_TTS_ENABLED&&Boolean(provider),formats:config.GABROO_TTS_ENABLED&&provider?["audio/mpeg"]:[],speed:{minimum:0.75,maximum:1.5}};
+  const available=config.GABROO_TTS_ENABLED&&Boolean(provider);
+  return {
+   available,
+   formats:available?["audio/mpeg"]:[],
+   speed:{minimum:0.75,maximum:1.5},
+   capabilities:{speech_synthesis:available,character_alignment:false,phoneme_alignment:false,live_avatar_renderer:false}
+  };
  });
 
 
