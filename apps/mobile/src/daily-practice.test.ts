@@ -32,7 +32,7 @@ describe("daily speaking challenge",()=>{
  });
  it("turns a learner-saved journal phrase into an optional daily speaking prompt",()=>{
   const challenge=buildDailySpeakingChallenge("2026-11-25",[],[
-   {memory_key:"Useful phrase",content:"Learner phrase: Could you please clarify?\\nPractice version: Could you explain that again?\\nLearner note: At work"}
+   {memory_key:"Useful phrase",content:"Learner phrase: Could you please clarify?\nPractice version: Could you explain that again?\nLearner note: At work"}
   ]);
   expect(challenge.title).toBe("Bring a saved phrase to life");
   expect(challenge.skillKey).toBeNull();
