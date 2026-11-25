@@ -27,7 +27,7 @@ function recognitionPool(hasEntitlement:boolean){
 }
 
 function insightsPool(){
- return {query:async(sql:string)=>{
+ const queryOriginal=async(sql:string)=>{
   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
   if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1",plan_code:"monthly"}]};
   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
@@ -37,8 +37,33 @@ function insightsPool(){
   ]};
   if(sql.includes("FROM gabroo_learner_memory"))return {rows:[{saved_phrase_count:2}]};
   return {rows:[]};
- }} as any;
+ };
+ const pool:any={query:queryOriginal,queryOriginal};return pool;
 }
+
+describe("Gabroo learning insights",()=>{
+ it("returns learner-scoped exercise evidence and saved practice phrase count",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const app=await buildApp(config,async()=>true,insightsPool());
+  const response=await app.inject({method:"GET",url:"/api/v1/gabroo/learning-insights",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toMatchObject({learning_direction:"ml_to_en",skill_areas:[
+   {skill_key:"grammar",attempt_count:6,correct_count:3,accuracy:0.5,evidence_status:"practice_opportunity"},
+   {skill_key:"vocabulary",attempt_count:4,correct_count:4,accuracy:1,evidence_status:"building_evidence"}
+  ],saved_practice_phrases:2,interpretation:{minimum_evidence_for_coaching:5}});
+  await app.close();
+ });
+ it("does not expose personalised insights to a free learner",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const pool=insightsPool();
+  pool.query=async(sql:string,...args:any[])=>sql.includes("active_subscription_entitlements")?{rows:[]}:pool.queryOriginal(sql,...args);
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"GET",url:"/api/v1/gabroo/learning-insights",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(403);
+  expect(response.json().error.code).toBe("PAID_SUBSCRIPTION_REQUIRED");
+  await app.close();
+ });
+});
 
 describe("API foundation",()=>{
  it("serves liveness",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);const r=await app.inject({method:"GET",url:"/api/v1/health"});expect(r.statusCode).toBe(200);expect(r.json().status).toBe("ok");await app.close();});
