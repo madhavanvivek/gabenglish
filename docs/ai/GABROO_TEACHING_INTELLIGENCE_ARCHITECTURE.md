@@ -265,3 +265,20 @@ These instructions supplement, rather than override, the learner-selected conver
 The mobile Gabroo screen now aborts an in-flight send when the screen loses focus, and the authenticated mobile API client forwards that signal to fetch. The non-streaming conversation endpoint observes the HTTP response connection while waiting for the tutor provider. If the learner leaves the screen, loses the connection or otherwise closes the request before a response is completed, the API aborts the provider request and stops waiting for its result. A client that was already disconnected is not sent to inference. The provider adapter forwards the abort signal to its outbound fetch request.
 
 Provider timeouts remain bounded at 15 seconds and now return a distinct 504 timeout response. Both timeout and disconnect paths leave the turn uncommitted: learner and assistant messages are still inserted together only after a valid response and a final conversation/subscription concurrency check. Disconnects are not logged with learner content. This is cancellation support for the existing request/response flow, not yet token streaming or audio streaming.
+
+
+## 23. Progressive conversation streaming
+
+The authenticated conversation message endpoint supports progressive replies when the client sends `Accept: text/event-stream`. The existing JSON request/response contract remains available to clients that do not request streaming.
+
+The SSE event sequence is:
+- `start`: request accepted for streaming, with the request ID
+- `delta`: one incremental text fragment
+- `committed`: the canonical persisted user and assistant messages, emitted only after the provider completes and the final database transaction commits
+- `error`: bounded failure details when generation, validation, or final persistence cannot complete
+
+The API buffers the generated assistant text in memory, enforces the 12,000-character response bound, and does not persist a user-only or partial assistant turn. Before committing, it rechecks conversation ownership, open status, turn count (optimistic concurrency), and active subscription entitlement under a row lock. Provider errors, timeout, client disconnect, empty output, oversized output, and failed final transaction leave the turn uncommitted.
+
+The mobile client displays incoming deltas in a transient bubble. That draft is replaced by canonical server messages only after the `committed` event. The explicit Stop reply control aborts the request; screen blur also aborts it. If the stream ends without a commit event, the mobile client reports that the learner should reload the conversation rather than treating the transient text as saved.
+
+This transport is text streaming only. It does not claim token-level voice synthesis, audio streaming, or lip-sync. Those require a separate measured voice pipeline and should not be implied by progressive text rendering.
