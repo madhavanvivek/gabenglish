@@ -6,7 +6,7 @@ import {AuthApiError,getLearnerMe,getSubscriptionStatus,listGabrooConversations,
 import {BrandMark,SurfaceCard,Eyebrow} from "../src/ui";
 import {colors,radius,space} from "../src/theme";
 import {adjustGabrooSpeechRate,resolveLearningDirection} from "../src/learner-settings";
-import {buildDailySpeakingChallenge} from "../src/daily-practice";
+import {buildDailySpeakingChallenge,localPracticeDateKey} from "../src/daily-practice";
 
 export default function HomeScreen(){
  const [learner,setLearner]=useState<LearnerMe|null>(null);
@@ -62,7 +62,7 @@ export default function HomeScreen(){
  };
  const firstName=learner?.user.display_name?.trim().split(/\s+/)[0];
  const active=subscription?.active===true;
- const dailyChallenge=buildDailySpeakingChallenge(new Date().toISOString().slice(0,10),learningInsights?.skill_areas??[]);
+ const dailyChallenge=buildDailySpeakingChallenge(localPracticeDateKey(),learningInsights?.skill_areas??[]);
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
   <View style={s.header}><View style={s.brandRow}><BrandMark size={42}/><View><Text style={s.brand}>Gabenglish</Text><Text style={s.tagline}>YOUR ENGLISH, YOUR PACE</Text></View></View><Link href="/account" asChild><Pressable accessibilityRole="button" style={s.profile}><Text style={s.profileText}>Profile</Text></Pressable></Link></View>
   {loading?<View style={s.loading}><ActivityIndicator size="large" color={colors.primary}/><Text style={s.muted}>Getting your learning space ready…</Text></View>:<>
