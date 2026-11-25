@@ -36,7 +36,7 @@ describe("Gabroo Expo AV playback adapter boundary", () => {
       stopAsync: vi.fn(async () => undefined),
       unloadAsync: vi.fn(async () => undefined),
     };
-    const createSound = vi.fn(async () => ({ sound }));
+    const createSound = vi.fn(async (_source: { uri: string }, _initial: { shouldPlay: boolean; progressUpdateIntervalMillis: number }, _status: (status: never) => void) => ({ sound }));
     const playback = await createGabrooExpoAvPlayback({
       asset: validAsset(),
       gate: {} as never,
