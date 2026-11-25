@@ -32,9 +32,7 @@ describe("Gabroo speech readiness contract",()=>{
  it("rejects non-boolean alignment capability flags",()=>{
   expect(()=>parseGabrooSpeechStatus({...available,capabilities:{...available.capabilities,phoneme_alignment:"yes"}})).toThrow(/invalid response/i);
  });
- it("rejects an advertised alignment or renderer until the server implements it",()=>{
-  expect(()=>parseGabrooSpeechStatus({...available,capabilities:{...available.capabilities,phoneme_alignment:true}})).toThrow(/invalid response/i);
-  expect(()=>parseGabrooSpeechStatus({...available,capabilities:{...available.capabilities,character_alignment:true}})).toThrow(/invalid response/i);
+ it("never advertises a live renderer until one is implemented",()=>{
   expect(()=>parseGabrooSpeechStatus({...available,capabilities:{...available.capabilities,live_avatar_renderer:true}})).toThrow(/invalid response/i);
  });
  it("rejects unknown audio formats instead of treating them as playable",()=>{
