@@ -54,7 +54,7 @@ export async function registerGabrooLearningProfileRoutes(app:FastifyInstance,po
     WHERE user_id=$1 AND status<>'mastered' AND review_due_at<=now()
    `,[learner.id]),
    pool.query<{skill:GabrooExerciseOutcome["skill"];correct:boolean;difficulty:number|null;observed_at:Date}>(`
-    SELECT DISTINCT ON (a.lesson_version_id,a.exercise_id)
+    SELECT DISTINCT ON (a.lesson_version_id,a.exercise_id,COALESCE(a.learning_session_id,'00000000-0000-0000-0000-000000000000'::uuid))
       block->>'skill' AS skill,a.is_correct AS correct,
       CASE WHEN block->>'difficulty' ~ '^[1-5]$' THEN (block->>'difficulty')::int ELSE NULL END AS difficulty,
       a.created_at AS observed_at
@@ -66,7 +66,7 @@ export async function registerGabrooLearningProfileRoutes(app:FastifyInstance,po
     WHERE a.user_id=$1 AND block->>'type'='exercise'
       AND block->>'id'=a.exercise_id
       AND block->>'skill' IN ('grammar','vocabulary','comprehension')
-    ORDER BY a.lesson_version_id,a.exercise_id,a.created_at DESC
+    ORDER BY a.lesson_version_id,a.exercise_id,COALESCE(a.learning_session_id,'00000000-0000-0000-0000-000000000000'::uuid),a.created_at DESC
     LIMIT 100
    `,[learner.id])
   ]);
