@@ -121,8 +121,11 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   if(!lesson)return failure(reply,request.id,404,"LESSON_NOT_FOUND","This lesson is not published for your selected learning direction.");
   const safeContent=projectLearnerLessonContent(lesson.content);
   if(!safeContent)return failure(reply,request.id,503,"LESSON_CONTENT_UNAVAILABLE","This lesson is being prepared and is not available yet.");
+  const requestedSessionId=(request.query as {learning_session_id?:string}).learning_session_id;
+  if(requestedSessionId!==undefined&&!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestedSessionId))
+   return failure(reply,request.id,400,"INVALID_LEARNING_SESSION_ID","This learning session is invalid. Reopen the lesson and try again.");
   const [attempts,outcomes]=await Promise.all([
-   pool.query<{exercise_id:string}>("SELECT DISTINCT exercise_id FROM learner_exercise_attempts WHERE user_id=$1 AND lesson_version_id=$2",[learner.id,lesson.version_id]),
+   pool.query<{exercise_id:string}>("SELECT DISTINCT exercise_id FROM learner_exercise_attempts WHERE user_id=$1 AND lesson_version_id=$2 AND ($3::uuid IS NULL OR learning_session_id=$3)",[learner.id,lesson.version_id,requestedSessionId??null]),
    pool.query<{skill:GabrooExerciseOutcome["skill"];correct:boolean;difficulty:number|null;observed_at:Date}>(`SELECT DISTINCT ON (a.lesson_version_id,a.exercise_id,COALESCE(a.learning_session_id,'00000000-0000-0000-0000-000000000000'::uuid))
     block->>'skill' AS skill,a.is_correct AS correct,
     CASE WHEN block->>'difficulty' ~ '^[1-5]$' THEN (block->>'difficulty')::int ELSE NULL END AS difficulty,
