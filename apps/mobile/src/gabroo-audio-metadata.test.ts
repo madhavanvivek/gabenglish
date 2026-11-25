@@ -3,7 +3,7 @@ import {parseGabrooAudioResponseMetadata} from "./gabroo-audio-metadata";
 
 const audioId="a".repeat(64);
 const textSha="b".repeat(64);
-const headers=(values:Record<string,string>)=>new Headers(values);
+const headers=(values:Record<string,string|undefined>)=>{const result=new Headers();for(const [key,value] of Object.entries(values))if(value!==undefined)result.set(key,value);return result;};
 
 describe("Gabroo measured audio response metadata",()=>{
  it("accepts a complete content-addressed identity and measured duration",()=>{
