@@ -6,8 +6,8 @@ export type DailyPracticeSkill={
 };
 export type DailySpeakingChallenge={date:string;title:string;focus:string;prompt:string;skillKey:string|null};
 export type SavedPracticePhrase={memory_key:string;content:string};
-type PracticePhrase={original:string|null;practiceVersion:string|null;fallback:string};
-function learnerSavedPhrase(item:SavedPracticePhrase):PracticePhrase{
+export type ParsedSavedPracticePhrase={original:string|null;practiceVersion:string|null;fallback:string};
+export function parseSavedPracticePhrase(item:SavedPracticePhrase):ParsedSavedPracticePhrase{
  const lines=item.content.split("\n");
  const original=lines.find(line=>line.startsWith("Learner phrase: "))?.slice("Learner phrase: ".length).trim().slice(0,180)||null;
  const practiceVersion=lines.find(line=>line.startsWith("Practice version: "))?.slice("Practice version: ".length).trim().slice(0,180)||null;
@@ -57,7 +57,7 @@ export function buildDailySpeakingChallenge(date:string,skills:DailyPracticeSkil
  const focusSkill=skills.filter(item=>item.evidence_status==="practice_opportunity"||item.evidence_status==="developing_exercise_performance").sort((a,b)=>a.accuracy-b.accuracy||b.attempt_count-a.attempt_count)[0];
  const bank=focusSkill?challengeBank[focusSkill.skill_key]??general:general;
  const selected=bank[((index%bank.length)+bank.length)%bank.length]!;
- const usablePhrases=savedPhrases.map(learnerSavedPhrase).filter(item=>item.original||item.practiceVersion||item.fallback).slice(0,50);
+ const usablePhrases=savedPhrases.map(parseSavedPracticePhrase).filter(item=>item.original||item.practiceVersion||item.fallback).slice(0,50);
  if(usablePhrases.length){
   const saved=usablePhrases[((index%usablePhrases.length)+usablePhrases.length)%usablePhrases.length]!;
   const original=saved.original??saved.fallback;
