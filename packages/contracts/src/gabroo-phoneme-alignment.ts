@@ -22,6 +22,9 @@ export const gabrooPhonemeAlignmentSchema=z.object({
   if(event.end_ms>alignment.duration_ms){
    ctx.addIssue({code:"custom",path:["phonemes",index,"end_ms"],message:"Phoneme events must end within the audio timeline."});
   }
+  if(index>0&&event.start_ms<alignment.phonemes[index-1].start_ms){
+   ctx.addIssue({code:"custom",path:["phonemes",index,"start_ms"],message:"Phoneme events must be ordered by start time."});
+  }
  });
 });
 export type GabrooPhonemeAlignment=z.infer<typeof gabrooPhonemeAlignmentSchema>;
