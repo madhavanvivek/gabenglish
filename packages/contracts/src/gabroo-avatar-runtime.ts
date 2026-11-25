@@ -58,6 +58,9 @@ export function sampleGabrooConversationFrameFromPlaybackStatus(
  if(typeof status.isLoaded!=="boolean"||typeof status.isPlaying!=="boolean"){
   throw new Error("Native playback status must include loaded and playing states.");
  }
+ if(status.audioId!==null&&typeof status.audioId!=="string"){
+  throw new Error("Native playback audio identity must be a string or null.");
+ }
  if(!Number.isFinite(status.positionMillis)||status.positionMillis<0){
   throw new Error("Native playback position must be finite and non-negative.");
  }
