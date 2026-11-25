@@ -5,7 +5,7 @@ import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
 
-const datePattern=/^\\d{4}-\\d{2}-\\d{2}$/;
+const datePattern=/^\d{4}-\d{2}-\d{2}$/;
 const completionSchema=z.object({
  title:z.string().trim().min(1).max(120),
  skill_key:z.enum(["vocabulary","pronunciation","sentence_formation","grammar","listening","speaking","fluency","comprehension","conversation","writing"]).nullable().optional(),
