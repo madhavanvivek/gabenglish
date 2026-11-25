@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {gabrooPhonemeAlignmentToTimeline,gabrooPhonemeToViseme,gabrooPhonemeAlignmentSchema,isGabrooPhonemeAlignmentForAudio} from "./gabroo-phoneme-alignment.js";
+import {gabrooPhonemeAlignmentToTimeline,gabrooPhonemeToViseme,gabrooPhonemeAlignmentSchema,isGabrooPhonemeAlignmentForAudio,gabrooPhonemeAlignmentToTimelineForAudio} from "./gabroo-phoneme-alignment.js";
 import {sampleGabrooAvatarFrame} from "./gabroo-avatar.js";
 
 describe("Gabroo phoneme alignment",()=>{
@@ -33,8 +33,10 @@ describe("Gabroo phoneme alignment",()=>{
  it("rejects an alignment when audio identity, bytes or duration do not match",()=>{
   const alignment={audio_id:"audio-3",audio_sha256:"d".repeat(64),duration_ms:500,phonemes:[{phoneme:"a",start_ms:0,end_ms:100}]};
   expect(isGabrooPhonemeAlignmentForAudio(alignment,{audioId:"audio-3",audioSha256:"d".repeat(64),durationMs:500})).toBe(true);
+  expect(gabrooPhonemeAlignmentToTimelineForAudio(alignment,{audioId:"audio-3",audioSha256:"d".repeat(64),durationMs:500}).audio_id).toBe("audio-3");
   expect(isGabrooPhonemeAlignmentForAudio(alignment,{audioId:"audio-other",audioSha256:"d".repeat(64),durationMs:500})).toBe(false);
   expect(isGabrooPhonemeAlignmentForAudio(alignment,{audioId:"audio-3",audioSha256:"e".repeat(64),durationMs:500})).toBe(false);
+  expect(()=>gabrooPhonemeAlignmentToTimelineForAudio(alignment,{audioId:"audio-3",audioSha256:"e".repeat(64),durationMs:500})).toThrow("does not match the active audio asset");
   expect(isGabrooPhonemeAlignmentForAudio(alignment,{audioId:"audio-3",audioSha256:"d".repeat(64),durationMs:700})).toBe(false);
  });
  it("rejects phoneme events outside the audio duration",()=>{
