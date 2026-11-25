@@ -187,7 +187,7 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
   const answerMap=new Map(answers.map(answer=>[answer.question_id,answer.option_id]));
   const score=quiz.filter(question=>answerMap.get(question.id)===question.correct).length;
   const percentage=Math.round(score/quiz.length*100);
-  const suggested_stage=percentage<40?"malayalam_mode":percentage<80?"mixed_mode":"english_practice";
+  // This five-item pilot is too narrow to recommend a curriculum stage.
   const client:PoolClient=await pool.connect();
   try{
    await client.query("BEGIN");
@@ -222,7 +222,7 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
     );
    }
    const result={
-    assessment_id:attemptId,assessment_version:"pilot-1",score,total:quiz.length,percentage,suggested_stage,
+    assessment_id:attemptId,assessment_version:"pilot-1",score,total:quiz.length,percentage,recommendation_status:"not_yet_available",
     rubric_observations:skillEvidence.map(item=>({skill:item.skill,score:item.score,confidence:item.confidence,task_id:item.taskId,observed_at:item.observedAt})),
     learning_profile_updated:skillEvidence.length>0,
     notice:"This short pilot assessment is a starting-point suggestion, not a formal certification."
@@ -241,7 +241,7 @@ export async function registerPlacementRoutes(app:FastifyInstance,pool:Pool|unde
   const parsed=legacySubmission.safeParse(request.body);
   if(!parsed.success)return reply.code(400).send({error:{code:"VALIDATION_ERROR",message:"Submit between 1 and 20 valid answers.",request_id:request.id}});
   const answerMap=new Map(parsed.data.answers.map(a=>[a.question_id,a.option_id]));const score=quiz.filter(q=>answerMap.get(q.id)===q.correct).length;const percentage=Math.round(score/quiz.length*100);
-  const suggested_stage=percentage<40?"malayalam_mode":percentage<80?"mixed_mode":"english_practice";
-  const observedAt=new Date().toISOString();const rubricResults=buildObjectivePlacementRubricResults({answers:quiz.map(question=>({questionId:question.id,correct:answerMap.get(question.id)===question.correct})).filter(answer=>answerMap.has(answer.questionId)),observedAt});const skillEvidence=mapGabrooRubricResults(rubricResults,"placement_assessment");return {assessment_version:"pilot-1",score,total:quiz.length,percentage,suggested_stage,rubric_observations:skillEvidence.map(item=>({skill:item.skill,score:item.score,confidence:item.confidence,task_id:item.taskId,observed_at:item.observedAt})),notice:"This short pilot assessment is a starting-point suggestion, not a formal certification. Rubric observations are provisional item-level evidence and are not yet persisted to your learning profile."};
+  // This five-item pilot is too narrow to recommend a curriculum stage.
+  const observedAt=new Date().toISOString();const rubricResults=buildObjectivePlacementRubricResults({answers:quiz.map(question=>({questionId:question.id,correct:answerMap.get(question.id)===question.correct})).filter(answer=>answerMap.has(answer.questionId)),observedAt});const skillEvidence=mapGabrooRubricResults(rubricResults,"placement_assessment");return {assessment_version:"pilot-1",score,total:quiz.length,percentage,recommendation_status:"not_yet_available",rubric_observations:skillEvidence.map(item=>({skill:item.skill,score:item.score,confidence:item.confidence,task_id:item.taskId,observed_at:item.observedAt})),notice:"This short pilot assessment is a starting-point suggestion, not a formal certification. Rubric observations are provisional item-level evidence and are not yet persisted to your learning profile."};
  });
 }
