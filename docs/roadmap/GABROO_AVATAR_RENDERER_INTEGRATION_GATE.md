@@ -75,3 +75,5 @@ Record device model, Android version, renderer/rig version, frame-time percentil
 Do not set live_avatar_renderer=true until the owner-approved Concept C source asset and provenance are recorded; the production model and rig have explicit owner approval; adapter and playback integration tests pass; a real phoneme-alignment provider is configured and its output is validated against exact audio; Android device acceptance is recorded; and captions, mute, replay, speed control, reduced motion and static fallback pass.
 
 Voice approval is a separate gate. The renderer must not select or lock a voice provider. No merge or production deployment is implied by this contract.
+
+Native playback status validation rejects out-of-range playheads, invalid durations and malformed audio identity before clock sampling.
