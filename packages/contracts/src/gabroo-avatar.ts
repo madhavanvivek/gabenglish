@@ -45,10 +45,12 @@ export const gabrooGestureEventSchema=timedEventBase.extend({
 
 export const gabrooSpeechTimelineSchema=z.object({
  audio_id:z.string().trim().min(1).max(160),
- duration_ms:z.number().finite().positive(),
- visemes:z.array(gabrooVisemeEventSchema).default([]),
- expressions:z.array(gabrooExpressionEventSchema).default([]),
- gestures:z.array(gabrooGestureEventSchema).default([])
+ duration_ms:z.number().finite().positive().max(10*60*1000),
+ // Bound untrusted provider timelines so a malformed response cannot turn
+ // every animation tick into an unbounded amount of work.
+ visemes:z.array(gabrooVisemeEventSchema).max(4096).default([]),
+ expressions:z.array(gabrooExpressionEventSchema).max(256).default([]),
+ gestures:z.array(gabrooGestureEventSchema).max(128).default([])
 }).superRefine((timeline,ctx)=>{
  for(const [collection,events] of [
   ["visemes",timeline.visemes],
