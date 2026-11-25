@@ -113,6 +113,10 @@ export async function cacheGabrooSpeechAudioWithExpo(input: {
 }): Promise<GabrooCachedAudio> {
   const fs = await import("expo-file-system");
   if (!fs.cacheDirectory) throw new Error("Private app cache is unavailable.");
+  await cleanupExpiredGabrooSpeechAudio({
+    cacheDirectory: fs.cacheDirectory,
+    fileSystem: { readDirectoryAsync: fs.readDirectoryAsync, deleteAsync: fs.deleteAsync },
+  });
   return cacheGabrooSpeechAudio({
     ...input,
     cacheDirectory: fs.cacheDirectory,
