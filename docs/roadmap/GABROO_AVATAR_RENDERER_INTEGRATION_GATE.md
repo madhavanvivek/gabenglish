@@ -95,3 +95,8 @@ Added a consent-gated, provider-neutral API service for future speech asset gene
 ## Authenticated speech API route
 
 Added `GET /api/v1/gabroo/speech/status` and `POST /api/v1/gabroo/speech`. Both require a verified learner session and active subscription entitlement. Generation additionally requires explicit `x-gabroo-consent: true`, strict JSON fields (text, language and speech rate), and an injected speech provider. The route returns 503 while no provider is configured; it does not fabricate speech output. Request disconnects cancel provider work. API registration accepts a provider through the existing dependency-injection seam; the production server does not configure one, so the feature remains safely unavailable until credentials, provider implementation and signed asset delivery are reviewed. Route tests cover authentication, free-tier denial, provider-unavailable behavior and consent gating.
+
+
+## Speech route integration verification
+
+The API route is now covered by an end-to-end Fastify injection test using a deterministic provider stub. It verifies consented Malayalam text is normalized and passed to the provider, a content-bound speech asset is validated and returned, and malformed requests are rejected before provider invocation. A CI-discovered missing provider-type export was corrected. The tests use a stub only; they do not represent a production voice vendor or real generated audio.
