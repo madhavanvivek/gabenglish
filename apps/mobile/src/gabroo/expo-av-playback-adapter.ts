@@ -103,6 +103,13 @@ export async function createGabrooExpoAvPlayback(input: {
           return;
         }
         if (status.didJustFinish) { stopClock(); return; }
+        // Android may report buffering while playback is nominally active
+        // (network stalls, decoder starvation, route changes). Never animate
+        // from a stale playhead during that interval; resume on a fresh native tick.
+        if (status.isBuffering) {
+          if (started) { clock.stop(); started = false; }
+          return;
+        }
         if (!status.isPlaying) {
           if (started) { clock.stop(); started = false; }
           return;
@@ -130,7 +137,15 @@ export async function createGabrooExpoAvPlayback(input: {
   };
 
   return {
-    async play() { await requireSound().playAsync(); },
+    async play() {
+      try { await requireSound().playAsync(); }
+      catch (reason) {
+        if (started) { clock.stop(); started = false; }
+        const error = reason instanceof Error ? reason : new Error("Gabroo audio playback failed.");
+        reportError(error);
+        throw error;
+      }
+    },
     async pause() {
       if (!sound || closed) return;
       await sound.pauseAsync();
