@@ -26,7 +26,7 @@ Keep the application independent of a specific 3D engine. The adapter should exp
 
 A frame contains one validated viseme (or neutral), bounded viseme blend weight, one allow-listed expression cue (or neutral), one allow-listed gesture cue (or idle), and a monotonically increasing playback generation and sample timestamp.
 
-The renderer must not receive provider-specific event objects, learner transcripts, credentials, or arbitrary model instructions. Map the shared `GabrooAvatarFrame` contract into the renderer gate's allow-listed controls through `apps/mobile/src/gabroo/avatar-frame-mapper.ts`. Keep this mapping explicit, exhaustive and unit-tested; it is a semantic bridge only, not a replacement for phoneme alignment or a claim that a production rig supports every cue.
+The renderer must not receive provider-specific event objects, learner transcripts, credentials, or arbitrary model instructions. Map the shared `GabrooAvatarFrame` contract into the renderer gate's allow-listed controls through `apps/mobile/src/gabroo/avatar-frame-mapper.ts`. Compose the canonical sampler and mapper through `apps/mobile/src/gabroo/avatar-timeline-renderer.ts`, which re-validates the timeline and requires exact audio ID and measured-duration matches before sampling. Preserve viseme, expression and gesture blend weights in complete rig frames. These are semantic/integration bridges only, not a replacement for a real alignment provider or a claim that a production rig supports every cue.
 
 ## Playback lifecycle
 
