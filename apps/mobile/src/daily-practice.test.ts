@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {buildDailySpeakingChallenge,localPracticeDateKey} from "./daily-practice.js";
+import {buildDailySpeakingChallenge,localPracticeDateKey,parseSavedPracticePhrase} from "./daily-practice.js";
 describe("daily speaking challenge",()=>{
  it("formats the learner device-local calendar date without UTC conversion",()=>{
   const date=new Date(2026,10,25,23,45,0);
@@ -50,5 +50,24 @@ describe("daily speaking challenge",()=>{
  it("falls back to the normal challenge when the journal has no usable phrase",()=>{
   const challenge=buildDailySpeakingChallenge("2026-11-25",[],[{memory_key:"",content:"Practice version: "}]);
   expect(challenge.title).not.toBe("Bring a saved phrase to life");
+ });
+});
+
+describe("saved practice phrase parsing",()=>{
+ it("returns the learner's original phrase and explicitly saved practice version",()=>{
+  expect(parseSavedPracticePhrase({memory_key:"Useful phrase",content:"Learner phrase: Could you please clarify?\\nPractice version: Could you explain that again?"})).toEqual({
+   original:"Could you please clarify?",practiceVersion:"Could you explain that again?",fallback:"Useful phrase"
+  });
+ });
+ it("supports legacy journal entries that contain only a memory key",()=>{
+  expect(parseSavedPracticePhrase({memory_key:"Useful expression",content:"A note about a phrase"})).toEqual({
+   original:null,practiceVersion:null,fallback:"Useful expression"
+  });
+ });
+ it("bounds extracted phrases to 180 characters",()=>{
+  const longPhrase="a".repeat(220);
+  const parsed=parseSavedPracticePhrase({memory_key:"Phrase",content:"Learner phrase: "+longPhrase+"\\nPractice version: "+longPhrase});
+  expect(parsed.original).toHaveLength(180);
+  expect(parsed.practiceVersion).toHaveLength(180);
  });
 });
