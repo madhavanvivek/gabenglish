@@ -1,5 +1,10 @@
 import {describe,it,expect,vi} from "vitest";
-import {recordGabrooSkillEvidence} from "./gabroo-learning-profile.js";
+import {recordGabrooSkillEvidence,registerGabrooLearningProfileRoutes} from "./gabroo-learning-profile.js";
+import {authenticateLearner} from "./auth.js";
+import type {FastifyInstance} from "fastify";
+import type {AppConfig} from "./config.js";
+
+vi.mock("./auth.js",()=>({authenticateLearner:vi.fn()}));
 import type {GabrooSkillEvidence} from "./gabroo-learning-model.js";
 
 const observation:GabrooSkillEvidence={
@@ -34,5 +39,76 @@ describe("Gabroo persisted learning evidence",()=>{
   const pool={query} as unknown as import("pg").Pool;
   await expect(recordGabrooSkillEvidence(pool,"learner-id",{...observation,taskId:" "})).rejects.toThrow("Invalid Gabroo skill evidence");
   expect(query).not.toHaveBeenCalled();
+ });
+});
+
+
+describe("Gabroo learner-selected stage endpoint",()=>{
+ const register=async(query:ReturnType<typeof vi.fn>)=>{
+  const routes=new Map<string,(request:any,reply:any)=>Promise<any>>();
+  const app={
+   patch:(path:string,handler:(request:any,reply:any)=>Promise<any>)=>routes.set(path,handler),
+   get:()=>undefined
+  } as unknown as FastifyInstance;
+  const pool={query} as unknown as import("pg").Pool;
+  await registerGabrooLearningProfileRoutes(app,pool,{} as AppConfig);
+  const handler=routes.get("/api/v1/gabroo/learning-stage");
+  if(!handler)throw new Error("Learning-stage route was not registered");
+  const reply={code:vi.fn().mockReturnThis(),send:vi.fn((body)=>body)};
+  return {handler,reply};
+ };
+ const learner={id:"learner-123"} as any;
+
+ it("requires a verified authenticated learner",async()=>{
+  vi.mocked(authenticateLearner).mockResolvedValueOnce(undefined);
+  const query=vi.fn();
+  const {handler,reply}=await register(query);
+  await handler({body:{stage:2},id:"request-1",headers:{} } as any,reply);
+  expect(reply.code).toHaveBeenCalledWith(401);
+  expect(query).not.toHaveBeenCalled();
+ });
+
+ it("rejects invalid stage values without writing",async()=>{
+  vi.mocked(authenticateLearner).mockResolvedValueOnce(learner);
+  const query=vi.fn();
+  const {handler,reply}=await register(query);
+  await handler({body:{stage:6},id:"request-2",headers:{} } as any,reply);
+  expect(reply.code).toHaveBeenCalledWith(400);
+  expect(query).not.toHaveBeenCalled();
+ });
+
+ it("does not apply the English five-stage path to Malayalam learners",async()=>{
+  vi.mocked(authenticateLearner).mockResolvedValueOnce(learner);
+  const query=vi.fn().mockResolvedValueOnce({rows:[{learning_direction:"en_to_ml"}]});
+  const {handler,reply}=await register(query);
+  await handler({body:{stage:3},id:"request-3",headers:{} } as any,reply);
+  expect(reply.code).toHaveBeenCalledWith(409);
+  expect(query).toHaveBeenCalledTimes(1);
+  expect(query.mock.calls[0]?.[1]).toEqual([learner.id]);
+ });
+
+ it("persists a learner-selected stage without labelling it as assessed proficiency",async()=>{
+  vi.mocked(authenticateLearner).mockResolvedValueOnce(learner);
+  const query=vi.fn()
+   .mockResolvedValueOnce({rows:[{learning_direction:"ml_to_en"}]})
+   .mockResolvedValueOnce({rows:[{preferred_learning_stage:4}]});
+  const {handler,reply}=await register(query);
+  await expect(handler({body:{stage:4},id:"request-4",headers:{} } as any,reply)).resolves.toEqual({
+   preferred_learning_stage:4,source:"learner_selected"
+  });
+  expect(query).toHaveBeenCalledTimes(2);
+  expect(query.mock.calls[1]?.[1]).toEqual([learner.id,4]);
+  expect(query.mock.calls[1]?.[0]).toContain("ON CONFLICT(user_id,preferred_learning_stage)");
+ });
+
+ it("allows a learner to clear a prior stage selection",async()=>{
+  vi.mocked(authenticateLearner).mockResolvedValueOnce(learner);
+  const query=vi.fn().mockResolvedValueOnce({rows:[{preferred_learning_stage:null}]});
+  const {handler,reply}=await register(query);
+  await expect(handler({body:{stage:null},id:"request-5",headers:{} } as any,reply)).resolves.toEqual({
+   preferred_learning_stage:null,source:"not_selected"
+  });
+  expect(query).toHaveBeenCalledTimes(1);
+  expect(query.mock.calls[0]?.[1]).toEqual([learner.id,null]);
  });
 });
