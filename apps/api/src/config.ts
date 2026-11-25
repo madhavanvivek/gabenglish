@@ -35,6 +35,12 @@ const schema=z.object({
  if(Boolean(value.GABROO_LLM_API_KEY)!==Boolean(value.GABROO_LLM_MODEL)){
   ctx.addIssue({code:"custom",path:["GABROO_LLM_MODEL"],message:"GABROO_LLM_API_KEY and GABROO_LLM_MODEL must be configured together."});
  }
+ if(!/^[a-z]{2,3}-[A-Z]{2,4}$/.test(value.GABROO_GOOGLE_TTS_LANGUAGE_CODE)){
+  ctx.addIssue({code:"custom",path:["GABROO_GOOGLE_TTS_LANGUAGE_CODE"],message:"Google TTS language code must be a valid locale tag."});
+ }
+ if(!/^[a-z]{2,3}-[A-Z]{2,4}$/.test(value.GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE)){
+  ctx.addIssue({code:"custom",path:["GABROO_GOOGLE_TTS_ENGLISH_LANGUAGE_CODE"],message:"Google TTS English language code must be a valid locale tag."});
+ }
  if(Boolean(value.GABROO_GOOGLE_TTS_API_KEY)!==Boolean(value.GABROO_GOOGLE_TTS_VOICE)){
   ctx.addIssue({code:"custom",path:["GABROO_GOOGLE_TTS_VOICE"],message:"Google TTS API key and explicit voice ID must be configured together."});
  }
