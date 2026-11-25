@@ -22,4 +22,8 @@ Each response records case ID, repetition, model ID, endpoint, SHA-256 fingerpri
 4. Compare quality, p50/p95 latency, error rate and cost per completed case. Calculate cost from provider usage/billing data; this runner does not guess token prices.
 5. Retain model ID, endpoint, date, case-file version and teaching-policy version for reproducibility.
 
-The runner uses the production provider adapter and live policy builder, but it does not yet support streaming/audio. The adapter is OpenAI-compatible; select a provider endpoint and model that support the chat-completions contract. Outputs are untrusted model text and require human review. Never use learner personal data in these fixtures.
+The runner uses the production provider adapter and live policy builder, but it does not yet support streaming/audio. The adapter is OpenAI-compatible; select a provider endpoint and model that support the chat-completions contract.
+
+## Production API configuration
+
+The API server now wires the same adapter into live conversations when both `GABROO_API_KEY` and `GABROO_API_MODEL` are set. `GABROO_API_BASE_URL` defaults to `https://api.openai.com/v1` and can point to a compatible gateway. Set these as Render environment secrets/configuration; never commit the key. Configure key and model together or startup configuration validation fails. Without both values the API intentionally leaves the provider unavailable and conversation routes return the existing 503 response. Outputs are untrusted model text and require human review. Never use learner personal data in these fixtures.
