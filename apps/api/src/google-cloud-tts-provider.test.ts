@@ -123,6 +123,12 @@ describe("Google Cloud TTS provider",()=>{
   const empty=createGoogleCloudTtsProvider(config,async()=>new Response(null))!;
   await expect(empty.synthesize({text:"hello",speed:1,signal:new AbortController().signal})).rejects.toThrow(/no audio content/i);
  });
+ it("rejects valid JSON values that are not provider response objects",async()=>{
+  for(const body of ["null","[]","\"audio\"","42","true"]){
+   const provider=createGoogleCloudTtsProvider(config,async()=>new Response(body,{headers:{"content-type":"application/json"}}))!;
+   await expect(provider.synthesize({text:"hello",speed:1,signal:new AbortController().signal})).rejects.toThrow(/invalid JSON response envelope/i);
+  }
+ });
  it("bounds the provider JSON response while streaming before buffering it",async()=>{
   let cancelled=false;
   let sent=0;
