@@ -1,6 +1,14 @@
 import {describe,it,expect,vi} from "vitest";
 import {buildGabrooGoogleTtsSsml,createGoogleCloudTtsProvider} from "./google-cloud-tts-provider.js";
 
+function validMp3(){
+ const frame=new Uint8Array(417);
+ frame.set([0xff,0xfb,0x90,0x64]);
+ const audio=new Uint8Array(frame.length*2);
+ audio.set(frame);audio.set(frame,frame.length);
+ return audio;
+}
+
 describe("Google Cloud TTS provider",()=>{
  it("builds safe bilingual SSML",()=>{ expect(buildGabrooGoogleTtsSsml("നമസ്കാരം! Hello world & <test>.")).toBe("<speak>നമസ്കാരം! <lang xml:lang=\"en-US\">Hello world</lang> &amp; &lt;test&gt;.</speak>"); });
  it("rejects invalid English locale",()=>{expect(()=>buildGabrooGoogleTtsSsml("hello","bad-locale")).toThrow(/English language code/i);});
@@ -17,12 +25,12 @@ describe("Google Cloud TTS provider",()=>{
   let captured:{url:URL;init:RequestInit}|undefined;
   const fetcher=vi.fn(async(url:string|URL|Request,init?:RequestInit)=>{
    captured={url:new URL(String(url)),init:init!};
-   return Response.json({audioContent:Buffer.from([1,2,3]).toString("base64")});
+   return Response.json({audioContent:Buffer.from(validMp3()).toString("base64")});
   });
   const provider=createGoogleCloudTtsProvider(config,fetcher)!;
   const controller=new AbortController();
   await expect(provider.synthesize({text:"നമസ്കാരം! Let's practise.",speed:0.9,signal:controller.signal})).resolves.toEqual({
-   audio:new Uint8Array([1,2,3]),contentType:"audio/mpeg"
+   audio:validMp3(),contentType:"audio/mpeg",durationMs:52
   });
   if(!captured)throw new Error("Google TTS request was not captured.");
   expect(captured.url.href.split("?")[0]).toBe("https://texttospeech.googleapis.com/v1/text:synthesize");
