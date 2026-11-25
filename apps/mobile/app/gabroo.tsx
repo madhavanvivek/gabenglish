@@ -379,11 +379,6 @@ export default function GabrooScreen(){
       speechSoundRef.current=sound;
       await sound.setRateAsync(speechRateRef.current,true);
       if(run!==speechRunRef.current||requestController.signal.aborted)return;
-      if(!playbackStarted){
-       dispatchPlayback({type:"started",playback_id:playbackId});
-       setSpeakingMessageId(message.id);setSpeechNotice("");
-       playbackStarted=true;
-      }
       await new Promise<void>((resolve,reject)=>{
        let settled=false;
        const finish=()=>{
@@ -401,6 +396,12 @@ export default function GabrooScreen(){
        };
        sound!.setOnPlaybackStatusUpdate(status=>{
         if(status.isLoaded){
+         // Promote playback only after Expo confirms this audio item is playing.
+         if((status.isPlaying||status.didJustFinish)&&!playbackStarted){
+          dispatchPlayback({type:"started",playback_id:playbackId});
+          setSpeakingMessageId(message.id);setSpeechNotice("");
+          playbackStarted=true;
+         }
          if(status.didJustFinish)finish();
         }else if(status.error){
          fail(new Error(status.error));
