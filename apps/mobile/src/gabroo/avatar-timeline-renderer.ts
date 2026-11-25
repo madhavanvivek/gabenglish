@@ -21,7 +21,7 @@ export function renderGabrooTimelineFrame(
   untrustedTimeline: unknown,
 ): boolean {
   if (typeof proof !== "object" || proof === null || typeof proof.audioId !== "string") {
-    gate.stopPlayback();
+    if (Number.isSafeInteger(proof.generation)) gate.stopPlayback(proof.generation);
     return false;
   }
   const parsed = gabrooSpeechTimelineSchema.safeParse(untrustedTimeline);
