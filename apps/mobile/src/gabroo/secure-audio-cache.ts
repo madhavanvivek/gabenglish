@@ -76,13 +76,13 @@ export async function cacheGabrooSpeechAudio(input: {
       if (typeof existing.size === "number" && existing.size > 0 && existing.size <= limit) {
         const bytes = decodeBase64(await input.fileSystem.readAsBase64Async(finalUri));
         if (bytes.length === existing.size && sha256Hex(bytes) === input.audioSha256.toLowerCase()) {
-          throwIfAborted(input.signal);
           return { uri: finalUri, audioSha256: input.audioSha256.toLowerCase(), bytes: bytes.length };
         }
       }
     } catch {
       // A corrupt cache entry is disposable; fetch and verify a clean copy below.
     }
+    throwIfAborted(input.signal);
     await input.fileSystem.deleteAsync(finalUri, { idempotent: true });
   }
 
