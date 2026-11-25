@@ -3,7 +3,7 @@ import {createHash} from "node:crypto";
 import {dirname,resolve} from "node:path";
 import {fileURLToPath} from "node:url";
 import {buildGabrooTeachingPolicy,type GabrooTeachingPolicy} from "./gabroo-teaching-policy.js";
-import {createOpenAICompatibleGabrooProvider} from "./gabroo-openai-provider.js";
+import {createOpenAICompatibleGabrooProvider,GABROO_PROVIDER_ADAPTER_VERSION} from "./gabroo-openai-provider.js";
 import type {GabrooConversationMode,GabrooMessage} from "./gabroo-conversations.js";
 
 type BenchmarkCase={
@@ -50,7 +50,9 @@ async function runBenchmark(){
   console.error("Set GABROO_EVAL_API_KEY (or OPENAI_API_KEY) and GABROO_EVAL_MODEL. No provider request was sent.");
   process.exitCode=2;return;
  }
- const cases=JSON.parse(await readFile(casesPath,"utf8")) as BenchmarkCase[];
+ const casesContent=await readFile(casesPath,"utf8");
+ const caseFileSha256=createHash("sha256").update(casesContent).digest("hex");
+ const cases=JSON.parse(casesContent) as BenchmarkCase[];
  if(!Array.isArray(cases)||cases.length===0)throw new Error("Benchmark cases must be a non-empty JSON array.");
  await mkdir(dirname(outputPath),{recursive:true});
  const provider=createOpenAICompatibleGabrooProvider({apiKey,baseUrl,model});
@@ -70,7 +72,7 @@ async function runBenchmark(){
     });
     const content=response.content;
     record={
-     caseId:testCase.id,title:testCase.title,repetition,model:response.model??model,providerBaseUrl:baseUrl,
+     caseId:testCase.id,title:testCase.title,repetition,model:response.model??model,providerBaseUrl:baseUrl,\n     providerAdapterVersion:GABROO_PROVIDER_ADAPTER_VERSION,caseFileSha256,
      teachingPolicyVersion:getGabrooBenchmarkPolicyVersion(testCase),latencyMs:Math.round(performance.now()-started),
      status:"completed",response:content.trim(),usage:response.usage??null,
      expectedChecks:testCase.expected,criticalChecks:testCase.critical,
@@ -78,7 +80,7 @@ async function runBenchmark(){
     };completed++;completedLatencies.push(Number(record.latencyMs));
    }catch(error){
     record={
-     caseId:testCase.id,title:testCase.title,repetition,model,providerBaseUrl:baseUrl,
+     caseId:testCase.id,title:testCase.title,repetition,model,providerBaseUrl:baseUrl,\n     providerAdapterVersion:GABROO_PROVIDER_ADAPTER_VERSION,caseFileSha256,
      teachingPolicyVersion:getGabrooBenchmarkPolicyVersion(testCase),latencyMs:Math.round(performance.now()-started),
      status:"error",error:error instanceof Error?error.message:String(error),
      evaluatorScore:null,evaluatorNotes:null,evaluatorRubric:GABROO_EVALUATION_DIMENSIONS.map(dimension=>({dimension,score:null,notes:null})),recordedAt:new Date().toISOString()
