@@ -85,7 +85,7 @@ No gate is passed without recorded test evidence. A storyboard/static image is n
 2. Create the selected concept's production model sheet and 3D model; obtain owner sign-off.
 3. Use `docs/ai/GABROO_VOICE_AUDITION_PROTOCOL.md` to run the identical audition script and blind scorecard for at least three candidates.
 4. Run contract typecheck/tests and integrate the renderer against the approved rig.
-5. Connect the conversation state machine to the actual tutor/audio runtime and test barge-in, stale completion events and reconnect recovery.
+5. Extend the connected native playback lifecycle into the full live conversation session, then test barge-in, stale completion events and reconnect recovery.
 6. Build registration-to-Meet-Gabroo state flow using approved artwork only.
 7. Integrate the voice only after owner approval.
 8. Connect streaming audio timing and interruptible live conversation.
@@ -99,7 +99,8 @@ No gate is passed without recorded test evidence. A storyboard/static image is n
 - Voice direction: audition brief only; no exact voice approved. Candidate benchmark and explicit owner approval pending.
 - Production 3D model, rig and animation: not verified as present.
 - Provider-neutral audio-timed viseme/expression/gesture contract and expanded timeline validation tests: added in this delivery branch; CI and renderer integration pending.
-- Provider-neutral live conversation state machine and interruption/recovery tests: added in this delivery branch; connection to the actual tutor/audio runtime pending.
+- Provider-neutral live conversation state machine and interruption/recovery tests: added in this delivery branch; full live-session orchestration and speech-alignment integration remain pending.
+- Mobile speech playback lifecycle: connected to the native Expo AV playback callbacks. The app now promotes the playback reducer to `speaking` only after the native player reports the current audio item playing, counts segments only after native completion, and handles interruption/failure/stale callbacks through the same reducer. A live status is exposed to assistive technology. This is playback-state integration, not phoneme alignment or a rendered avatar.
 - Conversation-to-renderer bridge and regression tests: added; samples canonical rig controls only while the conversation owns the current speaking audio ID, uses the caller's real playback clock, and returns a neutral mouth during silence, interruption and recovery.
 - Standard male Kerala Malayalam voice audition script and blind scorecard: documented; candidate testing and owner approval pending.
 - Streaming Malayalam voice, precise lip-sync and live interruptible avatar: not verified as implemented.
