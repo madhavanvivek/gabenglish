@@ -93,6 +93,30 @@ describe("Gabroo secure audio cache", () => {
 
 
 describe("cleanupExpiredGabrooSpeechAudio", () => {
+  it("removes abandoned partial downloads after 24 hours but preserves fresh and unrelated files", async () => {
+    const { cleanupExpiredGabrooSpeechAudio } = await import("./secure-audio-cache");
+    const oldPart = `gabroo-${digest}-1000-dl-1000-1.part`;
+    const freshPart = `gabroo-${digest}-4900-dl-4900-2.part`;
+    const malformedPart = `gabroo-${digest}-not-a-time.part`;
+    const unrelated = "other.part";
+    const { fs, files } = makeFs({
+      [`file:///private/cache/${oldPart}`]: bytes,
+      [`file:///private/cache/${freshPart}`]: bytes,
+      [`file:///private/cache/${malformedPart}`]: bytes,
+      [`file:///private/cache/${unrelated}`]: bytes,
+    });
+    const removed = await cleanupExpiredGabrooSpeechAudio({
+      cacheDirectory: "file:///private/cache",
+      fileSystem: fs,
+      nowMs: 1000 + 24 * 60 * 60 * 1000,
+    });
+    expect(removed).toBe(1);
+    expect(files.has(`file:///private/cache/${oldPart}`)).toBe(false);
+    expect(files.has(`file:///private/cache/${freshPart}`)).toBe(true);
+    expect(files.has(`file:///private/cache/${malformedPart}`)).toBe(true);
+    expect(files.has(`file:///private/cache/${unrelated}`)).toBe(true);
+  });
+
   it("removes only cache entries whose encoded signed expiry has elapsed", async () => {
     const { cleanupExpiredGabrooSpeechAudio } = await import("./secure-audio-cache");
     const expired = `gabroo-${digest}-1000.audio`;
