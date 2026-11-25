@@ -138,9 +138,9 @@ describe('GabrooAvatarRendererGate', () => {
   });
 
   it('invalidates a pending rig load when playback lifecycle disposes the gate', async () => {
-    let resolveLoad!: (value: { characterId: string; rigVersion: string; approved: true }) => void;
+    let resolveLoad!: (value: ApprovedRigIdentity) => void;
     const { rig } = makeRig();
-    rig.load = vi.fn(() => new Promise((resolve) => { resolveLoad = resolve; }));
+    rig.load = vi.fn(() => new Promise<ApprovedRigIdentity>((resolve) => { resolveLoad = resolve; }));
     const gate = new GabrooAvatarRendererGate(rig, 'gabroo-approved', 'v1');
     const pending = gate.initialize();
     gate.dispose();
