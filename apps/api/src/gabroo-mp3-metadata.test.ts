@@ -29,7 +29,7 @@ describe("Gabroo MP3 duration measurement",()=>{
  });
  it("supports MPEG-2 and MPEG-2.5 Layer III sample rates",()=>{
   expect(measureGabrooMp3DurationMs(join(mp3Frame({version:2}),mp3Frame({version:2})))).toBe(52);
-  expect(measureGabrooMp3DurationMs(join(mp3Frame({version:2.5}),mp3Frame({version:2.5})))).toBe(52);
+  expect(measureGabrooMp3DurationMs(join(mp3Frame({version:2.5}),mp3Frame({version:2.5})))).toBe(104);
  });
  it("skips a valid ID3v2 tag before the first frame",()=>{
   const tag=new Uint8Array([0x49,0x44,0x33,4,0,0,0,0,0,4,1,2,3,4]);
