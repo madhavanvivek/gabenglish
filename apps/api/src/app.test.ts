@@ -217,4 +217,36 @@ describe("API foundation",()=>{
   await app.close();
  });
 
+ it("returns a learner-scoped vocabulary review queue from published content",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const calls:string[]=[];
+  const pool={query:async(sql:string,values?:unknown[])=>{
+   calls.push(sql);
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("FROM active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
+   if(sql.includes("FROM lessons l")&&sql.includes("learner_vocabulary_reviews"))return {rows:[{lesson_id:"00000000-0000-4000-8000-000000000002",lesson_title:"Greetings",lesson_version_id:"00000000-0000-4000-8000-000000000003",vocabulary_item_id:"greeting_hello",term:"hello",meaning:"നമസ്കാരം",pronunciation:null,example:"Hello, how are you?",due_at:new Date(),repetitions:0,interval_days:0}]};
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"GET",url:"/api/v1/learning/vocabulary/reviews",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toMatchObject({learning_direction:"ml_to_en",due_count:1,items:[{vocabulary_item_id:"greeting_hello",term:"hello",meaning:"നമസ്കാരം"}]});
+  expect(calls.some(sql=>sql.includes("educator_review_status='approved'"))).toBe(true);
+  await app.close();
+ });
+ it("rejects invalid vocabulary recall ratings before writing",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const pool={query:async(sql:string)=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("FROM active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"POST",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000002/vocabulary/greeting_hello/review",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{rating:6}});
+  expect(response.statusCode).toBe(400);
+  expect(response.json().error.code).toBe("VALIDATION_ERROR");
+  await app.close();
+ });
+
 });
