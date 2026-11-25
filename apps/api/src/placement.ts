@@ -59,6 +59,15 @@ function buildPlacementReport(session:Session){
    average_words_per_sentence:session.evidence.length?Math.round(session.evidence.reduce((sum,item)=>sum+item.metrics.averageWordsPerSentence,0)/session.evidence.length*10)/10:0
   },
   grammar_review_items:[...new Map(session.evidence.flatMap(item=>item.grammarObservations).map(item=>[item.category+"|"+item.example.toLowerCase(),item])).values()].slice(0,8).map(({supportNoteMl,...item})=>({...item,support_note_ml:supportNoteMl})),
+  assessment_coverage:[
+   {skill:"grammar",status:"examples_only",basis:"A small set of deterministic grammar-pattern examples; not a complete grammar score."},
+   {skill:"vocabulary",status:"elicited_not_scored",basis:"Responses may show word use, but vocabulary breadth and appropriateness have not been evaluated with a reviewed rubric."},
+   {skill:"comprehension",status:"elicited_not_scored",basis:"Responses provide limited evidence of understanding prompts; no controlled listening or reading task was administered."},
+   {skill:"communication",status:"elicited_not_scored",basis:"The prompts invite communication, but task achievement and interaction quality have not been scored by a validated rubric."},
+   {skill:"fluency",status:"not_assessed",basis:"Transcript length and sentence counts are not measures of spoken fluency."},
+   {skill:"pronunciation",status:"not_assessed",basis:"No pronunciation-capable audio analysis or human review was performed."},
+   {skill:"confidence",status:"not_assessed",basis:"Confidence cannot be reliably inferred from response length or text alone."}
+  ],
   observed_patterns:patterns,
   limitations,
   next_steps:[
