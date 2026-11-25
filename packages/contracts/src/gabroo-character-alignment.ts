@@ -120,7 +120,11 @@ export function sampleGabrooCaptionAtPlayback(
   throw new Error("Caption playback position must be a finite, non-negative value.");
  }
  if(typeof status.isPlaying!=="boolean")throw new Error("Caption playback status must include a playing state.");
- if(!status.isPlaying||!status.audioId||status.audioId!==status.expectedAudioId)return null;
+ if(typeof status.audioId!=="string"||status.audioId.length===0
+  ||typeof status.expectedAudioId!=="string"||status.expectedAudioId.length===0){
+  throw new Error("Caption playback status must include valid current and expected audio identities.");
+ }
+ if(!status.isPlaying||status.audioId!==status.expectedAudioId)return null;
  let selectedIndex=-1;
  let selectedStart=-1;
  for(let index=0;index<cues.length;index+=1){
