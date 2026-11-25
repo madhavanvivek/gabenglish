@@ -45,6 +45,7 @@ describe("Gabroo Expo AV playback adapter boundary", () => {
       asset: validAsset(),
       gate: {} as never,
       nowMs: Date.parse("2029-12-31T23:59:00.000Z"),
+      cacheAudio,
       createSound: createSound as never,
     });
     expect(createSound).toHaveBeenCalledOnce();
@@ -87,6 +88,7 @@ describe("Gabroo Expo AV playback lifecycle", () => {
       asset: validAsset(),
       gate,
       nowMs: Date.parse("2029-12-31T23:59:00.000Z"),
+      cacheAudio,
       createSound: createSound as never,
     });
     await playback.play();
@@ -122,7 +124,9 @@ describe("Gabroo Expo AV playback lifecycle", () => {
       asset: validAsset(),
       gate,
       onError,
+      cacheAudio,
       nowMs: Date.parse("2029-12-31T23:59:00.000Z"),
+      cacheAudio,
       createSound: createSound as never,
     });
     await playback.play();
@@ -139,6 +143,7 @@ describe("Gabroo Expo AV playback lifecycle", () => {
     const secondPlayback = await createGabrooExpoAvPlayback({
       asset: validAsset(),
       gate: secondGate.gate,
+      cacheAudio,
       onError,
       nowMs: Date.parse("2029-12-31T23:59:00.000Z"),
       cacheAudio,
