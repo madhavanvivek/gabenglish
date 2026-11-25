@@ -45,6 +45,14 @@ describe("Gabroo conversational placement",()=>{
   expect(response?.json().report.response_metrics.average_unique_word_ratio).toBeGreaterThan(0);
   expect(response?.json().report.response_metrics.average_unique_word_ratio).toBeLessThanOrEqual(1);
   expect(response?.json().report.limitations).toContain("Text does not provide evidence of pronunciation or spoken fluency.");
+  expect(response?.json().report.assessment_coverage).toEqual(expect.arrayContaining([
+   expect.objectContaining({skill:"grammar",status:"examples_only"}),
+   expect.objectContaining({skill:"vocabulary",status:"elicited_not_scored"}),
+   expect.objectContaining({skill:"comprehension",status:"elicited_not_scored"}),
+   expect.objectContaining({skill:"fluency",status:"not_assessed"}),
+   expect.objectContaining({skill:"pronunciation",status:"not_assessed"}),
+   expect.objectContaining({skill:"confidence",status:"not_assessed"})
+  ]));
   expect(response?.json().gabroo_explanation).toContain("not going to guess your English level");
   expect(response?.json()).not.toHaveProperty("score");
   expect(response?.json()).not.toHaveProperty("suggested_stage");
