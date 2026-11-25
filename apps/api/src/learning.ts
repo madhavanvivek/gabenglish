@@ -253,13 +253,14 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
    );
    let attempt=saved.rows[0];
    if(!attempt){
-    const previous=await client.query<{id:string;is_correct:boolean;feedback:string;response:string}>(
-     "SELECT id,is_correct,feedback,response FROM learner_exercise_attempts WHERE user_id=$1 AND lesson_version_id=$2 AND exercise_id=$3 AND idempotency_key=$4 FOR UPDATE",
+    const previous=await client.query<{id:string;is_correct:boolean;feedback:string;response:string;learning_session_id:string|null}>(
+     "SELECT id,is_correct,feedback,response,learning_session_id FROM learner_exercise_attempts WHERE user_id=$1 AND lesson_version_id=$2 AND exercise_id=$3 AND idempotency_key=$4 FOR UPDATE",
      [learner.id,lesson.version_id,exerciseId,parsed.data.idempotency_key]
     );
     const replay=previous.rows[0];
     if(!replay){await client.query("ROLLBACK");return failure(reply,request.id,503,"ATTEMPT_SAVE_UNAVAILABLE","Your answer could not be saved. Please retry.");}
     if(replay.response!==parsed.data.response){await client.query("ROLLBACK");return failure(reply,request.id,409,"IDEMPOTENCY_KEY_REUSED","This submission key was already used for a different answer.");}
+    if((replay.learning_session_id??null)!==(parsed.data.learning_session_id??null)){await client.query("ROLLBACK");return failure(reply,request.id,409,"IDEMPOTENCY_SESSION_MISMATCH","This submission key was already used in a different learning session.");}
     attempt={id:replay.id,is_correct:replay.is_correct,feedback:replay.feedback};
    }
    let evidenceRecorded=false;
