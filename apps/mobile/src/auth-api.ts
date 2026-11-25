@@ -222,7 +222,7 @@ export async function recognizeGabrooAudio(input:{
  * returned URL directly to Expo AV so native networking fetches the MP3;
  * learner text is sent only in the authenticated POST body, never in a URL.
  */
-export async function synthesizeGabrooSpeech(input:{text:string;speed:number;signal?:AbortSignal}):Promise<string>{
+export async function synthesizeGabrooSpeech(input:{text:string;speed:number;signal?:AbortSignal}):Promise<{url:string;audioId:string}>{
  const text=input.text.trim();
  if(!text||text.length>4_000)throw new AuthApiError("Gabroo speech must contain between 1 and 4000 characters.");
  if(!Number.isFinite(input.speed)||input.speed<0.75||input.speed>1.5)throw new AuthApiError("Gabroo speaking speed must be between 0.75× and 1.5×.");
@@ -237,11 +237,12 @@ export async function synthesizeGabrooSpeech(input:{text:string;speed:number;sig
   if(input.signal?.aborted)throw new AuthApiError("Gabroo speech request was cancelled.");
   if(typeof payload!=="object"||payload===null||!("playback_url" in payload)||typeof payload.playback_url!=="string"||!("method" in payload)||payload.method!=="GET")
    throw new AuthApiError("Gabroo returned an invalid native playback ticket.");
-  if(!/^\/api\/v1\/gabroo\/speech\/playback\/[0-9a-f]{64}$/.test(payload.playback_url))
-   throw new AuthApiError("Gabroo returned an unsafe playback address.");
+  const ticketMatch=payload.playback_url.match(/^\\/api\\/v1\\/gabroo\\/speech\\/playback\\/([0-9a-f]{64})$/);
+  if(!ticketMatch)throw new AuthApiError("Gabroo returned an unsafe playback address.");
   if(!("expires_at" in payload)||typeof payload.expires_at!=="string"||!Number.isFinite(Date.parse(payload.expires_at))||Date.parse(payload.expires_at)<=Date.now())
    throw new AuthApiError("Gabroo returned an expired playback ticket.");
-  return new URL(payload.playback_url,baseUrl()+"/").toString();
+  // The one-time ticket token is a stable per-asset playback ID, not a content hash.
+  return {url:new URL(payload.playback_url,baseUrl()+"/").toString(),audioId:ticketMatch[1]};
  }catch(error){
   if(input.signal?.aborted)throw new AuthApiError("Gabroo speech request was cancelled.");
   if(timedOut)throw new AuthApiError("Gabroo took too long to prepare this speech. Please try again.");
