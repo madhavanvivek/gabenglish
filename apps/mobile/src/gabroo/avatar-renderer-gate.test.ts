@@ -165,6 +165,23 @@ describe('GabrooAvatarRendererGate', () => {
     }))).toBe(false);
   });
 
+
+  it('does not cancel an active generation for a proof without a trustworthy generation', async () => {
+    const { rig } = makeRig();
+    const gate = new GabrooAvatarRendererGate(rig, 'gabroo-approved', 'v1');
+    await gate.initialize();
+    const generation = gate.beginPlayback();
+    const resetCount = vi.mocked(rig.resetToNeutral).mock.calls.length;
+
+    expect(gate.render({ ...validProof(generation), generation: Number.NaN }, () => ({
+      viseme: 'aa', visemeWeight: 1, expression: 'friendly', gesture: 'idle',
+    }))).toBe(false);
+    expect(gate.render(validProof(generation), () => ({
+      viseme: 'aa', visemeWeight: 1, expression: 'friendly', gesture: 'idle',
+    }))).toBe(true);
+    expect(vi.mocked(rig.resetToNeutral).mock.calls.length).toBe(resetCount);
+  });
+
   it('invalidates prior playback frames on stop and dispose', async () => {
     const { rig } = makeRig();
     const gate = new GabrooAvatarRendererGate(rig, 'gabroo-approved', 'v1');
