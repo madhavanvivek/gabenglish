@@ -117,3 +117,7 @@ The mobile client now validates the speech-readiness response through a pure, de
 ## Mobile speech asset request boundary
 
 The mobile API layer now also exposes a consent-gated speech-generation request. It sends the explicit consent header, uses the authenticated session (including refresh retry), and validates the returned asset envelope and expiry with the shared contract before exposing it to playback code. The Gabroo screen does not invoke this method yet; no learner text is sent to a speech provider until the owner-approved voice and provider are ready.
+
+## Single-envelope native playback handoff
+
+The mobile native playback adapter now accepts one untrusted speech-asset envelope rather than separately supplied URL, playback identity and timeline values. A preflight helper validates the server-issued envelope and expiry, then derives the URI, identity and parsed timeline exclusively from that same object. This closes a caller-substitution gap where a valid timeline and identity could otherwise be paired with an unrelated HTTPS audio URL. Tests cover successful derivation, expiry, cross-audio timeline substitution and alignment-hash mismatch. The adapter still remains gated by the owner-approved character/rig and live renderer integration; no production audio is enabled by this change.
