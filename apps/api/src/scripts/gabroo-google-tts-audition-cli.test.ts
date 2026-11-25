@@ -2,13 +2,17 @@ import {mkdtemp,readFile,readdir,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {afterEach,describe,it,expect,vi} from "vitest";
-import {createGabrooGoogleTtsAuditionPack} from "./gabroo-google-tts-audition-cli.js";
+import {createGabrooGoogleTtsAuditionPack,resolveGabrooAuditionOutputDirectory} from "./gabroo-google-tts-audition-cli.js";
 
 describe("Gabroo Google TTS audition pack",()=>{
  let directory:string|undefined;
  afterEach(async()=>{
   if(directory)await rm(directory,{recursive:true,force:true});
   directory=undefined;
+ });
+ it("keeps repository-local output inside the ignored audition directory",()=>{
+  expect(resolveGabrooAuditionOutputDirectory()).toContain(".local/gabroo-voice-auditions");
+  expect(()=>resolveGabrooAuditionOutputDirectory("artifacts/voice-samples")).toThrow(/git-ignored/i);
  });
  it("creates four blind-coded candidate folders with the same seven script segments",async()=>{
   directory=await mkdtemp(join(tmpdir(),"gabroo-audition-"));
