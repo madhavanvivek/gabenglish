@@ -24,9 +24,22 @@ function assertXml10Text(value:string):void{
 export function buildGabrooGoogleTtsSsml(text:string,englishLanguageCode="en-US"):string{
  if(!/^[a-z]{2,3}-[A-Z]{2,4}$/.test(englishLanguageCode))throw new Error("Google TTS English language code is invalid.");
  assertXml10Text(text);
- const parts:string[]=[];let cursor=0;
- for(const match of text.matchAll(ENGLISH_RUN)){const index=match.index??0;parts.push(escapeXmlText(text.slice(cursor,index)));parts.push("<lang xml:lang=\""+englishLanguageCode+"\">"+escapeXmlText(match[0])+"</lang>");cursor=index+match[0].length;}
- parts.push(escapeXmlText(text.slice(cursor)));return "<speak>"+parts.join("")+"</speak>";
+ const parts:string[]=[];
+ // User text can contain angle-bracket examples such as <test>. Treat those
+ // spans as literal text rather than incorrectly marking their contents as English.
+ const chunks=text.split(/(<[^>]*>)/g);
+ for(const chunk of chunks){
+  if(chunk.startsWith("<")&&chunk.endsWith(">")){parts.push(escapeXmlText(chunk));continue;}
+  let cursor=0;
+  for(const match of chunk.matchAll(ENGLISH_RUN)){
+   const index=match.index??0;
+   parts.push(escapeXmlText(chunk.slice(cursor,index)));
+   parts.push("<lang xml:lang=\""+englishLanguageCode+"\">"+escapeXmlText(match[0])+"</lang>");
+   cursor=index+match[0].length;
+  }
+  parts.push(escapeXmlText(chunk.slice(cursor)));
+ }
+ return "<speak>"+parts.join("")+"</speak>";
 }
 const CANONICAL_BASE64=/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
