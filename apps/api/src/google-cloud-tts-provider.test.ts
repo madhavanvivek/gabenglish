@@ -100,7 +100,7 @@ describe("Google Cloud TTS provider",()=>{
   const body=new ReadableStream<Uint8Array>({
    pull(controller){read=true;controller.enqueue(new Uint8Array([1]));},
    cancel(){cancelled=true;}
-  });
+  },{highWaterMark:0});
   const provider=createGoogleCloudTtsProvider(config,async()=>new Response(body,{headers:{"content-length":String(20*1024*1024)}}))!;
   await expect(provider.synthesize({text:"hello",speed:1,signal:new AbortController().signal})).rejects.toThrow(/size limit/i);
   expect(read).toBe(false);
