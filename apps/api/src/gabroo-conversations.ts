@@ -86,6 +86,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   let learnerProfile:{display_name:string|null;learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed"}|undefined;
   let savedMemory:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>=[];
  let vocabularyFocus:Array<{term:string;meaning:string;reason:"difficult"|"due"}>=[];
+ let skillFocus:Array<{skillKey:string;accuracy:number;attemptCount:number}>=[];
   try{
    await client.query("BEGIN");
    const found=await client.query<{id:string;mode:GabrooConversationMode;support_language:"ml"|"en";learning_direction:"ml_to_en"|"en_to_ml";target_language:"ml"|"en";learning_stage:1|2|3|4|5|null;status:string;turn_count:number}>(
@@ -118,6 +119,22 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
     [learner.id,snapshot.learning_direction]
    );
    vocabularyFocus=vocabulary.rows;
+   const skillEvidence=await client.query<{skill_key:string;attempt_count:number;accuracy:string}>(
+    `SELECT skill_key,COUNT(*)::int AS attempt_count,
+      ROUND(AVG(CASE WHEN is_correct THEN 1.0 ELSE 0.0 END)::numeric,2)::text AS accuracy
+     FROM (
+      SELECT DISTINCT ON (lesson_id,exercise_id) skill_key,is_correct,attempted_at
+      FROM learner_exercise_attempts
+      WHERE user_id=$1 AND learning_direction=$2 AND skill_key IS NOT NULL
+      ORDER BY lesson_id,exercise_id,attempted_at DESC
+     ) latest
+     GROUP BY skill_key
+     HAVING COUNT(*)>=5 AND AVG(CASE WHEN is_correct THEN 1.0 ELSE 0.0 END)<=0.5
+     ORDER BY AVG(CASE WHEN is_correct THEN 1.0 ELSE 0.0 END),COUNT(*) DESC
+     LIMIT 3`,
+    [learner.id,snapshot.learning_direction]
+   );
+   skillFocus=skillEvidence.rows.map(row=>({skillKey:row.skill_key,accuracy:Number(row.accuracy),attemptCount:row.attempt_count}));
    const existing=await client.query<{role:"user"|"assistant";content:string}>(
     "SELECT role,content FROM gabroo_conversation_messages WHERE conversation_id=$1 ORDER BY sequence_number DESC LIMIT 20",[snapshot.id]);
    history=[...existing.rows].reverse();
@@ -154,7 +171,8 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
       learningGoal:learnerProfile?.learning_goal,
       profileCorrectionPreference:learnerProfile?.correction_mode,
       learnerMemory:savedMemory.map(item=>({category:item.category,memoryKey:item.memory_key,content:item.content})),
-      vocabularyFocus
+      vocabularyFocus,
+      skillFocus
      })
     }),
     timedOut
