@@ -85,3 +85,8 @@ Native playback now performs a complete speech-asset preflight before `Audio.Sou
 ## Server-issued speech asset contract
 
 Added a shared `GabrooSpeechAsset` envelope for the future API-to-mobile handoff. It binds a playback ticket, audio ID, SHA-256 digest, measured duration, alignment digest/duration, HTTPS asset URL, expiry and canonical viseme/expression/gesture timeline. The schema rejects URL credentials and non-HTTPS schemes, unknown envelope fields, mismatched audio/alignment hashes, duration mismatches and timelines belonging to another audio ID. A playback-time parser rejects expired URLs. This is a contract and validation layer only: no speech provider, signed-URL issuer, audio storage, phoneme aligner or API endpoint is claimed to exist yet.
+
+
+## API speech-generation boundary
+
+Added a consent-gated, provider-neutral API service for future speech asset generation. It validates learner text length, Malayalam/English language, playback rate, provider presence, caller cancellation and bounded provider timeout. Provider output is treated as untrusted and must pass the shared, unexpired `GabrooSpeechAsset` schema before it can be returned to a caller. Provider timeouts have a distinct error code. The service does not persist text/audio, log provider payloads, issue signed URLs, or implement a concrete speech vendor. The provider must supply a complete audio asset and alignment envelope; deployment remains disabled until a provider and secure asset issuer are configured.
