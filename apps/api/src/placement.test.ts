@@ -3,7 +3,13 @@ import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
 describe("placement pilot API",()=>{
  it("returns questions without exposing answer keys",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);const r=await app.inject({method:"GET",url:"/api/v1/placement/questions"});expect(r.statusCode).toBe(200);expect(r.json().questions).toHaveLength(5);expect(JSON.stringify(r.json())).not.toContain('"correct"');await app.close();});
- it("scores the narrow pilot knowledge check without claiming a learning-stage recommendation",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);const r=await app.inject({method:"POST",url:"/api/v1/placement/score",payload:{answers:[{question_id:"q1",option_id:"b"},{question_id:"q2",option_id:"a"},{question_id:"q3",option_id:"c"},{question_id:"q4",option_id:"a"},{question_id:"q5",option_id:"a"}]}});expect(r.statusCode).toBe(200);expect(r.json()).toMatchObject({score:5,total:5,percentage:100,recommendation_status:"not_yet_available"});expect(r.json()).not.toHaveProperty("suggested_stage");await app.close();});
+ it("scores the narrow pilot knowledge check without claiming a learning-stage recommendation",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);const r=await app.inject({method:"POST",url:"/api/v1/placement/score",payload:{answers:[{question_id:"q1",option_id:"b"},{question_id:"q2",option_id:"a"},{question_id:"q3",option_id:"c"},{question_id:"q4",option_id:"a"},{question_id:"q5",option_id:"a"}]}});expect(r.statusCode).toBe(200);expect(r.json()).toMatchObject({score:5,total:5,percentage:100,recommendation_status:"not_yet_available"});expect(r.json()).not.toHaveProperty("suggested_stage");expect(r.json().assessment_coverage).toEqual(expect.arrayContaining([
+  expect.objectContaining({skill:"grammar",status:"sampled_limited"}),
+  expect.objectContaining({skill:"comprehension",status:"sampled_limited"}),
+  expect.objectContaining({skill:"vocabulary",status:"not_assessed"}),
+  expect.objectContaining({skill:"fluency",status:"not_assessed"}),
+  expect.objectContaining({skill:"pronunciation",status:"not_assessed"})
+ ]));const {placementResultSchema}=await import("@gabenglish/contracts");expect(()=>placementResultSchema.parse(r.json())).not.toThrow();await app.close();});
  it("rejects an empty submission",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);const r=await app.inject({method:"POST",url:"/api/v1/placement/score",payload:{answers:[]}});expect(r.statusCode).toBe(400);await app.close();});
 
  it("returns task-linked item rubric observations for answered placement questions",async()=>{
