@@ -83,7 +83,7 @@ export function createOpenAICompatibleGabrooProvider(config:ProviderConfig):Gabr
    const decoder=new TextDecoder();
    let buffer="";
    const consume=async function*(final=false):AsyncGenerator<string>{
-    const lines=buffer.split(/\\r?\\n/);buffer=final?"":(lines.pop()??"");
+    const lines=buffer.split(/\r?\n/);if(!final)buffer=lines.pop()??"";else buffer="";
     for(const line of lines){
      if(!line.startsWith("data:"))continue;
      const data=line.slice(5).trim();
@@ -92,12 +92,6 @@ export function createOpenAICompatibleGabrooProvider(config:ProviderConfig):Gabr
      try{payload=JSON.parse(data) as typeof payload;}catch{continue;}
      const fragment=payload.choices?.[0]?.delta?.content;
      if(typeof fragment==="string"&&fragment.length)yield fragment;
-    }
-    if(final&&buffer.startsWith("data:")){
-     const data=buffer.slice(5).trim();buffer="";
-     if(data&&data!=="[DONE]"){
-      try{const payload=JSON.parse(data) as {choices?:Array<{delta?:{content?:unknown}}>} ;const fragment=payload.choices?.[0]?.delta?.content;if(typeof fragment==="string"&&fragment.length)yield fragment;}catch{/* Ignore incomplete trailing SSE data. */}
-     }
     }
    };
    try{
@@ -109,7 +103,7 @@ export function createOpenAICompatibleGabrooProvider(config:ProviderConfig):Gabr
      yield* consume();
     }
    }finally{
-    if(!reader.closed)await reader.cancel().catch(()=>undefined);
+    await reader.cancel().catch(()=>undefined);
     reader.releaseLock();
    }
   }
