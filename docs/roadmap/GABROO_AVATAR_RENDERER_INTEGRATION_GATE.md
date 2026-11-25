@@ -113,3 +113,7 @@ The learner app now calls the authenticated speech-status endpoint when an activ
 ## Readiness contract validation
 
 The mobile client now validates the speech-readiness response through a pure, dependency-free runtime parser before exposing it to the UI. It rejects unexpected fields, malformed availability flags, duplicate or unsupported languages, invalid speed ranges, and missing explicit-consent requirements. Unit tests cover available/unavailable responses and malformed payloads. This is deliberately a readiness contract only; it does not enable speech generation.
+
+## Mobile speech asset request boundary
+
+The mobile API layer now also exposes a consent-gated speech-generation request. It sends the explicit consent header, uses the authenticated session (including refresh retry), and validates the returned asset envelope and expiry with the shared contract before exposing it to playback code. The Gabroo screen does not invoke this method yet; no learner text is sent to a speech provider until the owner-approved voice and provider are ready.
