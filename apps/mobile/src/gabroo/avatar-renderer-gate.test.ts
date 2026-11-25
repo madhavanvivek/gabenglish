@@ -55,6 +55,18 @@ describe('isPlaybackProofValid', () => {
 });
 
 describe('GabrooAvatarRendererGate', () => {
+  it('refuses to initialize when the expected approved character or rig identity is blank', async () => {
+    const characterRig = makeRig();
+    const characterGate = new GabrooAvatarRendererGate(characterRig.rig, '  ', 'v1');
+    expect(await characterGate.initialize()).toBe(false);
+    expect(characterRig.rig.load).not.toHaveBeenCalled();
+
+    const versionRig = makeRig();
+    const versionGate = new GabrooAvatarRendererGate(versionRig.rig, 'gabroo-approved', '');
+    expect(await versionGate.initialize()).toBe(false);
+    expect(versionRig.rig.load).not.toHaveBeenCalled();
+  });
+
   it('only renders a valid frame after the expected approved rig loads', async () => {
     const { rig, frames } = makeRig();
     const gate = new GabrooAvatarRendererGate(rig, 'gabroo-approved', 'v1');
