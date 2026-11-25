@@ -230,3 +230,11 @@ These records are exercise-performance signals, not a diagnosis of speaking abil
 The mobile app now provides a Speaking Journal backed by the existing account-scoped Gabroo saved-memory API. Learners can save an original phrase, optionally add their own practice version and note, then edit or delete entries. The journal is linked directly from the Gabroo conversation screen.
 
 Journal entries are learner-authored and remain private to the authenticated account. The current implementation does not automatically extract phrases from conversation transcripts, generate corrections, or claim that a suggested rewrite is grammatically validated. This keeps the journal useful without presenting unverified model output as measured speaking progress. A future coach-generated correction workflow must use an explicitly structured, validated provider response and clear learner confirmation before it is saved.
+
+## 19. Structured sentence coach (25 November 2026)
+
+The authenticated `POST /api/v1/gabroo/feedback` endpoint accepts only a learner-supplied text field (2–1,500 characters) and requires an active subscription. It calls the configured Gabroo provider using the learner's saved learning direction, support language and current learning stage.
+
+The provider is instructed to return a strict JSON response with at most three feedback items. Each item must identify a bounded category (grammar, word choice or naturalness), the original phrase, a suggested alternative and a short explanation; an optional alternative may be included. The server validates the complete response with a strict schema, rejects malformed or oversized output and deduplicates repeated source phrases. It never derives pronunciation, accent, fluency or proficiency scores from text.
+
+The mobile Sentence Coach presents the original and suggested text separately. The learner must explicitly save an item before it enters the existing private Speaking Journal. The API does not persist learner text or provider feedback automatically. An empty feedback array is valid when no clear correction is needed. This is coaching assistance, not a formal assessment or guaranteed grammar verdict; learners should review alternatives in context.
