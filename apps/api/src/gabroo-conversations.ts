@@ -116,7 +116,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   const client:PoolClient=await pool.connect();
   let snapshot:{id:string;mode:GabrooConversationMode;support_language:"ml"|"en";learning_direction:"ml_to_en"|"en_to_ml";target_language:"ml"|"en";status:string;turn_count:number}|undefined;
   let history:GabrooMessage[]=[];
-  let learnerProfile:{display_name:string|null;learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed"}|undefined;
+  let learnerProfile:{display_name:string|null;learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed";preferred_learning_stage:number|null}|undefined;
   let savedMemory:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>=[];
   let savedVocabulary:Array<{term:string;malayalamMeaning:string;exampleSentence:string;status:"learning"|"familiar";isDue:boolean;lastReviewRating:"again"|"hard"|"good"|"easy"|null}>=[];
   let skillEvidence:GabrooSkillEvidence[]=[];
@@ -128,8 +128,8 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
    snapshot=found.rows[0];
    if(!snapshot){await client.query("ROLLBACK");return error(reply,request.id,404,"CONVERSATION_NOT_FOUND","This conversation is not available.");}
    if(snapshot.status!=="open"){await client.query("ROLLBACK");return error(reply,request.id,409,"CONVERSATION_CLOSED","This conversation is closed.");}
-   const profile=await client.query<{display_name:string|null;learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed"}>(
-    "SELECT p.display_name,up.learning_goal,COALESCE(up.correction_mode,'balanced') AS correction_mode FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id LEFT JOIN user_preferences up ON up.user_id=u.id WHERE u.id=$1",[learner.id]);
+   const profile=await client.query<{display_name:string|null;learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed";preferred_learning_stage:number|null}>(
+    "SELECT p.display_name,up.learning_goal,COALESCE(up.correction_mode,'balanced') AS correction_mode,up.preferred_learning_stage FROM users u LEFT JOIN user_profiles p ON p.user_id=u.id LEFT JOIN user_preferences up ON up.user_id=u.id WHERE u.id=$1",[learner.id]);
    learnerProfile=profile.rows[0];
    const memory=await client.query<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>(
     "SELECT category,memory_key,content FROM gabroo_learner_memory WHERE user_id=$1 ORDER BY updated_at DESC LIMIT 20",[learner.id]);
@@ -187,6 +187,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
       supportLanguage:snapshot!.support_language,
       learningDirection:snapshot!.learning_direction,
       targetLanguage:snapshot!.target_language,
+      stage:([1,2,3,4,5].includes(learnerProfile?.preferred_learning_stage??0)?learnerProfile!.preferred_learning_stage as 1|2|3|4|5:undefined),
       preferredName:learnerProfile?.display_name,
       learningGoal:learnerProfile?.learning_goal,
       profileCorrectionPreference:learnerProfile?.correction_mode,
