@@ -237,7 +237,7 @@ export async function synthesizeGabrooSpeech(input:{text:string;speed:number;sig
   if(input.signal?.aborted)throw new AuthApiError("Gabroo speech request was cancelled.");
   if(typeof payload!=="object"||payload===null||!("playback_url" in payload)||typeof payload.playback_url!=="string"||!("method" in payload)||payload.method!=="GET")
    throw new AuthApiError("Gabroo returned an invalid native playback ticket.");
-  const ticketMatch=payload.playback_url.match(/^\\/api\\/v1\\/gabroo\\/speech\\/playback\\/([0-9a-f]{64})$/);
+  const ticketMatch=payload.playback_url.match(/^\/api\/v1\/gabroo\/speech\/playback\/([0-9a-f]{64})$/);
   if(!ticketMatch)throw new AuthApiError("Gabroo returned an unsafe playback address.");
   if(!("expires_at" in payload)||typeof payload.expires_at!=="string"||!Number.isFinite(Date.parse(payload.expires_at))||Date.parse(payload.expires_at)<=Date.now())
    throw new AuthApiError("Gabroo returned an expired playback ticket.");
