@@ -9,7 +9,8 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "db:migrate": "tsx src/migrate.ts"
+    "db:migrate": "tsx src/migrate.ts",
+    "benchmark:gabroo": "tsx src/gabroo-benchmark.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.0.1",
