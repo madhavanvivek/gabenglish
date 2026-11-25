@@ -91,6 +91,18 @@ export function validateGabrooSpeechAlignmentResult(
  throw new Error("Gabroo alignment provider returned an unsupported alignment kind.");
 }
 
+/** Reject promptly on cancellation even when a provider ignores AbortSignal. */
+function awaitGabrooAlignmentOrAbort<T>(operation:Promise<T>,signal:AbortSignal):Promise<T>{
+ return new Promise<T>((resolve,reject)=>{
+  const onAbort=()=>reject(new Error("Gabroo speech alignment was cancelled."));
+  if(signal.aborted){onAbort();return;}
+  signal.addEventListener("abort",onAbort,{once:true});
+  operation.then(resolve,reject);
+ }).finally(()=>{
+  // AbortSignal listeners are one-shot; they are removed when fired.
+ });
+}
+
 /**
  * Execute an optional alignment provider through the full trust boundary.
  * Identity is checked before provider work and its response is validated
@@ -102,7 +114,7 @@ export async function runGabrooSpeechAlignment(
 ):Promise<GabrooSpeechAlignmentResult> {
  if(input.signal.aborted)throw new Error("Gabroo speech alignment was cancelled.");
  assertGabrooSpeechAlignmentInputIdentity(input);
- const result=await provider.align(input);
+ const result=await awaitGabrooAlignmentOrAbort(provider.align(input),input.signal);
  if(input.signal.aborted)throw new Error("Gabroo speech alignment was cancelled.");
  return validateGabrooSpeechAlignmentResult(result,input.identity,input.text);
 }
