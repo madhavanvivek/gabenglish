@@ -105,3 +105,7 @@ The API route is now covered by an end-to-end Fastify injection test using a det
 ## Cancellation hardening
 
 CI exposed a cancellation edge case when a speech vendor ignores its AbortSignal: the provider promise could remain pending after the learner disconnected. The generation boundary now races provider completion against an explicit caller-cancellation promise, re-checks cancellation after listener registration, and still aborts the provider signal. The regression test now deliberately uses a provider stub that ignores cancellation and never settles. This ensures the API request can terminate promptly even when a vendor SDK does not cooperate.
+
+## Mobile speech-readiness integration
+
+The learner app now calls the authenticated speech-status endpoint when an active subscription is present and surfaces whether the generated-voice provider is available. If the provider is not configured, the screen clearly says that playback still uses the installed device voice; if readiness cannot be checked, it avoids implying that generated speech is available. This is readiness discovery only: it does not submit learner text for generation, change consent, or replace the device-voice fallback.
