@@ -65,3 +65,5 @@ This helper is intentionally not called from the current streaming TTS route. Th
 ## Provider audio integrity gate
 
 Both provider response modes now verify declared MP3 content length against the bytes actually received. The streaming transform checks the count at flush; the buffered synthesis path now applies the same check before returning the assembled audio asset. A mismatch fails synthesis instead of producing an asset whose fingerprint could later be mistaken for a complete provider response. This check is transport integrity only: it does not infer audio duration or supply phoneme/character timestamps.
+
+The API identity helper also enforces the synthesis input boundary: non-blank source text is limited to 4,000 Unicode code points, and explicit audio IDs must already be trimmed and canonical. It rejects malformed identity inputs rather than silently normalizing values that could make alignment identity ambiguous.
