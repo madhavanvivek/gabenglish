@@ -181,10 +181,22 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   const controller=new AbortController();
   const providerStartedAt=performance.now();
   let timeout:ReturnType<typeof setTimeout>|undefined;
+  let timedOut=false;
+  let disconnected=false;
+  const onResponseClose=()=>{
+   if(!reply.raw.writableEnded){
+    disconnected=true;
+    controller.abort();
+    rejectDisconnected(new Error("Gabroo client disconnected"));
+   }
+  };
+  let rejectDisconnected:(reason:Error)=>void=()=>undefined;
+  const clientDisconnected=new Promise<never>((_,reject)=>{rejectDisconnected=reject;});
   let response:{content:string;model?:string;usage?:{promptTokens?:number;completionTokens?:number;totalTokens?:number}};
+  reply.raw.once("close",onResponseClose);
   try{
-   const timedOut=new Promise<never>((_,reject)=>{
-    timeout=setTimeout(()=>{controller.abort();reject(new Error("Gabroo provider timed out"));},PROVIDER_TIMEOUT_MS);
+   const timeoutPromise=new Promise<never>((_,reject)=>{
+    timeout=setTimeout(()=>{timedOut=true;controller.abort();reject(new Error("Gabroo provider timed out"));},PROVIDER_TIMEOUT_MS);
    });
    response=await Promise.race([
     provider.reply({
@@ -208,13 +220,17 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
       skillFocus
      })
     }),
-    timedOut
+    timeoutPromise,
+    clientDisconnected
    ]);
   }catch(e){
-   request.log.error({request_id:request.id},"Gabroo conversation provider request failed");
+   if(disconnected||reply.raw.destroyed)return;
+   request.log.warn({request_id:request.id,timed_out:timedOut},"Gabroo conversation provider request did not complete");
+   if(timedOut)return error(reply,request.id,504,"GABROO_REPLY_TIMEOUT","Gabroo is taking longer than expected. Your message was not saved; please try again.");
    return error(reply,request.id,503,"GABROO_REPLY_UNAVAILABLE","Gabroo could not respond just now. Your message was not saved; please try again.");
   }finally{
    if(timeout)clearTimeout(timeout);
+   reply.raw.off("close",onResponseClose);
   }
   request.log.info({
    request_id:request.id,
