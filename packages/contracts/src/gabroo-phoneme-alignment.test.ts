@@ -59,4 +59,33 @@ describe("Gabroo phoneme alignment",()=>{
   expect(gabrooPhonemeAlignmentSchema.safeParse({audio_id:"audio",audio_sha256:"c".repeat(64),duration_ms:100,phonemes:[{phoneme:"a",start_ms:10,end_ms:10}]}).success).toBe(false);
   expect(gabrooPhonemeAlignmentSchema.safeParse({audio_id:"audio",audio_sha256:"c".repeat(64),duration_ms:100,phonemes:Array.from({length:4097},()=>({phoneme:"a",start_ms:0,end_ms:1}))}).success).toBe(false);
  });
+ 
+ it("drives the conversation avatar runtime only for the matching native audio item",async()=>{
+  const {initialGabrooConversationState,reduceGabrooConversation}=await import("./gabroo-conversation.js");
+  const {sampleGabrooConversationFrameFromPlaybackStatus}=await import("./gabroo-avatar-runtime.js");
+  const timeline=gabrooPhonemeAlignmentToTimeline({
+   audio_id:"native-audio-1",
+   audio_sha256:"f".repeat(64),
+   duration_ms:600,
+   phonemes:[{phoneme:"m",start_ms:0,end_ms:180},{phoneme:"a",start_ms:180,end_ms:420}]
+  });
+  const thinking=reduceGabrooConversation(initialGabrooConversationState,{type:"learner_turn_started"});
+  const speaking=reduceGabrooConversation(thinking,{type:"response_speech_started",timeline});
+  const current=sampleGabrooConversationFrameFromPlaybackStatus(speaking,{
+   isLoaded:true,isPlaying:true,positionMillis:100,audioId:"native-audio-1"
+  });
+  expect(current.state).toBe("speaking");
+  expect(current.audioId).toBe("native-audio-1");
+  expect(current.controls.viseme.shape).toBe("closed_lips");
+  const stale=sampleGabrooConversationFrameFromPlaybackStatus(speaking,{
+   isLoaded:true,isPlaying:true,positionMillis:250,audioId:"previous-audio"
+  });
+  expect(stale.audioId).toBeNull();
+  expect(stale.controls.viseme.shape).toBe("neutral");
+  const paused=sampleGabrooConversationFrameFromPlaybackStatus(speaking,{
+   isLoaded:true,isPlaying:false,positionMillis:250,audioId:"native-audio-1"
+  });
+  expect(paused.controls.viseme.shape).toBe("neutral");
+ });
+
 });
