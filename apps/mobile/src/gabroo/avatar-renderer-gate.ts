@@ -126,7 +126,7 @@ export class GabrooAvatarRendererGate {
   ) {}
 
   async initialize(): Promise<boolean> {
-    if (this.disposed) return false;
+    if (this.disposed || !this.expectedCharacterId.trim() || !this.expectedRigVersion.trim()) return false;
     const initializationGeneration = ++this.generation;
     this.ready = false;
     this.identity = null;
