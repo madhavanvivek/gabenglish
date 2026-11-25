@@ -120,6 +120,22 @@ describe('GabrooAvatarRendererGate', () => {
     });
   });
 
+  it('invalidates a pending rig load when a playback generation starts', async () => {
+    let resolveLoad!: (value: { characterId: string; rigVersion: string; approved: true }) => void;
+    const { rig } = makeRig();
+    rig.load = vi.fn(() => new Promise((resolve) => { resolveLoad = resolve; }));
+    const gate = new GabrooAvatarRendererGate(rig, 'gabroo-approved', 'v1');
+    const pending = gate.initialize();
+
+    gate.beginPlayback();
+    resolveLoad({ characterId: 'gabroo-approved', rigVersion: 'v1', approved: true });
+    expect(await pending).toBe(false);
+    expect(gate.getRigIdentity()).toBeNull();
+    expect(gate.render(validProof(2), () => ({
+      viseme: 'aa', visemeWeight: 1, expression: 'friendly', gesture: 'idle',
+    }))).toBe(false);
+  });
+
   it('invalidates a pending rig load when playback lifecycle disposes the gate', async () => {
     let resolveLoad!: (value: { characterId: string; rigVersion: string; approved: true }) => void;
     const { rig } = makeRig();
