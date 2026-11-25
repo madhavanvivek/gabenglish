@@ -90,7 +90,7 @@ export async function cacheGabrooSpeechAudio(input: {
   }
 
   const suffix = (input.nonce ?? `dl-${Date.now()}-${++tempSequence}`).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 60) || `dl-${++tempSequence}`;
-  const tempUri = `${input.cacheDirectory.replace(/\/$/, "")}/gabroo-${input.audioSha256.toLowerCase()}-${suffix}.part`;
+  const tempUri = `${input.cacheDirectory.replace(/\/$/, "")}/gabroo-${input.audioSha256.toLowerCase()}-${Date.now()}-${suffix}.part`;
   try {
     await input.fileSystem.deleteAsync(tempUri, { idempotent: true });
     const result = await input.fileSystem.downloadAsync(input.remoteUri, tempUri, limit, input.signal);
@@ -186,6 +186,7 @@ export async function cleanupExpiredGabrooSpeechAudio(input: {
   cacheDirectory: string;
   fileSystem: Pick<GabrooAudioCacheFileSystem, "readDirectoryAsync" | "deleteAsync">;
   nowMs?: number;
+  stalePartAgeMs?: number;
 }): Promise<number> {
   if (!input.cacheDirectory.startsWith("file:///")) {
     throw new Error("Gabroo private cache directory is invalid.");
