@@ -44,6 +44,8 @@ export function mapGabrooAvatarFrame(frame: GabrooAvatarFrame): SampledAvatarFra
     viseme: visemeMap[frame.viseme.shape],
     visemeWeight: frame.viseme.shape === "neutral" ? 0 : frame.viseme.weight,
     expression: expressionMap[frame.expression],
+    expressionWeight: frame.expression === "neutral" ? 0 : frame.expressionWeight,
     gesture: frame.gesture === null ? "idle" : gestureMap[frame.gesture],
+    gestureWeight: frame.gesture === null ? 0 : frame.gestureWeight,
   };
 }
