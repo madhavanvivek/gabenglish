@@ -82,4 +82,28 @@ describe("OpenAI-compatible Gabroo provider",()=>{
   }finally{vi.unstubAllGlobals();}
  });
 
+ it("keeps the newest conversation turns while bounding history size",async()=>{
+  const history=[
+   {role:"user" as const,content:"oldest".repeat(4000)},
+   ...Array.from({length:17},(_,index)=>({
+    role:(index%2===0?"assistant":"user") as "assistant"|"user",
+    content:"turn-"+index
+   })),
+   {role:"user" as const,content:"latest learner request"}
+  ];
+  const fetchMock=vi.fn().mockResolvedValue(new Response(JSON.stringify({choices:[{message:{content:"I can help with that."}}]}),{status:200}));
+  vi.stubGlobal("fetch",fetchMock);
+  try{
+   const provider=createOpenAICompatibleGabrooProvider({apiKey:"test-secret",baseUrl:"https://provider.example/v1",model:"gabroo-test"});
+   await provider.reply({...input,history});
+   const body=JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+   const sent=body.messages.slice(1);
+   expect(sent.length).toBeLessThanOrEqual(16);
+   expect(sent[sent.length-1]).toEqual({role:"user",content:"latest learner request"});
+   expect(JSON.stringify(sent).length).toBeLessThan(24_500);
+   expect(sent.some((message:{content:string})=>message.content.includes("oldest"))).toBe(false);
+  }finally{vi.unstubAllGlobals();}
+ });
+
+
 });
