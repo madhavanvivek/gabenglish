@@ -84,3 +84,8 @@ Before an alignment provider receives an alignment request, callers can use `ass
 ### Guarded provider execution and cancellation
 
 `runGabrooSpeechAlignment` now wraps the provider lifecycle: it checks cancellation before work, recomputes audio/text identity before calling the provider, validates the returned alignment against the same identity, and checks cancellation again before exposing the result. A provider response that completes after the caller has cancelled is discarded. This helper is still an opt-in backend boundary and is not connected to the learner-facing TTS route.
+
+
+### Alignment request bounds
+
+The provider boundary rejects audio assets larger than 12 MiB and language tags outside the explicit `ml`, `en`, and `mixed` set before recomputing fingerprints or invoking a provider. This mirrors the bounded synthesis payload and prevents unbounded audio buffers or silently unsupported language modes from crossing the provider boundary.
