@@ -2,6 +2,7 @@ import {describe,expect,it} from "vitest";
 import {
  gabrooCharacterAlignmentSchema,
  gabrooCharacterAlignmentToCaptionCues,
+ sampleGabrooCaptionAtPlayback,
  isGabrooCharacterAlignmentForContent
 } from "./gabroo-character-alignment.js";
 
@@ -42,5 +43,30 @@ describe("Gabroo character alignment",()=>{
   const emojiText="A😊B";
   const emojiAlignment={...alignment,text_length:3,characters:[{start_index:1,end_index:2,start_ms:0,end_ms:100}]};
   expect(gabrooCharacterAlignmentToCaptionCues(emojiAlignment,{...identity,textSha256:"b".repeat(64)},emojiText)[0].text).toBe("😊");
+ });
+});
+
+
+describe("Gabroo caption playback sampler",()=>{
+ const cues=[
+  {text:"നമസ്കാരം",start_index:0,end_index:9,start_ms:0,end_ms:500},
+  {text:"Gabroo",start_index:10,end_index:16,start_ms:500,end_ms:900}
+ ];
+ it("highlights only the cue active at the native audio playback position",()=>{
+  expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",positionMs:250,isPlaying:true})?.cue.text).toBe("നമസ്കാരം");
+  expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",positionMs:750,isPlaying:true})?.cue.text).toBe("Gabroo");
+  expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",positionMs:950,isPlaying:true})).toBeNull();
+ });
+ it("clears highlighting on pause or stale playback identity",()=>{
+  expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",positionMs:250,isPlaying:false})).toBeNull();
+  expect(sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-old",positionMs:250,isPlaying:true})).toBeNull();
+ });
+ it("chooses the latest-starting active cue when provider spans overlap",()=>{
+  const overlapping=[cues[0],{...cues[1],start_ms:300}];
+  expect(sampleGabrooCaptionAtPlayback(overlapping,{audioId:"audio-1",positionMs:400,isPlaying:true})?.cue.text).toBe("Gabroo");
+ });
+ it("rejects invalid playback positions",()=>{
+  expect(()=>sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",positionMs:-1,isPlaying:true})).toThrow(/position/i);
+  expect(()=>sampleGabrooCaptionAtPlayback(cues,{audioId:"audio-1",positionMs:Number.NaN,isPlaying:true})).toThrow(/position/i);
  });
 });
