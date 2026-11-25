@@ -2,7 +2,7 @@ import {useCallback,useState} from "react";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {AuthApiError,getDailyChallengeHistory,getGabrooLearningInsights,getVocabularyReviewQueue,listGabrooMemory,type DailyChallengeHistory,type GabrooLearningInsights,type VocabularyReviewQueue,type GabrooMemoryItem} from "../src/auth-api";
+import {getDailyChallengeHistory,getGabrooLearningInsights,getVocabularyReviewQueue,listGabrooMemory,type DailyChallengeHistory,type GabrooLearningInsights,type VocabularyReviewQueue,type GabrooMemoryItem} from "../src/auth-api";
 import {buildDailySpeakingChallenge,localPracticeDateKey} from "../src/daily-practice";
 import {colors,radius,space} from "../src/theme";
 import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
