@@ -21,6 +21,24 @@ export interface GabrooNativePlayerSnapshot {
   positionMs: number;
 }
 
+export function isGabrooPlaybackIdentityValid(value: unknown): value is GabrooPlaybackIdentity {
+  if (!value || typeof value !== "object") return false;
+  const identity = value as Partial<GabrooPlaybackIdentity>;
+  return typeof identity.playbackTicketId === "string"
+    && identity.playbackTicketId.trim().length > 0
+    && identity.playbackTicketId.length <= 160
+    && typeof identity.audioId === "string"
+    && identity.audioId.trim().length > 0
+    && identity.audioId.length <= 160
+    && typeof identity.audioSha256 === "string"
+    && /^[a-f0-9]{64}$/i.test(identity.audioSha256)
+    && Number.isSafeInteger(identity.measuredDurationMs)
+    && Number(identity.measuredDurationMs) > 0
+    && typeof identity.alignmentAudioSha256 === "string"
+    && identity.alignmentAudioSha256.toLowerCase() === identity.audioSha256.toLowerCase()
+    && identity.alignmentDurationMs === identity.measuredDurationMs;
+}
+
 /**
  * Host-neutral clock bridge. A native player adapter supplies a fresh snapshot
  * on each native playback tick; the bridge never estimates time from timers.
@@ -37,14 +55,7 @@ export class GabrooNativePlaybackClock {
     this.generation = null;
     this.stopped = true;
 
-    if (!identity || typeof identity.playbackTicketId !== "string"
-      || !identity.playbackTicketId.trim()
-      || typeof identity.audioId !== "string" || !identity.audioId.trim()
-      || typeof identity.audioSha256 !== "string" || !/^[a-f0-9]{64}$/i.test(identity.audioSha256)
-      || !Number.isSafeInteger(identity.measuredDurationMs) || identity.measuredDurationMs <= 0
-      || typeof identity.alignmentAudioSha256 !== "string"
-      || identity.alignmentAudioSha256.toLowerCase() !== identity.audioSha256.toLowerCase()
-      || identity.alignmentDurationMs !== identity.measuredDurationMs) {
+    if (!isGabrooPlaybackIdentityValid(identity)) {
       return this.gate.beginPlayback();
     }
 
