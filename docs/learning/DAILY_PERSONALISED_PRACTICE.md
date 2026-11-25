@@ -37,6 +37,7 @@ The learner must explicitly choose **Mark challenge complete** after Gabroo has 
 - Stable daily rotation by the learner's local calendar date.
 - Skill-specific prompts for sentence formation, grammar, vocabulary, fluency, pronunciation, listening, speaking, comprehension and writing.
 - General prompts when evidence is unavailable.
+- Each supported skill bank has multiple authored prompts and rotates them by local calendar date, reducing repetitive daily practice for the same evidence-backed focus. The rotation is a content variety mechanism, not a spaced-repetition or mastery signal.
 
 The Malayalam-learning direction needs its own educator-reviewed Malayalam prompt bank before this feature should be offered for that direction.
 
