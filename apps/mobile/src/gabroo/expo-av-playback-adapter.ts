@@ -35,7 +35,7 @@ export async function createGabrooExpoAvPlayback(input: {
   gate: GabrooAvatarRendererGate;
   onError?: (error: Error) => void;
   nowMs?: number;
-  cacheAudio?: (input: { remoteUri: string; audioSha256: string }) => Promise<GabrooCachedAudio>;
+  cacheAudio?: (input: { remoteUri: string; audioSha256: string; expiresAt: string }) => Promise<GabrooCachedAudio>;
   createSound?: (
     source: { uri: string },
     initialStatus: { shouldPlay: boolean; progressUpdateIntervalMillis: number },
@@ -51,6 +51,7 @@ export async function createGabrooExpoAvPlayback(input: {
   const cachedAudio = await (input.cacheAudio ?? cacheGabrooSpeechAudioWithExpo)({
     remoteUri: prepared.uri,
     audioSha256: identity.audioSha256,
+    expiresAt: prepared.expiresAt,
   });
   if (cachedAudio.audioSha256.toLowerCase() !== identity.audioSha256.toLowerCase()
     || !isGabrooPlayableAudioUri(cachedAudio.uri)) {
