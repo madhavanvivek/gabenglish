@@ -83,7 +83,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   let history:GabrooMessage[]=[];
   let learnerProfile:{display_name:string|null;learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed"}|undefined;
   let savedMemory:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>=[];
-  let vocabularyReviewContext={activeItems:0,dueItems:0,reviewedLast7Days:0,againLast7Days:0,dueWords:Array<{sourceTerm:string;targetTerm:string}>()};
+  let vocabularyReviewContext={activeItems:0,dueItems:0,reviewedLast7Days:0,againLast7Days:0,dueWords:[] as Array<{sourceTerm:string;targetTerm:string}>};
   try{
    await client.query("BEGIN");
    const found=await client.query<{id:string;mode:GabrooConversationMode;support_language:"ml"|"en";learning_direction:"ml_to_en"|"en_to_ml";target_language:"ml"|"en";status:string;turn_count:number}>(
