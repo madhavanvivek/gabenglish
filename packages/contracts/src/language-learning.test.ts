@@ -115,5 +115,6 @@ describe("learner exercise attempt response contracts",()=>{
  it("rejects history entries with invalid timestamps or mismatched version identity",()=>{
   expect(learningExerciseAttemptHistorySchema.safeParse({...history,attempts:[{...history.attempts[0],attempted_at:"yesterday"}]}).success).toBe(false);
   expect(learningExerciseAttemptHistorySchema.safeParse({...history,current_version_id:""}).success).toBe(false);
+  expect(learningExerciseAttemptHistorySchema.safeParse({...history,attempts:[{...history.attempts[0],lesson_version_id:"old-version"}]}).success).toBe(false);
  });
 });
