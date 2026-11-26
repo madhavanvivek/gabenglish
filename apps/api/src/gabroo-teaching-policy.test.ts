@@ -84,4 +84,26 @@ describe("Gabroo teaching policy",()=>{
    expect(policy.stageGuidance).toContain("register");
   }
  });
+ it("uses a bounded due-vocabulary summary without turning every chat into a quiz",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",vocabularyReviewContext:{
+   activeItems:18,dueItems:7,reviewedLast7Days:12,againLast7Days:3,
+   dueWords:Array.from({length:8},(_,i)=>({sourceTerm:`word-${i}`,targetTerm:`meaning-${i}`}))
+  }});
+  expect(policy.vocabularyReviewContext.activeItems).toBe(18);
+  expect(policy.vocabularyReviewContext.dueItems).toBe(7);
+  expect(policy.vocabularyReviewContext.reviewedLast7Days).toBe(12);
+  expect(policy.vocabularyReviewContext.againLast7Days).toBe(3);
+  expect(policy.vocabularyReviewContext.dueWords).toHaveLength(5);
+  expect(policy.responseGuidance.join(" ")).toContain("do not turn every conversation into a quiz");
+ });
+ it("defaults vocabulary context to empty and clamps invalid counts",()=>{
+  const empty=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"});
+  expect(empty.vocabularyReviewContext).toEqual({activeItems:0,dueItems:0,reviewedLast7Days:0,againLast7Days:0,dueWords:[]});
+  const bounded=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",vocabularyReviewContext:{activeItems:-4,dueItems:2.8,reviewedLast7Days:-1,againLast7Days:0,dueWords:[{sourceTerm:"x".repeat(200),targetTerm:"y".repeat(300)}]}});
+  expect(bounded.vocabularyReviewContext.activeItems).toBe(0);
+  expect(bounded.vocabularyReviewContext.dueItems).toBe(2);
+  expect(bounded.vocabularyReviewContext.dueWords[0].sourceTerm).toHaveLength(160);
+  expect(bounded.vocabularyReviewContext.dueWords[0].targetTerm).toHaveLength(240);
+ });
+
 });
