@@ -261,7 +261,7 @@ export async function saveLearningLessonProgress(id:string,progress_percent:numb
 export async function submitLearningExerciseAttempt(lessonId:string,exerciseId:string,response:string):Promise<LearningExerciseAttemptResultContract>{
  const payload=await authorized("/api/v1/learning/lessons/"+encodeURIComponent(lessonId)+"/exercises/"+encodeURIComponent(exerciseId)+"/attempts","POST",{response});
  const parsed=learningExerciseAttemptResultSchema.safeParse(payload);
- if(!parsed.success)throw new AuthApiError("The exercise result returned invalid or incomplete data.");
+ if(!parsed.success||parsed.data.lesson_id!==lessonId||parsed.data.exercise_id!==exerciseId)throw new AuthApiError("The exercise result returned invalid or mismatched data.");
  return parsed.data;
 }
 
@@ -272,6 +272,6 @@ export async function getLearningExerciseAttemptHistory(lessonId:string,exercise
   "GET"
  );
  const parsed=learningExerciseAttemptHistorySchema.safeParse(payload);
- if(!parsed.success)throw new AuthApiError("The exercise history returned invalid or incomplete data.");
+ if(!parsed.success||parsed.data.lesson_id!==lessonId||parsed.data.exercise_id!==exerciseId)throw new AuthApiError("The exercise history returned invalid or mismatched data.");
  return parsed.data;
 }
