@@ -191,7 +191,7 @@ export default function GabrooScreen(){
   if(!phrase)return;
   setSavingReplyId(message.id);setError("");
   try{
-   await createGabrooMemory({category:"saved_phrase",memory_key:phrase.slice(0,80),content:["Learner phrase: "+phrase,"Practice version: not added yet","Learner note: Saved from a Gabroo conversation."].join("\\n")});
+   await createGabrooMemory({category:"saved_phrase",memory_key:phrase.slice(0,80),content:["Learner phrase: "+phrase,"Practice version: not added yet","Learner note: Saved from a Gabroo conversation."].join("\n")});
    setSavedReplyIds(current=>[...current,message.id]);
   }catch(reason){
    setError(reason instanceof Error?reason.message:"Could not save this reply to your Speaking Journal.");
