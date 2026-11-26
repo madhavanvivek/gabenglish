@@ -1,10 +1,10 @@
-import type {LearnerLessonContent} from "@gabenglish/contracts";
+import type {LearnerLessonContent,PublishedLearningCatalog as PublishedLearningCatalogContract,PublishedLearningLesson as PublishedLearningLessonContract} from "@gabenglish/contracts";
 import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system";
 import { parseGabrooSpeechStatus, type GabrooSpeechStatus } from "./gabroo/speech-status";
 import { validateGabrooRecordingUpload } from "./gabroo/recording-upload-validation";
 import { buildGabrooSpeechRequest, parseGabrooSpeechResponse } from "./gabroo/speech-request";
-import {type GabrooSpeechAsset,authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
+import {type GabrooSpeechAsset,authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,publishedLearningCatalogSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
 
 const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
 const ACCESS_KEY="gabenglish.auth.access";
@@ -238,18 +238,13 @@ export async function deleteGabrooMemory(id:string){await authorized("/api/v1/ga
 
 export async function clearGabrooMemory(){return await authorized("/api/v1/gabroo/memory","DELETE") as {deleted_count:number};}
 
-export type PublishedLearningLesson={
- id:string;slug:string|null;title:string;version_id:string;version:number|null;
- progress:null|{status:"not_started"|"in_progress"|"completed";progress_percent:number};
- content:unknown;script_mode:string|null;register:string|null;dialect_scope:string|null;romanisation:string|null;
-};
-export type PublishedLearningCatalog={
- learning_direction:"ml_to_en"|"en_to_ml";target_language:"en"|"ml";
- courses:Array<{id:string;code:string;title:string;description:string|null;direction:"ml_to_en"|"en_to_ml";source_language:string;target_language:string;support_language:string;progress:{progress_percent:number;completed_lessons:number;total_lessons:number};modules:Array<{id:string;title:string;lessons:PublishedLearningLesson[]}>}>;
- publication_policy:{drafts_hidden:boolean;malayalam_requires_educator_approval:boolean};
-};
-export async function getPublishedLearningCatalog(){
- return await authorized("/api/v1/learning/courses","GET") as PublishedLearningCatalog;
+export type PublishedLearningLesson=PublishedLearningLessonContract;
+export type PublishedLearningCatalog=PublishedLearningCatalogContract;
+export async function getPublishedLearningCatalog():Promise<PublishedLearningCatalog>{
+ const payload=await authorized("/api/v1/learning/courses","GET");
+ const parsed=publishedLearningCatalogSchema.safeParse(payload);
+ if(!parsed.success)throw new AuthApiError("The published learning catalog returned invalid lesson or progress data.");
+ return parsed.data;
 }
 
 export type LearningLessonDetail={
