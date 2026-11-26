@@ -248,8 +248,8 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   const params=request.params as {id?:string;exerciseId?:string};
   const id=params.id??"",exerciseId=params.exerciseId??"";
   if(!lessonIdPattern.test(id)||!/^[a-z0-9_-]{1,64}$/i.test(exerciseId))return failure(reply,request.id,400,"INVALID_EXERCISE_REFERENCE","This exercise link is invalid.");
-  const body=request.body as {response?:unknown}|null;
-  if(!body||typeof body.response!=="string"||!body.response.trim()||body.response.trim().length>2000||Object.keys(body).some(key=>key!=="response"))return failure(reply,request.id,400,"VALIDATION_ERROR","Enter an answer of up to 2,000 characters.");
+  const body=request.body as {lesson_version_id?:unknown;response?:unknown}|null;
+  if(!body||typeof body.lesson_version_id!=="string"||!body.lesson_version_id.trim()||body.lesson_version_id.length>128||typeof body.response!=="string"||!body.response.trim()||body.response.trim().length>2000||Object.keys(body).some(key=>key!=="lesson_version_id"&&key!=="response"))return failure(reply,request.id,400,"VALIDATION_ERROR","Reload the lesson and enter an answer of up to 2,000 characters.");
   const result=await pool.query<{course_id:string;learning_direction:Direction;version_id:string;content:unknown}>(
    `SELECT c.id AS course_id,c.learning_direction,lv.id AS version_id,lv.content
     FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
@@ -261,6 +261,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   );
   const lesson=result.rows[0];
   if(!lesson)return failure(reply,request.id,404,"LESSON_NOT_FOUND","This lesson is not published for your selected learning direction.");
+  if(lesson.version_id!==body.lesson_version_id)return failure(reply,request.id,409,"LESSON_VERSION_CHANGED","This lesson has been updated. Reload it before submitting your answer.");
   const match=findLessonExercise(lesson.content,exerciseId);
   if(match.ambiguous)return failure(reply,request.id,503,"EXERCISE_CONTENT_AMBIGUOUS","This exercise is temporarily unavailable because its published lesson content needs correction.");
   const exercise=match.exercise;
