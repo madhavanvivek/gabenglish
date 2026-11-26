@@ -23,7 +23,7 @@ export const authoredTextExerciseSchema=z.object({
 }).superRefine((value,ctx)=>{
  const answers=new Set<string>();
  value.accepted_answers.forEach((answer,index)=>{
-  const normalized=answer.normalize("NFKC").trim().toLocaleLowerCase().replace(/\s+/g," ");
+  const normalized=answer.normalize("NFKC").trim().toLocaleLowerCase().split(/\s+/u).join(" ");
   if(answers.has(normalized))ctx.addIssue({code:z.ZodIssueCode.custom,path:["accepted_answers",index],message:"Accepted answers must be unique after normalisation."});
   answers.add(normalized);
  });
