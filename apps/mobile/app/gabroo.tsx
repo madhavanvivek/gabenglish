@@ -52,37 +52,41 @@ export default function GabrooScreen(){
  const appIsActiveRef=useRef(true);
  const screenFocusedRef=useRef(false);
  const speechRunRef=useRef(0);
+ const loadRunRef=useRef(0);
  const load=useCallback(async()=>{
+  const run=++loadRunRef.current;
+  const isCurrent=()=>loadRunRef.current===run;
   setLoading(true);setError("");
   try{
-   const status=await getSubscriptionStatus();setSubscription(status);
-   const learner=await getLearnerMe();setSpeechRate(learner.preferences?.gabroo_speech_rate??1);
+   const status=await getSubscriptionStatus();if(!isCurrent())return;setSubscription(status);
+   const learner=await getLearnerMe();if(!isCurrent())return;setSpeechRate(learner.preferences?.gabroo_speech_rate??1);
    if(status.active){
-    const result=await listGabrooConversations();
+    const result=await listGabrooConversations();if(!isCurrent())return;
     setConversations(result.conversations);
     if(typeof conversationId==="string"){
      const requested=result.conversations.find(item=>item.id===conversationId);
      if(requested){
-      const opened=await getGabrooConversation(requested.id);
+      const opened=await getGabrooConversation(requested.id);if(!isCurrent())return;
       setActive(opened.conversation);setMode(opened.conversation.mode);setMessages(opened.messages);
      }else{setError("That saved conversation is no longer available.");setActive(null);setMessages([]);}
     }
-    try{setRecognitionStatus(await getGabrooRecognitionStatus());}
-    catch{setRecognitionStatus(null);}
-    try{setGeneratedSpeechAvailable((await getGabrooSpeechStatus()).available);}
-    catch{setGeneratedSpeechAvailable(null);}
+    try{const recognition=await getGabrooRecognitionStatus();if(isCurrent())setRecognitionStatus(recognition);}
+    catch{if(isCurrent())setRecognitionStatus(null);}
+    try{const speech=await getGabrooSpeechStatus();if(isCurrent())setGeneratedSpeechAvailable(speech.available);}
+    catch{if(isCurrent())setGeneratedSpeechAvailable(null);}
    }else{
     setRecognitionStatus(null);setGeneratedSpeechAvailable(null);
     setConversations([]);setActive(null);setMessages([]);
    }
-  }catch(reason){setError(reason instanceof Error?reason.message:"Could not load Gabroo.");}
-  finally{setLoading(false);}
+  }catch(reason){if(isCurrent())setError(reason instanceof Error?reason.message:"Could not load Gabroo.");}
+  finally{if(isCurrent())setLoading(false);}
  },[conversationId]);
  useFocusEffect(useCallback(()=>{
   screenFocusedRef.current=true;
   void load();
   return ()=>{
    screenFocusedRef.current=false;
+   loadRunRef.current+=1;
    captureLifecycleRunRef.current+=1;
    transcriptionReviewRunRef.current+=1;
    setTranscriptionBusy(false);
@@ -101,10 +105,11 @@ export default function GabrooScreen(){
   };
  },[load]));
  const openConversation=async(item:GabrooConversation)=>{
+  const run=++loadRunRef.current;
   setBusy(true);setError("");
-  try{const result=await getGabrooConversation(item.id);setActive(result.conversation);setMode(result.conversation.mode);setMessages(result.messages);}
-  catch(reason){setError(reason instanceof Error?reason.message:"Could not open this conversation.");}
-  finally{setBusy(false);}
+  try{const result=await getGabrooConversation(item.id);if(run!==loadRunRef.current)return;setActive(result.conversation);setMode(result.conversation.mode);setMessages(result.messages);}
+  catch(reason){if(run===loadRunRef.current)setError(reason instanceof Error?reason.message:"Could not open this conversation.");}
+  finally{if(run===loadRunRef.current)setBusy(false);}
  };
  const start=async()=>{
   setBusy(true);setError("");
