@@ -303,7 +303,7 @@ describe("API foundation",()=>{
   const pool={query:async(sql:string)=>{
    if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
    if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
-   if(sql.includes("FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c"))return {rows:[{course_id:"course-1",learning_direction:"ml_to_en",source_language:"ml",target_language:"en",support_language:"ml",lesson_id:lessonId,slug:"greetings",title:"Greetings",version_id:versionId,version_number:2,content:{schema_version:1,blocks:[{type:"text",heading:"Say hello",body:"Learn a friendly greeting."}]},script_mode:"native_with_optional_romanisation",register:"informal",dialect_scope:"Kerala Malayalam",romanisation:null,progress_status:"in_progress",progress_percent:"25",progress_updated_at:new Date("2026-11-26T04:00:00.000Z")}]};
+   if(sql.includes("FROM lessons l JOIN modules m"))return {rows:[{course_id:"course-1",learning_direction:"ml_to_en",source_language:"ml",target_language:"en",support_language:"ml",lesson_id:lessonId,slug:"greetings",title:"Greetings",version_id:versionId,version_number:2,content:{schema_version:1,blocks:[{type:"text",heading:"Say hello",body:"Learn a friendly greeting."}]},script_mode:"native_with_optional_romanisation",register:"informal",dialect_scope:"Kerala Malayalam",romanisation:null,progress_status:"in_progress",progress_percent:"25",progress_updated_at:new Date("2026-11-26T04:00:00.000Z")}]};
    return {rows:[]};
   }} as any;
   const app=await buildApp(config,async()=>true,pool);
@@ -318,7 +318,7 @@ describe("API foundation",()=>{
   const pool={query:async(sql:string)=>{
    if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
    if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
-   if(sql.includes("FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c"))return {rows:[{course_id:"course-1",learning_direction:"ml_to_en",source_language:"ml",target_language:"en",support_language:"ml",lesson_id:"00000000-0000-4000-8000-000000000003",slug:"broken",title:"Broken lesson",version_id:"version-1",version_number:1,content:{schema_version:1,blocks:[]},script_mode:"romanized",register:null,dialect_scope:null,romanisation:null,progress_status:null,progress_percent:null,progress_updated_at:null}]};
+   if(sql.includes("FROM lessons l JOIN modules m"))return {rows:[{course_id:"course-1",learning_direction:"ml_to_en",source_language:"ml",target_language:"en",support_language:"ml",lesson_id:"00000000-0000-4000-8000-000000000003",slug:"broken",title:"Broken lesson",version_id:"version-1",version_number:1,content:{schema_version:1,blocks:[]},script_mode:"romanized",register:null,dialect_scope:null,romanisation:null,progress_status:null,progress_percent:null,progress_updated_at:null}]};
    return {rows:[]};
   }} as any;
   const app=await buildApp(config,async()=>true,pool);
