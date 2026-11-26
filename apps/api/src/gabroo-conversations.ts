@@ -83,6 +83,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   let history:GabrooMessage[]=[];
   let learnerProfile:{display_name:string|null;learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed"}|undefined;
   let savedMemory:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>=[];
+  let vocabularyReviewContext={activeItems:0,dueItems:0,reviewedLast7Days:0,againLast7Days:0,dueWords:Array<{sourceTerm:string;targetTerm:string}>()};
   try{
    await client.query("BEGIN");
    const found=await client.query<{id:string;mode:GabrooConversationMode;support_language:"ml"|"en";learning_direction:"ml_to_en"|"en_to_ml";target_language:"ml"|"en";status:string;turn_count:number}>(
@@ -96,6 +97,12 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
    const memory=await client.query<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>(
     "SELECT category,memory_key,content FROM gabroo_learner_memory WHERE user_id=$1 ORDER BY updated_at DESC LIMIT 20",[learner.id]);
    savedMemory=memory.rows;
+   const vocabulary=await client.query<{active_items:number;due_items:number;reviewed_last_7_days:number;again_last_7_days:number}>(
+    "SELECT count(*) FILTER (WHERE status='active')::int AS active_items,count(*) FILTER (WHERE status='active' AND due_at<=now())::int AS due_items,(SELECT count(*)::int FROM learner_vocabulary_reviews WHERE user_id=$1 AND reviewed_at>=now()-interval '7 days') AS reviewed_last_7_days,(SELECT count(*)::int FROM learner_vocabulary_reviews WHERE user_id=$1 AND rating='again' AND reviewed_at>=now()-interval '7 days') AS again_last_7_days FROM learner_vocabulary_items WHERE user_id=$1 AND learning_direction=$2",[learner.id,snapshot.learning_direction]);
+   const dueWords=await client.query<{source_term:string;target_term:string}>(
+    "SELECT source_term,target_term FROM learner_vocabulary_items WHERE user_id=$1 AND learning_direction=$2 AND status='active' AND due_at<=now() ORDER BY due_at ASC,updated_at ASC LIMIT 5",[learner.id,snapshot.learning_direction]);
+   const vocabularyStats=vocabulary.rows[0];
+   vocabularyReviewContext={activeItems:vocabularyStats?.active_items??0,dueItems:vocabularyStats?.due_items??0,reviewedLast7Days:vocabularyStats?.reviewed_last_7_days??0,againLast7Days:vocabularyStats?.again_last_7_days??0,dueWords:dueWords.rows.map(word=>({sourceTerm:word.source_term,targetTerm:word.target_term}))};
    const existing=await client.query<{role:"user"|"assistant";content:string}>(
     "SELECT role,content FROM gabroo_conversation_messages WHERE conversation_id=$1 ORDER BY sequence_number DESC LIMIT 20",[snapshot.id]);
    history=[...existing.rows].reverse();
@@ -130,7 +137,8 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
       preferredName:learnerProfile?.display_name,
       learningGoal:learnerProfile?.learning_goal,
       profileCorrectionPreference:learnerProfile?.correction_mode,
-      learnerMemory:savedMemory.map(item=>({category:item.category,memoryKey:item.memory_key,content:item.content}))
+      learnerMemory:savedMemory.map(item=>({category:item.category,memoryKey:item.memory_key,content:item.content})),
+      vocabularyReviewContext
      })
     }),
     timedOut
