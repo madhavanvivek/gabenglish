@@ -280,7 +280,7 @@ describe("API foundation",()=>{
    if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
    if(sql.includes("FROM lessons l JOIN modules m")&&sql.includes("JOIN courses c"))return {rows:[{course_id:"course-1",learning_direction:"ml_to_en",version_id:"version-1",content}]};
    if(sql.includes("INSERT INTO learner_exercise_attempts")){inserts+=1;return {rows:[]};}
-   if(sql.includes("FROM learner_exercise_attempts")){historyReads+=1;return {rows:[]};}
+   if(sql.includes("FROM learner_exercise_attempts")&&sql.includes("WHERE user_id=$1 AND lesson_id=$2")){historyReads+=1;return {rows:[]};}
    return {rows:[]};
   }} as any;
   const app=await buildApp(config,async()=>true,pool);
@@ -330,7 +330,7 @@ describe("API foundation",()=>{
    if(sql.includes("FROM lessons l JOIN modules m")&&sql.includes("JOIN courses c"))return {rows:[{course_id:"course-1",learning_direction:"ml_to_en",version_id:versionId,content}]};
    if(sql.includes("INSERT INTO learner_exercise_attempts")){
     inserts+=1;
-    stored={lesson_id:lessonId,lesson_version_id:versionId,exercise_id:"exercise-1",response:String(values[6]),is_correct:true,feedback:"Good work."};
+    stored={lesson_id:lessonId,lesson_version_id:versionId,exercise_id:"exercise-1",response:String(values[6]),is_correct:true,feedback:String(values[8])};
     return {rows:[{id:"attempt-1"}],rowCount:1};
    }
    return {rows:[]};
