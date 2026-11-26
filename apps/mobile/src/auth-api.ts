@@ -1,4 +1,4 @@
-import type {LearnerLessonContent,PublishedLearningCatalog as PublishedLearningCatalogContract,PublishedLearningLesson as PublishedLearningLessonContract} from "@gabenglish/contracts";
+import type {PublishedLearningCatalog as PublishedLearningCatalogContract,PublishedLearningLesson as PublishedLearningLessonContract} from "@gabenglish/contracts";
 import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system";
 import { parseGabrooSpeechStatus, type GabrooSpeechStatus } from "./gabroo/speech-status";
