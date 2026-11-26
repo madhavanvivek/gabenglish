@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {isSameExerciseSubmission} from "./learning-idempotency";
+import {isSameExerciseSubmission} from "./learning-idempotency.js";
 
 const stored={lesson_id:"lesson-1",lesson_version_id:"version-2",exercise_id:"exercise-1",response:"hello"};
 
