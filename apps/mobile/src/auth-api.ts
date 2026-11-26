@@ -312,6 +312,20 @@ export type PublishedLearningCatalog={
  courses:Array<{id:string;code:string;title:string;description:string|null;direction:"ml_to_en"|"en_to_ml";source_language:string;target_language:string;support_language:string;modules:Array<{id:string;title:string;lessons:PublishedLearningLesson[]}>}>;
  publication_policy:{drafts_hidden:boolean;malayalam_requires_educator_approval:boolean};
 };
+export type LearningLessonRecommendation={
+ learning_direction:"ml_to_en"|"en_to_ml";
+ stage:number|null;
+ recommendation:null|{
+  lessonId:string;courseId:string;title:string;slug:string;moduleTitle:string;
+  reason:"continue_learning"|"next_in_sequence";progressPercent:number;stage:number;
+ };
+ reason:"stage_not_selected"|"no_matching_published_lesson"|"continue_learning"|"next_in_sequence";
+ message:string;
+};
+export async function getLearningRecommendation(){
+ return await authorized("/api/v1/learning/recommendation","GET") as LearningLessonRecommendation;
+}
+
 export async function getPublishedLearningCatalog(){
  return await authorized("/api/v1/learning/courses","GET") as PublishedLearningCatalog;
 }
