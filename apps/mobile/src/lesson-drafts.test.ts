@@ -12,25 +12,29 @@ import {clearLessonAnswerDraft,readLessonAnswerDraft,writeLessonAnswerDraft} fro
 describe("versioned lesson answer drafts",()=>{
  beforeEach(()=>storage.clear());
  it("restores answers for the exact lesson version",async()=>{
-  await writeLessonAnswerDraft("lesson-1","version-1",{"exercise-1":"hello"});
-  expect(await readLessonAnswerDraft("lesson-1","version-1")).toEqual({"exercise-1":"hello"});
-  expect(await readLessonAnswerDraft("lesson-1","version-2")).toEqual({});
+  await writeLessonAnswerDraft("user-1","lesson-1","version-1",{"exercise-1":"hello"});
+  expect(await readLessonAnswerDraft("user-1","lesson-1","version-1")).toEqual({"exercise-1":"hello"});
+  expect(await readLessonAnswerDraft("user-1","lesson-1","version-2")).toEqual({});
+ });
+ it("does not expose one learner's draft to another learner",async()=>{
+  await writeLessonAnswerDraft("user-1","lesson-1","version-1",{"exercise-1":"private answer"});
+  expect(await readLessonAnswerDraft("user-2","lesson-1","version-1")).toEqual({});
  });
  it("does not restore malformed, oversized, or unexpected data",async()=>{
-  await writeLessonAnswerDraft("lesson-1","version-1",{"exercise-1":"hello"});
+  await writeLessonAnswerDraft("user-1","lesson-1","version-1",{"exercise-1":"hello"});
   const key=[...storage.keys()][0]!;
   storage.set(key,JSON.stringify({"bad id":"hello"}));
-  expect(await readLessonAnswerDraft("lesson-1","version-1")).toEqual({});
+  expect(await readLessonAnswerDraft("user-1","lesson-1","version-1")).toEqual({});
   storage.set(key,"not-json");
-  expect(await readLessonAnswerDraft("lesson-1","version-1")).toEqual({});
+  expect(await readLessonAnswerDraft("user-1","lesson-1","version-1")).toEqual({});
  });
  it("deletes a draft when no answers remain",async()=>{
-  await writeLessonAnswerDraft("lesson-1","version-1",{"exercise-1":"hello"});
-  await clearLessonAnswerDraft("lesson-1","version-1");
-  expect(await readLessonAnswerDraft("lesson-1","version-1")).toEqual({});
+  await writeLessonAnswerDraft("user-1","lesson-1","version-1",{"exercise-1":"hello"});
+  await clearLessonAnswerDraft("user-1","lesson-1","version-1");
+  expect(await readLessonAnswerDraft("user-1","lesson-1","version-1")).toEqual({});
  });
  it("ignores invalid answer keys and values when saving",async()=>{
-  await writeLessonAnswerDraft("lesson-1","version-1",{"bad id":"x","exercise-1":"ok","exercise-2":"x".repeat(2001)});
-  expect(await readLessonAnswerDraft("lesson-1","version-1")).toEqual({"exercise-1":"ok"});
+  await writeLessonAnswerDraft("user-1","lesson-1","version-1",{"bad id":"x","exercise-1":"ok","exercise-2":"x".repeat(2001)});
+  expect(await readLessonAnswerDraft("user-1","lesson-1","version-1")).toEqual({"exercise-1":"ok"});
  });
 });
