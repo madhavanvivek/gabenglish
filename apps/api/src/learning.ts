@@ -22,6 +22,51 @@ function failure(reply:any,requestId:string,status:number,code:string,message:st
 
 /** Published, direction-scoped learning catalog. Draft content is never returned. */
 export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,config:AppConfig){
+ app.get("/api/v1/progress/overview",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view your learning progress.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to view lesson progress.");
+  const preference=await pool.query<{learning_direction:Direction}>(
+   "SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]
+  );
+  const direction=preference.rows[0]?.learning_direction??"ml_to_en";
+  const result=await pool.query<{
+   course_id:string;course_code:string;course_title:string;course_description:string|null;
+   total_lessons:number;started_lessons:number;completed_lessons:number;
+   progress_percent:string;last_activity_at:Date|null;
+  }>(
+   `SELECT c.id AS course_id,c.code AS course_code,c.title AS course_title,c.description AS course_description,
+     COUNT(l.id)::int AS total_lessons,
+     COUNT(p.id) FILTER(WHERE p.status IN ('in_progress','completed'))::int AS started_lessons,
+     COUNT(p.id) FILTER(WHERE p.status='completed')::int AS completed_lessons,
+     COALESCE(AVG(COALESCE(p.progress_percent,0)),0)::numeric(5,2)::text AS progress_percent,
+     MAX(p.updated_at) AS last_activity_at
+    FROM courses c
+    JOIN modules m ON m.course_id=c.id
+    JOIN lessons l ON l.module_id=m.id AND l.status='published'
+    JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id
+      AND lv.status='published'
+      AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')
+    LEFT JOIN learner_lesson_progress p ON p.user_id=$1 AND p.course_id=c.id
+      AND p.lesson_id=l.id AND p.lesson_version_id=lv.id
+      AND p.learning_direction=c.learning_direction
+    WHERE c.status='published' AND c.learning_direction=$2
+    GROUP BY c.id,c.code,c.title,c.description,c.sort_order
+    ORDER BY c.sort_order,c.title`,
+   [learner.id,direction]
+  );
+  const courses=result.rows.map(course=>({
+   id:course.course_id,code:course.course_code,title:course.course_title,description:course.course_description,
+   total_lessons:course.total_lessons,started_lessons:course.started_lessons,
+   completed_lessons:course.completed_lessons,progress_percent:Number(course.progress_percent),
+   last_activity_at:course.last_activity_at
+  }));
+  const totalLessons=courses.reduce((sum,course)=>sum+course.total_lessons,0);
+  const completedLessons=courses.reduce((sum,course)=>sum+course.completed_lessons,0);
+  const startedLessons=courses.reduce((sum,course)=>sum+course.started_lessons,0);
+  const overallProgress=totalLessons?Number((courses.reduce((sum,course)=>sum+course.progress_percent*course.total_lessons,0)/totalLessons).toFixed(2)):0;
+  return {learning_direction:direction,summary:{total_courses:courses.length,total_lessons:totalLessons,started_lessons:startedLessons,completed_lessons:completedLessons,progress_percent:overallProgress},courses};
+ });
  app.get("/api/v1/learning/courses",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account to view your learning path.");
