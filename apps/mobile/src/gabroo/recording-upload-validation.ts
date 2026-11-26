@@ -1,4 +1,7 @@
-export const GABROO_MAX_TRANSCRIPTION_UPLOAD_BYTES = 15 * 1024 * 1024;
+import { GABROO_AUDIO_MAX_BYTES } from "@gabenglish/contracts";
+
+// Keep the mobile upload ceiling identical to the API and shared audio contract.
+export const GABROO_MAX_TRANSCRIPTION_UPLOAD_BYTES = GABROO_AUDIO_MAX_BYTES;
 
 export function validateGabrooRecordingUpload(input: {
   uri: unknown;
