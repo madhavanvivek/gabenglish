@@ -5,6 +5,12 @@ import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
 import {AuthApiError,createGabrooMemory,deleteGabrooMemory,listGabrooMemory,updateGabrooMemory,type GabrooMemoryItem} from "../src/auth-api";
 
+function practicePhrase(item:GabrooMemoryItem){
+ const practice=item.content.split("\\n").find(line=>line.startsWith("Practice version: "))?.slice(18).trim();
+ if(practice&&practice!=="not added yet")return practice;
+ return item.content.split("\\n").find(line=>line.startsWith("Learner phrase: "))?.slice(16).trim()||item.memory_key;
+}
+
 export default function SpeakingJournalScreen(){
  const [items,setItems]=useState<GabrooMemoryItem[]>([]);
  const [phrase,setPhrase]=useState("");
@@ -57,6 +63,7 @@ export default function SpeakingJournalScreen(){
   <Text style={s.section}>Your saved phrases</Text>
   {loading?<ActivityIndicator color={colors.primary}/>:items.length===0?<View style={s.card}><Text style={s.empty}>Your journal is empty. Add a phrase above to build a personal practice list.</Text></View>:items.map(item=><View key={item.id} style={s.entry}>
    <Text style={s.entryTitle}>{item.memory_key}</Text><Text style={s.entryBody}>{item.content}</Text>
+   <Link href={{pathname:"/gabroo",params:{challenge:practicePhrase(item),challengeTitle:"Speaking Journal practice"}}} style={s.practiceLink}>Practise with Gabroo →</Link>
    <View style={s.actions}><Pressable onPress={()=>edit(item)}><Text style={s.action}>Edit</Text></Pressable><Pressable onPress={()=>remove(item.id)}><Text style={s.delete}>Delete</Text></Pressable></View>
   </View>)}
   <Text style={s.privacy}>Private to your account. Entries are learner-written and learner-edited; Gabroo does not automatically diagnose or rewrite your speech in this journal.</Text>
@@ -64,5 +71,5 @@ export default function SpeakingJournalScreen(){
  </ScrollView></SafeAreaView>;
 }
 const s=StyleSheet.create({
- safe:{flex:1,backgroundColor:colors.background},page:{padding:20,paddingBottom:40},back:{color:colors.primary,fontWeight:"900",marginBottom:18},brand:{fontSize:28,fontWeight:"900",color:colors.text},subtitle:{fontSize:14,lineHeight:21,color:"#777084",marginTop:6,marginBottom:20},card:{backgroundColor:colors.surface,borderRadius:20,padding:18,marginBottom:22,borderWidth:1,borderColor:colors.border},section:{fontSize:17,fontWeight:"900",color:colors.text,marginBottom:12},label:{fontSize:12,fontWeight:"800",color:"#51476A",marginTop:12,marginBottom:6},input:{backgroundColor:"#fff",borderWidth:1,borderColor:colors.border,borderRadius:12,padding:13,fontSize:14,color:colors.text},multiline:{minHeight:76,textAlignVertical:"top"},button:{backgroundColor:colors.primary,borderRadius:13,padding:15,alignItems:"center",marginTop:16},buttonText:{color:"#fff",fontWeight:"900"},disabled:{opacity:.5},cancel:{alignItems:"center",padding:12},cancelText:{color:colors.primary,fontWeight:"800"},entry:{backgroundColor:colors.surface,borderRadius:16,padding:16,marginBottom:12,borderWidth:1,borderColor:colors.border},entryTitle:{fontSize:15,fontWeight:"900",color:colors.text},entryBody:{fontSize:13,lineHeight:20,color:"#51476A",marginTop:8},actions:{flexDirection:"row",gap:20,marginTop:14},action:{color:colors.primary,fontWeight:"900"},delete:{color:"#B42318",fontWeight:"900"},empty:{fontSize:13,lineHeight:20,color:"#777084"},privacy:{fontSize:11,lineHeight:17,color:"#777084",marginTop:10},notice:{color:"#167447",marginTop:14,fontWeight:"700"},error:{color:"#B42318",marginTop:14}
+ safe:{flex:1,backgroundColor:colors.background},page:{padding:20,paddingBottom:40},back:{color:colors.primary,fontWeight:"900",marginBottom:18},brand:{fontSize:28,fontWeight:"900",color:colors.text},subtitle:{fontSize:14,lineHeight:21,color:"#777084",marginTop:6,marginBottom:20},card:{backgroundColor:colors.surface,borderRadius:20,padding:18,marginBottom:22,borderWidth:1,borderColor:colors.border},section:{fontSize:17,fontWeight:"900",color:colors.text,marginBottom:12},label:{fontSize:12,fontWeight:"800",color:"#51476A",marginTop:12,marginBottom:6},input:{backgroundColor:"#fff",borderWidth:1,borderColor:colors.border,borderRadius:12,padding:13,fontSize:14,color:colors.text},multiline:{minHeight:76,textAlignVertical:"top"},button:{backgroundColor:colors.primary,borderRadius:13,padding:15,alignItems:"center",marginTop:16},buttonText:{color:"#fff",fontWeight:"900"},disabled:{opacity:.5},cancel:{alignItems:"center",padding:12},cancelText:{color:colors.primary,fontWeight:"800"},entry:{backgroundColor:colors.surface,borderRadius:16,padding:16,marginBottom:12,borderWidth:1,borderColor:colors.border},entryTitle:{fontSize:15,fontWeight:"900",color:colors.text},entryBody:{fontSize:13,lineHeight:20,color:"#51476A",marginTop:8},practiceLink:{color:colors.primary,fontWeight:"900",fontSize:12,marginTop:13},actions:{flexDirection:"row",gap:20,marginTop:14},action:{color:colors.primary,fontWeight:"900"},delete:{color:"#B42318",fontWeight:"900"},empty:{fontSize:13,lineHeight:20,color:"#777084"},privacy:{fontSize:11,lineHeight:17,color:"#777084",marginTop:10},notice:{color:"#167447",marginTop:14,fontWeight:"700"},error:{color:"#B42318",marginTop:14}
 });

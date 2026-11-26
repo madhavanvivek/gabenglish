@@ -135,6 +135,28 @@ describe("Gabroo teaching policy",()=>{
    expect(policy.stageGuidance).toContain("register");
   }
  });
+ it("turns repeated exercise evidence into one bounded, explainable practice focus",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"gentle_correction",supportLanguage:"ml",skillFocus:[
+   {skillKey:"grammar",accuracy:0.4,attemptCount:10},
+   {skillKey:"sentence_formation",accuracy:0.5,attemptCount:6}
+  ]});
+  expect(policy.skillFocus).toEqual([
+   {skillKey:"grammar",accuracy:0.4,attemptCount:10},
+   {skillKey:"sentence_formation",accuracy:0.5,attemptCount:6}
+  ]);
+  expect(policy.responseGuidance.join(" ")).toContain("grammar: 4 of 10 latest exercise attempts correct");
+  expect(policy.responseGuidance.join(" ")).toContain("sentence building: 3 of 6 latest exercise attempts correct");
+  expect(policy.responseGuidance.join(" ")).toContain("Do not quote percentages or attempt counts to the learner");
+  expect(policy.responseGuidance.join(" ")).toContain("one small, relevant practice opportunity");
+ });
+ it("ignores unknown skill keys and evidence below the five-attempt threshold",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",skillFocus:[
+   {skillKey:"untrusted_key",accuracy:0.1,attemptCount:20},
+   {skillKey:"grammar",accuracy:0.2,attemptCount:4}
+  ]});
+  expect(policy.skillFocus).toEqual([]);
+  expect(policy.responseGuidance.some(item=>item.includes("Recent curriculum exercise evidence"))).toBe(false);
+ });
  it("does not introduce vocabulary review prompts when the learner has not opted in",()=>{
   const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"});
   expect(policy.vocabularyFocus).toEqual([]);
