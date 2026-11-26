@@ -15,3 +15,7 @@ Gabroo must not quote the learner's percentages or attempt counts, invent specif
 ## Validation
 
 Policy tests cover evidence thresholds, recognized skill keys, bounded context and learner-facing guardrails. Exercise evidence remains separate from self-reported vocabulary recall history and from any future explicitly consented conversational assessment.
+
+## Learner-owned phrase practice
+
+A learner can explicitly save a reviewed suggestion to the private Speaking Journal. Each saved entry remains editable and deletable by its owner. The journal offers a direct route to open a Gabroo topic-practice conversation with the saved practice version (or the original learner phrase when no improved version was saved) prefilled as the learner's draft. The learner chooses whether to send it; opening the conversation does not submit text or create assessment evidence automatically.
