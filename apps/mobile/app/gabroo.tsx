@@ -177,7 +177,7 @@ export default function GabrooScreen(){
   catch(reason){
    if(run===sendRunRef.current&&reason instanceof AuthApiError&&reason.status===409){
     const refreshed=await refreshConversationAfterConflict(conversationId,run);
-    if(run===sendRunRef.current)setError(refreshed?"This conversation changed while Gabroo was replying. The latest messages are loaded; your draft is still here. Review it and send again when ready.":"This conversation changed while Gabroo was replying. Your draft is still here, but the latest messages could not be loaded. Reopen the conversation before retrying.");
+    if(run===sendRunRef.current)setError(refreshed?(reason.code==="CONVERSATION_CLOSED"?"This conversation is closed and cannot accept new messages. The latest saved messages are loaded; your draft is still here.":"This conversation changed while Gabroo was replying. The latest messages are loaded; your draft is still here. Review it and send again when ready."):"The conversation could not be refreshed. Your draft is still here; reopen it before retrying.");
    }else if(run===sendRunRef.current)setError(reason instanceof AuthApiError&&reason.status===503?"Gabroo could not reply just now. Your message was not saved. Please try again.":reason instanceof Error?reason.message:"Could not send your message.");
   }
   finally{if(run===sendRunRef.current)setBusy(false);}
@@ -353,7 +353,7 @@ export default function GabrooScreen(){
   }catch(reason){
    if(run===sendRunRef.current&&reason instanceof AuthApiError&&reason.status===409){
     const refreshed=await refreshConversationAfterConflict(conversationId,run);
-    if(run===sendRunRef.current)setError(refreshed?"This conversation changed while Gabroo was replying. The latest messages are loaded; your reviewed transcript is still here. Review it and send again when ready.":"This conversation changed while Gabroo was replying. Your reviewed transcript is still here, but the latest messages could not be loaded. Reopen the conversation before retrying.");
+    if(run===sendRunRef.current)setError(refreshed?(reason.code==="CONVERSATION_CLOSED"?"This conversation is closed and cannot accept new messages. The latest saved messages are loaded; your reviewed transcript is still here.":"This conversation changed while Gabroo was replying. The latest messages are loaded; your reviewed transcript is still here. Review it and send again when ready."):"The conversation could not be refreshed. Your reviewed transcript is still here; reopen it before retrying.");
    }else if(run===sendRunRef.current)setError(reason instanceof Error?reason.message:"Could not send the reviewed transcript.");
   }
   finally{if(run===sendRunRef.current)setBusy(false);}
