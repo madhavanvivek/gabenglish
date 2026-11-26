@@ -2,7 +2,7 @@ import {useCallback,useState} from "react";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {getDailyChallengeHistory,getGabrooLearningInsights,getVocabularyReviewQueue,listGabrooMemory,type DailyChallengeHistory,type GabrooLearningInsights,type VocabularyReviewQueue,type GabrooMemoryItem} from "../src/auth-api";
+import {getDailyChallengeHistory,getGabrooLearningInsights,getVocabularyReviewQueue,listGabrooMemory,type DailyChallengeHistory,type GabrooLearningInsights,type VocabularyReviewQueue,type GabrooMemoryItem,type LearningLessonRecommendation,getLearningRecommendation} from "../src/auth-api";
 import {buildDailySpeakingChallenge,localPracticeDateKey,parseSavedPracticePhrase} from "../src/daily-practice";
 import {colors,radius,space} from "../src/theme";
 import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
@@ -16,6 +16,7 @@ export default function PracticeQueueScreen(){
  const [insights,setInsights]=useState<GabrooLearningInsights|null>(null);
  const [history,setHistory]=useState<DailyChallengeHistory|null>(null);
  const [phrases,setPhrases]=useState<GabrooMemoryItem[]>([]);
+ const [lessonRecommendation,setLessonRecommendation]=useState<LearningLessonRecommendation["recommendation"]>(null);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const [partial,setPartial]=useState<string[]>([]);
@@ -29,6 +30,8 @@ export default function PracticeQueueScreen(){
   setInsights(results[1].status==="fulfilled"?results[1].value:null);
   setHistory(results[2].status==="fulfilled"?results[2].value:null);
   setPhrases(results[3].status==="fulfilled"?results[3].value.memory.filter(item=>item.category==="saved_phrase"):[]);
+  try{setLessonRecommendation((await getLearningRecommendation()).recommendation);}
+  catch{setLessonRecommendation(null);}
   if(failed.length===4){
    const first=results.find(result=>result.status==="rejected");
    setError(first?.status==="rejected"?(first.reason instanceof Error?first.reason.message:"Your practice queue could not be loaded."):"Your practice queue could not be loaded.");
@@ -45,6 +48,7 @@ export default function PracticeQueueScreen(){
   {loading?<View style={s.loading}><ActivityIndicator color={colors.primary} size="large"/><Text style={s.muted}>Gathering your next practice steps…</Text></View>:<>
    {error?<SurfaceCard soft><Text style={s.error}>{error}</Text><Pressable onPress={()=>void load()} style={s.retry}><Text style={s.retryText}>Try again</Text></Pressable></SurfaceCard>:null}
    {partial.length>0&&!error?<Text style={s.partial}>Some sections could not load: {partial.join(", ")}. Available practice items are still shown.</Text>:null}
+   {lessonRecommendation?<SurfaceCard><Eyebrow>YOUR LEARNING PATH · STAGE {lessonRecommendation.stage}</Eyebrow><Text style={s.cardTitle}>{lessonRecommendation.reason==="continue_learning"?"Pick up where you left off":"Your next lesson"}</Text><Text style={s.focusName}>{lessonRecommendation.title}</Text><Text style={s.body}>{lessonRecommendation.moduleTitle} · {lessonRecommendation.reason==="continue_learning"?"You have already started this lesson.":"Selected from published lessons for your learning stage and language direction."}</Text>{lessonRecommendation.reason==="continue_learning"?<Text style={s.vocabFoot}>{lessonRecommendation.progressPercent}% completed</Text>:null}<Link href={{pathname:"/lesson/[id]",params:{id:lessonRecommendation.lessonId}}} asChild><Pressable style={s.secondary}><Text style={s.secondaryText}>{lessonRecommendation.reason==="continue_learning"?"Continue lesson →":"Start this lesson →"}</Text></Pressable></Link></SurfaceCard>:null}
    <SurfaceCard soft><Eyebrow>START HERE · TODAY</Eyebrow><Text style={s.cardTitle}>{challenge.title}</Text><Text style={s.body}>{challenge.focus}</Text><Text style={s.prompt}>{challenge.prompt}</Text><Link href={{pathname:"/gabroo",params:{challenge:challenge.prompt,challengeTitle:challenge.title,challengeDate:challenge.date,challengeSkillKey:challenge.skillKey??""}}} asChild><Pressable style={s.primary}><Text style={s.primaryText}>Practise with Gabroo →</Text></Pressable></Link></SurfaceCard>
    <SurfaceCard><View style={s.row}><View style={s.flex}><Eyebrow>WORD GARDEN</Eyebrow><Text style={s.cardTitle}>Vocabulary ready to review</Text><Text style={s.body}>{vocabulary?(`${vocabulary.items.length} words currently due or ready for a first review.`):"Your vocabulary review list is unavailable right now."}</Text></View><Text style={s.count}>{vocabulary?.items.length??"—"}</Text></View><Link href="/vocabulary" style={s.link}>Open Word Garden →</Link></SurfaceCard>
    <SurfaceCard><Eyebrow>YOUR OWN WORDS</Eyebrow><Text style={s.cardTitle}>Phrases you chose to keep</Text>{phraseList.length?phraseList.slice(0,5).map(phrase=><View key={phrase.id} style={s.phrase}>{phrase.practiceVersion?<><Text style={s.phraseLabel}>YOUR PRACTICE VERSION</Text><Text style={s.phrasePractice}>“{phrase.practiceVersion}”</Text><Text style={s.phraseLabel}>ORIGINAL PHRASE</Text><Text style={s.phraseOriginal}>“{phrase.original}”</Text></>:<><Text style={s.phraseLabel}>SAVED PHRASE</Text><Text style={s.phraseText}>“{phrase.original}”</Text></>}</View>):<Text style={s.body}>No saved phrases yet. Keep useful expressions in your Speaking Journal and they can become future practice prompts.</Text>}<Link href="/speaking-journal" style={s.link}>Open Speaking Journal →</Link></SurfaceCard>
