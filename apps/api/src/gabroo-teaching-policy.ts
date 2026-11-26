@@ -12,9 +12,10 @@ export type GabrooTeachingPolicy={
   stageGuidance:string;
   learnerContext:{preferredName?:string;learningGoal?:string;profileCorrectionPreference?:"gentle"|"balanced"|"detailed"};
   learnerMemory:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>;
+  vocabularyReviewContext:{activeItems:number;dueItems:number;reviewedLast7Days:number;againLast7Days:number;dueWords:Array<{sourceTerm:string;targetTerm:string}>};
 };
 
-const policyByMode:Record<GabrooConversationMode,Omit<GabrooTeachingPolicy,"mode"|"supportLanguage"|"learningDirection"|"targetLanguage"|"addressPolicy"|"stageGuidance"|"learnerContext"|"learnerMemory">>={
+const policyByMode:Record<GabrooConversationMode,Omit<GabrooTeachingPolicy,"mode"|"supportLanguage"|"learningDirection"|"targetLanguage"|"addressPolicy"|"stageGuidance"|"learnerContext"|"learnerMemory"|"vocabularyReviewContext">>={
   free_flow:{correction:"none",primaryGoal:"communicate",responseGuidance:["Prioritise a natural conversation over teaching.","Do not interrupt the flow for minor errors.","Offer a correction only when meaning is unclear or the learner asks."]},
   gentle_correction:{correction:"gentle",primaryGoal:"build_accuracy",responseGuidance:["Acknowledge the learner's meaning first.","Correct at most one high-value issue in a turn.","Give a short, kind explanation and one natural example."]},
   detailed_correction:{correction:"detailed",primaryGoal:"build_accuracy",responseGuidance:["Give structured feedback on meaningful grammar and word-choice issues.","Distinguish errors from valid but less natural alternatives.","Avoid overwhelming the learner; group related feedback and invite a retry."]},
@@ -24,7 +25,7 @@ const policyByMode:Record<GabrooConversationMode,Omit<GabrooTeachingPolicy,"mode
   confidence_practice:{correction:"gentle",primaryGoal:"build_confidence",responseGuidance:["Make participation feel safe and achievable.","Praise specific communication successes without exaggeration.","Choose easy next steps and avoid correcting every mistake."]}
 };
 
-export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection?:"ml_to_en"|"en_to_ml";targetLanguage?:"ml"|"en";stage?:1|2|3|4|5;preferredName?:string|null;learningGoal?:string|null;profileCorrectionPreference?:"gentle"|"balanced"|"detailed";learnerMemory?:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>}):GabrooTeachingPolicy{
+export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;supportLanguage:"ml"|"en";learningDirection?:"ml_to_en"|"en_to_ml";targetLanguage?:"ml"|"en";stage?:1|2|3|4|5;preferredName?:string|null;learningGoal?:string|null;profileCorrectionPreference?:"gentle"|"balanced"|"detailed";learnerMemory?:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>;vocabularyReviewContext?:{activeItems:number;dueItems:number;reviewedLast7Days:number;againLast7Days:number;dueWords:Array<{sourceTerm:string;targetTerm:string}>}}):GabrooTeachingPolicy{
  const selected=policyByMode[input.mode];
  const learningDirection=input.learningDirection??"ml_to_en";
  const targetLanguage=input.targetLanguage??(learningDirection==="ml_to_en"?"en":"ml");
@@ -61,6 +62,13 @@ export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;sup
    ...(input.learningGoal?.trim()?{learningGoal:input.learningGoal.trim().slice(0,200)}:{}),
    ...(input.profileCorrectionPreference?{profileCorrectionPreference:input.profileCorrectionPreference}:{})
   },
-  learnerMemory:(input.learnerMemory??[]).slice(0,20).map(item=>({category:item.category,memoryKey:item.memoryKey.slice(0,80),content:item.content.slice(0,500)}))
+  learnerMemory:(input.learnerMemory??[]).slice(0,20).map(item=>({category:item.category,memoryKey:item.memoryKey.slice(0,80),content:item.content.slice(0,500)})),
+  vocabularyReviewContext:{
+   activeItems:Math.max(0,Math.floor(input.vocabularyReviewContext?.activeItems??0)),
+   dueItems:Math.max(0,Math.floor(input.vocabularyReviewContext?.dueItems??0)),
+   reviewedLast7Days:Math.max(0,Math.floor(input.vocabularyReviewContext?.reviewedLast7Days??0)),
+   againLast7Days:Math.max(0,Math.floor(input.vocabularyReviewContext?.againLast7Days??0)),
+   dueWords:(input.vocabularyReviewContext?.dueWords??[]).slice(0,5).map(word=>({sourceTerm:word.sourceTerm.slice(0,160),targetTerm:word.targetTerm.slice(0,240)}))
+  }
  };
 }
