@@ -167,7 +167,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   if(!lessonIdPattern.test(id))return failure(reply,request.id,400,"INVALID_LESSON_ID","This lesson link is invalid.");
   const parsedProgress=learningLessonProgressUpdateSchema.safeParse(request.body);
   if(!parsedProgress.success)return failure(reply,request.id,400,"VALIDATION_ERROR","Progress must be a whole number from 0 to 100.");
-  const percent=parsedProgress.data.progress_percent;
+  const {lesson_version_id:requestedVersionId,progress_percent:percent}=parsedProgress.data;
   const client=await pool.connect();
   try{
    await client.query("BEGIN");
@@ -183,6 +183,10 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
    );
    const lesson=current.rows[0];
    if(!lesson){await client.query("ROLLBACK");return failure(reply,request.id,404,"LESSON_NOT_FOUND","This lesson is not published for your selected learning direction.");}
+   if(lesson.version_id!==requestedVersionId){
+    await client.query("ROLLBACK");
+    return failure(reply,request.id,409,"LESSON_VERSION_CHANGED","This lesson has been updated. Reload it before saving progress.");
+   }
    const status=percent===100?"completed":percent>0?"in_progress":"not_started";
    const saved=await client.query<{status:string;progress_percent:string;updated_at:Date}>(
     `INSERT INTO learner_lesson_progress(user_id,course_id,lesson_id,lesson_version_id,learning_direction,status,progress_percent,started_at,completed_at)
