@@ -208,6 +208,13 @@ export async function saveLearnerVocabulary(input:{source_term:string;target_ter
 export async function getDueLearnerVocabulary(limit=20){
  return await authorized("/api/v1/vocabulary/review?limit="+encodeURIComponent(String(limit)),"GET") as {learning_direction:"ml_to_en"|"en_to_ml";items:LearnerVocabularyItem[]};
 }
+export type LearnerVocabularyStats={
+ active_items:number;due_items:number;reviewed_last_7_days:number;positive_ratings_last_7_days:number;
+ again_ratings_last_7_days:number;practice_days_last_7_days:number;
+};
+export async function getLearnerVocabularyStats(){
+ return await authorized("/api/v1/vocabulary/stats","GET") as {learning_direction:"ml_to_en"|"en_to_ml";stats:LearnerVocabularyStats};
+}
 export async function listLearnerVocabulary(){
  return await authorized("/api/v1/vocabulary","GET") as {learning_direction:"ml_to_en"|"en_to_ml";items:LearnerVocabularyItem[]};
 }
