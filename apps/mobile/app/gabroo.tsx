@@ -21,7 +21,10 @@ export default function GabrooScreen(){
  const [conversations,setConversations]=useState<GabrooConversation[]>([]);
  const [active,setActive]=useState<GabrooConversation|null>(null);
  const [messages,setMessages]=useState<GabrooConversationMessage[]>([]);
- const [draft,setDraft]=useState("");
+ const [drafts,setDrafts]=useState<Record<string,string>>({});
+ const draft=active?drafts[active.id]??"":"";
+ const updateDraft=(conversationId:string,value:string)=>setDrafts(current=>({...current,[conversationId]:value}));
+ const clearDraft=(conversationId:string)=>setDrafts(current=>{if(!(conversationId in current))return current;const next={...current};delete next[conversationId];return next;});
  const [mode,setMode]=useState<GabrooConversationMode>("gentle_correction");
  const [busy,setBusy]=useState(false);
  const [loading,setLoading]=useState(true);
@@ -173,7 +176,7 @@ export default function GabrooScreen(){
   const conversationId=active.id;
   const run=++sendRunRef.current;
   setBusy(true);setError("");
-  try{const result=await sendGabrooMessage(conversationId,text);if(run!==sendRunRef.current)return;setMessages(current=>[...current,...result.messages]);setDraft("");await refreshConversationListAfterSend(conversationId,run);}
+  try{const result=await sendGabrooMessage(conversationId,text);if(run!==sendRunRef.current)return;setMessages(current=>[...current,...result.messages]);clearDraft(conversationId);await refreshConversationListAfterSend(conversationId,run);}
   catch(reason){
    if(run===sendRunRef.current&&reason instanceof AuthApiError&&reason.status===409){
     const refreshed=await refreshConversationAfterConflict(conversationId,run);
@@ -561,7 +564,7 @@ export default function GabrooScreen(){
      </View>
     </View>
     <Text style={s.modeLabel}>Conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>void changeMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View>{messages.length===0?<View style={s.emptyPanel}><Text style={s.title}>Hi! I'm Gabroo.</Text><Text style={s.copy}>Let's have a natural conversation. What's on your mind today?</Text></View>:messages.map(message=><View key={message.id} style={[s.bubble,message.role==="user"?s.userBubble:s.gabrooBubble]}><Text style={s.speaker}>{message.role==="user"?"YOU":"GABROO"}</Text><Text style={s.message}>{message.content}</Text>{message.role==="assistant"?<Pressable accessibilityRole="button" onPress={()=>void speakMessage(message)} style={s.listenButton}><Text style={s.listenButtonText}>{speakingMessageId===message.id?"Stop speaking":"Listen · device voice"}</Text></Pressable>:null}</View>)}
-    <TextInput value={draft} onChangeText={setDraft} placeholder="Write your message…" multiline style={s.input} editable={!busy}/>
+    <TextInput value={draft} onChangeText={value=>{if(active)updateDraft(active.id,value);}} placeholder="Write your message…" multiline style={s.input} editable={!busy}/>
     <Pressable disabled={!draft.trim()||busy} onPress={send} style={[s.button,(!draft.trim()||busy)&&s.disabled]}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Send message</Text>}</Pressable>
     <Text style={s.hint}>You can ask for gentle corrections, detailed explanations or just a natural chat. Listen uses the voice installed on your device; Gabroo’s final character voice and live voice conversations are still being developed.</Text>{generatedSpeechAvailable===false?<Text style={s.speechNotice}>Gabroo’s approved generated voice is not connected yet. Listen currently uses your device voice; your conversation and subscription are unaffected.</Text>:generatedSpeechAvailable===null?<Text style={s.speechNotice}>Generated voice availability could not be checked. Device voice remains available.</Text>:null}{speechNotice?<Text style={s.speechNotice}>{speechNotice}</Text>:null}
    </>}
