@@ -379,7 +379,7 @@ describe("API foundation",()=>{
   const client={
    query:async(sql:string,values?:unknown[])=>{
     statements.push({sql,values});
-    if(sql==="SELECT c.id AS course_id,c.learning_direction AS direction,lv.id AS version_id"){
+    if(sql.includes("FOR SHARE OF l,c,lv")){
      return {rows:[{course_id:"course-1",direction:"ml_to_en",version_id:"version-3"}]};
     }
     if(sql.includes("INSERT INTO learner_lesson_progress")){
