@@ -6,9 +6,9 @@ import {colors} from "../src/theme";
 import {AuthApiError,createGabrooMemory,deleteGabrooMemory,getGabrooPhrasePracticeHistory,listGabrooMemory,recordGabrooPhrasePractice,updateGabrooMemory,type GabrooMemoryItem,type GabrooPhrasePractice} from "../src/auth-api";
 
 function practicePhrase(item:GabrooMemoryItem){
- const practice=item.content.split("\\n").find(line=>line.startsWith("Practice version: "))?.slice(18).trim();
+ const practice=item.content.split("\n").find(line=>line.startsWith("Practice version: "))?.slice(18).trim();
  if(practice&&practice!=="not added yet")return practice;
- return item.content.split("\\n").find(line=>line.startsWith("Learner phrase: "))?.slice(16).trim()||item.memory_key;
+ return item.content.split("\n").find(line=>line.startsWith("Learner phrase: "))?.slice(16).trim()||item.memory_key;
 }
 
 export default function SpeakingJournalScreen(){
@@ -22,6 +22,7 @@ export default function SpeakingJournalScreen(){
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
+ const [search,setSearch]=useState("");
  const load=useCallback(async()=>{setLoading(true);setError("");try{const result=await listGabrooMemory();const phrases=result.memory.filter(item=>item.category==="saved_phrase");setItems(phrases);const histories=await Promise.all(phrases.map(async item=>{try{return [item.id,(await getGabrooPhrasePracticeHistory(item.id)).history] as const;}catch{return [item.id,[]] as const;}}));setPracticeHistory(Object.fromEntries(histories));}catch(reason){setError(reason instanceof AuthApiError&&reason.status===401?"Please sign in to use your private Speaking Journal.":reason instanceof Error?reason.message:"Could not load your journal.");}finally{setLoading(false);}},[]);
  useFocusEffect(useCallback(()=>{void load();},[load]));
  const reset=()=>{setPhrase("");setImproved("");setNote("");setEditing(null);};
@@ -56,6 +57,7 @@ export default function SpeakingJournalScreen(){
   try{await recordGabrooPhrasePractice(id,{self_rating});const history=await getGabrooPhrasePracticeHistory(id);setPracticeHistory(current=>({...current,[id]:history.history}));setNotice("Your practice reflection was recorded.");}
   catch(reason){setError(reason instanceof Error?reason.message:"Could not record this practice reflection.");}
  };
+ const filteredItems=items.filter(item=>`${item.memory_key} ${item.content}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
  const remove=(id:string)=>{
   Alert.alert("Delete practice phrase?","This removes the phrase from your private journal.",[{text:"Cancel",style:"cancel"},{text:"Delete",style:"destructive",onPress:async()=>{setBusy(true);try{await deleteGabrooMemory(id);await load();if(editing===id)reset();setNotice("Phrase deleted.");}catch(reason){setError(reason instanceof Error?reason.message:"Could not delete this phrase.");}finally{setBusy(false);}}}]);
  };
@@ -74,8 +76,9 @@ export default function SpeakingJournalScreen(){
    <Pressable disabled={busy||!phrase.trim()} onPress={()=>void save()} style={[s.button,(busy||!phrase.trim())&&s.disabled]}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>{editing?"Update entry":"Save phrase"}</Text>}</Pressable>
    {editing?<Pressable onPress={reset} style={s.cancel}><Text style={s.cancelText}>Cancel editing</Text></Pressable>:null}
   </View>
-  <Text style={s.section}>Your saved phrases</Text>
-  {loading?<ActivityIndicator color={colors.primary}/>:items.length===0?<View style={s.card}><Text style={s.empty}>Your journal is empty. Add a phrase above to build a personal practice list.</Text></View>:items.map(item=><View key={item.id} style={s.entry}>
+  <Text style={s.section}>Your saved phrases ({items.length})</Text>
+  <TextInput value={search} onChangeText={setSearch} placeholder="Search original phrases, improved versions or notes" accessibilityLabel="Search saved phrases" style={s.searchInput}/>
+  {loading?<ActivityIndicator color={colors.primary}/>:items.length===0?<View style={s.card}><Text style={s.empty}>Your journal is empty. Add a phrase above to build a personal practice list.</Text></View>:filteredItems.length===0?<View style={s.card}><Text style={s.empty}>No saved phrases match “{search.trim()}”. Try another word or clear the search.</Text><Pressable onPress={()=>setSearch("")}><Text style={s.action}>Clear search</Text></Pressable></View>:filteredItems.map(item=><View key={item.id} style={s.entry}>
    <Text style={s.entryTitle}>{item.memory_key}</Text><Text style={s.entryBody}>{item.content}</Text>
    <Link href={{pathname:"/gabroo",params:{challenge:practicePhrase(item),challengeTitle:"Speaking Journal practice"}}} style={s.practiceLink}>Practise with Gabroo →</Link>
    <Pressable onPress={()=>logPractice(item.id)} style={s.logPractice}><Text style={s.logPracticeText}>Record practice reflection</Text></Pressable>
@@ -87,5 +90,5 @@ export default function SpeakingJournalScreen(){
  </ScrollView></SafeAreaView>;
 }
 const s=StyleSheet.create({
- safe:{flex:1,backgroundColor:colors.background},page:{padding:20,paddingBottom:40},back:{color:colors.primary,fontWeight:"900",marginBottom:18},brand:{fontSize:28,fontWeight:"900",color:colors.text},subtitle:{fontSize:14,lineHeight:21,color:"#777084",marginTop:6,marginBottom:20},card:{backgroundColor:colors.surface,borderRadius:20,padding:18,marginBottom:22,borderWidth:1,borderColor:colors.border},section:{fontSize:17,fontWeight:"900",color:colors.text,marginBottom:12},label:{fontSize:12,fontWeight:"800",color:"#51476A",marginTop:12,marginBottom:6},input:{backgroundColor:"#fff",borderWidth:1,borderColor:colors.border,borderRadius:12,padding:13,fontSize:14,color:colors.text},multiline:{minHeight:76,textAlignVertical:"top"},button:{backgroundColor:colors.primary,borderRadius:13,padding:15,alignItems:"center",marginTop:16},buttonText:{color:"#fff",fontWeight:"900"},disabled:{opacity:.5},cancel:{alignItems:"center",padding:12},cancelText:{color:colors.primary,fontWeight:"800"},entry:{backgroundColor:colors.surface,borderRadius:16,padding:16,marginBottom:12,borderWidth:1,borderColor:colors.border},entryTitle:{fontSize:15,fontWeight:"900",color:colors.text},entryBody:{fontSize:13,lineHeight:20,color:"#51476A",marginTop:8},practiceLink:{color:colors.primary,fontWeight:"900",fontSize:12,marginTop:13},logPractice:{alignSelf:"flex-start",borderWidth:1,borderColor:colors.border,borderRadius:10,paddingVertical:8,paddingHorizontal:11,marginTop:10},logPracticeText:{fontSize:11,fontWeight:"800",color:colors.text},historyText:{fontSize:10,color:"#777084",marginTop:8},actions:{flexDirection:"row",gap:20,marginTop:14},action:{color:colors.primary,fontWeight:"900"},delete:{color:"#B42318",fontWeight:"900"},empty:{fontSize:13,lineHeight:20,color:"#777084"},privacy:{fontSize:11,lineHeight:17,color:"#777084",marginTop:10},notice:{color:"#167447",marginTop:14,fontWeight:"700"},error:{color:"#B42318",marginTop:14}
+ safe:{flex:1,backgroundColor:colors.background},page:{padding:20,paddingBottom:40},back:{color:colors.primary,fontWeight:"900",marginBottom:18},brand:{fontSize:28,fontWeight:"900",color:colors.text},subtitle:{fontSize:14,lineHeight:21,color:"#777084",marginTop:6,marginBottom:20},card:{backgroundColor:colors.surface,borderRadius:20,padding:18,marginBottom:22,borderWidth:1,borderColor:colors.border},section:{fontSize:17,fontWeight:"900",color:colors.text,marginBottom:12},label:{fontSize:12,fontWeight:"800",color:"#51476A",marginTop:12,marginBottom:6},input:{backgroundColor:"#fff",borderWidth:1,borderColor:colors.border,borderRadius:12,padding:13,fontSize:14,color:colors.text},multiline:{minHeight:76,textAlignVertical:"top"},button:{backgroundColor:colors.primary,borderRadius:13,padding:15,alignItems:"center",marginTop:16},buttonText:{color:"#fff",fontWeight:"900"},disabled:{opacity:.5},cancel:{alignItems:"center",padding:12},cancelText:{color:colors.primary,fontWeight:"800"},searchInput:{backgroundColor:"#fff",borderWidth:1,borderColor:colors.border,borderRadius:12,padding:12,fontSize:13,color:colors.text,marginBottom:14},entry:{backgroundColor:colors.surface,borderRadius:16,padding:16,marginBottom:12,borderWidth:1,borderColor:colors.border},entryTitle:{fontSize:15,fontWeight:"900",color:colors.text},entryBody:{fontSize:13,lineHeight:20,color:"#51476A",marginTop:8},practiceLink:{color:colors.primary,fontWeight:"900",fontSize:12,marginTop:13},logPractice:{alignSelf:"flex-start",borderWidth:1,borderColor:colors.border,borderRadius:10,paddingVertical:8,paddingHorizontal:11,marginTop:10},logPracticeText:{fontSize:11,fontWeight:"800",color:colors.text},historyText:{fontSize:10,color:"#777084",marginTop:8},actions:{flexDirection:"row",gap:20,marginTop:14},action:{color:colors.primary,fontWeight:"900"},delete:{color:"#B42318",fontWeight:"900"},empty:{fontSize:13,lineHeight:20,color:"#777084"},privacy:{fontSize:11,lineHeight:17,color:"#777084",marginTop:10},notice:{color:"#167447",marginTop:14,fontWeight:"700"},error:{color:"#B42318",marginTop:14}
 });
