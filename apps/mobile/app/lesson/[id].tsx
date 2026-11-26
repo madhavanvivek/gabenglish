@@ -67,7 +67,10 @@ export default function LessonScreen(){
     if(lessonRequestEpoch.current===requestEpoch&&historyRequestEpoch.current[exerciseId]===historyEpoch)setExerciseHistory(current=>({...current,[exerciseId]:history.attempts}));
    }catch{/* Keep the just-returned result visible if history is temporarily unavailable. */}
   }catch(e){
-   if(lessonRequestEpoch.current===requestEpoch)setError(e instanceof Error?e.message:"Could not check this answer.");
+   if(lessonRequestEpoch.current===requestEpoch){
+    if(e instanceof AuthApiError&&e.status===409){setLessonVersionChanged(true);setError("This lesson was updated while you were answering. Your answer is still on this screen; reload the latest version before trying again.");}
+    else setError(e instanceof Error?e.message:"Could not check this answer.");
+   }
   }finally{
    if(busyExerciseRef.current===exerciseId&&lessonRequestEpoch.current===requestEpoch){busyExerciseRef.current=null;setBusyExercise(null);}
   }
