@@ -191,4 +191,4 @@ While transcription capture is active, the Expo AV recording-status callback now
 
 ## Server-side transcription quota
 
-The authenticated recognition route now consumes an atomic per-learner rolling quota stored in PostgreSQL: 20 requests per hour across all API instances. Requests over the allowance return HTTP 429 and `Retry-After`; quota-store failures fail closed with HTTP 503. The quota table stores counters only and no audio or transcript data. The 20/hour ceiling is an initial abuse/cost control and must be reviewed against real provider economics before production launch.
+The authenticated recognition route now consumes an atomic per-learner fixed-window quota stored in PostgreSQL: 20 requests per hour across all API instances. Requests over the allowance return HTTP 429 and `Retry-After`; quota-store failures fail closed with HTTP 503. The quota table stores counters only and no audio or transcript data. The 20/hour ceiling is an initial abuse/cost control and must be reviewed against real provider economics before production launch.
