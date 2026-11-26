@@ -104,19 +104,28 @@ export default function LessonScreen(){
    replaying=true;
    try{
     for(const exercise of pendingExercises){
-     if(!active||lessonRequestEpoch.current!==requestEpoch)return;
-     const pending=await readPendingExerciseSubmission(ownerId,lessonId,versionId,exercise.id);
-     if(!pending||!active||lessonRequestEpoch.current!==requestEpoch)continue;
-     setAnswersState(current=>({...current,[exercise.id]:pending.response}));
-     setSubmissionStatuses(current=>({...current,[exercise.id]:"sending"}));
+     if(!active||lessonRequestEpoch.current!==requestEpoch||busyExerciseRef.current!==null)return;
+     busyExerciseRef.current=exercise.id;
+     setBusyExercise(exercise.id);
      try{
-      const result=await submitLearningExerciseAttempt(lessonId,exercise.id,versionId,pending.submissionId,pending.response);
-      await clearPendingExerciseSubmission(ownerId,lessonId,versionId,exercise.id);
-      if(!active||lessonRequestEpoch.current!==requestEpoch)return;
-      setExerciseResults(current=>({...current,[exercise.id]:result.result}));
-      setSubmissionStatuses(current=>({...current,[exercise.id]:"submitted"}));
-     }catch{
-      if(active&&lessonRequestEpoch.current===requestEpoch)setSubmissionStatuses(current=>({...current,[exercise.id]:"failed"}));
+      const pending=await readPendingExerciseSubmission(ownerId,lessonId,versionId,exercise.id);
+      if(!pending||!active||lessonRequestEpoch.current!==requestEpoch)continue;
+      setAnswersState(current=>({...current,[exercise.id]:pending.response}));
+      setSubmissionStatuses(current=>({...current,[exercise.id]:"sending"}));
+      try{
+       const result=await submitLearningExerciseAttempt(lessonId,exercise.id,versionId,pending.submissionId,pending.response);
+       await clearPendingExerciseSubmission(ownerId,lessonId,versionId,exercise.id);
+       if(!active||lessonRequestEpoch.current!==requestEpoch)return;
+       setExerciseResults(current=>({...current,[exercise.id]:result.result}));
+       setSubmissionStatuses(current=>({...current,[exercise.id]:"submitted"}));
+      }catch{
+       if(active&&lessonRequestEpoch.current===requestEpoch)setSubmissionStatuses(current=>({...current,[exercise.id]:"failed"}));
+      }
+     }finally{
+      if(busyExerciseRef.current===exercise.id){
+       busyExerciseRef.current=null;
+       if(active&&lessonRequestEpoch.current===requestEpoch)setBusyExercise(null);
+      }
      }
     }
    }finally{replaying=false;}
