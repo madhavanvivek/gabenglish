@@ -69,6 +69,9 @@ export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;sup
    "Do not reveal or recite stored notes unprompted. If a memory is ambiguous, outdated or conflicts with the learner's current request, ask briefly or follow the current request.",
    "Never infer personal traits, proficiency or consent from a saved note; avoid repeating sensitive details unless directly necessary."
   ],
-  learnerMemory:(input.learnerMemory??[]).slice(0,20).map(item=>({category:item.category,memoryKey:item.memoryKey.slice(0,80),content:item.content.slice(0,500)}))
+  learnerMemory:(input.learnerMemory??[])
+   .filter(item=>typeof item==="object"&&item!==null&&["goal","interest","saved_phrase","learning_note"].includes(item.category)&&typeof item.memoryKey==="string"&&typeof item.content==="string"&&item.memoryKey.trim().length>0&&item.content.trim().length>0)
+   .slice(0,20)
+   .map(item=>({category:item.category,memoryKey:item.memoryKey.trim().slice(0,80),content:item.content.trim().slice(0,500)}))
  };
 }
