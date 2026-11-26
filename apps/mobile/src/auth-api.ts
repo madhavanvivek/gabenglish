@@ -196,6 +196,28 @@ export async function getLearningProgressOverview(){
  return await authorized("/api/v1/progress/overview","GET") as LearningProgressOverview;
 }
 
+
+export type LearnerVocabularyItem={
+ id:string;learning_direction:"ml_to_en"|"en_to_ml";source_term:string;target_term:string;example:string|null;
+ status?:"active"|"archived";due_at:string;interval_days:number;ease_factor:string|number;
+ repetitions:number;lapses:number;last_reviewed_at:string|null;created_at:string;updated_at?:string;
+};
+export async function saveLearnerVocabulary(input:{source_term:string;target_term:string;example?:string;lesson_id?:string}){
+ return await authorized("/api/v1/vocabulary","POST",input) as {item:LearnerVocabularyItem};
+}
+export async function getDueLearnerVocabulary(limit=20){
+ return await authorized("/api/v1/vocabulary/review?limit="+encodeURIComponent(String(limit)),"GET") as {learning_direction:"ml_to_en"|"en_to_ml";items:LearnerVocabularyItem[]};
+}
+export async function listLearnerVocabulary(){
+ return await authorized("/api/v1/vocabulary","GET") as {learning_direction:"ml_to_en"|"en_to_ml";items:LearnerVocabularyItem[]};
+}
+export async function reviewLearnerVocabulary(id:string,rating:"again"|"hard"|"good"|"easy"){
+ return await authorized("/api/v1/vocabulary/"+encodeURIComponent(id)+"/review","POST",{rating}) as {item:LearnerVocabularyItem;review:{rating:string;next_interval_days:number}};
+}
+export async function archiveLearnerVocabulary(id:string){
+ await authorized("/api/v1/vocabulary/"+encodeURIComponent(id),"DELETE");
+}
+
 export async function getSubscriptionStatus(){return await authorized("/api/v1/subscriptions/current","GET") as SubscriptionStatus;}
 export async function listGabrooConversations(){return await authorized("/api/v1/gabroo/conversations","GET") as {conversations:GabrooConversation[]};}
 export async function getGabrooConversation(id:string){return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id),"GET") as {conversation:GabrooConversation;messages:GabrooConversationMessage[]};}
