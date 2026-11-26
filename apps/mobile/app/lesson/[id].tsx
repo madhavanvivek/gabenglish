@@ -33,7 +33,7 @@ export default function LessonScreen(){
  const [message,setMessage]=useState("");
  const [error,setError]=useState("");
  const [answers,setAnswersState]=useState<Record<string,string>>({});
- const [exerciseResults,setExerciseResults]=useState<Record<string,{correct:boolean;feedback:string}>>({});
+ const [exerciseResults,setExerciseResults]=useState<Record<string,LearningExerciseAttemptResult>>({});
  const [busyExercise,setBusyExercise]=useState<string|null>(null);
  const setAnswer=(exerciseId:string,value:string)=>setAnswersState(current=>({...current,[exerciseId]:value}));
  async function submitExercise(exerciseId:string){if(!id||busyExercise)return;setBusyExercise(exerciseId);setError("");try{const result=await submitLearningExerciseAttempt(id,exerciseId,answers[exerciseId]??"");setExerciseResults(current=>({...current,[exerciseId]:result}));}catch(e){setError(e instanceof Error?e.message:"Could not check this answer.");}finally{setBusyExercise(null);}}
