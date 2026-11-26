@@ -295,6 +295,35 @@ describe("API foundation",()=>{
   expect(statements.some(sql=>sql.includes("ON CONFLICT(user_id,learning_direction,lesson_version_id,vocabulary_item_id)"))).toBe(true);
   await app.close();
  });
+ it("returns only the learner's recent vocabulary review events from current published content",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const reviewedAt=new Date("2026-11-25T10:00:00.000Z");
+  const pool={query:async(sql:string)=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("FROM active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
+   if(sql.includes("FROM learner_vocabulary_review_history"))return {rows:[{lesson_id:"00000000-0000-4000-8000-000000000002",lesson_title:"Greetings",vocabulary_item_id:"greeting_hello",term:"Hello",rating:4,repetitions:2,interval_days:3,due_at:new Date("2026-11-28T10:00:00.000Z"),reviewed_at:reviewedAt}]};
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"GET",url:"/api/v1/learning/vocabulary/history?limit=10",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toMatchObject({learning_direction:"ml_to_en",items:[{vocabulary_item_id:"greeting_hello",term:"Hello",rating:4,repetitions:2,interval_days:3,reviewed_at:reviewedAt.toISOString()}],policy:{only_current_published_versions:true,recall_ratings_are_self_reported:true}});
+  await app.close();
+ });
+ it("rejects invalid vocabulary review history limits",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const pool={query:async(sql:string)=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("FROM active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"GET",url:"/api/v1/learning/vocabulary/history?limit=0",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(400);
+  expect(response.json().error.code).toBe("VALIDATION_ERROR");
+  await app.close();
+ });
  it("returns learner vocabulary retention counts from current published content",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   const pool={query:async(sql:string)=>{

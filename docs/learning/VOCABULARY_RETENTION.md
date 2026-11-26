@@ -24,6 +24,15 @@ The mobile app now includes a Word Garden review screen linked from the learner 
 
 The screen uses the authenticated mobile API client, so access tokens remain in secure storage and the client refreshes an expired session through the existing session flow. Subscription and published-content checks remain enforced by the API. Review scheduling must never block normal lessons or punish missed days.
 
+## Review history
+
+Migration `0023_learner_vocabulary_review_history.sql` adds an append-only event log. A database trigger records a history row whenever a learner's recall rating updates the current schedule, preserving the rating, resulting interval, ease factor, due date and review timestamp. The mutable schedule remains the source for the next due review; the history table is the source for the learner's past activity.
+
+- `GET /api/v1/learning/vocabulary/history?limit=20` returns the most recent self-reported recall events, with a bounded limit of 1–50.
+- The endpoint requires a verified learner and active subscription.
+- Events are shown only while their lesson version remains the current published version, and English-to-Malayalam content must remain educator-approved.
+- Word Garden displays recent ratings, review dates and resulting intervals. These records describe recall attempts, not a proficiency score.
+
 ## Remaining integration work
 
 - Add a learner progress summary for vocabulary retained, developing and due for review.

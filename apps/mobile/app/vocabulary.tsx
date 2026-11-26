@@ -2,7 +2,7 @@ import {useCallback,useState} from "react";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {getVocabularyReviewQueue,getVocabularyRetentionSummary,submitVocabularyRecallRating,type VocabularyReviewItem,type VocabularyRetentionSummary} from "../src/auth-api";
+import {getVocabularyReviewQueue,getVocabularyRetentionSummary,getVocabularyReviewHistory,submitVocabularyRecallRating,type VocabularyReviewItem,type VocabularyRetentionSummary,type VocabularyReviewHistoryItem} from "../src/auth-api";
 import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
 import {colors,radius,space} from "../src/theme";
 
@@ -18,6 +18,7 @@ const ratings=[
 export default function VocabularyReviewScreen(){
  const [items,setItems]=useState<VocabularyReviewItem[]>([]);
  const [retention,setRetention]=useState<VocabularyRetentionSummary|null>(null);
+ const [history,setHistory]=useState<VocabularyReviewHistoryItem[]>([]);
  const [scheduleNotice,setScheduleNotice]=useState("");
  const [index,setIndex]=useState(0);
  const [revealed,setRevealed]=useState(false);
@@ -30,7 +31,8 @@ export default function VocabularyReviewScreen(){
   setLoading(true);setError("");setNotice("");setScheduleNotice("");
   const queueTask=getVocabularyReviewQueue(30).then(queue=>{setItems(queue.items);setIndex(0);setRevealed(false);}).catch(reason=>{setError(reason instanceof Error?reason.message:"Your vocabulary reviews could not be loaded.");});
   const summaryTask=getVocabularyRetentionSummary().then(setRetention).catch(()=>setRetention(null));
-  await Promise.all([queueTask,summaryTask]);
+  const historyTask=getVocabularyReviewHistory(8).then(result=>setHistory(result.items)).catch(()=>setHistory([]));
+  await Promise.all([queueTask,summaryTask,historyTask]);
   setLoading(false);
  },[]);
  useFocusEffect(useCallback(()=>{void load();},[load]));
@@ -52,6 +54,7 @@ export default function VocabularyReviewScreen(){
   <View style={s.header}><Link href="/home" style={s.back}>‹ Home</Link><BrandMark size={42}/><Text style={s.brand}>Word garden</Text><Text style={s.subtitle}>Small reviews. Stronger memories.</Text></View>
   <View style={s.intro}><Eyebrow>YOUR VOCABULARY RETENTION</Eyebrow><Text style={s.introTitle}>Bring the words back to life.</Text><Text style={s.introBody}>Try to remember each word before revealing its meaning. Be honest about how well you recalled it — Gabroo will use your rating to plan the next review.</Text></View>
   {retention?<SurfaceCard><Eyebrow>YOUR WORD GARDEN</Eyebrow><View style={s.statsGrid}><View style={s.stat}><Text style={s.statValue}>{retention.summary.total_words}</Text><Text style={s.statLabel}>WORDS LEARNED</Text></View><View style={s.stat}><Text style={s.statValue}>{retention.summary.reviewed_words}</Text><Text style={s.statLabel}>REVIEWED</Text></View><View style={s.stat}><Text style={s.statValue}>{retention.summary.due_words}</Text><Text style={s.statLabel}>DUE NOW</Text></View><View style={s.stat}><Text style={s.statValue}>{retention.summary.mastered_words}</Text><Text style={s.statLabel}>STEADY REVIEWS</Text></View><View style={s.stat}><Text style={s.statValue}>{retention.summary.developing_words}</Text><Text style={s.statLabel}>IN PROGRESS</Text></View></View><Text style={s.statFootnote}>Steady reviews are a memory-schedule signal, not a fluency score. {retention.summary.last_reviewed_at?`Last reviewed ${new Date(retention.summary.last_reviewed_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}.`:"No vocabulary reviews recorded yet."}</Text></SurfaceCard>:null}
+  {history.length>0?<SurfaceCard><Eyebrow>YOUR RECENT RECALL</Eyebrow><Text style={s.historyTitle}>Review history</Text>{history.map(item=><View key={item.lesson_id+":"+item.vocabulary_item_id+":"+item.reviewed_at} style={s.historyItem}><View style={s.historyCopy}><Text style={s.historyTerm}>{item.term}</Text><Text style={s.historyMeta}>{item.lesson_title} · {new Date(item.reviewed_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}</Text></View><View style={s.historyRating}><Text style={s.historyScore}>{item.rating}/5</Text><Text style={s.historyMeta}>{item.interval_days}d interval</Text></View></View>)}</SurfaceCard>:null}
   {scheduleNotice?<Text accessibilityLiveRegion="polite" style={s.scheduleNotice}>{scheduleNotice}</Text>:null}
   {loading?<View style={s.loading}><ActivityIndicator size="large" color={colors.primary}/><Text style={s.muted}>Gathering words for you…</Text></View>:error?<SurfaceCard soft><Text style={s.error}>{error}</Text><Pressable accessibilityRole="button" onPress={()=>void load()} style={s.primaryButton}><Text style={s.primaryText}>Try again</Text></Pressable></SurfaceCard>:current?<>
    <View style={s.progressRow}><Text style={s.progressLabel}>WORD {index+1} OF {items.length}</Text><Text style={s.progressLabel}>{completed} REVIEWED THIS SESSION</Text></View>
@@ -87,7 +90,8 @@ const s=StyleSheet.create({
  intro:{backgroundColor:colors.surfaceWarm,borderRadius:radius.xl,padding:space.xl,gap:space.sm},
  introTitle:{fontSize:25,lineHeight:32,fontWeight:"800",color:colors.text},introBody:{fontSize:15,lineHeight:23,color:colors.textMuted},
  loading:{alignItems:"center",padding:space.xxl,gap:space.md},
- statsGrid:{flexDirection:"row",flexWrap:"wrap",gap:space.md,marginTop:space.md},stat:{width:"46%",backgroundColor:colors.surfaceWarm,borderRadius:radius.md,padding:space.md,gap:4},statValue:{fontSize:24,fontWeight:"800",color:colors.text},statLabel:{fontSize:10,fontWeight:"800",letterSpacing:0.7,color:colors.textMuted},statFootnote:{fontSize:11,lineHeight:16,color:colors.textMuted,marginTop:space.md},scheduleNotice:{fontSize:13,fontWeight:"700",color:colors.primary,textAlign:"center"},muted:{fontSize:14,color:colors.textMuted},
+ statsGrid:{flexDirection:"row",flexWrap:"wrap",gap:space.md,marginTop:space.md},stat:{width:"46%",backgroundColor:colors.surfaceWarm,borderRadius:radius.md,padding:space.md,gap:4},statValue:{fontSize:24,fontWeight:"800",color:colors.text},statLabel:{fontSize:10,fontWeight:"800",letterSpacing:0.7,color:colors.textMuted},statFootnote:{fontSize:11,lineHeight:16,color:colors.textMuted,marginTop:space.md},scheduleNotice:{fontSize:13,fontWeight:"700",color:colors.primary,textAlign:"center"},
+ historyTitle:{fontSize:19,fontWeight:"800",color:colors.text,marginTop:space.xs},historyItem:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:space.md,paddingVertical:space.md,borderBottomWidth:1,borderBottomColor:colors.border},historyCopy:{flex:1,gap:3},historyTerm:{fontSize:15,fontWeight:"800",color:colors.text},historyMeta:{fontSize:11,color:colors.textMuted},historyRating:{alignItems:"flex-end",gap:3},historyScore:{fontSize:15,fontWeight:"800",color:colors.primary},muted:{fontSize:14,color:colors.textMuted},
  progressRow:{flexDirection:"row",justifyContent:"space-between",gap:space.sm},progressLabel:{fontSize:10,fontWeight:"800",letterSpacing:0.8,color:colors.textMuted},
  progressTrack:{height:7,backgroundColor:colors.border,borderRadius:99,overflow:"hidden"},progressFill:{height:7,backgroundColor:colors.primary,borderRadius:99},
  term:{fontSize:36,lineHeight:44,fontWeight:"800",color:colors.text,textAlign:"center",marginTop:space.lg},

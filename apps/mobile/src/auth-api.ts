@@ -337,6 +337,18 @@ export async function getVocabularyReviewQueue(limit=20){
  if(!Number.isInteger(limit)||limit<1||limit>50)throw new AuthApiError("Choose between 1 and 50 vocabulary words.");
  return await authorized("/api/v1/learning/vocabulary/reviews?limit="+limit,"GET") as VocabularyReviewQueue;
 }
+export type VocabularyReviewHistoryItem={
+ lesson_id:string;lesson_title:string;vocabulary_item_id:string;term:string;rating:number;
+ repetitions:number;interval_days:number;due_at:string;reviewed_at:string;
+};
+export type VocabularyReviewHistory={
+ learning_direction:"ml_to_en"|"en_to_ml";items:VocabularyReviewHistoryItem[];
+ policy:{only_current_published_versions:boolean;recall_ratings_are_self_reported:boolean};
+};
+export async function getVocabularyReviewHistory(limit=10){
+ if(!Number.isInteger(limit)||limit<1||limit>50)throw new AuthApiError("Choose between 1 and 50 review history entries.");
+ return await authorized("/api/v1/learning/vocabulary/history?limit="+limit,"GET") as VocabularyReviewHistory;
+}
 export type VocabularyRetentionSummary={
  learning_direction:"ml_to_en"|"en_to_ml";
  summary:{total_words:number;reviewed_words:number;mastered_words:number;developing_words:number;due_words:number;last_reviewed_at:string|null};
