@@ -217,4 +217,52 @@ describe("API foundation",()=>{
   await app.close();
  });
 
+
+ it("blocks anonymous and free learners from every paid learning endpoint",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const app=await buildApp(config,async()=>true,recognitionPool(false));
+  const lessonId="00000000-0000-4000-8000-000000000020";
+  const headers={authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)};
+  const requests=[
+   {method:"GET" as const,url:"/api/v1/learning/courses"},
+   {method:"GET" as const,url:"/api/v1/learning/lessons/"+lessonId},
+   {method:"POST" as const,url:"/api/v1/learning/lessons/"+lessonId+"/progress",payload:{progress_percent:25}},
+   {method:"POST" as const,url:"/api/v1/learning/lessons/"+lessonId+"/exercises/greeting/attempts",payload:{response:"hello"}}
+  ];
+  try{
+   for(const request of requests){
+    const anonymous=await app.inject(request);
+    expect(anonymous.statusCode,request.url+" should reject anonymous access").toBe(401);
+    const free=await app.inject({...request,headers});
+    expect(free.statusCode,request.url+" should reject free-tier access").toBe(403);
+    expect(free.json().error.code).toBe("PAID_SUBSCRIPTION_REQUIRED");
+   }
+  }finally{await app.close();}
+ });
+
+ it("rejects malformed lesson and exercise references before querying learning content",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const queries:string[]=[];
+  const pool={query:async(sql:string)=>{
+   queries.push(sql);
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const headers={authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)};
+  try{
+   const invalidLesson=await app.inject({method:"GET",url:"/api/v1/learning/lessons/not-a-uuid",headers});
+   expect(invalidLesson.statusCode).toBe(400);
+   expect(invalidLesson.json().error.code).toBe("INVALID_LESSON_ID");
+   const invalidProgress=await app.inject({method:"POST",url:"/api/v1/learning/lessons/not-a-uuid/progress",headers,payload:{progress_percent:50}});
+   expect(invalidProgress.statusCode).toBe(400);
+   expect(invalidProgress.json().error.code).toBe("INVALID_LESSON_ID");
+   const invalidExercise=await app.inject({method:"POST",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000020/exercises/bad%20id/attempts",headers,payload:{response:"hello"}});
+   expect(invalidExercise.statusCode).toBe(400);
+   expect(invalidExercise.json().error.code).toBe("INVALID_EXERCISE_REFERENCE");
+   expect(queries.some(sql=>sql.includes("FROM lessons l JOIN modules m"))).toBe(false);
+  }finally{await app.close();}
+ });
+
 });
