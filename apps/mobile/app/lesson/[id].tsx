@@ -58,6 +58,7 @@ export default function LessonScreen(){
    const result=await saveLearningLessonProgress(requestLessonId,requestVersionId,value);
    if(lessonRequestEpoch.current!==requestEpoch)return;
    setProgress(result.progress.progress_percent);
+   setData(current=>current?{...current,progress:result.progress}:current);
    setMessage(value===100?"Lesson marked complete. Your progress is saved.":"Your lesson progress is saved.");
   }catch(e){
    if(lessonRequestEpoch.current===requestEpoch)setError(e instanceof Error?e.message:"Could not save your progress.");
