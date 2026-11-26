@@ -11,6 +11,7 @@ export type GabrooTeachingPolicy={
   addressPolicy:string;
   stageGuidance:string;
   learnerContext:{preferredName?:string;learningGoal?:string;profileCorrectionPreference?:"gentle"|"balanced"|"detailed"};
+  memoryUsageGuidance:string[];
   learnerMemory:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>;
 };
 
