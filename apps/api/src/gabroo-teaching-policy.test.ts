@@ -83,4 +83,16 @@ describe("Gabroo teaching policy",()=>{
   expect(policy.memoryUsageGuidance).toContain("Never infer personal traits, proficiency or consent from a saved note; avoid repeating sensitive details unless directly necessary.");
  });
 
+
+ it("drops malformed or blank memory records before building tutor context",()=>{
+  const learnerMemory=[
+   null,
+   {category:"unknown",memoryKey:"bad",content:"bad"},
+   {category:"goal",memoryKey:"   ",content:"blank key"},
+   {category:"interest",memoryKey:"valid",content:"  Useful travel vocabulary  "}
+  ] as never;
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",learnerMemory});
+  expect(policy.learnerMemory).toEqual([{category:"interest",memoryKey:"valid",content:"Useful travel vocabulary"}]);
+ });
+
 });
