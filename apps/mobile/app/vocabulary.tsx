@@ -2,7 +2,7 @@ import {useCallback,useState} from "react";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {getVocabularyReviewQueue,getVocabularyRetentionSummary,submitVocabularyRecallRating,type VocabularyReviewItem,type VocabularyRetentionSummary} from "../src/auth-api";
+import {getVocabularyReviewQueue,getVocabularyRetentionSummary,getVocabularyReviewHistory,submitVocabularyRecallRating,type VocabularyReviewItem,type VocabularyRetentionSummary,type VocabularyReviewHistoryItem} from "../src/auth-api";
 import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
 import {colors,radius,space} from "../src/theme";
 
@@ -18,6 +18,7 @@ const ratings=[
 export default function VocabularyReviewScreen(){
  const [items,setItems]=useState<VocabularyReviewItem[]>([]);
  const [retention,setRetention]=useState<VocabularyRetentionSummary|null>(null);
+ const [history,setHistory]=useState<VocabularyReviewHistoryItem[]>([]);
  const [scheduleNotice,setScheduleNotice]=useState("");
  const [index,setIndex]=useState(0);
  const [revealed,setRevealed]=useState(false);
@@ -30,7 +31,8 @@ export default function VocabularyReviewScreen(){
   setLoading(true);setError("");setNotice("");setScheduleNotice("");
   const queueTask=getVocabularyReviewQueue(30).then(queue=>{setItems(queue.items);setIndex(0);setRevealed(false);}).catch(reason=>{setError(reason instanceof Error?reason.message:"Your vocabulary reviews could not be loaded.");});
   const summaryTask=getVocabularyRetentionSummary().then(setRetention).catch(()=>setRetention(null));
-  await Promise.all([queueTask,summaryTask]);
+  const historyTask=getVocabularyReviewHistory(8).then(result=>setHistory(result.items)).catch(()=>setHistory([]));
+  await Promise.all([queueTask,summaryTask,historyTask]);
   setLoading(false);
  },[]);
  useFocusEffect(useCallback(()=>{void load();},[load]));
@@ -52,6 +54,7 @@ export default function VocabularyReviewScreen(){
   <View style={s.header}><Link href="/home" style={s.back}>‹ Home</Link><BrandMark size={42}/><Text style={s.brand}>Word garden</Text><Text style={s.subtitle}>Small reviews. Stronger memories.</Text></View>
   <View style={s.intro}><Eyebrow>YOUR VOCABULARY RETENTION</Eyebrow><Text style={s.introTitle}>Bring the words back to life.</Text><Text style={s.introBody}>Try to remember each word before revealing its meaning. Be honest about how well you recalled it — Gabroo will use your rating to plan the next review.</Text></View>
   {retention?<SurfaceCard><Eyebrow>YOUR WORD GARDEN</Eyebrow><View style={s.statsGrid}><View style={s.stat}><Text style={s.statValue}>{retention.summary.total_words}</Text><Text style={s.statLabel}>WORDS LEARNED</Text></View><View style={s.stat}><Text style={s.statValue}>{retention.summary.reviewed_words}</Text><Text style={s.statLabel}>REVIEWED</Text></View><View style={s.stat}><Text style={s.statValue}>{retention.summary.due_words}</Text><Text style={s.statLabel}>DUE NOW</Text></View><View style={s.stat}><Text style={s.statValue}>{retention.summary.mastered_words}</Text><Text style={s.statLabel}>STEADY REVIEWS</Text></View><View style={s.stat}><Text style={s.statValue}>{retention.summary.developing_words}</Text><Text style={s.statLabel}>IN PROGRESS</Text></View></View><Text style={s.statFootnote}>Steady reviews are a memory-schedule signal, not a fluency score. {retention.summary.last_reviewed_at?`Last reviewed ${new Date(retention.summary.last_reviewed_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}.`:"No vocabulary reviews recorded yet."}</Text></SurfaceCard>:null}
+  {history.length>0?<SurfaceCard><Eyebrow>YOUR RECENT RECALL</Eyebrow><Text style={s.historyTitle}>Review history</Text>{history.map(item=><View key={item.lesson_id+":"+item.vocabulary_item_id+":"+item.reviewed_at} style={s.historyItem}><View style={s.historyCopy}><Text style={s.historyTerm}>{item.term}</Text><Text style={s.historyMeta}>{item.lesson_title} · {new Date(item.reviewed_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}</Text></View><View style={s.historyRating}><Text style={s.historyScore}>{item.rating}/5</Text><Text style={s.historyMeta}>{item.interval_days}d interval</Text></View></View>)}</SurfaceCard>:null}
   {scheduleNotice?<Text accessibilityLiveRegion="polite" style={s.scheduleNotice}>{scheduleNotice}</Text>:null}
   {loading?<View style={s.loading}><ActivityIndicator size="large" color={colors.primary}/><Text style={s.muted}>Gathering words for you…</Text></View>:error?<SurfaceCard soft><Text style={s.error}>{error}</Text><Pressable accessibilityRole="button" onPress={()=>void load()} style={s.primaryButton}><Text style={s.primaryText}>Try again</Text></Pressable></SurfaceCard>:current?<>
    <View style={s.progressRow}><Text style={s.progressLabel}>WORD {index+1} OF {items.length}</Text><Text style={s.progressLabel}>{completed} REVIEWED THIS SESSION</Text></View>
