@@ -1,4 +1,5 @@
 import {afterEach,describe,expect,it,vi} from "vitest";
+import * as SecureStore from "expo-secure-store";
 
 const store=new Map<string,string>();
 vi.mock("expo-secure-store",()=>({
@@ -42,5 +43,17 @@ describe("pending exercise submissions",()=>{
   await expect(getOrCreatePendingExerciseSubmission("learner","lesson","version","exercise-1","  ")).rejects.toThrow();
   await expect(getOrCreatePendingExerciseSubmission("learner","lesson","version","exercise-1","x".repeat(2001))).rejects.toThrow();
   expect(store.size).toBe(0);
+ });
+ it("does not return a submission id when secure persistence fails",async()=>{
+  vi.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(new Error("Secure storage unavailable"));
+  await expect(getOrCreatePendingExerciseSubmission("learner","lesson","version","exercise-1","hello")).rejects.toThrow("Secure storage unavailable");
+  expect(store.size).toBe(0);
+ });
+ it("ignores a corrupted pending envelope instead of replaying it",async()=>{
+  const submissionId=await getOrCreatePendingExerciseSubmission("learner","lesson","version","exercise-1","hello");
+  expect(submissionId).toMatch(/^[0-9a-f-]{36}$/i);
+  const key=[...store.keys()][0]!;
+  store.set(key,JSON.stringify({submissionId:"not-a-uuid",response:"hello"}));
+  await expect(readPendingExerciseSubmission("learner","lesson","version","exercise-1")).resolves.toBeNull();
  });
 });
