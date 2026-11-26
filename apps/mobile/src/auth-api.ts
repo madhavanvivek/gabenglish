@@ -293,6 +293,14 @@ export async function createGabrooMemory(input:{category:GabrooMemoryCategory;me
 export async function updateGabrooMemory(id:string,input:{category?:GabrooMemoryCategory;memory_key?:string;content?:string}){return await authorized("/api/v1/gabroo/memory/"+encodeURIComponent(id),"PATCH",input) as {memory:GabrooMemoryItem};}
 export async function deleteGabrooMemory(id:string){await authorized("/api/v1/gabroo/memory/"+encodeURIComponent(id),"DELETE");}
 
+export type GabrooPhrasePractice={id:string;memory_id:string;self_rating:"easy"|"some_effort"|"need_more_practice";learner_note:string|null;practiced_at:string};
+export async function recordGabrooPhrasePractice(id:string,input:{self_rating:GabrooPhrasePractice["self_rating"];learner_note?:string}){
+ return await authorized("/api/v1/gabroo/memory/"+encodeURIComponent(id)+"/practice","POST",input) as {practice:GabrooPhrasePractice;evidence_type:"learner_self_report";counts_as_assessment_evidence:false};
+}
+export async function getGabrooPhrasePracticeHistory(id:string){
+ return await authorized("/api/v1/gabroo/memory/"+encodeURIComponent(id)+"/practice","GET") as {history:GabrooPhrasePractice[];evidence_type:"learner_self_report";counts_as_assessment_evidence:false};
+}
+
 export async function clearGabrooMemory(){return await authorized("/api/v1/gabroo/memory","DELETE") as {deleted_count:number};}
 
 export type PublishedLearningLesson={
