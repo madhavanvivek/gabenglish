@@ -134,6 +134,30 @@ export const learningLessonDetailSchema=z.object({
 export type LearningLessonDetailContract=z.infer<typeof learningLessonDetailSchema>;
 
 
+export const learningLessonProgressSaveSchema=z.object({
+ lesson_id:z.string().min(1),
+ learning_direction:learningDirectionSchema,
+ progress:z.object({
+  status:z.enum(["not_started","in_progress","completed"]),
+  progress_percent:z.number().finite().int().min(0).max(100),
+  updated_at:z.string().datetime()
+ }).superRefine((progress,ctx)=>{
+  if((progress.status==="not_started"&&progress.progress_percent!==0)||(progress.status==="in_progress"&&(progress.progress_percent===0||progress.progress_percent===100))||(progress.status==="completed"&&progress.progress_percent!==100)){
+   ctx.addIssue({code:z.ZodIssueCode.custom,path:["status"],message:"Lesson progress status must agree with its percentage."});
+  }
+ }),
+ course_progress:z.object({
+  progress_percent:z.number().finite().min(0).max(100),
+  completed_lessons:z.number().int().nonnegative(),
+  total_lessons:z.number().int().nonnegative()
+ }).superRefine((progress,ctx)=>{
+  if(progress.completed_lessons>progress.total_lessons){
+   ctx.addIssue({code:z.ZodIssueCode.custom,path:["completed_lessons"],message:"Completed lessons cannot exceed the course total."});
+  }
+ })
+});
+export type LearningLessonProgressSaveContract=z.infer<typeof learningLessonProgressSaveSchema>;
+
 export const learningExerciseAttemptResultSchema=z.object({
  lesson_id:z.string().min(1),
  exercise_id:z.string().min(1),
