@@ -6,6 +6,8 @@ describe("Gabroo teaching policy",()=>{
   const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"});
   expect(policy.correction).toBe("none");
   expect(policy.primaryGoal).toBe("communicate");
+  expect(policy.adaptiveTeachingGuidance.join(" ")).toContain("two consecutive turns comfortably");
+  expect(policy.adaptiveTeachingGuidance.join(" ")).toContain("free-flow exchange");
   expect(policy.responseGuidance.some(x=>x.includes("natural conversation"))).toBe(true);
  });
  it("enforces respectful neutral address by default",()=>{
@@ -39,6 +41,14 @@ describe("Gabroo teaching policy",()=>{
   const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
   const policies=modes.map(mode=>buildGabrooTeachingPolicy({mode,supportLanguage:"en"}));
   expect(new Set(policies.map(x=>x.primaryGoal)).size).toBeGreaterThanOrEqual(5);
+ });
+ it("adapts challenge gradually and recycles vocabulary without turning every turn into a quiz",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"vocabulary_building",supportLanguage:"ml"});
+  const guidance=policy.adaptiveTeachingGuidance.join(" ");
+  expect(guidance).toContain("raise difficulty by only one small step");
+  expect(guidance).toContain("fresh context");
+  expect(guidance).toContain("not turn every reply into a vocabulary quiz");
+  expect(guidance).toContain("Ask at most one clear learner-facing question at a time");
  });
  it("keeps English acquisition and Malayalam support as separate language roles",()=>{
   const policy=buildGabrooTeachingPolicy({mode:"gentle_correction",supportLanguage:"ml",learningDirection:"ml_to_en",targetLanguage:"en"});
