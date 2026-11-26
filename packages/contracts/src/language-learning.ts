@@ -164,6 +164,12 @@ export const learningLessonProgressSaveSchema=z.object({
 });
 export type LearningLessonProgressSaveContract=z.infer<typeof learningLessonProgressSaveSchema>;
 
+export const learningExerciseAttemptSubmitSchema=z.object({
+ lesson_version_id:z.string().min(1).max(128),
+ response:z.string().trim().min(1).max(2000)
+}).strict();
+export type LearningExerciseAttemptSubmitContract=z.infer<typeof learningExerciseAttemptSubmitSchema>;
+
 export const learningExerciseAttemptResultSchema=z.object({
  lesson_id:z.string().min(1),
  exercise_id:z.string().min(1),
