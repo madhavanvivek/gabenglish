@@ -7,6 +7,9 @@ describe("authored exercise evaluation",()=>{
   expect(authoredExerciseSchema.safeParse(choice).success).toBe(true);
   expect(authoredExerciseSchema.safeParse({...choice,correct_option_id:"missing"}).success).toBe(false);
  });
+ it("rejects duplicate choice IDs that make answers ambiguous",()=>{
+  expect(authoredExerciseSchema.safeParse({...choice,options:[...choice.options,{id:"morning",label:"Another greeting"}]}).success).toBe(false);
+ });
  it("checks choice responses without returning the answer key",()=>{
   expect(evaluateAuthoredExercise(choice,"morning")).toEqual({correct:true,feedback:"Exactly right."});
   expect(evaluateAuthoredExercise(choice,"night")).toEqual({correct:false,feedback:"Try the time-of-day clue."});
@@ -22,6 +25,10 @@ describe("authored exercise evaluation",()=>{
   expect(evaluateAuthoredExercise(exercise,"  HELLO   THERE  ")?.correct).toBe(true);
   expect(evaluateAuthoredExercise(exercise,"ＣＡＦÉ")?.correct).toBe(true);
   expect(evaluateAuthoredExercise(exercise,"hello\tthere")?.correct).toBe(true);
+ });
+ it("rejects accepted answers duplicated after normalisation",()=>{
+  const exercise={type:"exercise",id:"phrase",instruction:"Translate",prompt:"Say hello",response_type:"text",accepted_answers:["Hello there","  HELLO   THERE  "]};
+  expect(authoredExerciseSchema.safeParse(exercise).success).toBe(false);
  });
  it("rejects missing or malformed answer rubrics",()=>{
   expect(evaluateAuthoredExercise({type:"exercise",id:"q",response_type:"text"},"answer")).toBeNull();
