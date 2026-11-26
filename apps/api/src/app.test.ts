@@ -491,6 +491,9 @@ describe("API foundation",()=>{
    expect(analyticsQueries).toHaveLength(1);
    expect(analyticsQueries[0]?.values).toEqual([learnerId,"en_to_ml"]);
    expect(analyticsQueries[0]?.sql).toContain("r.user_id=$1 AND i.user_id=$1");
+   expect(analyticsQueries[0]?.sql).toContain("i.learning_direction=$2");
+   expect(analyticsQueries[0]?.sql).toContain("FROM learner_vocabulary_items WHERE user_id=$1 AND learning_direction=$2");
+   expect(analyticsQueries[0]?.sql).toContain("r.reviewed_at>=now()-interval '7 days'");
   }finally{await app.close();}
  });
 
