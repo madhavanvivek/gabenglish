@@ -378,8 +378,11 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
    "SELECT repetitions,interval_days,ease_factor::text FROM learner_vocabulary_reviews WHERE user_id=$1 AND learning_direction=$2 AND lesson_version_id=$3 AND vocabulary_item_id=$4",
    [learner.id,direction,versionId,itemId]
   );
-  const previous=existing.rows[0]??initialVocabularyReview();
-  const schedule=scheduleVocabularyReview({repetitions:previous.repetitions,intervalDays:previous.interval_days,easeFactor:Number(previous.ease_factor)},body.rating as RecallRating,new Date());
+  const previous=existing.rows[0];
+  const current=previous
+   ?{repetitions:previous.repetitions,intervalDays:previous.interval_days,easeFactor:Number(previous.ease_factor)}
+   :initialVocabularyReview();
+  const schedule=scheduleVocabularyReview(current,body.rating as RecallRating,new Date());
   const saved=await pool.query<{due_at:Date;repetitions:number;interval_days:number;ease_factor:string}>(
    `INSERT INTO learner_vocabulary_reviews(user_id,learning_direction,lesson_id,lesson_version_id,vocabulary_item_id,repetitions,interval_days,ease_factor,due_at,last_rating,last_reviewed_at,updated_at)
     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now(),now())
