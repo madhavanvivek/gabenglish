@@ -55,7 +55,9 @@ export default function LessonScreen(){
   busyExerciseRef.current=exerciseId;
   setBusyExercise(exerciseId);setError("");
   try{
-   const result=await submitLearningExerciseAttempt(requestLessonId,exerciseId,answers[exerciseId]??"");
+   const requestVersionId=data?.lesson.version_id;
+   if(!requestVersionId)throw new Error("Reload this lesson before submitting an answer.");
+   const result=await submitLearningExerciseAttempt(requestLessonId,exerciseId,requestVersionId,answers[exerciseId]??"");
    if(lessonRequestEpoch.current!==requestEpoch)return;
    setExerciseResults(current=>({...current,[exerciseId]:result.result}));
    const historyEpoch=(historyRequestEpoch.current[exerciseId]??0)+1;
