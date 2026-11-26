@@ -90,7 +90,7 @@ export async function loginLearner(input:{email:string;password:string}){
  const tokens=await saveTokens(payload);
  return {tokens,email_verified:Boolean(payload.email_verified)};
 }
-async function authorized(path:string,method:"GET"|"POST"|"PATCH"|"DELETE",body?:unknown,signal?:AbortSignal):Promise<unknown>{
+async function authorized(path:string,method:"GET"|"POST"|"PUT"|"PATCH"|"DELETE",body?:unknown,signal?:AbortSignal):Promise<unknown>{
  let access=await SecureStore.getItemAsync(ACCESS_KEY);
  if(!access){await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);}
  const send=()=>fetch(baseUrl()+path,{method,headers:{"content-type":"application/json",accept:"application/json",authorization:"Bearer "+access},...(body===undefined?{}:{body:JSON.stringify(body)}),...(signal?{signal}:{})});
@@ -312,6 +312,20 @@ export type PublishedLearningCatalog={
  courses:Array<{id:string;code:string;title:string;description:string|null;direction:"ml_to_en"|"en_to_ml";source_language:string;target_language:string;support_language:string;modules:Array<{id:string;title:string;lessons:PublishedLearningLesson[]}>}>;
  publication_policy:{drafts_hidden:boolean;malayalam_requires_educator_approval:boolean};
 };
+export type LearningStageStatus={
+ learning_direction:"ml_to_en"|"en_to_ml";
+ stage:1|2|3|4|5|null;
+ stage_source:"learner_selected"|"evidence_progression"|null;
+ updated_at:string|null;
+ stage_status:"confirmed"|"not_selected";
+};
+export async function getLearningStage(){
+ return await authorized("/api/v1/learning/stage","GET") as LearningStageStatus;
+}
+export async function saveLearningStage(stage:1|2|3|4|5){
+ return await authorized("/api/v1/learning/stage","PUT",{stage}) as LearningStageStatus;
+}
+
 export type LearningLessonRecommendation={
  learning_direction:"ml_to_en"|"en_to_ml";
  stage:number|null;
