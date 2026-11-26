@@ -472,4 +472,43 @@ describe("API foundation",()=>{
   }finally{await app.close();}
  });
 
+ it("returns direction-scoped vocabulary review analytics for the authenticated learner",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const learnerId="00000000-0000-4000-8000-000000000001";
+  const analyticsQueries:{sql:string;values?:unknown[]}[]=[];
+  const pool={query:async(sql:string,values?:unknown[])=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:learnerId,email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"en_to_ml"}]};
+   if(sql.includes("WITH item_stats AS")){analyticsQueries.push({sql,values});return {rows:[{active_items:12,due_items:3,reviewed_last_7_days:20,positive_ratings_last_7_days:16,again_ratings_last_7_days:4,practice_days_last_7_days:5}]};}
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  try{
+   const response=await app.inject({method:"GET",url:"/api/v1/vocabulary/stats",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+   expect(response.statusCode).toBe(200);
+   expect(response.json()).toMatchObject({learning_direction:"en_to_ml",stats:{active_items:12,due_items:3,reviewed_last_7_days:20,positive_ratings_last_7_days:16,again_ratings_last_7_days:4,practice_days_last_7_days:5}});
+   expect(analyticsQueries).toHaveLength(1);
+   expect(analyticsQueries[0]?.values).toEqual([learnerId,"en_to_ml"]);
+   expect(analyticsQueries[0]?.sql).toContain("r.user_id=$1 AND i.user_id=$1");
+  }finally{await app.close();}
+ });
+
+ it("requires authentication and an active subscription for vocabulary analytics",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const pool={query:async(sql:string)=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[]};
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  try{
+   const anonymous=await app.inject({method:"GET",url:"/api/v1/vocabulary/stats"});
+   expect(anonymous.statusCode).toBe(401);
+   const free=await app.inject({method:"GET",url:"/api/v1/vocabulary/stats",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+   expect(free.statusCode).toBe(403);
+   expect(free.json().error.code).toBe("PAID_SUBSCRIPTION_REQUIRED");
+  }finally{await app.close();}
+ });
+
 });
