@@ -23,6 +23,13 @@ function failure(reply:any,requestId:string,status:number,code:string,message:st
  return reply.code(status).send({error:{code,message,request_id:requestId}});
 }
 
+function findLessonExercise(content:unknown,exerciseId:string):{exercise:Record<string,unknown>|null;ambiguous:boolean}{
+ const blocks=(content as {blocks?:unknown}|null)?.blocks;
+ if(!Array.isArray(blocks))return {exercise:null,ambiguous:false};
+ const matches=blocks.filter((item):item is Record<string,unknown>=>typeof item==="object"&&item!==null&&(item as Record<string,unknown>).type==="exercise"&&(item as Record<string,unknown>).id===exerciseId);
+ return matches.length>1?{exercise:null,ambiguous:true}:{exercise:matches[0]??null,ambiguous:false};
+}
+
 /** Published, direction-scoped learning catalog. Draft content is never returned. */
 export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,config:AppConfig){
  app.get("/api/v1/learning/courses",async(request,reply)=>{
@@ -242,9 +249,9 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   );
   const lesson=result.rows[0];
   if(!lesson)return failure(reply,request.id,404,"LESSON_NOT_FOUND","This lesson is not published for your selected learning direction.");
-  const raw=lesson.content as {blocks?:unknown};
-  const blocks=Array.isArray(raw?.blocks)?raw.blocks:[];
-  const exercise=blocks.find((item):item is Record<string,unknown>=>typeof item==="object"&&item!==null&&(item as Record<string,unknown>).type==="exercise"&&(item as Record<string,unknown>).id===exerciseId);
+  const match=findLessonExercise(lesson.content,exerciseId);
+  if(match.ambiguous)return failure(reply,request.id,503,"EXERCISE_CONTENT_AMBIGUOUS","This exercise is temporarily unavailable because its published lesson content needs correction.");
+  const exercise=match.exercise;
   if(!exercise)return failure(reply,request.id,404,"EXERCISE_NOT_FOUND","This exercise is not part of the published lesson.");
   const submitted=body.response.trim();
   const evaluated=evaluateAuthoredExercise(exercise,submitted);
@@ -282,9 +289,9 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   );
   const current=lesson.rows[0];
   if(!current)return failure(reply,request.id,404,"LESSON_NOT_FOUND","This lesson is not published for your selected learning direction.");
-  const content=current.content as {blocks?:unknown};
-  const exercise=Array.isArray(content?.blocks)?content.blocks.find((item):item is Record<string,unknown>=>typeof item==="object"&&item!==null&&(item as Record<string,unknown>).type==="exercise"&&(item as Record<string,unknown>).id===exerciseId):undefined;
-  if(!exercise)return failure(reply,request.id,404,"EXERCISE_NOT_FOUND","This exercise is not part of the published lesson.");
+  const match=findLessonExercise(current.content,exerciseId);
+  if(match.ambiguous)return failure(reply,request.id,503,"EXERCISE_CONTENT_AMBIGUOUS","This exercise history is temporarily unavailable because its published lesson content needs correction.");
+  if(!match.exercise)return failure(reply,request.id,404,"EXERCISE_NOT_FOUND","This exercise is not part of the published lesson.");
   const history=await pool.query<{id:string;lesson_version_id:string;response:string;is_correct:boolean;feedback:string|null;attempted_at:Date}>(
    `SELECT id,lesson_version_id,response,is_correct,feedback,attempted_at
     FROM learner_exercise_attempts
