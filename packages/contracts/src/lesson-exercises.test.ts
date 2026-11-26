@@ -15,6 +15,8 @@ describe("authored exercise evaluation",()=>{
  it("normalises accepted text answers",()=>{
   const exercise={type:"exercise",id:"hello",instruction:"Translate",prompt:"Hello",response_type:"text",accepted_answers:["Hello","Hi there"]};
   expect(evaluateAuthoredExercise(exercise,"  HELLO  ")?.correct).toBe(true);
+  expect(evaluateAuthoredExercise(exercise,"  Hi   there  ")?.correct).toBe(true);
+  expect(evaluateAuthoredExercise(exercise,"  hello\\n  ")?.correct).toBe(true);
   expect(evaluateAuthoredExercise(exercise,"Goodbye")?.correct).toBe(false);
  });
  it("rejects missing or malformed answer rubrics",()=>{
