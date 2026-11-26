@@ -29,6 +29,7 @@ function recognitionPool(hasEntitlement:boolean){
 describe("API foundation",()=>{
  it("serves liveness",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);const r=await app.inject({method:"GET",url:"/api/v1/health"});expect(r.statusCode).toBe(200);expect(r.json().status).toBe("ok");await app.close();});
  it("reports ready when database check passes",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true);const r=await app.inject({method:"GET",url:"/api/v1/ready"});expect(r.statusCode).toBe(200);await app.close();});
+ it("returns 503 when database is unavailable",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true);const r=await app.inject({method:"GET",url:"/api/v1/ready"});expect(r.statusCode).toBe(200);await app.close();});
  it("returns 503 when database is unavailable",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);const r=await app.inject({method:"GET",url:"/api/v1/ready"});expect(r.statusCode).toBe(503);await app.close();});
  it("rejects unsupported Gabroo audio media types",async()=>{
   const pool={query:async()=>({rows:[]})} as any;
@@ -118,6 +119,38 @@ describe("API foundation",()=>{
   expect(catalogQuery?.values).toEqual(["en_to_ml"]);
   expect(catalogQuery?.sql).toContain("c.learning_direction=$1");
   expect(catalogQuery?.sql).toContain("lv.educator_review_status='approved'");
+  await app.close();
+ });
+
+ it("serves a published lesson without leaking authoring answer keys",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const authoredContent={schema_version:1,blocks:[{
+   type:"exercise",id:"greeting",instruction:"Choose a greeting",prompt:"You meet someone in the morning.",
+   response_type:"single_choice",options:[{id:"morning",label:"Good morning"},{id:"night",label:"Good night"}],
+   correct_option_id:"morning",correct_feedback:"Exactly right.",rubric:{internal_note:"not for learners"}
+  }]};
+  const pool={query:async(sql:string)=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("FROM lessons l JOIN modules m"))return {rows:[{
+    course_id:"00000000-0000-4000-8000-000000000010",learning_direction:"ml_to_en",source_language:"ml",target_language:"en",support_language:"ml",
+    lesson_id:"00000000-0000-4000-8000-000000000020",slug:"morning-greetings",title:"Morning greetings",
+    version_id:"00000000-0000-4000-8000-000000000030",version_number:1,content:authoredContent,
+    script_mode:"latin",register:"everyday",dialect_scope:null,romanisation:null,
+    progress_status:null,progress_percent:null,progress_updated_at:null
+   }]};
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"GET",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000020",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(200);
+  expect(response.json().lesson.content.blocks[0]).toEqual({
+   type:"exercise",id:"greeting",instruction:"Choose a greeting",prompt:"You meet someone in the morning.",
+   response_type:"single_choice",options:[{id:"morning",label:"Good morning"},{id:"night",label:"Good night"}]
+  });
+  expect(JSON.stringify(response.json())).not.toContain("correct_option_id");
+  expect(JSON.stringify(response.json())).not.toContain("internal_note");
+  expect(response.json().progress).toBeNull();
   await app.close();
  });
 
