@@ -216,4 +216,36 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   return {lesson_id:id,exercise_id:exerciseId,result:{correct,feedback}};
  });
 
+ app.get("/api/v1/learning/lessons/:id/exercises/:exerciseId/attempts",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view your exercise history.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to view exercise history.");
+  const params=request.params as {id?:string;exerciseId?:string};
+  const id=params.id??"",exerciseId=params.exerciseId??"";
+  if(!lessonIdPattern.test(id)||!/^[a-z0-9_-]{1,64}$/i.test(exerciseId))return failure(reply,request.id,400,"INVALID_EXERCISE_REFERENCE","This exercise link is invalid.");
+  const lesson=await pool.query<{learning_direction:Direction;version_id:string;content:unknown}>(
+   `SELECT c.learning_direction,lv.id AS version_id,lv.content
+    FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
+    JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id
+    WHERE l.id=$1 AND l.status='published' AND c.status='published' AND lv.status='published'
+      AND c.learning_direction=COALESCE((SELECT learning_direction FROM user_preferences WHERE user_id=$2),'ml_to_en')
+      AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')`,
+   [id,learner.id]
+  );
+  const current=lesson.rows[0];
+  if(!current)return failure(reply,request.id,404,"LESSON_NOT_FOUND","This lesson is not published for your selected learning direction.");
+  const content=current.content as {blocks?:unknown};
+  const exercise=Array.isArray(content?.blocks)?content.blocks.find((item):item is Record<string,unknown>=>typeof item==="object"&&item!==null&&(item as Record<string,unknown>).type==="exercise"&&(item as Record<string,unknown>).id===exerciseId):undefined;
+  if(!exercise)return failure(reply,request.id,404,"EXERCISE_NOT_FOUND","This exercise is not part of the published lesson.");
+  const history=await pool.query<{id:string;lesson_version_id:string;response:string;is_correct:boolean;feedback:string|null;attempted_at:Date}>(
+   `SELECT id,lesson_version_id,response,is_correct,feedback,attempted_at
+    FROM learner_exercise_attempts
+    WHERE user_id=$1 AND lesson_id=$2 AND exercise_id=$3 AND learning_direction=$4
+    ORDER BY attempted_at DESC,id DESC LIMIT 50`,
+   [learner.id,id,exerciseId,current.learning_direction]
+  );
+  return {lesson_id:id,exercise_id:exerciseId,current_version_id:current.version_id,attempts:history.rows.map(attempt=>({id:attempt.id,lesson_version_id:attempt.lesson_version_id,response:attempt.response,correct:attempt.is_correct,feedback:attempt.feedback,attempted_at:attempt.attempted_at}))};
+ });
+
+
 }
