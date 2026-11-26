@@ -106,4 +106,23 @@ describe("Gabroo teaching policy",()=>{
   expect(bounded.vocabularyReviewContext.dueWords[0].targetTerm).toHaveLength(240);
  });
 
+ it("gently reduces new vocabulary when recent review ratings show difficulty",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"vocabulary_building",supportLanguage:"ml",vocabularyReviewContext:{
+   activeItems:10,dueItems:5,reviewedLast7Days:10,againLast7Days:5,dueWords:[]
+  }});
+  expect(policy.responseGuidance.join(" ")).toContain("Reduce the number of new words");
+  expect(policy.responseGuidance.join(" ")).toContain("Do not mention review statistics");
+ });
+ it("does not overreact to a small or low-difficulty review sample",()=>{
+  const small=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",vocabularyReviewContext:{activeItems:2,dueItems:1,reviewedLast7Days:2,againLast7Days:2,dueWords:[]}});
+  const low=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",vocabularyReviewContext:{activeItems:2,dueItems:1,reviewedLast7Days:10,againLast7Days:3,dueWords:[]}});
+  expect(small.responseGuidance.join(" ")).not.toContain("Reduce the number of new words");
+  expect(low.responseGuidance.join(" ")).not.toContain("Reduce the number of new words");
+ });
+ it("bounds Again ratings to the total review count before adapting",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",vocabularyReviewContext:{activeItems:2,dueItems:1,reviewedLast7Days:3,againLast7Days:99,dueWords:[]}});
+  expect(policy.vocabularyReviewContext.againLast7Days).toBe(3);
+  expect(policy.responseGuidance.join(" ")).toContain("Reduce the number of new words");
+ });
+
 });
