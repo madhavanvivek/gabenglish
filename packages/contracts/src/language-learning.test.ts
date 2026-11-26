@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {defaultLearningCourseContext,learningCourseContextSchema,learningDirectionSchema,publishedLearningCatalogSchema,learningLessonDetailSchema,learningExerciseAttemptHistorySchema,learningExerciseAttemptResultSchema,learningLessonProgressSaveSchema} from "./language-learning.js";
+import {defaultLearningCourseContext,learningCourseContextSchema,learningDirectionSchema,publishedLearningCatalogSchema,learningLessonDetailSchema,learningExerciseAttemptHistorySchema,learningExerciseAttemptResultSchema,learningLessonProgressSaveSchema,learningLessonProgressUpdateSchema} from "./language-learning.js";
 
 describe("bidirectional learning contracts",()=>{
  it("supports the two explicitly approved learning directions",()=>{
@@ -143,5 +143,27 @@ describe("saved lesson progress response contract",()=>{
   expect(learningLessonProgressSaveSchema.safeParse({...valid,progress:{...valid.progress,updated_at:"just now"}}).success).toBe(false);
   expect(learningLessonProgressSaveSchema.safeParse({...valid,course_progress:{...valid.course_progress,completed_lessons:5}}).success).toBe(false);
   expect(learningLessonProgressSaveSchema.safeParse({...valid,course_progress:{...valid.course_progress,progress_percent:101}}).success).toBe(false);
+ });
+});
+
+
+describe("lesson progress update request contract",()=>{
+ it("accepts whole-number progress between zero and one hundred",()=>{
+  for(const progress_percent of [0,25,50,75,100]){
+   expect(learningLessonProgressUpdateSchema.parse({progress_percent})).toEqual({progress_percent});
+  }
+ });
+ it("rejects fractions, out-of-range values, non-numbers and extra fields",()=>{
+  for(const value of [
+   {progress_percent:12.5},
+   {progress_percent:-1},
+   {progress_percent:101},
+   {progress_percent:"50"},
+   {progress_percent:50,lesson_id:"another-lesson"},
+   {},
+   null
+  ]){
+   expect(learningLessonProgressUpdateSchema.safeParse(value).success).toBe(false);
+  }
  });
 });
