@@ -5,6 +5,11 @@ import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
 import {AuthApiError,createGabrooMemory,deleteGabrooMemory,getGabrooPhrasePracticeHistory,listGabrooMemory,recordGabrooPhrasePractice,updateGabrooMemory,type GabrooMemoryItem,type GabrooPhrasePractice} from "../src/auth-api";
 
+function practiceDate(value:string){
+ const date=new Date(value);
+ return Number.isNaN(date.getTime())?null:date.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"});
+}
+
 function practicePhrase(item:GabrooMemoryItem){
  const practice=item.content.split("\n").find(line=>line.startsWith("Practice version: "))?.slice(18).trim();
  if(practice&&practice!=="not added yet")return practice;
@@ -95,7 +100,7 @@ export default function SpeakingJournalScreen(){
    <Text style={s.entryTitle}>{item.memory_key}</Text><Text style={s.entryBody}>{item.content}</Text>
    <Link href={{pathname:"/gabroo",params:{challenge:practicePhrase(item),challengeTitle:"Speaking Journal practice"}}} style={s.practiceLink}>Practise with Gabroo →</Link>
    <Pressable onPress={()=>logPractice(item.id)} style={s.logPractice}><Text style={s.logPracticeText}>Record practice reflection</Text></Pressable>
-   {practiceHistory[item.id]?.length?<Text style={s.historyText}>{practiceHistory[item.id].length} learner-recorded practice {practiceHistory[item.id].length===1?"session":"sessions"} · Latest: {practiceHistory[item.id][0]!.self_rating.replaceAll("_"," ")}</Text>:<Text style={s.historyText}>No practice reflections recorded yet</Text>}
+   {practiceHistory[item.id]?.length?<Text style={s.historyText}>{practiceHistory[item.id].length} learner-recorded practice {practiceHistory[item.id].length===1?"session":"sessions"} · Latest: {practiceHistory[item.id][0]!.self_rating.replaceAll("_"," ")} · Last practised: {practiceDate(practiceHistory[item.id][0]!.practiced_at)??"date unavailable"}</Text>:<Text style={s.historyText}>No practice reflections recorded yet</Text>}
    <View style={s.actions}><Pressable onPress={()=>edit(item)}><Text style={s.action}>Edit</Text></Pressable><Pressable onPress={()=>remove(item.id)}><Text style={s.delete}>Delete</Text></Pressable></View>
   </View>)}
   <Text style={s.privacy}>Private to your account. Entries are learner-written and learner-edited; Gabroo does not automatically diagnose or rewrite your speech in this journal.</Text>
