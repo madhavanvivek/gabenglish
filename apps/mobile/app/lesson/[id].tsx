@@ -50,10 +50,12 @@ export default function LessonScreen(){
  async function save(value:number){
   if(!id||busy)return;
   const requestLessonId=id;
+  const requestVersionId=data?.lesson.version_id;
+  if(!requestVersionId){setError("Reload this lesson before saving progress.");return;}
   const requestEpoch=lessonRequestEpoch.current;
   setBusy(true);setMessage("");setError("");
   try{
-   const result=await saveLearningLessonProgress(requestLessonId,value);
+   const result=await saveLearningLessonProgress(requestLessonId,requestVersionId,value);
    if(lessonRequestEpoch.current!==requestEpoch)return;
    setProgress(result.progress.progress_percent);
    setMessage(value===100?"Lesson marked complete. Your progress is saved.":"Your lesson progress is saved.");
