@@ -254,9 +254,9 @@ export async function getLearningLesson(id:string){
  if(!parsed.success)throw new AuthApiError("This lesson returned invalid or incomplete learning content.");
  return parsed.data;
 }
-export async function saveLearningLessonProgress(id:string,progress_percent:number):Promise<LearningLessonProgressSaveContract>{
- const request=learningLessonProgressUpdateSchema.safeParse({progress_percent});
- if(!request.success)throw new AuthApiError("Progress must be a whole number from 0 to 100.");
+export async function saveLearningLessonProgress(id:string,lesson_version_id:string,progress_percent:number):Promise<LearningLessonProgressSaveContract>{
+ const request=learningLessonProgressUpdateSchema.safeParse({lesson_version_id,progress_percent});
+ if(!request.success)throw new AuthApiError("Progress must include the current lesson version and a whole number from 0 to 100.");
  const payload=await authorized("/api/v1/learning/lessons/"+encodeURIComponent(id)+"/progress","POST",request.data);
  const parsed=learningLessonProgressSaveSchema.safeParse(payload);
  if(!parsed.success||parsed.data.lesson_id!==id)throw new AuthApiError("The saved lesson progress returned invalid or mismatched data.");
