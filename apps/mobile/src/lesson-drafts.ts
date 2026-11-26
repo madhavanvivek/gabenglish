@@ -37,5 +37,5 @@ export async function writeLessonAnswerDraft(userId:string,lessonId:string,lesso
 }
 
 export async function clearLessonAnswerDraft(userId:string,lessonId:string,lessonVersionId:string):Promise<void>{
- try{await SecureStore.deleteItemAsync(draftKey(lessonId,lessonVersionId));}catch{/* Keep lesson interaction available if local cleanup fails. */}
+ try{await SecureStore.deleteItemAsync(draftKey(userId,lessonId,lessonVersionId));}catch{/* Keep lesson interaction available if local cleanup fails. */}
 }
