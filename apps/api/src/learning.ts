@@ -190,10 +190,18 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
     `INSERT INTO learner_lesson_progress(user_id,course_id,lesson_id,lesson_version_id,learning_direction,status,progress_percent,started_at,completed_at)
      VALUES($1,$2,$3,$4,$5,$6,$7,CASE WHEN $6<>'not_started' THEN now() ELSE NULL END,CASE WHEN $6='completed' THEN now() ELSE NULL END)
      ON CONFLICT(user_id,lesson_id,lesson_version_id,learning_direction)
-     DO UPDATE SET status=CASE WHEN learner_lesson_progress.status='completed' THEN 'completed' ELSE EXCLUDED.status END,
-       progress_percent=CASE WHEN learner_lesson_progress.status='completed' THEN 100 ELSE EXCLUDED.progress_percent END,
+     DO UPDATE SET
+       status=CASE
+         WHEN learner_lesson_progress.status='completed'
+           OR GREATEST(learner_lesson_progress.progress_percent,EXCLUDED.progress_percent)=100 THEN 'completed'
+         WHEN GREATEST(learner_lesson_progress.progress_percent,EXCLUDED.progress_percent)>0 THEN 'in_progress'
+         ELSE 'not_started'
+       END,
+       progress_percent=GREATEST(learner_lesson_progress.progress_percent,EXCLUDED.progress_percent),
        started_at=COALESCE(learner_lesson_progress.started_at,EXCLUDED.started_at),
-       completed_at=COALESCE(learner_lesson_progress.completed_at,EXCLUDED.completed_at),updated_at=now()
+       completed_at=COALESCE(learner_lesson_progress.completed_at,
+         CASE WHEN GREATEST(learner_lesson_progress.progress_percent,EXCLUDED.progress_percent)=100 THEN now() ELSE EXCLUDED.completed_at END),
+       updated_at=now()
      RETURNING status,progress_percent::text,updated_at`,
     [learner.id,lesson.course_id,id,lesson.version_id,lesson.direction,status,percent]
    );
