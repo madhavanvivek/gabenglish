@@ -99,7 +99,7 @@ export default function LessonScreen(){
   const ownerId=draftOwnerId;
   const pendingExercises=data.lesson.content.blocks.filter((block):block is Extract<typeof block,{type:"exercise"}>=>block.type==="exercise");
   const replayPending=async()=>{
-   if(!active||replaying||AppState.currentState!=="active")return;
+   if(!active||replaying||busyExerciseRef.current!==null||AppState.currentState!=="active")return;
    replaying=true;
    try{
     for(const exercise of pendingExercises){
