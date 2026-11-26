@@ -274,4 +274,4 @@ export async function getLearningExerciseAttemptHistory(lessonId:string,exercise
  const parsed=learningExerciseAttemptHistorySchema.safeParse(payload);
  if(!parsed.success)throw new AuthApiError("The exercise history returned invalid or incomplete data.");
  return parsed.data;
-}}
+}
