@@ -74,7 +74,9 @@ export default function LessonScreen(){
  async function reloadUpdatedLesson(){
   if(!id||reloading)return;
   const requestLessonId=id;
-  const requestEpoch=lessonRequestEpoch.current;
+  const requestEpoch=++lessonRequestEpoch.current;
+  busyExerciseRef.current=null;
+  setBusyExercise(null);setBusy(false);
   setReloading(true);setError("");setMessage("");
   try{
    const latest=await getLearningLesson(requestLessonId);
