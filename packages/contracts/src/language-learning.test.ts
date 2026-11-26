@@ -36,6 +36,7 @@ describe("published learning catalog contract",()=>{
    id:"course-1",code:"english-foundations",title:"English Foundations",description:null,
    direction:"ml_to_en" as const,source_language:"ml" as const,target_language:"en" as const,support_language:"ml" as const,
    progress:{progress_percent:25,completed_lessons:1,total_lessons:4},
+   practice:{attempts:7,exercises_attempted:3,correct_attempts:5},
    modules:[{id:"module-1",title:"Everyday English",lessons:[{
     id:"lesson-1",slug:"introductions",title:"Introductions",version_id:"version-1",version:1,
     script_mode:"romanized",register:null,dialect_scope:null,romanisation:"ISO 15919",
@@ -55,6 +56,9 @@ describe("published learning catalog contract",()=>{
  });
  it("rejects impossible progress totals and percentages",()=>{
   expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[{...validCatalog.courses[0],progress:{progress_percent:101,completed_lessons:5,total_lessons:4}}]}).success).toBe(false);
+ });
+ it("rejects impossible exercise practice totals",()=>{
+  expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[{...validCatalog.courses[0],practice:{attempts:2,exercises_attempted:3,correct_attempts:3}}]}).success).toBe(false);
  });
  it("rejects lessons with malformed progress rather than passing them to the learner UI",()=>{
   const course={...validCatalog.courses[0],modules:[{...validCatalog.courses[0].modules[0],lessons:[{...validCatalog.courses[0].modules[0].lessons[0],progress:{status:"finished",progress_percent:100}}]}]};
