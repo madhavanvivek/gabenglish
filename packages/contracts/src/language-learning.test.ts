@@ -2,14 +2,16 @@ import {describe,expect,it} from "vitest";
 import {defaultLearningCourseContext,learningCourseContextSchema,learningDirectionSchema,publishedLearningCatalogSchema,learningLessonDetailSchema,learningExerciseAttemptHistorySchema,learningExerciseAttemptResultSchema,learningLessonProgressSaveSchema,learningLessonProgressUpdateSchema,learningExerciseAttemptSubmitSchema} from "./language-learning.js";
 
 describe("bidirectional learning contracts",()=>{
- it("requires exercise attempts to identify their published lesson version",()=>{
-  expect(learningExerciseAttemptSubmitSchema.safeParse({lesson_version_id:"version-1",response:"hello"}).success).toBe(true);
+ it("requires a lesson version and UUID idempotency key for exercise attempts",()=>{
+  const valid={lesson_version_id:"version-1",submission_id:"00000000-0000-4000-8000-000000000009",response:"hello"};
+  expect(learningExerciseAttemptSubmitSchema.safeParse(valid).success).toBe(true);
   for(const value of [
-   {response:"hello"},
-   {lesson_version_id:"",response:"hello"},
-   {lesson_version_id:"version-1",response:"   "},
-   {lesson_version_id:"version-1",response:"x".repeat(2001)},
-   {lesson_version_id:"version-1",response:"hello",extra:true}
+   {lesson_version_id:"version-1",response:"hello"},
+   {lesson_version_id:"",submission_id:valid.submission_id,response:"hello"},
+   {lesson_version_id:"version-1",submission_id:"not-a-uuid",response:"hello"},
+   {lesson_version_id:"version-1",submission_id:valid.submission_id,response:"   "},
+   {lesson_version_id:"version-1",submission_id:valid.submission_id,response:"x".repeat(2001)},
+   {...valid,extra:true}
   ])expect(learningExerciseAttemptSubmitSchema.safeParse(value).success).toBe(false);
  });
  it("supports the two explicitly approved learning directions",()=>{
