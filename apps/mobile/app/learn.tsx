@@ -3,7 +3,7 @@ import {Link} from "expo-router";
 import {Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
-import {getLearnerMe,getPublishedLearningCatalog,getLearningStage,saveLearningStage,type PublishedLearningCatalog,type LearningStageStatus} from "../src/auth-api";
+import {getLearnerMe,getPublishedLearningCatalog,getLearningStage,getLearningRecommendation,saveLearningStage,type LearningLessonRecommendation,type PublishedLearningCatalog,type LearningStageStatus} from "../src/auth-api";
 import {colors,radius,space} from "../src/theme";
 import {resolveLearningDirection} from "../src/learner-settings";
 
@@ -24,15 +24,17 @@ export default function LearnScreen(){
  const [direction,setDirection]=useState<"ml_to_en"|"en_to_ml">("ml_to_en");
  const [catalog,setCatalog]=useState<PublishedLearningCatalog|null>(null);
  const [catalogMessage,setCatalogMessage]=useState("");
+ const [recommendation,setRecommendation]=useState<LearningLessonRecommendation|null>(null);
+ const [recommendationError,setRecommendationError]=useState("");
  useEffect(()=>{let active=true;
   void getLearnerMe().then(me=>{if(active)setDirection(resolveLearningDirection(me.preferences?.learning_direction));}).catch(()=>{});
   void getPublishedLearningCatalog().then(value=>{if(active)setCatalog(value);}).catch(error=>{if(active)setCatalogMessage(error instanceof Error?error.message:"Published lessons are temporarily unavailable.");});
-  void getLearningStage().then(value=>{if(active){setConfirmedStage(value.stage);setStageSource(value.stage_source);if(value.stage)setSelected(value.stage);}}).catch(()=>{});
+  void getLearningStage().then(value=>{if(active){setConfirmedStage(value.stage);setStageSource(value.stage_source);if(value.stage)setSelected(value.stage);if(value.learning_direction==="ml_to_en"&&value.stage)void getLearningRecommendation().then(result=>{if(active){setRecommendation(result);setRecommendationError("");}}).catch(error=>{if(active){setRecommendation(null);setRecommendationError(error instanceof Error?error.message:"Your next lesson is temporarily unavailable.");}});}}).catch(()=>{});
   return()=>{active=false;};
  },[]);
- async function confirmStage(){
+ async function refreshRecommendation(){\n  try{setRecommendation(await getLearningRecommendation());setRecommendationError("");}\n  catch(error){setRecommendation(null);setRecommendationError(error instanceof Error?error.message:"Your next lesson is temporarily unavailable.");}\n }\n async function confirmStage(){
   setStageSaving(true);setStageMessage("");setStageError("");
-  try{const saved=await saveLearningStage(selected);setConfirmedStage(saved.stage);setStageSource(saved.stage_source);setStageMessage("Your learning stage is saved. Gabroo will use it to recommend lessons.");}
+  try{const saved=await saveLearningStage(selected);setConfirmedStage(saved.stage);setStageSource(saved.stage_source);setStageMessage("Your learning stage is saved. Gabroo will use it to recommend lessons.");await refreshRecommendation();}
   catch(error){setStageError(error instanceof Error?error.message:"Could not save your learning stage. Please try again.");}
   finally{setStageSaving(false);}
  }
@@ -46,7 +48,7 @@ export default function LearnScreen(){
   <SurfaceCard soft><Eyebrow>{`STAGE ${stage.number} OVERVIEW`}</Eyebrow><Text style={s.detailTitle}>{stage.name}</Text><Text style={s.detailBody}>{stage.summary}</Text><Text style={s.focusHeading}>What you will build</Text>{stage.focus.map(item=><View key={item} style={s.focusRow}><Text style={s.bullet}>•</Text><Text style={s.focusText}>{item}</Text></View>)}
    {confirmedStage===selected?<Text style={s.stageSaved}>✓ This is your saved learning stage{stageSource==="evidence_progression"?" · adjusted from recent exercise evidence":" · chosen by you"}.</Text>:<Pressable accessibilityRole="button" disabled={stageSaving} onPress={()=>void confirmStage()} style={s.stageSaveButton}><Text style={s.stageSaveText}>{stageSaving?"Saving…":confirmedStage?"Use this learning stage":"Set as my learning stage"}</Text></Pressable>}
    {stageMessage?<Text style={s.stageSaved}>{stageMessage}</Text>:null}{stageError?<Text style={s.stageError}>{stageError}</Text>:null}
-   <Text style={s.stageNote}>You remain in control. You can change this choice later, and Gabroo may suggest a different pace after enough stage-matched exercise evidence.</Text>
+   <Text style={s.stageNote}>You remain in control. You can change this choice later, and Gabroo may suggest a different pace after enough stage-matched exercise evidence.</Text>\n   {confirmedStage===selected&&recommendation?.recommendation?<View style={s.recommendation}><Eyebrow>YOUR NEXT LESSON</Eyebrow><Text style={s.recommendationTitle}>{recommendation.recommendation.reason==="continue_learning"?"Continue where you left off":"Ready for your next lesson?"}</Text><Text style={s.recommendationName}>{recommendation.recommendation.title}</Text><Text style={s.stageNote}>{recommendation.recommendation.moduleTitle}{recommendation.recommendation.reason==="continue_learning"?` · ${recommendation.recommendation.progressPercent}% completed`:" · Published for your selected stage"}</Text><Link href={{pathname:"/lesson/[id]",params:{id:recommendation.recommendation.lessonId}}} style={s.recommendationLink}>{recommendation.recommendation.reason==="continue_learning"?"Continue lesson →":"Start lesson →"}</Link></View>:confirmedStage===selected&&recommendation?.reason==="no_matching_published_lesson"?<View style={s.recommendation}><Eyebrow>YOUR NEXT LESSON</Eyebrow><Text style={s.recommendationTitle}>More lessons are being prepared</Text><Text style={s.stageNote}>There is no unfinished published lesson for this stage yet. You can still practise with Gabroo.</Text><Link href="/practice-queue" style={s.recommendationLink}>Open practice queue →</Link></View>:confirmedStage===selected&&recommendationError?<View style={s.recommendation}><Text style={s.stageNote}>Your next lesson could not be loaded.</Text><Pressable accessibilityRole="button" onPress={()=>void refreshRecommendation()}><Text style={s.recommendationLink}>Try again</Text></Pressable></View>:null}
   </SurfaceCard>
   </>:catalog?.courses.length?<>{catalog.courses.map(course=><SurfaceCard key={course.id} soft><Eyebrow>MALAYALAM THROUGH ENGLISH</Eyebrow><Text style={s.detailTitle}>{course.title}</Text>{course.description?<Text style={s.detailBody}>{course.description}</Text>:null}{course.modules.map(module=><View key={module.id} style={s.moduleBlock}><Text style={s.focusHeading}>{module.title}</Text>{module.lessons.map(lesson=><Link key={lesson.id} href={`/lesson/${lesson.id}`} style={s.lessonLink}>› {lesson.title}</Link>)}</View>)}</SurfaceCard>)}</>:<SurfaceCard soft><Eyebrow>MALAYALAM THROUGH ENGLISH</Eyebrow><Text style={s.detailTitle}>Your Malayalam learning journey</Text><Text style={s.detailBody}>A separate beginner-first curriculum is being prepared. These are planned learning areas, not published lessons.</Text>{["Greetings and introductions","Useful everyday phrases and polite requests","Listening and pronunciation foundations","Food, shopping, travel and directions","Workplace and social conversations","Malayalam script and reading support"].map((item,index)=><View key={item} style={s.focusRow}><Text style={s.bullet}>{index+1}.</Text><Text style={s.focusText}>{item}</Text></View>)}</SurfaceCard>}
   {catalogMessage?<Text style={s.noticeBody}>{catalogMessage}</Text>:null}
