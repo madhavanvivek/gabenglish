@@ -409,7 +409,8 @@ describe("API foundation",()=>{
    course_progress:{progress_percent:30,completed_lessons:1,total_lessons:4}
   });
   expect(statements[0]?.sql).toBe("BEGIN");
-  expect(statements.some(item=>item.sql.includes("FOR SHARE OF l,c,lv"))).toBe(true);
+  expect(statements.some(item=>item.sql.includes("FOR UPDATE OF c FOR SHARE OF l,lv"))).toBe(true);
+  expect(statements.some(item=>item.sql.includes("FOR UPDATE OF c"))).toBe(true);
   expect(statements.some(item=>item.sql.includes("ON CONFLICT(user_id,lesson_id,lesson_version_id,learning_direction)"))).toBe(true);
   expect(statements.some(item=>item.sql.includes("GREATEST(learner_lesson_progress.progress_percent,EXCLUDED.progress_percent)"))).toBe(true);
   expect(statements.some(item=>item.sql.includes("status=EXCLUDED.status")&&item.sql.includes("progress_percent=EXCLUDED.progress_percent"))).toBe(true);
