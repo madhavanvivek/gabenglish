@@ -27,15 +27,14 @@ export default function ProgressScreen(){
   if(epoch!==requestEpoch.current)return;
   if(reportResult.status==="fulfilled"){setReport(reportResult.value);}
   else{
-   setReport(null);
    const reason=reportResult.reason;
-   if(!(reason instanceof AuthApiError&&[401,404].includes(reason.status??0)))setError(reason instanceof Error?reason.message:"Could not load your progress snapshot.");
+   if(reason instanceof AuthApiError&&[401,404].includes(reason.status??0))setReport(null);
+   else setError(reason instanceof Error?reason.message:"Could not load your progress snapshot.");
   }
   if(catalogResult.status==="fulfilled"){setCatalog(catalogResult.value);setCatalogError("");}
   else{
-   setCatalog(null);
    const reason=catalogResult.reason;
-   if(reason instanceof AuthApiError&&[401,403].includes(reason.status??0))setCatalogError("");
+   if(reason instanceof AuthApiError&&[401,403].includes(reason.status??0)){setCatalog(null);setCatalogError("");}
    else setCatalogError(reason instanceof Error?reason.message:"Could not load your course progress.");
   }
   if(epoch===requestEpoch.current){hasLoaded.current=true;setLoading(false);setRefreshing(false);}
