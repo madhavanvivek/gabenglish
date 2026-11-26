@@ -49,6 +49,35 @@ export default function LessonScreen(){
  const needsReviewExercises=exerciseBlocks.filter(block=>latestExerciseCorrect(block.id)===false);
  async function submitExercise(exerciseId:string){if(!id||busyExercise)return;const requestLessonId=id;const requestEpoch=lessonRequestEpoch.current;setBusyExercise(exerciseId);setError("");try{const result=await submitLearningExerciseAttempt(requestLessonId,exerciseId,answers[exerciseId]??"");if(lessonRequestEpoch.current!==requestEpoch)return;setExerciseResults(current=>({...current,[exerciseId]:result.result}));const historyEpoch=(historyRequestEpoch.current[exerciseId]??0)+1;historyRequestEpoch.current[exerciseId]=historyEpoch;try{const history=await getLearningExerciseAttemptHistory(requestLessonId,exerciseId);if(lessonRequestEpoch.current===requestEpoch&&historyRequestEpoch.current[exerciseId]===historyEpoch)setExerciseHistory(current=>({...current,[exerciseId]:history.attempts}));}catch{/* Keep the just-returned result visible if history is temporarily unavailable. */}}catch(e){if(lessonRequestEpoch.current===requestEpoch)setError(e instanceof Error?e.message:"Could not check this answer.");}finally{if(lessonRequestEpoch.current===requestEpoch)setBusyExercise(null);}}
  useEffect(()=>{let active=true;lessonRequestEpoch.current+=1;const requestEpoch=lessonRequestEpoch.current;setData(null);setProgress(0);setBusy(false);setAnswersState({});setExerciseResults({});setExerciseHistory({});historyRequestEpoch.current={};setBusyExercise(null);setError("");setLessonVersionChanged(false);setReloading(false);setMessage("");if(id)void getLearningLesson(id).then(async value=>{if(!active)return;setData(value);setProgress(value.progress?.progress_percent??0);const exerciseIds=value.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);const historyEpochs=Object.fromEntries(exerciseIds.map(exerciseId=>[exerciseId,historyRequestEpoch.current[exerciseId]??0]));const histories=await Promise.all(exerciseIds.map(async exerciseId=>{try{return [exerciseId,(await getLearningExerciseAttemptHistory(id,exerciseId)).attempts] as const;}catch{return [exerciseId,[]] as const;}}));if(active)setExerciseHistory(current=>({...current,...Object.fromEntries(histories.filter(([exerciseId])=>(historyRequestEpoch.current[exerciseId]??0)===historyEpochs[exerciseId]))}));}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;if(lessonRequestEpoch.current===requestEpoch)lessonRequestEpoch.current+=1;};},[id]);
+ async function reloadUpdatedLesson(){
+  if(!id||reloading)return;
+  const requestLessonId=id;
+  const requestEpoch=lessonRequestEpoch.current;
+  setReloading(true);setError("");setMessage("");
+  try{
+   const latest=await getLearningLesson(requestLessonId);
+   if(lessonRequestEpoch.current!==requestEpoch)return;
+   const exerciseIds=latest.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);
+   const available=new Set(exerciseIds);
+   setAnswersState(current=>Object.fromEntries(Object.entries(current).filter(([exerciseId])=>available.has(exerciseId))));
+   setExerciseResults({});
+   setExerciseHistory({});
+   historyRequestEpoch.current={};
+   setData(latest);
+   setProgress(latest.progress?.progress_percent??0);
+   setLessonVersionChanged(false);
+   setMessage("Updated lesson loaded. Answers for matching exercises were kept.");
+   const histories=await Promise.all(exerciseIds.map(async exerciseId=>{
+    try{return [exerciseId,(await getLearningExerciseAttemptHistory(requestLessonId,exerciseId)).attempts] as const;}
+    catch{return [exerciseId,[]] as const;}
+   }));
+   if(lessonRequestEpoch.current===requestEpoch)setExerciseHistory(Object.fromEntries(histories));
+  }catch(e){
+   if(lessonRequestEpoch.current===requestEpoch)setError(e instanceof Error?e.message:"Could not load the updated lesson.");
+  }finally{
+   if(lessonRequestEpoch.current===requestEpoch)setReloading(false);
+  }
+ }
  async function save(value:number){
   if(!id||busy)return;
   const requestLessonId=id;
