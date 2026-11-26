@@ -63,7 +63,10 @@ export default function LessonScreen(){
    setData(current=>current?{...current,progress:result.progress}:current);
    setMessage(value===100?"Lesson marked complete. Your progress is saved.":"Your lesson progress is saved.");
   }catch(e){
-   if(lessonRequestEpoch.current===requestEpoch)setError(e instanceof Error?e.message:"Could not save your progress.");
+   if(lessonRequestEpoch.current===requestEpoch){
+    if(e instanceof AuthApiError&&e.status===409){setLessonVersionChanged(true);setError("This lesson was updated after you opened it. Your answers are still on this screen; reload the latest version before saving progress.");}
+    else setError(e instanceof Error?e.message:"Could not save your progress.");
+   }
   }finally{
    if(lessonRequestEpoch.current===requestEpoch)setBusy(false);
   }
