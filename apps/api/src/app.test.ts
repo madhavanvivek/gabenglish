@@ -174,7 +174,7 @@ describe("API foundation",()=>{
     course_id:"course-1",course_code:"ml-basics",course_title:"Malayalam Basics",course_description:null,course_sort:1,
     learning_direction:"en_to_ml",source_language:"en",target_language:"ml",support_language:"en",
     course_progress_percent:"37.50",course_completed_lessons:3,course_total_lessons:8,
-    practice_attempts:7,practice_exercises_attempted:3,practice_correct_attempts:5,
+    practice_attempts:7,practice_exercises_attempted:3,practice_correct_attempts:5,practice_exercises_to_review:1,
     module_id:"module-1",module_title:"First steps",module_sort:1,lesson_id:"lesson-1",lesson_slug:"hello",lesson_title:"Say hello",lesson_sort:1,
     lesson_version_id:"version-2",lesson_version_number:2,lesson_progress_status:"in_progress",lesson_progress_percent:"50.00",
     script_mode:"standard",register:null,dialect_scope:null,romanisation:null
@@ -187,7 +187,7 @@ describe("API foundation",()=>{
   expect(response.json().learning_direction).toBe("en_to_ml");
   expect(response.json().target_language).toBe("ml");
   expect(response.json().courses).toMatchObject([{
-   id:"course-1",progress:{progress_percent:37.5,completed_lessons:3,total_lessons:8},practice:{attempts:7,exercises_attempted:3,correct_attempts:5},
+   id:"course-1",progress:{progress_percent:37.5,completed_lessons:3,total_lessons:8},practice:{attempts:7,exercises_attempted:3,correct_attempts:5,exercises_to_review:1},
    modules:[{id:"module-1",lessons:[{id:"lesson-1",version_id:"version-2",progress:{status:"in_progress",progress_percent:50}}]}]
   }]);
   const catalogQuery=queries.find(query=>query.sql.includes("FROM courses c")&&query.sql.includes("LEFT JOIN lesson_versions"));
@@ -197,6 +197,8 @@ describe("API foundation",()=>{
   expect(catalogQuery?.sql).toContain("lp.user_id=$2");
   expect(catalogQuery?.sql).toContain("lp.lesson_version_id=lv.id");
   expect(catalogQuery?.sql).toContain("a.lesson_version_id");
+  expect(catalogQuery?.sql).toContain("DISTINCT ON (lesson_id,exercise_id)");
+  expect(catalogQuery?.sql).toContain("exercises_to_review");
   expect(catalogQuery?.sql).toContain("a.user_id=$2");
   expect(catalogQuery?.sql).toContain("lv.educator_review_status='approved'");
   await app.close();
