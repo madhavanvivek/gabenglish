@@ -48,7 +48,7 @@ export default function ProgressScreen(){
   {catalog?.courses.map(course=><SurfaceCard key={course.id}>
    <Eyebrow>YOUR LEARNING PATH</Eyebrow><Text style={s.cardTitle}>{course.title}</Text>
    <View style={s.courseSummary}><Text style={s.coursePercent}>{Math.round(course.progress.progress_percent)}%</Text><Text style={s.bodyFlex}>{course.progress.completed_lessons} of {course.progress.total_lessons} lessons completed</Text></View>
-   <View accessibilityRole="progressbar" accessibilityValue={{min:0,max:100,now:Math.round(course.progress.progress_percent)}} style={s.progressTrack}><View style={[s.progressFill,{width:Math.max(0,Math.min(100,course.progress.progress_percent))+"%"}]}/></View>
+   <View accessibilityRole="progressbar" accessibilityValue={{min:0,max:100,now:Math.round(course.progress.progress_percent)}} style={s.progressTrack}><View style={[s.progressFill,{width:(Math.max(0,Math.min(100,course.progress.progress_percent))+"%") as `${number}%`}]}/></View>
    {course.modules.map(module=><View key={module.id} style={s.moduleBlock}><Text style={s.moduleTitle}>{module.title}</Text>{module.lessons.map(lesson=><View key={lesson.id} style={s.lessonRow}><Link href={"/lesson/"+lesson.id} style={s.lessonLink}>{lesson.title}</Link><Text style={[s.lessonStatus,lesson.progress?.status==="completed"&&s.lessonCompleted]}>{lesson.progress?.status==="completed"?"Completed":lesson.progress?.status==="in_progress"?lesson.progress.progress_percent+"%":"Not started"}</Text></View>)}</View>)}
    {course.progress.total_lessons===0?<Text style={s.body}>Published lessons will appear here after curriculum review.</Text>:null}
    <Link href="/learn" style={s.action}>Open learning path →</Link>
