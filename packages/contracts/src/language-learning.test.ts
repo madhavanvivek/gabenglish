@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {defaultLearningCourseContext,learningCourseContextSchema,learningDirectionSchema,publishedLearningCatalogSchema} from "./language-learning.js";
+import {defaultLearningCourseContext,learningCourseContextSchema,learningDirectionSchema,publishedLearningCatalogSchema,learningLessonDetailSchema} from "./language-learning.js";
 
 describe("bidirectional learning contracts",()=>{
  it("supports the two explicitly approved learning directions",()=>{
@@ -83,5 +83,17 @@ describe("published learning catalog contract",()=>{
  it("rejects lessons with malformed progress rather than passing them to the learner UI",()=>{
   const course={...validCatalog.courses[0],modules:[{...validCatalog.courses[0].modules[0],lessons:[{...validCatalog.courses[0].modules[0].lessons[0],progress:{status:"finished",progress_percent:100}}]}]};
   expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[course]}).success).toBe(false);
+ });
+});
+
+
+describe("learner lesson detail contract",()=>{
+ const validLesson={lesson:{id:"lesson-1",slug:"introductions",title:"Introductions",version_id:"version-1",version:1,learning_direction:"ml_to_en" as const,source_language:"ml" as const,target_language:"en" as const,support_language:"ml" as const,content:{schema_version:1 as const,blocks:[{type:"exercise" as const,id:"greeting",instruction:"Translate",prompt:"നമസ്കാരം",response_type:"text" as const}]},script_mode:"romanized",register:null,dialect_scope:null,romanisation:"ISO 15919"},progress:{status:"in_progress" as const,progress_percent:25,updated_at:"2026-11-26T08:00:00.000Z"}};
+ it("accepts a complete learner-safe lesson response",()=>{expect(learningLessonDetailSchema.parse(validLesson)).toEqual(validLesson);});
+ it("accepts a lesson with no saved progress",()=>{expect(learningLessonDetailSchema.safeParse({...validLesson,progress:null}).success).toBe(true);});
+ it("rejects lesson language metadata that conflicts with its direction",()=>{expect(learningLessonDetailSchema.safeParse({...validLesson,lesson:{...validLesson.lesson,target_language:"ml"}}).success).toBe(false);});
+ it("rejects invalid exercise content and progress percentages",()=>{
+  expect(learningLessonDetailSchema.safeParse({...validLesson,lesson:{...validLesson.lesson,content:{schema_version:1,blocks:[]}}}).success).toBe(false);
+  expect(learningLessonDetailSchema.safeParse({...validLesson,progress:{...validLesson.progress,progress_percent:120}}).success).toBe(false);
  });
 });
