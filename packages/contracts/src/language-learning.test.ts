@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {defaultLearningCourseContext,learningCourseContextSchema,learningDirectionSchema,publishedLearningCatalogSchema,learningLessonDetailSchema,learningExerciseAttemptHistorySchema,learningExerciseAttemptResultSchema} from "./language-learning.js";
+import {defaultLearningCourseContext,learningCourseContextSchema,learningDirectionSchema,publishedLearningCatalogSchema,learningLessonDetailSchema,learningExerciseAttemptHistorySchema,learningExerciseAttemptResultSchema,learningLessonProgressSaveSchema} from "./language-learning.js";
 
 describe("bidirectional learning contracts",()=>{
  it("supports the two explicitly approved learning directions",()=>{
@@ -116,5 +116,32 @@ describe("learner exercise attempt response contracts",()=>{
   expect(learningExerciseAttemptHistorySchema.safeParse({...history,attempts:[{...history.attempts[0],attempted_at:"yesterday"}]}).success).toBe(false);
   expect(learningExerciseAttemptHistorySchema.safeParse({...history,current_version_id:""}).success).toBe(false);
   expect(learningExerciseAttemptHistorySchema.safeParse({...history,attempts:[{...history.attempts[0],lesson_version_id:"old-version"}]}).success).toBe(false);
+ });
+});
+
+
+describe("saved lesson progress response contract",()=>{
+ const valid={
+  lesson_id:"lesson-1",learning_direction:"ml_to_en" as const,
+  progress:{status:"in_progress" as const,progress_percent:60,updated_at:"2026-11-26T08:00:00.000Z"},
+  course_progress:{progress_percent:30,completed_lessons:1,total_lessons:4}
+ };
+ it("accepts a complete saved progress response",()=>{
+  expect(learningLessonProgressSaveSchema.parse(valid)).toEqual(valid);
+ });
+ it("rejects impossible lesson status and percentage combinations",()=>{
+  for(const progress of [
+   {status:"not_started",progress_percent:10,updated_at:valid.progress.updated_at},
+   {status:"in_progress",progress_percent:0,updated_at:valid.progress.updated_at},
+   {status:"in_progress",progress_percent:100,updated_at:valid.progress.updated_at},
+   {status:"completed",progress_percent:90,updated_at:valid.progress.updated_at}
+  ]){
+   expect(learningLessonProgressSaveSchema.safeParse({...valid,progress}).success).toBe(false);
+  }
+ });
+ it("rejects malformed timestamps and impossible course totals",()=>{
+  expect(learningLessonProgressSaveSchema.safeParse({...valid,progress:{...valid.progress,updated_at:"just now"}}).success).toBe(false);
+  expect(learningLessonProgressSaveSchema.safeParse({...valid,course_progress:{...valid.course_progress,completed_lessons:5}}).success).toBe(false);
+  expect(learningLessonProgressSaveSchema.safeParse({...valid,course_progress:{...valid.course_progress,progress_percent:101}}).success).toBe(false);
  });
 });
