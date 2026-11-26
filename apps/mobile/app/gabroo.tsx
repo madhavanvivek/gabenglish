@@ -143,6 +143,15 @@ export default function GabrooScreen(){
    }
   }finally{if(run===loadRunRef.current)setBusy(false);}
  };
+ const refreshConversationListAfterSend=async(conversationId:string,run:number)=>{
+  try{
+   const latest=await listGabrooConversations();
+   if(run!==sendRunRef.current)return;
+   setConversations(latest.conversations);
+   const refreshed=latest.conversations.find(item=>item.id===conversationId);
+   if(refreshed)setActive(current=>current?.id===conversationId?refreshed:current);
+  }catch{/* A saved reply remains successful even if the sidebar refresh fails. */}
+ };
  const refreshConversationAfterConflict=async(conversationId:string,run:number)=>{
   try{
    const result=await getGabrooConversation(conversationId);
@@ -164,7 +173,7 @@ export default function GabrooScreen(){
   const conversationId=active.id;
   const run=++sendRunRef.current;
   setBusy(true);setError("");
-  try{const result=await sendGabrooMessage(conversationId,text);if(run!==sendRunRef.current)return;setMessages(current=>[...current,...result.messages]);setDraft("");}
+  try{const result=await sendGabrooMessage(conversationId,text);if(run!==sendRunRef.current)return;setMessages(current=>[...current,...result.messages]);setDraft("");await refreshConversationListAfterSend(conversationId,run);}
   catch(reason){
    if(run===sendRunRef.current&&reason instanceof AuthApiError&&reason.status===409){
     const refreshed=await refreshConversationAfterConflict(conversationId,run);
@@ -340,6 +349,7 @@ export default function GabrooScreen(){
    if(run!==sendRunRef.current)return;
    setMessages(current=>[...current,...result.messages]);
    setTranscript(null);setReviewedTranscript("");setTranscriptionConsent(false);
+   await refreshConversationListAfterSend(conversationId,run);
   }catch(reason){
    if(run===sendRunRef.current&&reason instanceof AuthApiError&&reason.status===409){
     const refreshed=await refreshConversationAfterConflict(conversationId,run);
