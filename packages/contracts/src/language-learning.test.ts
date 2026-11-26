@@ -1,7 +1,17 @@
 import {describe,expect,it} from "vitest";
-import {defaultLearningCourseContext,learningCourseContextSchema,learningDirectionSchema,publishedLearningCatalogSchema,learningLessonDetailSchema,learningExerciseAttemptHistorySchema,learningExerciseAttemptResultSchema,learningLessonProgressSaveSchema,learningLessonProgressUpdateSchema} from "./language-learning.js";
+import {defaultLearningCourseContext,learningCourseContextSchema,learningDirectionSchema,publishedLearningCatalogSchema,learningLessonDetailSchema,learningExerciseAttemptHistorySchema,learningExerciseAttemptResultSchema,learningLessonProgressSaveSchema,learningLessonProgressUpdateSchema,learningExerciseAttemptSubmitSchema} from "./language-learning.js";
 
 describe("bidirectional learning contracts",()=>{
+ it("requires exercise attempts to identify their published lesson version",()=>{
+  expect(learningExerciseAttemptSubmitSchema.safeParse({lesson_version_id:"version-1",response:"hello"}).success).toBe(true);
+  for(const value of [
+   {response:"hello"},
+   {lesson_version_id:"",response:"hello"},
+   {lesson_version_id:"version-1",response:"   "},
+   {lesson_version_id:"version-1",response:"x".repeat(2001)},
+   {lesson_version_id:"version-1",response:"hello",extra:true}
+  ])expect(learningExerciseAttemptSubmitSchema.safeParse(value).success).toBe(false);
+ });
  it("supports the two explicitly approved learning directions",()=>{
   expect(learningDirectionSchema.safeParse("ml_to_en").success).toBe(true);
   expect(learningDirectionSchema.safeParse("en_to_ml").success).toBe(true);
