@@ -97,3 +97,24 @@ describe("learner lesson detail contract",()=>{
   expect(learningLessonDetailSchema.safeParse({...validLesson,progress:{...validLesson.progress,progress_percent:120}}).success).toBe(false);
  });
 });
+
+
+import {learningExerciseAttemptHistorySchema,learningExerciseAttemptResultSchema} from "./language-learning.js";
+
+describe("learner exercise attempt response contracts",()=>{
+ const history={lesson_id:"lesson-1",exercise_id:"greeting",current_version_id:"version-2",attempts:[{id:"attempt-1",lesson_version_id:"version-2",response:"Hello",correct:true,feedback:"Well done",attempted_at:"2026-11-26T08:00:00.000Z"}]};
+ it("accepts a valid submitted exercise result",()=>{
+  expect(learningExerciseAttemptResultSchema.parse({lesson_id:"lesson-1",exercise_id:"greeting",result:{correct:true,feedback:"Correct"}})).toMatchObject({result:{correct:true}});
+ });
+ it("rejects malformed submitted exercise results",()=>{
+  expect(learningExerciseAttemptResultSchema.safeParse({lesson_id:"lesson-1",exercise_id:"greeting",result:{correct:"yes",feedback:"Correct"}}).success).toBe(false);
+ });
+ it("accepts an empty or populated attempt history",()=>{
+  expect(learningExerciseAttemptHistorySchema.safeParse(history).success).toBe(true);
+  expect(learningExerciseAttemptHistorySchema.safeParse({...history,attempts:[]}).success).toBe(true);
+ });
+ it("rejects history entries with invalid timestamps or mismatched version identity",()=>{
+  expect(learningExerciseAttemptHistorySchema.safeParse({...history,attempts:[{...history.attempts[0],attempted_at:"yesterday"}]}).success).toBe(false);
+  expect(learningExerciseAttemptHistorySchema.safeParse({...history,current_version_id:""}).success).toBe(false);
+ });
+});
