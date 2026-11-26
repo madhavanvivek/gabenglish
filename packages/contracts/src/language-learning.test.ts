@@ -36,7 +36,7 @@ describe("published learning catalog contract",()=>{
    id:"course-1",code:"english-foundations",title:"English Foundations",description:null,
    direction:"ml_to_en" as const,source_language:"ml" as const,target_language:"en" as const,support_language:"ml" as const,
    progress:{progress_percent:25,completed_lessons:1,total_lessons:4},
-   practice:{attempts:7,exercises_attempted:3,correct_attempts:5},
+   practice:{attempts:7,exercises_attempted:3,correct_attempts:5,exercises_to_review:1},
    modules:[{id:"module-1",title:"Everyday English",lessons:[{
     id:"lesson-1",slug:"introductions",title:"Introductions",version_id:"version-1",version:1,
     script_mode:"romanized",register:null,dialect_scope:null,romanisation:"ISO 15919",
@@ -58,10 +58,10 @@ describe("published learning catalog contract",()=>{
   expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[{...validCatalog.courses[0],progress:{progress_percent:101,completed_lessons:5,total_lessons:4}}]}).success).toBe(false);
  });
  it("rejects impossible exercise practice totals",()=>{
-  expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[{...validCatalog.courses[0],practice:{attempts:2,exercises_attempted:3,correct_attempts:3}}]}).success).toBe(false);
+  expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[{...validCatalog.courses[0],practice:{attempts:2,exercises_attempted:3,correct_attempts:3,exercises_to_review:1}}]}).success).toBe(false);
  });
  it("rejects more correct attempts than the total attempt count",()=>{
-  expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[{...validCatalog.courses[0],practice:{attempts:2,exercises_attempted:1,correct_attempts:3}}]}).success).toBe(false);
+  expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[{...validCatalog.courses[0],practice:{attempts:2,exercises_attempted:1,correct_attempts:3,exercises_to_review:1}}]}).success).toBe(false);
  });
  it("rejects negative or fractional practice counters",()=>{
   for(const practice of [
@@ -72,8 +72,12 @@ describe("published learning catalog contract",()=>{
    expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[{...validCatalog.courses[0],practice}]}).success).toBe(false);
   }
  });
+ it("rejects a review count larger than the distinct exercises attempted",()=>{
+  const practice={attempts:3,exercises_attempted:2,correct_attempts:1,exercises_to_review:3};
+  expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[{...validCatalog.courses[0],practice}]}).success).toBe(false);
+ });
  it("accepts an untouched course with zero practice activity",()=>{
-  const course={...validCatalog.courses[0],practice:{attempts:0,exercises_attempted:0,correct_attempts:0}};
+  const course={...validCatalog.courses[0],practice:{attempts:0,exercises_attempted:0,correct_attempts:0,exercises_to_review:0}};
   expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[course]}).success).toBe(true);
  });
  it("rejects lessons with malformed progress rather than passing them to the learner UI",()=>{
