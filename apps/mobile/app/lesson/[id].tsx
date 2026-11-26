@@ -8,7 +8,7 @@ import type {LearnerLessonContent} from "@gabenglish/contracts";
 import {colors,radius,space} from "../../src/theme";
 
 const milestones=[25,50,75,100];
-function LessonBlocks({content,answers,setAnswers,results,onSubmit,busyExercise}:{content:LearnerLessonContent;answers:Record<string,string>;setAnswers:(id:string,value:string)=>void;results:Record<string,{correct:boolean;feedback:string}>;history:Record<string,LearningExerciseAttempt[]>;onSubmit:(id:string)=>void;busyExercise:string|null}){
+function LessonBlocks({content,answers,setAnswers,results,history,onSubmit,busyExercise}:{content:LearnerLessonContent;answers:Record<string,string>;setAnswers:(id:string,value:string)=>void;results:Record<string,{correct:boolean;feedback:string}>;history:Record<string,LearningExerciseAttempt[]>;onSubmit:(id:string)=>void;busyExercise:string|null}){
  return <View style={{gap:12}}>
   {content.blocks.map((block,index)=><View key={"block-"+index} style={s.contentBlock}>
    {block.type==="text"?<>{block.heading?<Text style={s.blockHeading}>{block.heading}</Text>:null}<Text style={s.blockBody}>{block.body}</Text></>:null}
