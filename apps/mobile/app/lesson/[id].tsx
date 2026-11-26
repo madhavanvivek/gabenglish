@@ -31,7 +31,8 @@ export default function LessonScreen(){
  const [message,setMessage]=useState("");
  const [error,setError]=useState("");
  const [answers,setAnswersState]=useState<Record<string,string>>({});
- const [exerciseResults,setExerciseResults]=useState<Record<string,{correct:boolean;feedback:string}>>({});\n const [exerciseHistory,setExerciseHistory]=useState<Record<string,LearningExerciseAttemptHistory["attempts"]>>({});
+ const [exerciseResults,setExerciseResults]=useState<Record<string,{correct:boolean;feedback:string}>>({});
+ const [exerciseHistory,setExerciseHistory]=useState<Record<string,LearningExerciseAttemptHistory["attempts"]>>({});
  const [busyExercise,setBusyExercise]=useState<string|null>(null);
  const setAnswer=(exerciseId:string,value:string)=>setAnswersState(current=>({...current,[exerciseId]:value}));
  async function submitExercise(exerciseId:string){if(!id||busyExercise)return;setBusyExercise(exerciseId);setError("");try{const result=await submitLearningExerciseAttempt(id,exerciseId,answers[exerciseId]??"");setExerciseResults(current=>({...current,[exerciseId]:result.result}));try{const history=await getLearningExerciseAttemptHistory(id,exerciseId);setExerciseHistory(current=>({...current,[exerciseId]:history.attempts}));}catch{/* Keep the just-returned result visible if history is temporarily unavailable. */}}catch(e){setError(e instanceof Error?e.message:"Could not check this answer.");}finally{setBusyExercise(null);}}
