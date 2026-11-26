@@ -315,6 +315,42 @@ describe("API foundation",()=>{
   await app.close();
  });
 
+ it("returns the original result for an exact exercise retry and rejects key reuse",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const lessonId="00000000-0000-4000-8000-000000000003";
+  const versionId="00000000-0000-4000-8000-000000000004";
+  const submissionId="00000000-0000-4000-8000-000000000009";
+  const content={schema_version:1,blocks:[{type:"exercise",id:"exercise-1",instruction:"Choose",prompt:"Pick one",response_type:"single_choice",options:[{id:"a",label:"A"},{id:"b",label:"B"}],correct_option_id:"a"}]};
+  let stored:{lesson_id:string;lesson_version_id:string;exercise_id:string;response:string;is_correct:boolean;feedback:string}|null=null;
+  let inserts=0;
+  const pool={query:async(sql:string,values:unknown[]=[]):Promise<any>=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("FROM learner_exercise_attempts WHERE user_id=$1 AND submission_id=$2"))return {rows:stored?[stored]:[]};
+   if(sql.includes("FROM lessons l JOIN modules m")&&sql.includes("JOIN courses c"))return {rows:[{course_id:"course-1",learning_direction:"ml_to_en",version_id:versionId,content}]};
+   if(sql.includes("INSERT INTO learner_exercise_attempts")){
+    inserts+=1;
+    stored={lesson_id:lessonId,lesson_version_id:versionId,exercise_id:"exercise-1",response:String(values[6]),is_correct:true,feedback:"Good work."};
+    return {rows:[{id:"attempt-1"}],rowCount:1};
+   }
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const headers={authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)};
+  const url=`/api/v1/learning/lessons/${lessonId}/exercises/exercise-1/attempts`;
+  const payload={lesson_version_id:versionId,submission_id:submissionId,response:"a"};
+  const first=await app.inject({method:"POST",url,headers,payload});
+  const retry=await app.inject({method:"POST",url,headers,payload});
+  const conflict=await app.inject({method:"POST",url,headers,payload:{...payload,response:"b"}});
+  expect(first.statusCode).toBe(200);
+  expect(retry.statusCode).toBe(200);
+  expect(retry.json()).toEqual(first.json());
+  expect(conflict.statusCode).toBe(409);
+  expect(conflict.json().error.code).toBe("SUBMISSION_ID_CONFLICT");
+  expect(inserts).toBe(1);
+  await app.close();
+ });
+
  it("returns only validated learner-safe published lesson detail",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   const lessonId="00000000-0000-4000-8000-000000000003";
