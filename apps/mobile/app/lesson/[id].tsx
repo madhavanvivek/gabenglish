@@ -1,6 +1,7 @@
 import {useEffect,useRef,useState} from "react";
 import {Link,useLocalSearchParams} from "expo-router";
 import {AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
+import * as Network from "expo-network";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {AuthApiError,getLearnerMe,getLearningLesson,getLearningExerciseAttemptHistory,saveLearningLessonProgress,submitLearningExerciseAttempt,type LearningExerciseAttemptHistory,type LearningLessonDetail} from "../../src/auth-api";
 import {BrandMark,Eyebrow,PrimaryButton,SurfaceCard} from "../../src/ui";
@@ -121,8 +122,11 @@ export default function LessonScreen(){
    }finally{replaying=false;}
   };
   void replayPending();
-  const subscription=AppState.addEventListener("change",state=>{if(state==="active")void replayPending();});
-  return()=>{active=false;subscription.remove();};
+  const appStateSubscription=AppState.addEventListener("change",state=>{if(state==="active")void replayPending();});
+  const networkSubscription=Network.addNetworkStateListener(state=>{
+   if(state.isConnected!==false&&state.isInternetReachable!==false&&AppState.currentState==="active")void replayPending();
+  });
+  return()=>{active=false;appStateSubscription.remove();networkSubscription.remove();};
  },[id,data?.lesson.version_id,draftOwnerId]);
  useEffect(()=>{if(!id||!data||!draftOwnerId)return;const ownerId=draftOwnerId;const lessonId=id;const versionId=data.lesson.version_id;draftWriteRef.current=draftWriteRef.current.then(()=>writeLessonAnswerDraft(ownerId,lessonId,versionId,answers));},[id,data?.lesson.version_id,draftOwnerId,answers]);
  async function reloadUpdatedLesson(){
