@@ -4,7 +4,7 @@ import * as FileSystem from "expo-file-system";
 import { parseGabrooSpeechStatus, type GabrooSpeechStatus } from "./gabroo/speech-status";
 import { validateGabrooRecordingUpload } from "./gabroo/recording-upload-validation";
 import { buildGabrooSpeechRequest, parseGabrooSpeechResponse } from "./gabroo/speech-request";
-import {type GabrooSpeechAsset,authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,publishedLearningCatalogSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
+import {learningLessonDetailSchema,type LearningLessonDetailContract,type GabrooSpeechAsset,authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,publishedLearningCatalogSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
 
 const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
 const ACCESS_KEY="gabenglish.auth.access";
@@ -247,12 +247,12 @@ export async function getPublishedLearningCatalog():Promise<PublishedLearningCat
  return parsed.data;
 }
 
-export type LearningLessonDetail={
- lesson:{id:string;slug:string;title:string;version_id:string;version:number;learning_direction:"ml_to_en"|"en_to_ml";source_language:string;target_language:string;support_language:string;script_mode:string;register:string|null;dialect_scope:string|null;romanisation:string|null;content:LearnerLessonContent};
- progress:null|{status:"not_started"|"in_progress"|"completed";progress_percent:number;updated_at:string};
-};
+export type LearningLessonDetail=LearningLessonDetailContract;
 export async function getLearningLesson(id:string){
- return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(id),"GET") as LearningLessonDetail;
+ const payload=await authorized("/api/v1/learning/lessons/"+encodeURIComponent(id),"GET");
+ const parsed=learningLessonDetailSchema.safeParse(payload);
+ if(!parsed.success)throw new AuthApiError("This lesson returned invalid or incomplete learning content.");
+ return parsed.data;
 }
 export async function saveLearningLessonProgress(id:string,progress_percent:number){
  return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(id)+"/progress","POST",{progress_percent}) as {lesson_id:string;learning_direction:"ml_to_en"|"en_to_ml";progress:{status:string;progress_percent:number;updated_at:string};course_progress:{progress_percent:number;completed_lessons:number;total_started_lessons:number}};
