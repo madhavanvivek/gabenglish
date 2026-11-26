@@ -312,6 +312,20 @@ export type PublishedLearningCatalog={
  courses:Array<{id:string;code:string;title:string;description:string|null;direction:"ml_to_en"|"en_to_ml";source_language:string;target_language:string;support_language:string;modules:Array<{id:string;title:string;lessons:PublishedLearningLesson[]}>}>;
  publication_policy:{drafts_hidden:boolean;malayalam_requires_educator_approval:boolean};
 };
+export type LearningStageStatus={
+ learning_direction:"ml_to_en"|"en_to_ml";
+ stage:1|2|3|4|5|null;
+ stage_source:"learner_selected"|"evidence_progression"|null;
+ updated_at:string|null;
+ stage_status:"confirmed"|"not_selected";
+};
+export async function getLearningStage(){
+ return await authorized("/api/v1/learning/stage","GET") as LearningStageStatus;
+}
+export async function saveLearningStage(stage:1|2|3|4|5){
+ return await authorized("/api/v1/learning/stage","PUT",{stage}) as LearningStageStatus;
+}
+
 export type LearningLessonRecommendation={
  learning_direction:"ml_to_en"|"en_to_ml";
  stage:number|null;
