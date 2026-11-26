@@ -4,7 +4,7 @@ import * as FileSystem from "expo-file-system";
 import { parseGabrooSpeechStatus, type GabrooSpeechStatus } from "./gabroo/speech-status";
 import { validateGabrooRecordingUpload } from "./gabroo/recording-upload-validation";
 import { buildGabrooSpeechRequest, parseGabrooSpeechResponse } from "./gabroo/speech-request";
-import {learningLessonDetailSchema,learningLessonProgressSaveSchema,learningExerciseAttemptResultSchema,learningExerciseAttemptHistorySchema,type LearningExerciseAttemptResultContract,type LearningExerciseAttemptHistoryContract,type LearningLessonDetailContract,type LearningLessonProgressSaveContract,type GabrooSpeechAsset,authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,publishedLearningCatalogSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
+import {learningLessonDetailSchema,learningLessonProgressUpdateSchema,learningLessonProgressSaveSchema,learningExerciseAttemptResultSchema,learningExerciseAttemptHistorySchema,type LearningExerciseAttemptResultContract,type LearningExerciseAttemptHistoryContract,type LearningLessonDetailContract,type LearningLessonProgressSaveContract,type GabrooSpeechAsset,authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,publishedLearningCatalogSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
 
 const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
 const ACCESS_KEY="gabenglish.auth.access";
@@ -255,7 +255,9 @@ export async function getLearningLesson(id:string){
  return parsed.data;
 }
 export async function saveLearningLessonProgress(id:string,progress_percent:number):Promise<LearningLessonProgressSaveContract>{
- const payload=await authorized("/api/v1/learning/lessons/"+encodeURIComponent(id)+"/progress","POST",{progress_percent});
+ const request=learningLessonProgressUpdateSchema.safeParse({progress_percent});
+ if(!request.success)throw new AuthApiError("Progress must be a whole number from 0 to 100.");
+ const payload=await authorized("/api/v1/learning/lessons/"+encodeURIComponent(id)+"/progress","POST",request.data);
  const parsed=learningLessonProgressSaveSchema.safeParse(payload);
  if(!parsed.success||parsed.data.lesson_id!==id)throw new AuthApiError("The saved lesson progress returned invalid or mismatched data.");
  return parsed.data;
