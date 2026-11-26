@@ -373,6 +373,35 @@ describe("API foundation",()=>{
   await app.close();
  });
 
+ it("rejects progress from a lesson version that is no longer published",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const statements:string[]=[];
+  const client={
+   query:async(sql:string)=>{
+    statements.push(sql);
+    if(sql.includes("FOR UPDATE OF c FOR SHARE OF l,lv")){
+     return {rows:[{course_id:"course-1",direction:"ml_to_en",version_id:"version-4"}]};
+    }
+    return {rows:[]};
+   },
+   release:()=>{}
+  };
+  const pool=recognitionPool(true) as any;
+  pool.connect=async()=>client;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({
+   method:"POST",
+   url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/progress",
+   headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},
+   payload:{lesson_version_id:"version-3",progress_percent:60}
+  });
+  expect(response.statusCode).toBe(409);
+  expect(response.json().error.code).toBe("LESSON_VERSION_CHANGED");
+  expect(statements).toContain("ROLLBACK");
+  expect(statements.some(sql=>sql.includes("INSERT INTO learner_lesson_progress"))).toBe(false);
+  await app.close();
+ });
+
  it("saves lesson progress and returns the updated course aggregate in one transaction",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   const statements:Array<{sql:string;values:unknown[]|undefined}>=[];
@@ -399,7 +428,7 @@ describe("API foundation",()=>{
    method:"POST",
    url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/progress",
    headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},
-   payload:{progress_percent:60}
+   payload:{lesson_version_id:"version-3",progress_percent:60}
   });
   expect(response.statusCode).toBe(200);
   expect(response.json()).toMatchObject({
