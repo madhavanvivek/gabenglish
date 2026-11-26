@@ -53,6 +53,7 @@ export default function GabrooScreen(){
  const screenFocusedRef=useRef(false);
  const speechRunRef=useRef(0);
  const loadRunRef=useRef(0);
+ const sendRunRef=useRef(0);
  const load=useCallback(async()=>{
   const run=++loadRunRef.current;
   const isCurrent=()=>loadRunRef.current===run;
@@ -87,6 +88,7 @@ export default function GabrooScreen(){
   return ()=>{
    screenFocusedRef.current=false;
    loadRunRef.current+=1;
+   sendRunRef.current+=1;
    captureLifecycleRunRef.current+=1;
    transcriptionReviewRunRef.current+=1;
    setTranscriptionBusy(false);
@@ -105,6 +107,7 @@ export default function GabrooScreen(){
   };
  },[load]));
  const openConversation=async(item:GabrooConversation)=>{
+  sendRunRef.current+=1;
   const run=++loadRunRef.current;
   setBusy(true);setError("");
   try{const result=await getGabrooConversation(item.id);if(run!==loadRunRef.current)return;setActive(result.conversation);setMode(result.conversation.mode);setMessages(result.messages);}
@@ -112,6 +115,7 @@ export default function GabrooScreen(){
   finally{if(run===loadRunRef.current)setBusy(false);}
  };
  const start=async()=>{
+  sendRunRef.current+=1;
   setBusy(true);setError("");
   try{
    const result=await createGabrooConversation({mode,support_language:"ml"});
@@ -129,10 +133,12 @@ export default function GabrooScreen(){
  };
  const send=async()=>{
   const text=draft.trim();if(!text||!active||busy)return;
+  const conversationId=active.id;
+  const run=++sendRunRef.current;
   setBusy(true);setError("");
-  try{const result=await sendGabrooMessage(active.id,text);setMessages(current=>[...current,...result.messages]);setDraft("");}
-  catch(reason){setError(reason instanceof AuthApiError&&reason.status===503?"Gabroo could not reply just now. Your message was not saved. Please try again.":reason instanceof Error?reason.message:"Could not send your message.");}
-  finally{setBusy(false);}
+  try{const result=await sendGabrooMessage(conversationId,text);if(run!==sendRunRef.current)return;setMessages(current=>[...current,...result.messages]);setDraft("");}
+  catch(reason){if(run===sendRunRef.current)setError(reason instanceof AuthApiError&&reason.status===503?"Gabroo could not reply just now. Your message was not saved. Please try again.":reason instanceof Error?reason.message:"Could not send your message.");}
+  finally{if(run===sendRunRef.current)setBusy(false);}
  };
  const stopSpeech=async()=>{
   speechRunRef.current+=1;
@@ -292,14 +298,17 @@ export default function GabrooScreen(){
  };
  const sendReviewedTranscript=async()=>{
   if(!active||!transcript||!reviewedTranscript.trim()||busy)return;
+  const conversationId=active.id;
+  const run=++sendRunRef.current;
   setBusy(true);setError("");
   try{
    const confirmed=confirmGabrooTranscript({providerTranscript:transcript,reviewedText:reviewedTranscript,confirmed:true});
-   const result=await sendGabrooMessage(active.id,confirmed.text);
+   const result=await sendGabrooMessage(conversationId,confirmed.text);
+   if(run!==sendRunRef.current)return;
    setMessages(current=>[...current,...result.messages]);
    setTranscript(null);setReviewedTranscript("");setTranscriptionConsent(false);
-  }catch(reason){setError(reason instanceof Error?reason.message:"Could not send the reviewed transcript.");}
-  finally{setBusy(false);}
+  }catch(reason){if(run===sendRunRef.current)setError(reason instanceof Error?reason.message:"Could not send the reviewed transcript.");}
+  finally{if(run===sendRunRef.current)setBusy(false);}
  };
  const requestVoicePermission=async()=>{
   if(!voiceConsent||voicePermissionBusy)return;
@@ -439,6 +448,7 @@ export default function GabrooScreen(){
  };
  const remove=async()=>{
   if(!active||busy)return;
+  sendRunRef.current+=1;
   setBusy(true);setError("");
   try{await deleteGabrooConversation(active.id);setConversations(current=>current.filter(item=>item.id!==active.id));setActive(null);setMessages([]);}
   catch(reason){setError(reason instanceof Error?reason.message:"Could not delete this conversation.");}
@@ -448,7 +458,7 @@ export default function GabrooScreen(){
   <View style={s.top}><Link href="/home" style={s.back}>‹ Learning home</Link><BrandMark size={46}/><Text style={s.brand}>Gabroo</Text><Text style={s.subtitle}>Your everyday English companion</Text></View>
   {loading?<ActivityIndicator size="large" color={colors.primary} style={{marginTop:40}}/>:!subscription?.active?<View style={s.panel}><Text style={s.title}>Your English companion awaits</Text><Text style={s.copy}>Open conversations with Gabroo are included with an active Gabenglish subscription. Your free English analysis remains available in your account.</Text><Link href="/account" style={s.action}>Go to your account</Link></View>:<>
    {!active?<><View style={s.panel}><Text style={s.title}>Talk about anything suitable for practice.</Text><Text style={s.copy}>Work, travel, daily life, hobbies or a topic you are curious about. Choose how much correction you want as we build out the conversation experience.</Text><Text style={s.modeLabel}>Choose your conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>setMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View><Pressable disabled={busy} onPress={start} style={[s.button,busy&&s.disabled]}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Start a conversation</Text>}</Pressable></View><Text style={s.section}>Your conversations</Text>{conversations.length===0?<Text style={s.empty}>Your saved conversations will appear here.</Text>:conversations.map(item=><Pressable key={item.id} onPress={()=>openConversation(item)} style={s.listItem}><Text style={s.listTitle}>{item.title??"Conversation"}</Text><Text style={s.listMeta}>{item.turn_count} exchanges · {new Date(item.updated_at).toLocaleDateString()}</Text></Pressable>)}</>:<>
-    <View style={s.conversationHeader}><Pressable onPress={()=>{setActive(null);setMessages([]);}}><Text style={s.back}>‹ All conversations</Text></Pressable><Pressable onPress={remove} disabled={busy}><Text style={s.delete}>Delete</Text></Pressable></View>
+    <View style={s.conversationHeader}><Pressable onPress={()=>{sendRunRef.current+=1;setActive(null);setMessages([]);}}><Text style={s.back}>‹ All conversations</Text></Pressable><Pressable onPress={remove} disabled={busy}><Text style={s.delete}>Delete</Text></Pressable></View>
     <View style={s.voiceControls}><Text style={s.voiceTitle}>Playback speed · {speechRate.toFixed(2).replace(/0$/,"")}×</Text><View style={s.voiceSpeedRow}><Pressable accessibilityRole="button" accessibilityLabel="Slow Gabroo speech" disabled={speechRate<=0.75||busy||speechSaving} onPress={()=>void changeSpeechRate(-0.05)} style={s.voiceSpeedButton}><Text style={s.voiceSpeedButtonText}>−</Text></Pressable><Text style={s.voiceSpeedHint}>Applies to the next listen or replay</Text><Pressable accessibilityRole="button" accessibilityLabel="Speed up Gabroo speech" disabled={speechRate>=1.5||busy||speechSaving} onPress={()=>void changeSpeechRate(0.05)} style={s.voiceSpeedButton}><Text style={s.voiceSpeedButtonText}>+</Text></Pressable></View></View><View style={s.voicePermissionPanel}>
      <Text style={s.voiceTitle}>Prepare voice conversations</Text>
      <Text style={s.voicePermissionCopy}>Microphone access is requested only after you agree below. Recording and transcription are separate permissions. Your speech is never uploaded without a separate action.</Text>
