@@ -24,6 +24,25 @@ describe("vocabulary spaced repetition scheduler",()=>{
   const next=scheduleVocabularyReview({repetitions:2,intervalDays:3,easeFactor:3.99},5,at);
   expect(next.easeFactor).toBe(4);
  });
+ it("rejects corrupted persisted schedule state",()=>{
+  const invalid=[
+   {repetitions:-1,intervalDays:0,easeFactor:2.5},
+   {repetitions:1.5,intervalDays:0,easeFactor:2.5},
+   {repetitions:0,intervalDays:-1,easeFactor:2.5},
+   {repetitions:0,intervalDays:1.5,easeFactor:2.5},
+   {repetitions:0,intervalDays:0,easeFactor:1.29},
+   {repetitions:0,intervalDays:0,easeFactor:4.01},
+   {repetitions:0,intervalDays:0,easeFactor:Number.NaN}
+  ];
+  for(const state of invalid)expect(()=>scheduleVocabularyReview(state,4,at)).toThrow();
+ });
+ it("rejects date overflow rather than returning an invalid due date",()=>{
+  const nearLimit=new Date(8640000000000000-1000);
+  expect(()=>scheduleVocabularyReview({repetitions:0,intervalDays:0,easeFactor:2.5},4,nearLimit)).toThrow();
+ });
+ it("rejects an invalid initial review timestamp",()=>{
+  expect(()=>initialVocabularyReview(new Date("invalid"))).toThrow();
+ });
  it("rejects invalid ratings and dates",()=>{
   expect(()=>scheduleVocabularyReview({repetitions:0,intervalDays:0,easeFactor:2.5},6 as unknown as RecallRating,at)).toThrow();
   expect(()=>scheduleVocabularyReview({repetitions:0,intervalDays:0,easeFactor:2.5},3,new Date("invalid"))).toThrow();
