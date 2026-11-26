@@ -6,7 +6,7 @@ type QuotaRow={request_count:number;retry_after_seconds:number};
 
 /**
  * Atomically consumes one learner-scoped transcription slot.
- * The rolling window is shared across API instances through PostgreSQL.
+ * The fixed one-hour window is shared across API instances through PostgreSQL.
  */
 export async function consumeGabrooRecognitionQuota(pool:Pick<Pool,"query">,userId:string):Promise<{
  allowed:boolean;remaining:number;retryAfterSeconds:number;
