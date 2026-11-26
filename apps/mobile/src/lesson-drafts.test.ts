@@ -1,6 +1,6 @@
 import {beforeEach,describe,expect,it,vi} from "vitest";
 
-const storage=new Map<string,string>();
+const {storage}=vi.hoisted(()=>({storage:new Map<string,string>()}));
 vi.mock("expo-secure-store",()=>({
  getItemAsync:async(key:string)=>storage.get(key)??null,
  setItemAsync:async(key:string,value:string)=>{storage.set(key,value);},
