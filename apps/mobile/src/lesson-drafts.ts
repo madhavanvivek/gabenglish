@@ -35,7 +35,3 @@ export async function writeLessonAnswerDraft(userId:string,lessonId:string,lesso
   await SecureStore.setItemAsync(draftKey(userId,lessonId,lessonVersionId),serialized);
  }catch{/* Draft persistence is best-effort; it must not block lesson work. */}
 }
-
-export async function clearLessonAnswerDraft(userId:string,lessonId:string,lessonVersionId:string):Promise<void>{
- try{await SecureStore.deleteItemAsync(draftKey(userId,lessonId,lessonVersionId));}catch{/* Keep lesson interaction available if local cleanup fails. */}
-}
