@@ -11,6 +11,7 @@ type CatalogRow={
  course_id:string;course_code:string;course_title:string;course_description:string|null;course_sort:number;
  learning_direction:Direction;source_language:"ml"|"en";target_language:"ml"|"en";support_language:"ml"|"en";
  course_progress_percent:string;course_completed_lessons:number;course_total_lessons:number;
+ practice_attempts:number;practice_exercises_attempted:number;practice_correct_attempts:number;
  module_id:string|null;module_title:string|null;module_sort:number|null;
  lesson_id:string|null;lesson_slug:string|null;lesson_title:string|null;lesson_sort:number|null;
  lesson_version_id:string|null;lesson_version_number:number|null;
@@ -40,6 +41,9 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
      cprog.progress_percent AS course_progress_percent,
      cprog.completed_lessons AS course_completed_lessons,
      cprog.total_lessons AS course_total_lessons,
+     practice.attempts AS practice_attempts,
+     practice.exercises_attempted AS practice_exercises_attempted,
+     practice.correct_attempts AS practice_correct_attempts,
      m.id AS module_id,m.title AS module_title,m.sort_order AS module_sort,
      l.id AS lesson_id,l.slug AS lesson_slug,l.title AS lesson_title,l.sort_order AS lesson_sort,
      lv.id AS lesson_version_id,lv.version_number AS lesson_version_number,
@@ -66,15 +70,27 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
         AND l2.status='published' AND lv2.status='published'
         AND (c2.learning_direction<>'en_to_ml' OR lv2.educator_review_status='approved')
     ) cprog ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT COUNT(*)::int AS attempts,
+        COUNT(DISTINCT (a.lesson_id,a.exercise_id))::int AS exercises_attempted,
+        COUNT(*) FILTER(WHERE a.is_correct)::int AS correct_attempts
+      FROM learner_exercise_attempts a
+      JOIN lessons la ON la.id=a.lesson_id AND la.status='published'
+      JOIN lesson_versions lva ON lva.id=la.current_published_version_id
+        AND lva.id=a.lesson_version_id AND lva.status='published'
+      WHERE a.user_id=$2 AND a.course_id=c.id
+        AND a.learning_direction=c.learning_direction
+        AND (c.learning_direction<>'en_to_ml' OR lva.educator_review_status='approved')
+    ) practice ON TRUE
     WHERE c.status='published' AND c.learning_direction=$1
     ORDER BY c.sort_order,m.sort_order,l.sort_order`,
    [direction,learner.id]
   );
-  const courses=new Map<string,{id:string;code:string;title:string;description:string|null;direction:Direction;source_language:string;target_language:string;support_language:string;progress:{progress_percent:number;completed_lessons:number;total_lessons:number};modules:Map<string,{id:string;title:string;lessons:Array<Record<string,unknown>>}>}>();
+  const courses=new Map<string,{id:string;code:string;title:string;description:string|null;direction:Direction;source_language:string;target_language:string;support_language:string;progress:{progress_percent:number;completed_lessons:number;total_lessons:number};practice:{attempts:number;exercises_attempted:number;correct_attempts:number};modules:Map<string,{id:string;title:string;lessons:Array<Record<string,unknown>>}>}>();
   for(const row of rows.rows){
    let course=courses.get(row.course_id);
    if(!course){
-    course={id:row.course_id,code:row.course_code,title:row.course_title,description:row.course_description,direction:row.learning_direction,source_language:row.source_language,target_language:row.target_language,support_language:row.support_language,progress:{progress_percent:Number(row.course_progress_percent),completed_lessons:row.course_completed_lessons,total_lessons:row.course_total_lessons},modules:new Map()};
+    course={id:row.course_id,code:row.course_code,title:row.course_title,description:row.course_description,direction:row.learning_direction,source_language:row.source_language,target_language:row.target_language,support_language:row.support_language,progress:{progress_percent:Number(row.course_progress_percent),completed_lessons:row.course_completed_lessons,total_lessons:row.course_total_lessons},practice:{attempts:row.practice_attempts,exercises_attempted:row.practice_exercises_attempted,correct_attempts:row.practice_correct_attempts},modules:new Map()};
     courses.set(row.course_id,course);
    }
    if(!row.module_id||!row.module_title)continue;
