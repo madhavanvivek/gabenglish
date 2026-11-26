@@ -1,4 +1,5 @@
 import {z} from "zod";
+import {learnerLessonContentSchema} from "./lesson-content.js";
 
 /**
  * A learning direction identifies the language being acquired, not the
@@ -116,3 +117,18 @@ export const publishedLearningCatalogSchema=z.object({
  }
 });
 export type PublishedLearningCatalog=z.infer<typeof publishedLearningCatalogSchema>;
+
+export const learningLessonDetailSchema=z.object({
+ lesson:z.object({
+  id:z.string().min(1),slug:z.string().nullable(),title:z.string().min(1),version_id:z.string().min(1),version:z.number().int().positive(),
+  learning_direction:learningDirectionSchema,source_language:z.enum(["en","ml"]),target_language:targetLanguageSchema,support_language:z.enum(["en","ml"]),
+  content:learnerLessonContentSchema,script_mode:z.string().min(1),register:z.string().nullable(),dialect_scope:z.string().nullable(),romanisation:z.string().nullable()
+ }).superRefine((lesson,ctx)=>{
+  const expected=defaultLearningCourseContext[lesson.learning_direction];
+  if(lesson.source_language!==expected.support_language||lesson.target_language!==expected.target_language||lesson.support_language!==expected.support_language){
+   ctx.addIssue({code:z.ZodIssueCode.custom,path:["target_language"],message:"Lesson languages do not match its learning direction."});
+  }
+ }),
+ progress:z.object({status:z.enum(["not_started","in_progress","completed"]),progress_percent:z.number().finite().min(0).max(100),updated_at:z.string().datetime()}).nullable()
+});
+export type LearningLessonDetailContract=z.infer<typeof learningLessonDetailSchema>;
