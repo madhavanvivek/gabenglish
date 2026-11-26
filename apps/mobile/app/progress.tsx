@@ -1,4 +1,4 @@
-import {useCallback,useState} from "react";
+import {useCallback,useRef,useState} from "react";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
@@ -13,12 +13,15 @@ export default function ProgressScreen(){
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const [refreshKey,setRefreshKey]=useState(0);
+ const requestEpoch=useRef(0);
  const load=useCallback(async()=>{
+  const epoch=++requestEpoch.current;
   setLoading(true);setError("");
   const [reportResult,catalogResult]=await Promise.allSettled([
    getLatestFreeDiagnosticReport(),
    getPublishedLearningCatalog()
   ]);
+  if(epoch!==requestEpoch.current)return;
   if(reportResult.status==="fulfilled"){setReport(reportResult.value);}
   else{
    setReport(null);
@@ -32,9 +35,12 @@ export default function ProgressScreen(){
    if(reason instanceof AuthApiError&&[401,403].includes(reason.status??0))setCatalogError("");
    else setCatalogError(reason instanceof Error?reason.message:"Could not load your course progress.");
   }
-  setLoading(false);
+  if(epoch===requestEpoch.current)setLoading(false);
  },[]);
- useFocusEffect(useCallback(()=>{void load();},[load,refreshKey]));
+ useFocusEffect(useCallback(()=>{
+  void load();
+  return ()=>{requestEpoch.current+=1;};
+ },[load,refreshKey]));
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
   <View style={s.header}><Link href="/home" style={s.back}>‹ Home</Link><BrandMark size={42}/><Text style={s.brand}>Your progress</Text><Text style={s.subtitle}>A clear picture of what we have learned so far.</Text></View>
   {loading?<View style={s.loading}><ActivityIndicator color={colors.primary} size="large"/><Text style={s.muted}>Loading your latest report…</Text></View>:report?<>
