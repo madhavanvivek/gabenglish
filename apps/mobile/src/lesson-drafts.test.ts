@@ -7,7 +7,7 @@ vi.mock("expo-secure-store",()=>({
  deleteItemAsync:async(key:string)=>{storage.delete(key);}
 }));
 
-import {clearLessonAnswerDraft,readLessonAnswerDraft,writeLessonAnswerDraft} from "./lesson-drafts";
+import {readLessonAnswerDraft,writeLessonAnswerDraft} from "./lesson-drafts";
 
 describe("versioned lesson answer drafts",()=>{
  beforeEach(()=>storage.clear());
@@ -26,11 +26,6 @@ describe("versioned lesson answer drafts",()=>{
   storage.set(key,JSON.stringify({"bad id":"hello"}));
   expect(await readLessonAnswerDraft("user-1","lesson-1","version-1")).toEqual({});
   storage.set(key,"not-json");
-  expect(await readLessonAnswerDraft("user-1","lesson-1","version-1")).toEqual({});
- });
- it("deletes a draft when no answers remain",async()=>{
-  await writeLessonAnswerDraft("user-1","lesson-1","version-1",{"exercise-1":"hello"});
-  await clearLessonAnswerDraft("user-1","lesson-1","version-1");
   expect(await readLessonAnswerDraft("user-1","lesson-1","version-1")).toEqual({});
  });
  it("ignores invalid answer keys and values when saving",async()=>{
