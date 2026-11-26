@@ -1,6 +1,6 @@
 import {useCallback,useRef,useState} from "react";
 import {Link,useFocusEffect} from "expo-router";
-import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
+import {ActivityIndicator,Pressable,RefreshControl,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {AuthApiError,getLatestFreeDiagnosticReport,getPublishedLearningCatalog,type PublishedLearningCatalog,type SavedFreeDiagnosticReport} from "../src/auth-api";
 import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
@@ -11,12 +11,15 @@ export default function ProgressScreen(){
  const [catalog,setCatalog]=useState<PublishedLearningCatalog|null>(null);
  const [catalogError,setCatalogError]=useState("");
  const [loading,setLoading]=useState(true);
+ const [refreshing,setRefreshing]=useState(false);
+ const hasLoaded=useRef(false);
  const [error,setError]=useState("");
  const [refreshKey,setRefreshKey]=useState(0);
  const requestEpoch=useRef(0);
  const load=useCallback(async()=>{
   const epoch=++requestEpoch.current;
-  setLoading(true);setError("");
+  if(!hasLoaded.current)setLoading(true);else setRefreshing(true);
+  setError("");
   const [reportResult,catalogResult]=await Promise.allSettled([
    getLatestFreeDiagnosticReport(),
    getPublishedLearningCatalog()
@@ -35,15 +38,15 @@ export default function ProgressScreen(){
    if(reason instanceof AuthApiError&&[401,403].includes(reason.status??0))setCatalogError("");
    else setCatalogError(reason instanceof Error?reason.message:"Could not load your course progress.");
   }
-  if(epoch===requestEpoch.current)setLoading(false);
+  if(epoch===requestEpoch.current){hasLoaded.current=true;setLoading(false);setRefreshing(false);}
  },[]);
  useFocusEffect(useCallback(()=>{
   void load();
   return ()=>{requestEpoch.current+=1;};
  },[load,refreshKey]));
- return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
+ return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void load()} tintColor={colors.primary} colors={[colors.primary]}/>}>
   <View style={s.header}><Link href="/home" style={s.back}>‹ Home</Link><BrandMark size={42}/><Text style={s.brand}>Your progress</Text><Text style={s.subtitle}>A clear picture of what we have learned so far.</Text></View>
-  {loading?<View style={s.loading}><ActivityIndicator color={colors.primary} size="large"/><Text style={s.muted}>Loading your latest report…</Text></View>:report?<>
+  {loading&&!hasLoaded.current?<View style={s.loading}><ActivityIndicator color={colors.primary} size="large"/><Text style={s.muted}>Loading your latest report…</Text></View>:report?<>
    <View style={s.hero}><Eyebrow>YOUR LATEST FREE ANALYSIS</Eyebrow><Text style={s.heroTitle}>Your learning snapshot</Text><Text style={s.heroBody}>This is an evidence summary from your latest conversation-based analysis, not a final proficiency score or a verified stage placement.</Text><Text style={s.date}>Saved {new Date(report.created_at).toLocaleDateString()}</Text></View>
    <View style={s.stats}><SurfaceCard soft><Text style={s.stat}>{report.report.response_count}</Text><Text style={s.statLabel}>Responses analysed</Text></SurfaceCard><SurfaceCard><Text style={s.stat}>{report.report.extended_samples}</Text><Text style={s.statLabel}>Extended samples</Text></SurfaceCard><SurfaceCard><Text style={s.stat}>{report.report.brief_samples}</Text><Text style={s.statLabel}>Brief samples</Text></SurfaceCard></View>
    <SurfaceCard><Text style={s.cardTitle}>Gabroo's explanation</Text><Text style={s.body}>{report.gabroo_explanation}</Text></SurfaceCard>
