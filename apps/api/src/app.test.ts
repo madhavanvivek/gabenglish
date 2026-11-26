@@ -280,7 +280,7 @@ describe("API foundation",()=>{
    if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
    if(sql.includes("FROM lessons l JOIN modules m")&&sql.includes("JOIN courses c"))return {rows:[{course_id:"course-1",learning_direction:"ml_to_en",version_id:"version-1",content}]};
    if(sql.includes("INSERT INTO learner_exercise_attempts")){inserts+=1;return {rows:[]};}
-   if(sql.includes("FROM learner_exercise_attempts")){historyReads+=1;return {rows:[]};}
+   if(sql.includes("FROM learner_exercise_attempts")&&sql.includes("WHERE user_id=$1 AND lesson_id=$2")){historyReads+=1;return {rows:[]};}
    return {rows:[]};
   }} as any;
   const app=await buildApp(config,async()=>true,pool);
