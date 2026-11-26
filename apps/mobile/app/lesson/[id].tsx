@@ -59,7 +59,7 @@ export default function LessonScreen(){
   const requestLessonId=id;
   const requestEpoch=lessonRequestEpoch.current;
   busyExerciseRef.current=exerciseId;
-  setBusyExercise(exerciseId);setSubmissionStatuses(current=>({...current,[exerciseId]:"sending"}));setError("");
+  setBusyExercise(exerciseId);setSubmissionStatuses(current=>({...current,[exerciseId]:"queued"}));setError("");
   try{
    const requestVersionId=data?.lesson.version_id;
    const ownerId=draftOwnerId;
@@ -67,6 +67,7 @@ export default function LessonScreen(){
    if(!requestVersionId)throw new Error("Reload this lesson before submitting an answer.");
    if(!ownerId)throw new Error("Please sign in again before submitting this answer.");
    const submissionId=await getOrCreatePendingExerciseSubmission(ownerId,requestLessonId,requestVersionId,exerciseId,response);
+   setSubmissionStatuses(current=>({...current,[exerciseId]:"sending"}));
    const result=await submitLearningExerciseAttempt(requestLessonId,exerciseId,requestVersionId,submissionId,response);
    await clearPendingExerciseSubmission(ownerId,requestLessonId,requestVersionId,exerciseId);
    if(lessonRequestEpoch.current!==requestEpoch)return;
