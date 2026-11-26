@@ -312,6 +312,45 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           description: Active subscription required
+  /vocabulary:
+    get:
+      tags: [Vocabulary]
+      summary: List the learner's saved vocabulary
+      responses:
+        '200':
+          description: Saved vocabulary in the learner's selected direction
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Active subscription required
+    post:
+      tags: [Vocabulary]
+      summary: Save a vocabulary item
+      description: Saves a learner-owned source and target term. An optional lesson id must identify a currently published lesson in the learner's selected direction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [source_term, target_term]
+              properties:
+                source_term: { type: string, minLength: 1, maxLength: 160 }
+                target_term: { type: string, minLength: 1, maxLength: 240 }
+                example: { type: string, maxLength: 500 }
+                lesson_id: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Vocabulary item saved
+        '400':
+          description: Invalid vocabulary item
+        '409':
+          description: Vocabulary item already saved
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Active subscription required
   /vocabulary/review:
     get:
       tags: [Vocabulary]
@@ -322,15 +361,59 @@ paths:
           schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
       responses:
         '200':
-          description: Due vocabulary items
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  items:
-                    type: array
-                    items: { type: object, additionalProperties: true }
+          description: Due vocabulary items ordered by due date
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Active subscription required
+  /vocabulary/{id}/review:
+    post:
+      tags: [Vocabulary]
+      summary: Record a vocabulary review and schedule its next repetition
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [rating]
+              properties:
+                rating: { type: string, enum: [again, hard, good, easy] }
+      responses:
+        '200':
+          description: Review saved and next review scheduled
+        '400':
+          description: Invalid rating or item id
+        '404':
+          description: Vocabulary item not found for this learner
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Active subscription required
+  /vocabulary/{id}:
+    delete:
+      tags: [Vocabulary]
+      summary: Archive a saved vocabulary item
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Vocabulary item archived
+        '404':
+          description: Vocabulary item not found for this learner
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Active subscription required
   /speaking/sessions:
     post:
       tags: [Speaking]
