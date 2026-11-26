@@ -19,6 +19,10 @@ export const authoredTextExerciseSchema=z.object({
 export const authoredExerciseSchema=z.union([authoredChoiceExerciseSchema,authoredTextExerciseSchema]);
 export type AuthoredExercise=z.infer<typeof authoredExerciseSchema>;
 
+function normaliseTextAnswer(value:string):string{
+ return value.normalize("NFKC").trim().toLowerCase().replace(/\\s+/gu," ");
+}
+
 export function evaluateAuthoredExercise(input:unknown,response:string):{correct:boolean;feedback:string}|null{
  const parsed=authoredExerciseSchema.safeParse(input);
  if(!parsed.success)return null;
