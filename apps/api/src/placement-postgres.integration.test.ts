@@ -53,6 +53,32 @@ integration("PostgreSQL placement session integration",()=>{
   ]);
  });
 
+ it("records private learner-confirmed phrase practice without treating it as assessment evidence",async()=>{
+  if(!pool||!migrationApplied)return;
+  const email="phrase-practice-"+randomUUID()+"@example.test";
+  const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true,pool);
+  try{
+   const token=await createVerifiedTestSession(app,email,pool);
+   const headers={authorization:"Bearer "+token};
+   const saved=await app.inject({method:"POST",url:"/api/v1/gabroo/memory",headers,payload:{category:"saved_phrase",memory_key:"I went to work",content:"Learner phrase: I go to work yesterday.\\nPractice version: I went to work yesterday."}});
+   expect(saved.statusCode).toBe(201);
+   const memoryId=saved.json().memory.id as string;
+   const recorded=await app.inject({method:"POST",url:"/api/v1/gabroo/memory/"+memoryId+"/practice",headers,payload:{self_rating:"some_effort",learner_note:"I remembered the past tense."}});
+   expect(recorded.statusCode).toBe(201);
+   expect(recorded.json()).toMatchObject({evidence_type:"learner_self_report",counts_as_assessment_evidence:false,practice:{memory_id:memoryId,self_rating:"some_effort",learner_note:"I remembered the past tense."}});
+   const history=await app.inject({method:"GET",url:"/api/v1/gabroo/memory/"+memoryId+"/practice",headers});
+   expect(history.statusCode).toBe(200);
+   expect(history.json().history).toHaveLength(1);
+   expect(history.json().history[0].self_rating).toBe("some_effort");
+   const otherEmail="phrase-practice-other-"+randomUUID()+"@example.test";
+   const otherToken=await createVerifiedTestSession(app,otherEmail,pool);
+   const denied=await app.inject({method:"GET",url:"/api/v1/gabroo/memory/"+memoryId+"/practice",headers:{authorization:"Bearer "+otherToken}});
+   expect(denied.statusCode).toBe(404);
+  }finally{
+   await app.close();
+   await pool.query("DELETE FROM users WHERE email_normalized LIKE 'phrase-practice-%@example.test'");
+  }
+ });
  it("authenticates Superadmins, manages offer windows, audits changes and revokes admin sessions",async()=>{
   if(!pool||!migrationApplied)return;
   const email="superadmin-"+randomUUID()+"@example.test";
