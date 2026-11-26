@@ -395,6 +395,37 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
     interval_days:saved.rows[0]!.interval_days,ease_factor:Number(saved.rows[0]!.ease_factor)}};
  });
  
+ app.get("/api/v1/learning/vocabulary/history",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view vocabulary review history.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to view vocabulary review history.");
+  const preference=await pool.query<{learning_direction:Direction}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preference.rows[0]?.learning_direction??"ml_to_en";
+  const query=(request.query??{}) as {limit?:string};
+  const limit=query.limit===undefined?20:Number(query.limit);
+  if(!Number.isInteger(limit)||limit<1||limit>50)return failure(reply,request.id,400,"VALIDATION_ERROR","Review history limit must be from 1 to 50.");
+  const history=await pool.query<{lesson_id:string;lesson_title:string;vocabulary_item_id:string;term:string;rating:number;repetitions:number;interval_days:number;due_at:Date;reviewed_at:Date}>(
+   `SELECT h.lesson_id,l.title AS lesson_title,h.vocabulary_item_id,
+      vocabulary_item.value->>'term' AS term,h.rating,h.repetitions,h.interval_days,h.due_at,h.reviewed_at
+    FROM learner_vocabulary_review_history h
+    JOIN lessons l ON l.id=h.lesson_id
+    JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
+    JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.id=h.lesson_version_id
+    CROSS JOIN LATERAL jsonb_array_elements(COALESCE(lv.content->'blocks','[]'::jsonb)) AS lesson_block(value)
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN lesson_block.value->>'type'='vocabulary' THEN COALESCE(lesson_block.value->'items','[]'::jsonb) ELSE '[]'::jsonb END) AS vocabulary_item(value)
+    WHERE h.user_id=$1 AND h.learning_direction=$2 AND l.status='published' AND c.status='published' AND lv.status='published'
+      AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')
+      AND vocabulary_item.value->>'id'=h.vocabulary_item_id
+    ORDER BY h.reviewed_at DESC,h.id DESC LIMIT $3`,
+   [learner.id,direction,limit]
+  );
+  return {learning_direction:direction,items:history.rows.map(row=>({
+   lesson_id:row.lesson_id,lesson_title:row.lesson_title,vocabulary_item_id:row.vocabulary_item_id,
+   term:row.term,rating:row.rating,repetitions:row.repetitions,interval_days:row.interval_days,
+   due_at:row.due_at,reviewed_at:row.reviewed_at
+  })),policy:{only_current_published_versions:true,recall_ratings_are_self_reported:true}};
+ });
+
  app.get("/api/v1/learning/vocabulary/summary",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view vocabulary progress.");
