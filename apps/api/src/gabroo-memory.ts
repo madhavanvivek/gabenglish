@@ -54,6 +54,33 @@ export async function registerGabrooMemoryRoutes(app:FastifyInstance,pool:Pool,c
   return {learning_direction:direction,skill_areas:skillAreas,saved_practice_phrases:phrases.rows[0]?.saved_phrase_count??0,
    interpretation:{exercise_results_are_not_speaking_or_overall_proficiency_scores:true,latest_attempt_per_exercise_and_skill:true,minimum_evidence_for_coaching:5}};
  });
+ app.post("/api/v1/gabroo/memory/:id/practice",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return fail(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
+  const id=idSchema.safeParse((request.params as {id?:string}).id);
+  const parsed=z.object({self_rating:z.enum(["easy","some_effort","need_more_practice"]),learner_note:z.string().trim().max(300).optional()}).strict().safeParse(request.body);
+  if(!id.success||!parsed.success)return fail(reply,request.id,400,"VALIDATION_ERROR","Please choose a practice reflection and provide a note of up to 300 characters.");
+  const saved=await pool.query<{id:string}>("SELECT id FROM gabroo_learner_memory WHERE id=$1 AND user_id=$2 AND category='saved_phrase'",[id.data,learner.id]);
+  if(!saved.rows[0])return fail(reply,request.id,404,"MEMORY_NOT_FOUND","This saved practice phrase is not available.");
+  const created=await pool.query(
+   "INSERT INTO gabroo_saved_phrase_practice(user_id,memory_id,self_rating,learner_note) VALUES($1,$2,$3,$4) RETURNING id,memory_id,self_rating,learner_note,practiced_at",
+   [learner.id,id.data,parsed.data.self_rating,parsed.data.learner_note??null]
+  );
+  return reply.code(201).send({practice:created.rows[0],evidence_type:"learner_self_report",counts_as_assessment_evidence:false});
+ });
+ app.get("/api/v1/gabroo/memory/:id/practice",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return fail(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
+  const id=idSchema.safeParse((request.params as {id?:string}).id);
+  if(!id.success)return fail(reply,request.id,400,"VALIDATION_ERROR","Invalid saved phrase id.");
+  const saved=await pool.query<{id:string}>("SELECT id FROM gabroo_learner_memory WHERE id=$1 AND user_id=$2 AND category='saved_phrase'",[id.data,learner.id]);
+  if(!saved.rows[0])return fail(reply,request.id,404,"MEMORY_NOT_FOUND","This saved practice phrase is not available.");
+  const rows=await pool.query(
+   "SELECT id,memory_id,self_rating,learner_note,practiced_at FROM gabroo_saved_phrase_practice WHERE user_id=$1 AND memory_id=$2 ORDER BY practiced_at DESC LIMIT 30",
+   [learner.id,id.data]
+  );
+  return {history:rows.rows,evidence_type:"learner_self_report",counts_as_assessment_evidence:false};
+ });
  app.get("/api/v1/gabroo/memory",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return fail(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
