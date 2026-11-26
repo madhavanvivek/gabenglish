@@ -5,6 +5,7 @@ import type {Pool} from "pg";
 import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
+import {isSameExerciseSubmission} from "./learning-idempotency.js";
 
 type Direction="ml_to_en"|"en_to_ml";
 type CatalogRow={
@@ -259,7 +260,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   );
   if(previous.rows[0]){
    const attempt=previous.rows[0];
-   if(attempt.lesson_id!==id||attempt.lesson_version_id!==body.lesson_version_id||attempt.exercise_id!==exerciseId||attempt.response!==submitted)return failure(reply,request.id,409,"SUBMISSION_ID_CONFLICT","This retry identifier was already used for a different answer. Please submit again.");
+   if(!isSameExerciseSubmission(attempt,{lessonId:id,lessonVersionId:body.lesson_version_id,exerciseId,response:submitted}))return failure(reply,request.id,409,"SUBMISSION_ID_CONFLICT","This retry identifier was already used for a different answer. Please submit again.");
    return {lesson_id:id,exercise_id:exerciseId,result:{correct:attempt.is_correct,feedback:attempt.feedback??(attempt.is_correct?"Good work. Your answer is correct.":"Not quite. Review the lesson and try again.")}};
   }
   const result=await pool.query<{course_id:string;learning_direction:Direction;version_id:string;content:unknown}>(
@@ -301,7 +302,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
     [learner.id,body.submission_id]
    );
    const attempt=duplicate.rows[0];
-   if(!attempt||attempt.lesson_id!==id||attempt.lesson_version_id!==body.lesson_version_id||attempt.exercise_id!==exerciseId||attempt.response!==submitted)return failure(reply,request.id,409,"SUBMISSION_ID_CONFLICT","This retry identifier was already used for a different answer. Please submit again.");
+   if(!attempt||!isSameExerciseSubmission(attempt,{lessonId:id,lessonVersionId:body.lesson_version_id,exerciseId,response:submitted}))return failure(reply,request.id,409,"SUBMISSION_ID_CONFLICT","This retry identifier was already used for a different answer. Please submit again.");
    return {lesson_id:id,exercise_id:exerciseId,result:{correct:attempt.is_correct,feedback:attempt.feedback??feedback}};
   }
   return {lesson_id:id,exercise_id:exerciseId,result:{correct,feedback}};
