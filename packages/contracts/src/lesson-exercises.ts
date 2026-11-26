@@ -1,5 +1,9 @@
 import {z} from "zod";
 
+function normalizeExerciseAnswer(answer:string):string{
+ return answer.normalize("NFKC").trim().toLowerCase().split(/\s+/u).join(" ");
+}
+
 export const authoredChoiceExerciseSchema=z.object({
  type:z.literal("exercise"),id:z.string().regex(/^[a-z0-9_-]{1,64}$/i),
  instruction:z.string().trim().min(1).max(500),prompt:z.string().trim().min(1).max(1000),
@@ -23,7 +27,7 @@ export const authoredTextExerciseSchema=z.object({
 }).superRefine((value,ctx)=>{
  const answers=new Set<string>();
  value.accepted_answers.forEach((answer,index)=>{
-  const normalized=answer.normalize("NFKC").trim().toLocaleLowerCase().split(/\s+/u).join(" ");
+  const normalized=normalizeExerciseAnswer(answer);
   if(answers.has(normalized))ctx.addIssue({code:z.ZodIssueCode.custom,path:["accepted_answers",index],message:"Accepted answers must be unique after normalisation."});
   answers.add(normalized);
  });
@@ -39,7 +43,7 @@ export function evaluateAuthoredExercise(input:unknown,response:string):{correct
  if(!submitted||submitted.length>2000)return null;
  const correct=exercise.response_type==="single_choice"
   ?exercise.options.some(option=>option.id===submitted)&&submitted===exercise.correct_option_id
-  :exercise.accepted_answers.some(answer=>answer.normalize("NFKC").trim().toLocaleLowerCase().replace(/\s+/g," ")===submitted.normalize("NFKC").trim().toLocaleLowerCase().replace(/\s+/g," "));
+  :exercise.accepted_answers.some(answer=>normalizeExerciseAnswer(answer)===normalizeExerciseAnswer(submitted));
  if(exercise.response_type==="single_choice"&&!exercise.options.some(option=>option.id===submitted))return null;
  return {correct,feedback:correct?(exercise.correct_feedback??"Good work. Your answer is correct."):(exercise.incorrect_feedback??"Not quite. Review the lesson and try again.")};
 }
