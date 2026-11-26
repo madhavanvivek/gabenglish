@@ -32,6 +32,19 @@ export async function getOrCreatePendingExerciseSubmission(userId:string,lessonI
  return submissionId;
 }
 
+/** Reads the durable answer envelope so an already-authorised submission can be replayed after reconnect or app restart. */
+export async function readPendingExerciseSubmission(userId:string,lessonId:string,versionId:string,exerciseId:string):Promise<PendingSubmission|null>{
+ try{
+  const raw=await SecureStore.getItemAsync(storageKey(userId,lessonId,versionId,exerciseId));
+  if(!raw||raw.length>4096)return null;
+  const parsed:unknown=JSON.parse(raw);
+  if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))return null;
+  const value=parsed as Partial<PendingSubmission>;
+  if(typeof value.submissionId!=="string"||!UUID_PATTERN.test(value.submissionId)||typeof value.response!=="string"||!value.response.trim()||value.response.length>2000)return null;
+  return {submissionId:value.submissionId,response:value.response};
+ }catch{return null;}
+}
+
 export async function clearPendingExerciseSubmission(userId:string,lessonId:string,versionId:string,exerciseId:string):Promise<void>{
  try{await SecureStore.deleteItemAsync(storageKey(userId,lessonId,versionId,exerciseId));}catch{/* A stale key is safe: a changed answer receives a new identifier. */}
 }
