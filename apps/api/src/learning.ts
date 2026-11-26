@@ -180,7 +180,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
      WHERE l.id=$1 AND l.status='published' AND c.status='published' AND lv.status='published'
        AND c.learning_direction=COALESCE((SELECT learning_direction FROM user_preferences WHERE user_id=$2),'ml_to_en')
        AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')
-     FOR SHARE OF l,c,lv`,
+     FOR UPDATE OF c FOR SHARE OF l,lv`,
     [id,learner.id]
    );
    const lesson=current.rows[0];
