@@ -5,12 +5,13 @@ import {SafeAreaView} from "react-native-safe-area-context";
 import {AuthApiError,getLearnerMe,getLearningLesson,getLearningExerciseAttemptHistory,saveLearningLessonProgress,submitLearningExerciseAttempt,type LearningExerciseAttemptHistory,type LearningLessonDetail} from "../../src/auth-api";
 import {BrandMark,Eyebrow,PrimaryButton,SurfaceCard} from "../../src/ui";
 import {readLessonAnswerDraft,writeLessonAnswerDraft} from "../../src/lesson-drafts";
-import {clearPendingExerciseSubmission,getOrCreatePendingExerciseSubmission} from "../../src/lesson-submissions";
+import {clearPendingExerciseSubmission,getOrCreatePendingExerciseSubmission,readPendingExerciseSubmission} from "../../src/lesson-submissions";
 import type {LearnerLessonContent} from "@gabenglish/contracts";
 import {colors,radius,space} from "../../src/theme";
 
 const milestones=[25,50,75,100];
-function LessonBlocks({content,answers,setAnswers,results,history,attemptsForExercise,onSubmit,busyExercise}:{content:LearnerLessonContent;answers:Record<string,string>;setAnswers:(id:string,value:string)=>void;results:Record<string,{correct:boolean;feedback:string}>;history:Record<string,LearningExerciseAttemptHistory["attempts"]>;attemptsForExercise:(id:string)=>LearningExerciseAttemptHistory["attempts"];onSubmit:(id:string)=>void;busyExercise:string|null}){
+type SubmissionStatus="queued"|"sending"|"failed"|"submitted";
+function LessonBlocks({content,answers,setAnswers,results,history,attemptsForExercise,onSubmit,busyExercise,submissionStatuses}:{content:LearnerLessonContent;answers:Record<string,string>;setAnswers:(id:string,value:string)=>void;results:Record<string,{correct:boolean;feedback:string}>;history:Record<string,LearningExerciseAttemptHistory["attempts"]>;attemptsForExercise:(id:string)=>LearningExerciseAttemptHistory["attempts"];onSubmit:(id:string)=>void;busyExercise:string|null;submissionStatuses:Record<string,SubmissionStatus>}){
  return <View style={{gap:12}}>
   {content.blocks.map((block,index)=><View key={"block-"+index} style={s.contentBlock}>
    {block.type==="text"?<>{block.heading?<Text style={s.blockHeading}>{block.heading}</Text>:null}<Text style={s.blockBody}>{block.body}</Text></>:null}
@@ -18,7 +19,7 @@ function LessonBlocks({content,answers,setAnswers,results,history,attemptsForExe
    {block.type==="examples"?<>{block.items.map((item,i)=><View key={i} style={s.exampleRow}><Text style={s.example}>{item.target}</Text>{item.support?<Text style={s.blockBody}>{item.support}</Text>:null}{item.note?<Text style={s.detail}>{item.note}</Text>:null}</View>)}</>:null}
    {block.type==="exercise"?<><Text style={s.blockHeading}>{(results[block.id]?.correct??attemptsForExercise(block.id)[0]?.correct)===false?"Try this again":"Try it"}</Text>{(results[block.id]?.correct??attemptsForExercise(block.id)[0]?.correct)===false?<Text style={s.reviewPrompt}>Review focus · Your latest answer needs another try</Text>:null}<Text style={s.detail}>{block.instruction}</Text><Text style={s.blockBody}>{block.prompt}</Text>
     {block.response_type==="single_choice"?block.options?.map(option=><Pressable key={option.id} accessibilityRole="radio" accessibilityLabel={option.label} accessibilityHint={block.instruction} accessibilityState={{checked:answers[block.id]===option.id,disabled:busyExercise===block.id}} onPress={()=>setAnswers(block.id,option.id)} disabled={busyExercise===block.id} style={[s.option,answers[block.id]===option.id&&s.optionSelected,busyExercise===block.id&&s.optionDisabled]}><Text style={s.blockBody}>{option.label}</Text></Pressable>):<TextInput accessibilityLabel={"Answer: "+block.prompt} accessibilityHint={block.instruction} accessibilityState={{disabled:busyExercise===block.id}} value={answers[block.id]??""} onChangeText={value=>setAnswers(block.id,value)} editable={busyExercise!==block.id} multiline placeholder="Write your answer…" placeholderTextColor={colors.textMuted} style={s.answerInput}/>}
-    <PrimaryButton label={busyExercise===block.id?"Checking…":"Check answer"} onPress={()=>onSubmit(block.id)} disabled={busyExercise!==null||!(answers[block.id]??"").trim()}/>
+    <PrimaryButton label={busyExercise===block.id?"Checking…":"Check answer"} onPress={()=>onSubmit(block.id)} disabled={busyExercise!==null||!(answers[block.id]??"").trim()}/>{submissionStatuses[block.id]==="queued"?<Text style={s.queueStatus}>Saved on this device · waiting to send</Text>:null}{submissionStatuses[block.id]==="sending"?<Text style={s.queueStatus}>Sending saved answer…</Text>:null}{submissionStatuses[block.id]==="failed"?<Text style={s.queueStatus}>Not sent yet · your answer is saved. Tap Check answer to retry.</Text>:null}{submissionStatuses[block.id]==="submitted"?<Text style={s.queueSuccess}>Answer submitted</Text>:null}
     {results[block.id]?<View style={s.feedback}><Text style={results[block.id]!.correct?s.correct:s.incorrect}>{results[block.id]!.correct?"Correct":"Keep practising"}</Text><Text style={s.blockBody}>{results[block.id]!.feedback}</Text></View>:null}
     {history[block.id]?.length?<View style={s.history}><Text style={s.historyTitle}>Recent attempts</Text>{history[block.id].slice(0,5).map(attempt=><View key={attempt.id} style={s.historyAttempt}><View style={s.historyHeading}><Text style={attempt.correct?s.correct:s.incorrect}>{attempt.correct?"Correct":"Needs practice"}</Text><Text style={s.historyDate}>{new Date(attempt.attempted_at).toLocaleDateString()}</Text></View><Text style={s.historyResponse}>{attempt.response}</Text>{attempt.feedback?<Text style={s.blockBody}>{attempt.feedback}</Text>:null}</View>)}</View>:null}
    </>:null}
@@ -38,6 +39,7 @@ export default function LessonScreen(){
  const [reloading,setReloading]=useState(false);
  const [answers,setAnswersState]=useState<Record<string,string>>({});
  const [exerciseResults,setExerciseResults]=useState<Record<string,{correct:boolean;feedback:string}>>({});
+ const [submissionStatuses,setSubmissionStatuses]=useState<Record<string,SubmissionStatus>>({});
  const [exerciseHistory,setExerciseHistory]=useState<Record<string,LearningExerciseAttemptHistory["attempts"]>>({});
  const [busyExercise,setBusyExercise]=useState<string|null>(null);
  const busyExerciseRef=useRef<string|null>(null);
@@ -57,7 +59,7 @@ export default function LessonScreen(){
   const requestLessonId=id;
   const requestEpoch=lessonRequestEpoch.current;
   busyExerciseRef.current=exerciseId;
-  setBusyExercise(exerciseId);setError("");
+  setBusyExercise(exerciseId);setSubmissionStatuses(current=>({...current,[exerciseId]:"sending"}));setError("");
   try{
    const requestVersionId=data?.lesson.version_id;
    const ownerId=draftOwnerId;
@@ -69,6 +71,7 @@ export default function LessonScreen(){
    await clearPendingExerciseSubmission(ownerId,requestLessonId,requestVersionId,exerciseId);
    if(lessonRequestEpoch.current!==requestEpoch)return;
    setExerciseResults(current=>({...current,[exerciseId]:result.result}));
+   setSubmissionStatuses(current=>({...current,[exerciseId]:"submitted"}));
    const historyEpoch=(historyRequestEpoch.current[exerciseId]??0)+1;
    historyRequestEpoch.current[exerciseId]=historyEpoch;
    try{
@@ -78,13 +81,40 @@ export default function LessonScreen(){
   }catch(e){
    if(lessonRequestEpoch.current===requestEpoch){
     if(e instanceof AuthApiError&&e.status===409){setLessonVersionChanged(true);setError("This lesson was updated while you were answering. Your answer is still on this screen; reload the latest version before trying again.");}
-    else setError(e instanceof Error?e.message:"Could not check this answer.");
+    else {setError(e instanceof Error?e.message:"Could not check this answer.");setSubmissionStatuses(current=>({...current,[exerciseId]:"failed"}));}
    }
   }finally{
    if(busyExerciseRef.current===exerciseId&&lessonRequestEpoch.current===requestEpoch){busyExerciseRef.current=null;setBusyExercise(null);}
   }
  }
- useEffect(()=>{let active=true;lessonRequestEpoch.current+=1;const requestEpoch=lessonRequestEpoch.current;setData(null);setDraftOwnerId(null);setProgress(0);setBusy(false);setAnswersState({});setExerciseResults({});setExerciseHistory({});historyRequestEpoch.current={};busyExerciseRef.current=null;setBusyExercise(null);setError("");setLessonVersionChanged(false);setReloading(false);setMessage("");if(id)void Promise.all([getLearningLesson(id),getLearnerMe().catch(()=>null)]).then(async([value,account])=>{if(!active)return;const exerciseIds=value.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);const ownerId=account?.user.id??null;const restored=ownerId?await readLessonAnswerDraft(ownerId,id,value.lesson.version_id):{};if(!active)return;const available=new Set(exerciseIds);setAnswersState(Object.fromEntries(Object.entries(restored).filter(([exerciseId])=>available.has(exerciseId))));setDraftOwnerId(ownerId);setData(value);setProgress(value.progress?.progress_percent??0);const historyEpochs=Object.fromEntries(exerciseIds.map(exerciseId=>[exerciseId,historyRequestEpoch.current[exerciseId]??0]));const histories=await Promise.all(exerciseIds.map(async exerciseId=>{try{return [exerciseId,(await getLearningExerciseAttemptHistory(id,exerciseId)).attempts] as const;}catch{return [exerciseId,[]] as const;}}));if(active)setExerciseHistory(current=>({...current,...Object.fromEntries(histories.filter(([exerciseId])=>(historyRequestEpoch.current[exerciseId]??0)===historyEpochs[exerciseId]))}));}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;if(lessonRequestEpoch.current===requestEpoch)lessonRequestEpoch.current+=1;};},[id]);
+ useEffect(()=>{let active=true;lessonRequestEpoch.current+=1;const requestEpoch=lessonRequestEpoch.current;setData(null);setDraftOwnerId(null);setProgress(0);setBusy(false);setAnswersState({});setExerciseResults({});setExerciseHistory({});setSubmissionStatuses({});historyRequestEpoch.current={};busyExerciseRef.current=null;setBusyExercise(null);setError("");setLessonVersionChanged(false);setReloading(false);setMessage("");if(id)void Promise.all([getLearningLesson(id),getLearnerMe().catch(()=>null)]).then(async([value,account])=>{if(!active)return;const exerciseIds=value.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);const ownerId=account?.user.id??null;const restored=ownerId?await readLessonAnswerDraft(ownerId,id,value.lesson.version_id):{};if(!active)return;const available=new Set(exerciseIds);setAnswersState(Object.fromEntries(Object.entries(restored).filter(([exerciseId])=>available.has(exerciseId))));setDraftOwnerId(ownerId);setData(value);setProgress(value.progress?.progress_percent??0);const historyEpochs=Object.fromEntries(exerciseIds.map(exerciseId=>[exerciseId,historyRequestEpoch.current[exerciseId]??0]));const histories=await Promise.all(exerciseIds.map(async exerciseId=>{try{return [exerciseId,(await getLearningExerciseAttemptHistory(id,exerciseId)).attempts] as const;}catch{return [exerciseId,[]] as const;}}));if(active)setExerciseHistory(current=>({...current,...Object.fromEntries(histories.filter(([exerciseId])=>(historyRequestEpoch.current[exerciseId]??0)===historyEpochs[exerciseId]))}));}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;if(lessonRequestEpoch.current===requestEpoch)lessonRequestEpoch.current+=1;};},[id]);
+ useEffect(()=>{
+  if(!id||!data||!draftOwnerId)return;
+  let active=true;
+  const requestEpoch=lessonRequestEpoch.current;
+  const lessonId=id;
+  const versionId=data.lesson.version_id;
+  const ownerId=draftOwnerId;
+  const pendingExercises=data.lesson.content.blocks.filter((block):block is Extract<typeof block,{type:"exercise"}>=>block.type==="exercise");
+  void (async()=>{
+   for(const exercise of pendingExercises){
+    const pending=await readPendingExerciseSubmission(ownerId,lessonId,versionId,exercise.id);
+    if(!pending||!active||lessonRequestEpoch.current!==requestEpoch)continue;
+    setAnswersState(current=>({...current,[exercise.id]:pending.response}));
+    setSubmissionStatuses(current=>({...current,[exercise.id]:"sending"}));
+    try{
+     const result=await submitLearningExerciseAttempt(lessonId,exercise.id,versionId,pending.submissionId,pending.response);
+     await clearPendingExerciseSubmission(ownerId,lessonId,versionId,exercise.id);
+     if(!active||lessonRequestEpoch.current!==requestEpoch)return;
+     setExerciseResults(current=>({...current,[exercise.id]:result.result}));
+     setSubmissionStatuses(current=>({...current,[exercise.id]:"submitted"}));
+    }catch{
+     if(active&&lessonRequestEpoch.current===requestEpoch)setSubmissionStatuses(current=>({...current,[exercise.id]:"failed"}));
+    }
+   }
+  })();
+  return()=>{active=false;};
+ },[id,data?.lesson.version_id,draftOwnerId]);
  useEffect(()=>{if(!id||!data||!draftOwnerId)return;const ownerId=draftOwnerId;const lessonId=id;const versionId=data.lesson.version_id;draftWriteRef.current=draftWriteRef.current.then(()=>writeLessonAnswerDraft(ownerId,lessonId,versionId,answers));},[id,data?.lesson.version_id,draftOwnerId,answers]);
  async function reloadUpdatedLesson(){
   if(!id||reloading)return;
@@ -155,9 +185,9 @@ export default function LessonScreen(){
     {busy?<Text style={s.detail}>Saving progress…</Text>:null}{message?<Text style={s.success}>{message}</Text>:null}{error?<Text style={s.error}>{error}</Text>:null}
     <PrimaryButton label={busy?"Saving…":"Save progress"} onPress={()=>void save(progress)} disabled={busy}/>
    </SurfaceCard>
-   <SurfaceCard><Eyebrow>LEARN</Eyebrow><LessonBlocks content={data.lesson.content} answers={answers} setAnswers={setAnswer} results={exerciseResults} history={currentVersionHistory} attemptsForExercise={currentVersionAttempts} onSubmit={submitExercise} busyExercise={busyExercise}/></SurfaceCard>
+   <SurfaceCard><Eyebrow>LEARN</Eyebrow><LessonBlocks content={data.lesson.content} answers={answers} setAnswers={setAnswer} results={exerciseResults} history={currentVersionHistory} attemptsForExercise={currentVersionAttempts} onSubmit={submitExercise} busyExercise={busyExercise} submissionStatuses={submissionStatuses}/></SurfaceCard>
   </>:!error?<Text style={s.detail}>Loading lesson…</Text>:null}
  </ScrollView></SafeAreaView>;
 }
 const s=StyleSheet.create({
- safe:{flex:1,backgroundColor:colors.background},page:{flexGrow:1,padding:space.xl,paddingBottom:36,gap:space.lg},back:{color:colors.primary,fontSize:13,fontWeight:"900"},header:{alignItems:"center",gap:8},title:{fontSize:23,fontWeight:"900",color:colors.primaryStrong,marginTop:8},practiceCount:{fontSize:17,fontWeight:"900",color:colors.primaryStrong,marginTop:8},practiceNote:{fontSize:11,lineHeight:17,color:colors.textMuted,marginTop:7},reviewFocus:{marginTop:10,padding:12,borderRadius:radius.md,backgroundColor:colors.surfaceSoft,gap:7},reviewFocusTitle:{fontSize:10,fontWeight:"900",letterSpacing:0.6,color:colors.primary},reviewFocusItem:{fontSize:12,lineHeight:18,color:colors.text},reviewPrompt:{fontSize:11,fontWeight:"800",color:colors.primary,marginTop:-2},meta:{fontSize:11,color:colors.textMuted,marginTop:8},detail:{fontSize:12,lineHeight:19,color:colors.textMuted,marginTop:7},body:{fontSize:13,lineHeight:20,color:colors.textMuted,marginTop:10},contentBlock:{gap:8,paddingVertical:8},blockHeading:{fontSize:15,fontWeight:"900",color:colors.primaryStrong},blockBody:{fontSize:13,lineHeight:21,color:colors.text},vocabRow:{paddingVertical:10,borderBottomWidth:1,borderBottomColor:colors.border,gap:4},vocabTerm:{fontSize:15,fontWeight:"900",color:colors.primary},exampleRow:{padding:12,borderRadius:radius.md,backgroundColor:colors.surfaceSoft,gap:5},example:{fontSize:14,fontWeight:"800",lineHeight:21,color:colors.primaryStrong},option:{padding:10,borderWidth:1,borderColor:colors.border,borderRadius:radius.md},optionSelected:{borderColor:colors.primary,backgroundColor:colors.surfaceSoft},optionDisabled:{opacity:0.6},answerInput:{minHeight:88,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,padding:12,color:colors.text,textAlignVertical:"top"},feedback:{padding:12,borderRadius:radius.md,backgroundColor:colors.surfaceSoft,gap:5},history:{padding:12,borderRadius:radius.md,backgroundColor:"#F8F5FC",gap:8},historyTitle:{fontSize:12,fontWeight:"900",color:colors.primaryStrong},historyAttempt:{paddingTop:8,borderTopWidth:1,borderTopColor:colors.border,gap:4},historyHeading:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},historyDate:{fontSize:10,color:colors.textMuted},historyResponse:{fontSize:12,lineHeight:18,color:colors.text},correct:{fontSize:13,fontWeight:"900",color:"#19734B"},incorrect:{fontSize:13,fontWeight:"900",color:colors.primaryStrong},progress:{fontSize:30,fontWeight:"900",color:colors.primaryStrong,marginTop:8},track:{height:9,borderRadius:9,backgroundColor:colors.border,overflow:"hidden",marginTop:12},fill:{height:9,backgroundColor:colors.primary,borderRadius:9},actions:{flexDirection:"row",flexWrap:"wrap",gap:8,marginVertical:16},milestone:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingVertical:10,paddingHorizontal:13},selected:{backgroundColor:colors.primary,borderColor:colors.primary},milestoneText:{fontSize:12,fontWeight:"800",color:colors.text},selectedText:{color:"#FFFFFF"},success:{fontSize:12,color:"#19734B",marginBottom:10},error:{fontSize:12,color:"#B42318"},});
+ safe:{flex:1,backgroundColor:colors.background},page:{flexGrow:1,padding:space.xl,paddingBottom:36,gap:space.lg},back:{color:colors.primary,fontSize:13,fontWeight:"900"},header:{alignItems:"center",gap:8},title:{fontSize:23,fontWeight:"900",color:colors.primaryStrong,marginTop:8},practiceCount:{fontSize:17,fontWeight:"900",color:colors.primaryStrong,marginTop:8},practiceNote:{fontSize:11,lineHeight:17,color:colors.textMuted,marginTop:7},reviewFocus:{marginTop:10,padding:12,borderRadius:radius.md,backgroundColor:colors.surfaceSoft,gap:7},reviewFocusTitle:{fontSize:10,fontWeight:"900",letterSpacing:0.6,color:colors.primary},reviewFocusItem:{fontSize:12,lineHeight:18,color:colors.text},reviewPrompt:{fontSize:11,fontWeight:"800",color:colors.primary,marginTop:-2},meta:{fontSize:11,color:colors.textMuted,marginTop:8},detail:{fontSize:12,lineHeight:19,color:colors.textMuted,marginTop:7},body:{fontSize:13,lineHeight:20,color:colors.textMuted,marginTop:10},contentBlock:{gap:8,paddingVertical:8},blockHeading:{fontSize:15,fontWeight:"900",color:colors.primaryStrong},blockBody:{fontSize:13,lineHeight:21,color:colors.text},vocabRow:{paddingVertical:10,borderBottomWidth:1,borderBottomColor:colors.border,gap:4},vocabTerm:{fontSize:15,fontWeight:"900",color:colors.primary},exampleRow:{padding:12,borderRadius:radius.md,backgroundColor:colors.surfaceSoft,gap:5},example:{fontSize:14,fontWeight:"800",lineHeight:21,color:colors.primaryStrong},option:{padding:10,borderWidth:1,borderColor:colors.border,borderRadius:radius.md},optionSelected:{borderColor:colors.primary,backgroundColor:colors.surfaceSoft},optionDisabled:{opacity:0.6},answerInput:{minHeight:88,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,padding:12,color:colors.text,textAlignVertical:"top"},feedback:{padding:12,borderRadius:radius.md,backgroundColor:colors.surfaceSoft,gap:5},history:{padding:12,borderRadius:radius.md,backgroundColor:"#F8F5FC",gap:8},historyTitle:{fontSize:12,fontWeight:"900",color:colors.primaryStrong},historyAttempt:{paddingTop:8,borderTopWidth:1,borderTopColor:colors.border,gap:4},historyHeading:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},historyDate:{fontSize:10,color:colors.textMuted},historyResponse:{fontSize:12,lineHeight:18,color:colors.text},correct:{fontSize:13,fontWeight:"900",color:"#19734B"},incorrect:{fontSize:13,fontWeight:"900",color:colors.primaryStrong},progress:{fontSize:30,fontWeight:"900",color:colors.primaryStrong,marginTop:8},track:{height:9,borderRadius:9,backgroundColor:colors.border,overflow:"hidden",marginTop:12},fill:{height:9,backgroundColor:colors.primary,borderRadius:9},actions:{flexDirection:"row",flexWrap:"wrap",gap:8,marginVertical:16},milestone:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingVertical:10,paddingHorizontal:13},selected:{backgroundColor:colors.primary,borderColor:colors.primary},milestoneText:{fontSize:12,fontWeight:"800",color:colors.text},selectedText:{color:"#FFFFFF"},success:{fontSize:12,color:"#19734B",marginBottom:10},error:{fontSize:12,color:"#B42318"},queueStatus:{fontSize:11,lineHeight:17,color:colors.textMuted},queueSuccess:{fontSize:11,lineHeight:17,color:"#19734B",fontWeight:"800"},});
