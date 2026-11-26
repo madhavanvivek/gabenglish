@@ -298,22 +298,22 @@ describe("API foundation",()=>{
 
  it("returns exercise history only for the current published lesson version",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
-  let historyQuery:{sql:string;values:unknown[]}|null=null;
+  const historyQueries:Array<{sql:string;values:unknown[]}>=[];
   const attempt={id:"attempt-1",lesson_version_id:"version-current",response:"hello",is_correct:true,feedback:"Correct",attempted_at:new Date("2026-11-26T04:00:00.000Z")};
   const exercise={type:"exercise",id:"exercise-1",instruction:"Choose",prompt:"Pick one",response_type:"single_choice",options:[{id:"a",label:"A"},{id:"b",label:"B"}],correct_option_id:"a"};
   const pool={query:async(sql:string,values?:unknown[])=>{
    if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
    if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
    if(sql.includes("FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c"))return {rows:[{learning_direction:"ml_to_en",version_id:"version-current",content:{schema_version:1,blocks:[exercise]}}]};
-   if(sql.includes("FROM learner_exercise_attempts")){historyQuery={sql,values:values??[]};return {rows:[attempt]};}
+   if(sql.includes("FROM learner_exercise_attempts")){historyQueries.push({sql,values:values??[]});return {rows:[attempt]};}
    return {rows:[]};
   }} as any;
   const app=await buildApp(config,async()=>true,pool);
   const response=await app.inject({method:"GET",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/exercises/exercise-1/attempts",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
   expect(response.statusCode).toBe(200);
   expect(response.json()).toMatchObject({lesson_id:"00000000-0000-4000-8000-000000000003",exercise_id:"exercise-1",current_version_id:"version-current",attempts:[{id:"attempt-1",lesson_version_id:"version-current",response:"hello",correct:true}]});
-  expect(historyQuery?.sql).toContain("lesson_version_id=$5");
-  expect(historyQuery?.values).toEqual(["00000000-0000-4000-8000-000000000001","00000000-0000-4000-8000-000000000003","exercise-1","ml_to_en","version-current"]);
+  expect(historyQueries[0]?.sql).toContain("lesson_version_id=$5");
+  expect(historyQueries[0]?.values).toEqual(["00000000-0000-4000-8000-000000000001","00000000-0000-4000-8000-000000000003","exercise-1","ml_to_en","version-current"]);
   await app.close();
  });
 
