@@ -45,13 +45,22 @@ export default function LessonScreen(){
   return latest?!latest.correct:exerciseResults[block.id]?.correct===false;
  });
  async function submitExercise(exerciseId:string){if(!id||busyExercise)return;const requestLessonId=id;const requestEpoch=lessonRequestEpoch.current;setBusyExercise(exerciseId);setError("");try{const result=await submitLearningExerciseAttempt(requestLessonId,exerciseId,answers[exerciseId]??"");if(lessonRequestEpoch.current!==requestEpoch)return;setExerciseResults(current=>({...current,[exerciseId]:result.result}));try{const history=await getLearningExerciseAttemptHistory(requestLessonId,exerciseId);if(lessonRequestEpoch.current===requestEpoch)setExerciseHistory(current=>({...current,[exerciseId]:history.attempts}));}catch{/* Keep the just-returned result visible if history is temporarily unavailable. */}}catch(e){if(lessonRequestEpoch.current===requestEpoch)setError(e instanceof Error?e.message:"Could not check this answer.");}finally{if(lessonRequestEpoch.current===requestEpoch)setBusyExercise(null);}}
- useEffect(()=>{let active=true;lessonRequestEpoch.current+=1;setAnswersState({});setExerciseResults({});setExerciseHistory({});setBusyExercise(null);setError("");setMessage("");if(id)void getLearningLesson(id).then(async value=>{if(!active)return;setData(value);setProgress(value.progress?.progress_percent??0);const exerciseIds=value.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);const histories=await Promise.all(exerciseIds.map(async exerciseId=>{try{return [exerciseId,(await getLearningExerciseAttemptHistory(id,exerciseId)).attempts] as const;}catch{return [exerciseId,[]] as const;}}));if(active)setExerciseHistory(Object.fromEntries(histories));}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;};},[id]);
+ useEffect(()=>{let active=true;lessonRequestEpoch.current+=1;setData(null);setProgress(0);setAnswersState({});setExerciseResults({});setExerciseHistory({});setBusyExercise(null);setError("");setMessage("");if(id)void getLearningLesson(id).then(async value=>{if(!active)return;setData(value);setProgress(value.progress?.progress_percent??0);const exerciseIds=value.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);const histories=await Promise.all(exerciseIds.map(async exerciseId=>{try{return [exerciseId,(await getLearningExerciseAttemptHistory(id,exerciseId)).attempts] as const;}catch{return [exerciseId,[]] as const;}}));if(active)setExerciseHistory(Object.fromEntries(histories));}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;};},[id]);
  async function save(value:number){
   if(!id||busy)return;
+  const requestLessonId=id;
+  const requestEpoch=lessonRequestEpoch.current;
   setBusy(true);setMessage("");setError("");
-  try{const result=await saveLearningLessonProgress(id,value);setProgress(result.progress.progress_percent);setMessage(value===100?"Lesson marked complete. Your progress is saved.":"Your lesson progress is saved.");}
-  catch(e){setError(e instanceof Error?e.message:"Could not save your progress.");}
-  finally{setBusy(false);}
+  try{
+   const result=await saveLearningLessonProgress(requestLessonId,value);
+   if(lessonRequestEpoch.current!==requestEpoch)return;
+   setProgress(result.progress.progress_percent);
+   setMessage(value===100?"Lesson marked complete. Your progress is saved.":"Your lesson progress is saved.");
+  }catch(e){
+   if(lessonRequestEpoch.current===requestEpoch)setError(e instanceof Error?e.message:"Could not save your progress.");
+  }finally{
+   if(lessonRequestEpoch.current===requestEpoch)setBusy(false);
+  }
  }
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
   <Link href="/learn" style={s.back}>‹ Your learning path</Link>
