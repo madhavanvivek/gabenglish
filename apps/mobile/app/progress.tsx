@@ -23,8 +23,8 @@ export default function ProgressScreen(){
    try{
     const subscription=await getSubscriptionStatus();
     if(subscription.active){
-     const [progress,vocabulary]=await Promise.all([getLearningProgressOverview(),getLearnerVocabularyStats()]);
-     setLearningProgress(progress);setVocabularyStats(vocabulary.stats);
+     const [progress,vocabulary]=await Promise.all([getLearningProgressOverview(),getLearnerVocabularyStats().catch(()=>null)]);
+     setLearningProgress(progress);setVocabularyStats(vocabulary?.stats??null);
     }else{setLearningProgress(null);setVocabularyStats(null);}
    }catch{setLearningProgress(null);setVocabularyStats(null);}
    setLoading(false);
