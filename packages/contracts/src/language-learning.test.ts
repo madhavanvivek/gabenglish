@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {defaultLearningCourseContext,learningCourseContextSchema,learningDirectionSchema,publishedLearningCatalogSchema,learningLessonDetailSchema} from "./language-learning.js";
+import {defaultLearningCourseContext,learningCourseContextSchema,learningDirectionSchema,publishedLearningCatalogSchema,learningLessonDetailSchema,learningExerciseAttemptHistorySchema,learningExerciseAttemptResultSchema} from "./language-learning.js";
 
 describe("bidirectional learning contracts",()=>{
  it("supports the two explicitly approved learning directions",()=>{
@@ -99,7 +99,6 @@ describe("learner lesson detail contract",()=>{
 });
 
 
-import {learningExerciseAttemptHistorySchema,learningExerciseAttemptResultSchema} from "./language-learning.js";
 
 describe("learner exercise attempt response contracts",()=>{
  const history={lesson_id:"lesson-1",exercise_id:"greeting",current_version_id:"version-2",attempts:[{id:"attempt-1",lesson_version_id:"version-2",response:"Hello",correct:true,feedback:"Well done",attempted_at:"2026-11-26T08:00:00.000Z"}]};
