@@ -45,6 +45,12 @@ The authenticated endpoint `GET /api/v1/learning/vocabulary/summary` aggregates 
 
 “Stable recall” is a scheduling signal defined as at least three successful repetitions with a seven-day-or-longer interval. It is not a fluency, vocabulary-size, or proficiency score. The endpoint requires an active subscription, and the mobile progress screen shows the summary when available while keeping the free diagnostic report independent.
 
+## Weekly learner insights
+
+The authenticated endpoint `GET /api/v1/learning/vocabulary/insights` summarizes the learner's last seven days of recall activity and compares the average self-reported rating with the preceding seven-day period. It includes review count, distinct words revisited, active review days, average recall rating and distinct words rated difficult (0–2).
+
+Only review events attached to the learner's current published lesson versions are included; English-to-Malayalam lessons must remain educator-approved. The endpoint requires a verified learner and active subscription. Ratings are self-reported recall evidence, not a proficiency or fluency measure. The Word Garden screen presents these as reflection prompts, not a score or streak requirement.
+
 ## Gabroo conversation integration
 
 When a learner starts or continues a conversation, the API now loads up to five of that learner's difficult or due vocabulary items from the current published lesson versions in the selected learning direction. Only learner-owned review rows are considered; English-to-Malayalam content must still be educator-approved.

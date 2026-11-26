@@ -324,6 +324,21 @@ describe("API foundation",()=>{
   expect(response.json().error.code).toBe("VALIDATION_ERROR");
   await app.close();
  });
+ it("returns seven-day vocabulary recall insights without treating ratings as proficiency",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const pool={query:async(sql:string)=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("FROM active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
+   if(sql.includes("WITH eligible_history AS"))return {rows:[{reviews_7d:12,words_reviewed_7d:8,difficult_words_7d:2,review_days_7d:4,average_rating_7d:3.8,reviews_previous_7d:7,average_rating_previous_7d:3.2}]};
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"GET",url:"/api/v1/learning/vocabulary/insights",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toMatchObject({learning_direction:"ml_to_en",period_days:7,insights:{reviews_7d:12,words_reviewed_7d:8,difficult_words_7d:2,review_days_7d:4,average_rating_7d:3.8,reviews_previous_7d:7,average_rating_previous_7d:3.2},policy:{self_reported_recall_only:true,only_current_published_versions:true,not_a_proficiency_measure:true}});
+  await app.close();
+ });
  it("returns learner vocabulary retention counts from current published content",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   const pool={query:async(sql:string)=>{
