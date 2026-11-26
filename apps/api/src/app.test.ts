@@ -352,4 +352,68 @@ describe("API foundation",()=>{
   }finally{await app.close();}
  });
 
+
+ it("returns only the authenticated learner's due vocabulary",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const learnerId="00000000-0000-4000-8000-000000000001";
+  const dueQueries:{sql:string;values?:unknown[]}[]=[];
+  const pool={query:async(sql:string,values?:unknown[])=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:learnerId,email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
+   if(sql.includes("FROM learner_vocabulary_items")&&sql.includes("due_at<=now()")){dueQueries.push({sql,values});return {rows:[{id:"vocab-1",source_term:"വെള്ളം",target_term:"water",interval_days:1}]};}
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  try{
+   const response=await app.inject({method:"GET",url:"/api/v1/vocabulary/review?limit=10",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+   expect(response.statusCode).toBe(200);
+   expect(response.json()).toMatchObject({learning_direction:"ml_to_en",items:[{id:"vocab-1",source_term:"വെള്ളം",target_term:"water"}]});
+   expect(dueQueries[0]?.values).toEqual([learnerId,"ml_to_en",10]);
+   expect(dueQueries[0]?.sql).toContain("user_id=$1");
+  }finally{await app.close();}
+ });
+
+ it("saves vocabulary only against a published lesson in the selected direction",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const learnerId="00000000-0000-4000-8000-000000000001";
+  const inserts:unknown[][]=[];
+  const pool={query:async(sql:string,values?:unknown[])=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:learnerId,email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
+   if(sql.includes("SELECT l.id AS lesson_id,lv.id AS version_id"))return {rows:[{lesson_id:"lesson-1",version_id:"version-1"}]};
+   if(sql.includes("INSERT INTO learner_vocabulary_items")){inserts.push(values??[]);return {rows:[{id:"vocab-1",source_term:"വെള്ളം",target_term:"water",status:"active"}]};}
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  try{
+   const response=await app.inject({method:"POST",url:"/api/v1/vocabulary",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{source_term:" വെള്ളം ",target_term:" water ",lesson_id:"00000000-0000-4000-8000-000000000020"}});
+   expect(response.statusCode).toBe(201);
+   expect(response.json().item).toMatchObject({id:"vocab-1",source_term:"വെള്ളം",target_term:"water"});
+   expect(inserts[0]).toEqual([learnerId,"ml_to_en","വെള്ളം","water",null,"lesson-1","version-1"]);
+  }finally{await app.close();}
+ });
+
+ it("rejects vocabulary review for another learner's item",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const learnerId="00000000-0000-4000-8000-000000000001";
+  const clientQueries:string[]=[];
+  const client={query:async(sql:string)=>{clientQueries.push(sql);if(sql.includes("SELECT interval_days"))return {rows:[]};return {rows:[]};},release:()=>{}};
+  const pool={query:async(sql:string)=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:learnerId,email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
+   return {rows:[]};
+  },connect:async()=>client} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  try{
+   const response=await app.inject({method:"POST",url:"/api/v1/vocabulary/00000000-0000-4000-8000-000000000099/review",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{rating:"good"}});
+   expect(response.statusCode).toBe(404);
+   expect(response.json().error.code).toBe("VOCABULARY_NOT_FOUND");
+   expect(clientQueries).toContain("ROLLBACK");
+   expect(clientQueries.some(sql=>sql.includes("UPDATE learner_vocabulary_items"))).toBe(false);
+  }finally{await app.close();}
+ });
+
 });
