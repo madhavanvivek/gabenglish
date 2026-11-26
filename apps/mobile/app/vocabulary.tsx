@@ -4,6 +4,7 @@ import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,TextInput,View} f
 import {SafeAreaView} from "react-native-safe-area-context";
 import {AuthApiError,archiveLearnerVocabulary,getDueLearnerVocabulary,getLearnerVocabularyStats,listLearnerVocabulary,reviewLearnerVocabulary,type LearnerVocabularyItem,type LearnerVocabularyStats} from "../src/auth-api";
 import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
+import {filterVocabularyItems} from "../src/learner-settings";
 import {colors,radius,space} from "../src/theme";
 
 const ratings=[{id:"again",label:"Again"},{id:"hard",label:"Hard"},{id:"good",label:"Good"},{id:"easy",label:"Easy"}] as const;
@@ -52,7 +53,7 @@ export default function VocabularyScreen(){
   }catch(reason){setError(reason instanceof Error?reason.message:"Could not archive this word.");}
   finally{setBusy(null);}
  }
- const visible=view==="due"?items:savedItems.filter(item=>`${item.source_term} ${item.target_term} ${item.example??""}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
+ const visible=view==="due"?items:filterVocabularyItems(savedItems,search);
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
   <View style={s.header}><Link href="/progress" style={s.back}>‹ Your progress</Link><BrandMark size={42}/><Text style={s.title}>My vocabulary</Text><Text style={s.subtitle}>Keep useful words close and make them part of everyday speech.</Text></View>
   {stats?<SurfaceCard soft><Eyebrow>YOUR LAST 7 DAYS</Eyebrow><View style={s.statsGrid}>
