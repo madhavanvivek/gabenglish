@@ -261,7 +261,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   if(previous.rows[0]){
    const attempt=previous.rows[0];
    if(!isSameExerciseSubmission(attempt,{lessonId:id,lessonVersionId:body.lesson_version_id,exerciseId,response:submitted}))return failure(reply,request.id,409,"SUBMISSION_ID_CONFLICT","This retry identifier was already used for a different answer. Please submit again.");
-   return {lesson_id:id,exercise_id:exerciseId,result:{correct:attempt.is_correct,feedback:attempt.feedback??(attempt.is_correct?"Good work. Your answer is correct.":"Not quite. Review the lesson and try again.")}};
+   return {lesson_id:id,exercise_id:exerciseId,result:{correct:attempt.is_correct,feedback:attempt.feedback??(attempt.is_correct?"Good work.":"Review the lesson and try again.")}};
   }
   const result=await pool.query<{course_id:string;learning_direction:Direction;version_id:string;content:unknown}>(
    `SELECT c.id AS course_id,c.learning_direction,lv.id AS version_id,lv.content
