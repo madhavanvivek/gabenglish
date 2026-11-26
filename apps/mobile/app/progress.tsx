@@ -2,7 +2,7 @@ import {useCallback,useState} from "react";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {AuthApiError,getDailyChallengeHistory,getLatestFreeDiagnosticReport,getVocabularyRetentionSummary,getGabrooLearningInsights,type DailyChallengeHistory,type SavedFreeDiagnosticReport,type VocabularyRetentionSummary,type GabrooLearningInsights} from "../src/auth-api";
+import {AuthApiError,getDailyChallengeHistory,getLatestFreeDiagnosticReport,getVocabularyRetentionSummary,getGabrooLearningInsights,listGabrooMemory,getGabrooPhrasePracticeHistory,type GabrooPhrasePractice,type DailyChallengeHistory,type SavedFreeDiagnosticReport,type VocabularyRetentionSummary,type GabrooLearningInsights} from "../src/auth-api";
 import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
 import {colors,radius,space} from "../src/theme";
 
@@ -11,6 +11,7 @@ export default function ProgressScreen(){
  const [vocabulary,setVocabulary]=useState<VocabularyRetentionSummary|null>(null);
  const [insights,setInsights]=useState<GabrooLearningInsights|null>(null);
  const [dailyHistory,setDailyHistory]=useState<DailyChallengeHistory|null>(null);
+ const [phraseTimeline,setPhraseTimeline]=useState<Array<{id:string;title:string;rating:GabrooPhrasePractice["self_rating"];practiced_at:string;note:string|null}>>([]);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const [refreshKey,setRefreshKey]=useState(0);
@@ -27,6 +28,15 @@ export default function ProgressScreen(){
   catch(reason){if(reason instanceof AuthApiError&&[401,403].includes(reason.status??0))setInsights(null);}
   try{setDailyHistory(await getDailyChallengeHistory(14));}
   catch(reason){if(reason instanceof AuthApiError&&[401,403].includes(reason.status??0))setDailyHistory(null);}
+  try{
+   const saved=await listGabrooMemory();
+   const phrases=saved.memory.filter(item=>item.category==="saved_phrase");
+   const histories=await Promise.all(phrases.map(async item=>{
+    try{return (await getGabrooPhrasePracticeHistory(item.id)).history.map(entry=>({id:entry.id,title:item.memory_key,rating:entry.self_rating,practiced_at:entry.practiced_at,note:entry.learner_note}));}
+    catch{return [];}
+   }));
+   setPhraseTimeline(histories.flat().sort((a,b)=>Date.parse(b.practiced_at)-Date.parse(a.practiced_at)).slice(0,20));
+  }catch{setPhraseTimeline([]);}
  },[]);
  useFocusEffect(useCallback(()=>{void load();},[load,refreshKey]));
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
@@ -42,6 +52,7 @@ export default function ProgressScreen(){
   {!!error&&<View style={s.error}><Text style={s.errorText}>{error}</Text><Pressable onPress={()=>setRefreshKey(value=>value+1)}><Text style={s.retry}>Try again</Text></Pressable></View>}
   {vocabulary?<SurfaceCard soft><Eyebrow>WORD GARDEN · VOCABULARY RETENTION</Eyebrow><Text style={s.cardTitle}>Words you are building into memory</Text><View style={s.vocabStats}><View style={s.vocabStat}><Text style={s.vocabValue}>{vocabulary.summary.reviewed_words}</Text><Text style={s.vocabLabel}>Reviewed</Text></View><View style={s.vocabStat}><Text style={s.vocabValue}>{vocabulary.summary.mastered_words}</Text><Text style={s.vocabLabel}>Stable recall</Text></View><View style={s.vocabStat}><Text style={s.vocabValue}>{vocabulary.summary.due_words}</Text><Text style={s.vocabLabel}>Due now</Text></View></View><Text style={s.body}>{vocabulary.summary.total_words===0?"Your published lessons do not have tagged vocabulary items yet.":vocabulary.summary.developing_words+" words are still building recall. Regular short reviews help strengthen memory."}</Text><Text style={s.vocabFoot}>“Stable recall” is a spaced-repetition signal, not a fluency or proficiency score.</Text><Link href="/vocabulary" style={s.action}>Open Word Garden →</Link></SurfaceCard>:null}
   {insights?<SurfaceCard><Eyebrow>GABROO · PERSONAL LEARNING INTELLIGENCE</Eyebrow><Text style={s.cardTitle}>Your learning patterns</Text><Text style={s.body}>These signals come from your latest exercise attempts and the phrases you chose to save. They are practice indicators, not an overall English score.</Text><View style={s.vocabStats}><View style={s.vocabStat}><Text style={s.vocabValue}>{insights.skill_areas.length}</Text><Text style={s.vocabLabel}>Skill areas with evidence</Text></View><View style={s.vocabStat}><Text style={s.vocabValue}>{insights.saved_practice_phrases}</Text><Text style={s.vocabLabel}>Saved practice phrases</Text></View></View>{insights.skill_areas.length?insights.skill_areas.map(item=><View key={item.skill_key} style={s.listRow}><Text style={s.bullet}>•</Text><View style={s.bodyFlex}><Text style={s.cardTitle}>{item.skill_key.replace(/_/g," ")}</Text><Text style={s.body}>{item.correct_count}/{item.attempt_count} latest exercise attempts correct · {Math.round(item.accuracy*100)}%</Text><Text style={s.vocabFoot}>{item.evidence_status==="building_evidence"?"Building evidence — at least five attempts are needed before coaching focus.":item.evidence_status==="practice_opportunity"?"A useful area to practise in upcoming exercises.":item.evidence_status==="strong_exercise_performance"?"Strong recent exercise performance.": "Developing recent exercise performance."}</Text></View></View>):<Text style={s.body}>Complete tagged exercises to build a useful learning pattern. Gabroo will only highlight areas with enough evidence.</Text>}<Link href="/sentence-coach" style={s.action}>Practise a sentence with Gabroo →</Link><Link href="/speaking-journal" style={s.action}>Review your Speaking Journal →</Link></SurfaceCard>:null}
+  {phraseTimeline.length?<SurfaceCard><Eyebrow>GABROO · LEARNER PRACTICE TIMELINE</Eyebrow><Text style={s.cardTitle}>Your phrase practice journey</Text><Text style={s.body}>A chronological record of the practice reflections you chose to save. These are personal check-ins, not scored outcomes or proof of improvement.</Text>{phraseTimeline.map(item=><View key={item.id} style={s.listRow}><Text style={s.stepNumber}>↗</Text><View style={s.bodyFlex}><Text style={s.cardTitle}>{item.title}</Text><Text style={s.vocabFoot}>{new Date(item.practiced_at).toLocaleString()} · {item.rating.replace(/_/g," ")}</Text>{item.note?<Text style={s.body}>{item.note}</Text>:null}</View></View>)}<Link href="/speaking-journal" style={s.action}>Open Speaking Journal →</Link></SurfaceCard>:null}
   {dailyHistory?<SurfaceCard soft><Eyebrow>GABROO · DAILY PRACTICE HISTORY</Eyebrow><Text style={s.cardTitle}>Your practice, day by day</Text><View style={s.vocabStats}><View style={s.vocabStat}><Text style={s.vocabValue}>{dailyHistory.total_completed_days}</Text><Text style={s.vocabLabel}>Challenges completed</Text></View><View style={s.vocabStat}><Text style={s.vocabValue}>{dailyHistory.completed_days}</Text><Text style={s.vocabLabel}>Recent records shown</Text></View></View><Text style={s.body}>These are the challenges you explicitly marked as practised. A completed challenge records practice, not a speaking score or learning outcome.</Text>{dailyHistory.completions.length?dailyHistory.completions.map(item=><View key={item.challenge_date} style={s.listRow}><Text style={s.stepNumber}>✓</Text><View style={s.bodyFlex}><Text style={s.cardTitle}>{item.challenge_title}</Text><Text style={s.vocabFoot}>{new Date(item.challenge_date+"T12:00:00").toLocaleDateString()} · {item.skill_key?.replace(/_/g," ")??"General speaking practice"}</Text></View></View>):<Text style={s.body}>Your completed daily challenges will appear here after you practise with Gabroo and mark one complete.</Text>}</SurfaceCard>:null}
   <View style={s.footerCard}><Text style={s.footerTitle}>Ready for a little practice?</Text><Text style={s.footerBody}>Talk to Gabroo about your goals and ask for a gentle practice conversation.</Text><Link href="/gabroo" style={s.action}>Talk to Gabroo →</Link></View>
  </ScrollView></SafeAreaView>;
