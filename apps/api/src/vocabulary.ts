@@ -42,6 +42,34 @@ export async function registerVocabularyRoutes(app:FastifyInstance,pool:Pool,con
   );
   return {learning_direction:context.direction,items:rows.rows};
  });
+ app.get("/api/v1/vocabulary/stats",async(request,reply)=>{
+  const context=await learnerContext(request,reply,pool,config);if(!context)return;
+  const result=await pool.query<{
+   active_items:number;due_items:number;reviewed_last_7_days:number;positive_ratings_last_7_days:number;
+   again_ratings_last_7_days:number;practice_days_last_7_days:number;
+  }>(
+   `WITH item_stats AS (
+      SELECT COUNT(*) FILTER (WHERE status='active')::int AS active_items,
+       COUNT(*) FILTER (WHERE status='active' AND due_at<=now())::int AS due_items
+      FROM learner_vocabulary_items WHERE user_id=$1 AND learning_direction=$2
+    ), review_stats AS (
+      SELECT COUNT(*)::int AS reviewed_last_7_days,
+       COUNT(*) FILTER (WHERE r.rating<>'again')::int AS positive_ratings_last_7_days,
+       COUNT(*) FILTER (WHERE r.rating='again')::int AS again_ratings_last_7_days,
+       COUNT(DISTINCT (r.reviewed_at AT TIME ZONE 'UTC')::date)::int AS practice_days_last_7_days
+      FROM learner_vocabulary_reviews r
+      JOIN learner_vocabulary_items i ON i.id=r.vocabulary_item_id
+      WHERE r.user_id=$1 AND i.user_id=$1 AND i.learning_direction=$2
+       AND r.reviewed_at>=now()-interval '7 days'
+    )
+    SELECT item_stats.active_items,item_stats.due_items,review_stats.reviewed_last_7_days,
+     review_stats.positive_ratings_last_7_days,review_stats.again_ratings_last_7_days,
+     review_stats.practice_days_last_7_days FROM item_stats CROSS JOIN review_stats`,
+   [context.learner.id,context.direction]
+  );
+  const stats=result.rows[0]??{active_items:0,due_items:0,reviewed_last_7_days:0,positive_ratings_last_7_days:0,again_ratings_last_7_days:0,practice_days_last_7_days:0};
+  return {learning_direction:context.direction,stats};
+ });
  app.get("/api/v1/vocabulary",async(request,reply)=>{
   const context=await learnerContext(request,reply,pool,config);if(!context)return;
   const rows=await pool.query(
