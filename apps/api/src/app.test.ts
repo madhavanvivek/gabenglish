@@ -414,7 +414,7 @@ describe("API foundation",()=>{
   },connect:async()=>client} as any;
   const app=await buildApp(config,async()=>true,pool);
   try{
-   const response=await app.inject({method:"POST",url:"/api/v1/vocabulary/vocab-1/review",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{rating:"good"}});
+   const response=await app.inject({method:"POST",url:"/api/v1/vocabulary/00000000-0000-4000-8000-000000000099/review",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{rating:"good"}});
    expect(response.statusCode).toBe(200);
    expect(response.json()).toMatchObject({item:{id:"00000000-0000-4000-8000-000000000099",interval_days:6,repetitions:2},review:{rating:"good",next_interval_days:6}});
    expect(clientQueries.map(query=>query.sql.split(" ")[0])).toEqual(["BEGIN","SELECT","UPDATE","INSERT","COMMIT"]);
