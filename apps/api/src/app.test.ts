@@ -285,7 +285,7 @@ describe("API foundation",()=>{
   }} as any;
   const app=await buildApp(config,async()=>true,pool);
   const headers={authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)};
-  const submitted=await app.inject({method:"POST",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/exercises/duplicate/attempts",headers,payload:{response:"a"}});
+  const submitted=await app.inject({method:"POST",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/exercises/duplicate/attempts",headers,payload:{lesson_version_id:"version-1",response:"a"}});
   expect(submitted.statusCode).toBe(503);
   expect(submitted.json().error.code).toBe("EXERCISE_CONTENT_AMBIGUOUS");
   const history=await app.inject({method:"GET",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/exercises/duplicate/attempts",headers});
@@ -293,6 +293,25 @@ describe("API foundation",()=>{
   expect(history.json().error.code).toBe("EXERCISE_CONTENT_AMBIGUOUS");
   expect(inserts).toBe(0);
   expect(historyReads).toBe(0);
+  await app.close();
+ });
+
+ it("rejects exercise attempts submitted against a stale lesson version",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let inserts=0;
+  const content={schema_version:1,blocks:[{type:"exercise",id:"exercise-1",instruction:"Choose",prompt:"Pick one",response_type:"single_choice",options:[{id:"a",label:"A"},{id:"b",label:"B"}],correct_option_id:"a"}]};
+  const pool={query:async(sql:string)=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("FROM lessons l JOIN modules m")&&sql.includes("JOIN courses c"))return {rows:[{course_id:"course-1",learning_direction:"ml_to_en",version_id:"version-current",content}]};
+   if(sql.includes("INSERT INTO learner_exercise_attempts")){inserts+=1;return {rows:[]};}
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"POST",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/exercises/exercise-1/attempts",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{lesson_version_id:"version-old",response:"a"}});
+  expect(response.statusCode).toBe(409);
+  expect(response.json().error.code).toBe("LESSON_VERSION_CHANGED");
+  expect(inserts).toBe(0);
   await app.close();
  });
 
