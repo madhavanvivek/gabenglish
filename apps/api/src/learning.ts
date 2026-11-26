@@ -426,6 +426,43 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   })),policy:{only_current_published_versions:true,recall_ratings_are_self_reported:true}};
  });
 
+ app.get("/api/v1/learning/vocabulary/insights",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view vocabulary insights.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to view vocabulary insights.");
+  const preference=await pool.query<{learning_direction:Direction}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preference.rows[0]?.learning_direction??"ml_to_en";
+  const result=await pool.query<{
+   reviews_7d:number;words_reviewed_7d:number;difficult_words_7d:number;review_days_7d:number;average_rating_7d:number;
+   reviews_previous_7d:number;average_rating_previous_7d:number;
+  }>(
+   `WITH eligible_history AS (
+     SELECT h.lesson_id,h.lesson_version_id,h.vocabulary_item_id,h.rating,h.reviewed_at
+     FROM learner_vocabulary_review_history h
+     JOIN lessons l ON l.id=h.lesson_id AND l.current_published_version_id=h.lesson_version_id
+     JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
+     JOIN lesson_versions lv ON lv.id=h.lesson_version_id AND lv.lesson_id=l.id
+     WHERE h.user_id=$1 AND h.learning_direction=$2
+       AND h.reviewed_at>=now()-interval '14 days'
+       AND l.status='published' AND c.status='published' AND lv.status='published'
+       AND c.learning_direction=$2 AND ($2<>'en_to_ml' OR lv.educator_review_status='approved')
+   )
+   SELECT
+    COUNT(*) FILTER(WHERE reviewed_at>=now()-interval '7 days')::int AS reviews_7d,
+    COUNT(DISTINCT (lesson_id,lesson_version_id,vocabulary_item_id)) FILTER(WHERE reviewed_at>=now()-interval '7 days')::int AS words_reviewed_7d,
+    COUNT(DISTINCT (lesson_id,lesson_version_id,vocabulary_item_id)) FILTER(WHERE reviewed_at>=now()-interval '7 days' AND rating<=2)::int AS difficult_words_7d,
+    COUNT(DISTINCT DATE(reviewed_at)) FILTER(WHERE reviewed_at>=now()-interval '7 days')::int AS review_days_7d,
+    COALESCE(ROUND(AVG(rating) FILTER(WHERE reviewed_at>=now()-interval '7 days'),1),0)::float AS average_rating_7d,
+    COUNT(*) FILTER(WHERE reviewed_at<now()-interval '7 days')::int AS reviews_previous_7d,
+    COALESCE(ROUND(AVG(rating) FILTER(WHERE reviewed_at<now()-interval '7 days'),1),0)::float AS average_rating_previous_7d
+   FROM eligible_history`,
+   [learner.id,direction]
+  );
+  const row=result.rows[0]??{reviews_7d:0,words_reviewed_7d:0,difficult_words_7d:0,review_days_7d:0,average_rating_7d:0,reviews_previous_7d:0,average_rating_previous_7d:0};
+  return {learning_direction:direction,period_days:7,insights:row,
+   policy:{self_reported_recall_only:true,only_current_published_versions:true,not_a_proficiency_measure:true}};
+ });
+
  app.get("/api/v1/learning/vocabulary/summary",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view vocabulary progress.");
