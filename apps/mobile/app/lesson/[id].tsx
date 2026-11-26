@@ -37,10 +37,10 @@ export default function LessonScreen(){
  const setAnswer=(exerciseId:string,value:string)=>setAnswersState(current=>({...current,[exerciseId]:value}));
  const exerciseBlocks=data?.lesson.content.blocks.filter(block=>block.type==="exercise")??[];
  const currentVersionAttempts=(exerciseId:string)=>exerciseHistory[exerciseId]?.filter(attempt=>attempt.lesson_version_id===data?.lesson.version_id)??[];
- const attemptedExercises=exerciseBlocks.filter(block=>attemptsForExercise(block.id).length>0||!!exerciseResults[block.id]);
- const latestCorrectCount=attemptedExercises.filter(block=>attemptsForExercise(block.id)[0]?.correct??exerciseResults[block.id]?.correct??false).length;
+ const attemptedExercises=exerciseBlocks.filter(block=>currentVersionAttempts(block.id).length>0||!!exerciseResults[block.id]);
+ const latestCorrectCount=attemptedExercises.filter(block=>currentVersionAttempts(block.id)[0]?.correct??exerciseResults[block.id]?.correct??false).length;
  const needsReviewExercises=exerciseBlocks.filter(block=>{
-  const latest=attemptsForExercise(block.id)[0];
+  const latest=currentVersionAttempts(block.id)[0];
   return latest?!latest.correct:exerciseResults[block.id]?.correct===false;
  });
  async function submitExercise(exerciseId:string){if(!id||busyExercise)return;setBusyExercise(exerciseId);setError("");try{const result=await submitLearningExerciseAttempt(id,exerciseId,answers[exerciseId]??"");setExerciseResults(current=>({...current,[exerciseId]:result.result}));try{const history=await getLearningExerciseAttemptHistory(id,exerciseId);setExerciseHistory(current=>({...current,[exerciseId]:history.attempts}));}catch{/* Keep the just-returned result visible if history is temporarily unavailable. */}}catch(e){setError(e instanceof Error?e.message:"Could not check this answer.");}finally{setBusyExercise(null);}}
