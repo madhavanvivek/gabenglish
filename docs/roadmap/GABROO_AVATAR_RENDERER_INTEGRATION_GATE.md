@@ -187,3 +187,8 @@ The Gabroo transcription recorder now captures a monotonically increasing lifecy
 ## Unexpected native microphone stop handling
 
 While transcription capture is active, the Expo AV recording-status callback now checks that the callback still belongs to the active recorder and the same app/screen lifecycle generation. If the native recorder unexpectedly reports that it is no longer recording (without reporting a completed recording), the client removes the listener, stops/unloads the recorder, deletes the partial local file and tells the learner to retry. Normal user-initiated stop removes the listener before calling the native stop method, so it is not treated as an interruption. Maximum-duration auto-stop remains unchanged.
+
+
+## Server-side transcription quota
+
+The authenticated recognition route now consumes an atomic per-learner rolling quota stored in PostgreSQL: 20 requests per hour across all API instances. Requests over the allowance return HTTP 429 and `Retry-After`; quota-store failures fail closed with HTTP 503. The quota table stores counters only and no audio or transcript data. The 20/hour ceiling is an initial abuse/cost control and must be reviewed against real provider economics before production launch.
