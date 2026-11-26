@@ -131,13 +131,34 @@ export default function GabrooScreen(){
   catch(reason){setMode(active.mode);setError(reason instanceof Error?reason.message:"Could not update the conversation mode.");}
   finally{setBusy(false);}
  };
+ const refreshConversationAfterConflict=async(conversationId:string,run:number)=>{
+  try{
+   const result=await getGabrooConversation(conversationId);
+   if(run!==sendRunRef.current)return false;
+   setActive(result.conversation);
+   setMode(result.conversation.mode);
+   setMessages(result.messages);
+   try{
+    const latest=await listGabrooConversations();
+    if(run===sendRunRef.current)setConversations(latest.conversations);
+   }catch{/* The open conversation is refreshed even if the list refresh is unavailable. */}
+   return true;
+  }catch{
+   return false;
+  }
+ };
  const send=async()=>{
   const text=draft.trim();if(!text||!active||busy)return;
   const conversationId=active.id;
   const run=++sendRunRef.current;
   setBusy(true);setError("");
   try{const result=await sendGabrooMessage(conversationId,text);if(run!==sendRunRef.current)return;setMessages(current=>[...current,...result.messages]);setDraft("");}
-  catch(reason){if(run===sendRunRef.current)setError(reason instanceof AuthApiError&&reason.status===503?"Gabroo could not reply just now. Your message was not saved. Please try again.":reason instanceof Error?reason.message:"Could not send your message.");}
+  catch(reason){
+   if(run===sendRunRef.current&&reason instanceof AuthApiError&&reason.status===409){
+    const refreshed=await refreshConversationAfterConflict(conversationId,run);
+    if(run===sendRunRef.current)setError(refreshed?"This conversation changed while Gabroo was replying. The latest messages are loaded; your draft is still here. Review it and send again when ready.":"This conversation changed while Gabroo was replying. Your draft is still here, but the latest messages could not be loaded. Reopen the conversation before retrying.");
+   }else if(run===sendRunRef.current)setError(reason instanceof AuthApiError&&reason.status===503?"Gabroo could not reply just now. Your message was not saved. Please try again.":reason instanceof Error?reason.message:"Could not send your message.");
+  }
   finally{if(run===sendRunRef.current)setBusy(false);}
  };
  const stopSpeech=async()=>{
@@ -307,7 +328,12 @@ export default function GabrooScreen(){
    if(run!==sendRunRef.current)return;
    setMessages(current=>[...current,...result.messages]);
    setTranscript(null);setReviewedTranscript("");setTranscriptionConsent(false);
-  }catch(reason){if(run===sendRunRef.current)setError(reason instanceof Error?reason.message:"Could not send the reviewed transcript.");}
+  }catch(reason){
+   if(run===sendRunRef.current&&reason instanceof AuthApiError&&reason.status===409){
+    const refreshed=await refreshConversationAfterConflict(conversationId,run);
+    if(run===sendRunRef.current)setError(refreshed?"This conversation changed while Gabroo was replying. The latest messages are loaded; your reviewed transcript is still here. Review it and send again when ready.":"This conversation changed while Gabroo was replying. Your reviewed transcript is still here, but the latest messages could not be loaded. Reopen the conversation before retrying.");
+   }else if(run===sendRunRef.current)setError(reason instanceof Error?reason.message:"Could not send the reviewed transcript.");
+  }
   finally{if(run===sendRunRef.current)setBusy(false);}
  };
  const requestVoicePermission=async()=>{
