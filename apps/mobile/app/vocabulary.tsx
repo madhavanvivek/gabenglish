@@ -2,7 +2,7 @@ import {useCallback,useState} from "react";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {AuthApiError,archiveLearnerVocabulary,getDueLearnerVocabulary,listLearnerVocabulary,reviewLearnerVocabulary,type LearnerVocabularyItem} from "../src/auth-api";
+import {AuthApiError,archiveLearnerVocabulary,getDueLearnerVocabulary,getLearnerVocabularyStats,listLearnerVocabulary,reviewLearnerVocabulary,type LearnerVocabularyItem,type LearnerVocabularyStats} from "../src/auth-api";
 import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
 import {colors,radius,space} from "../src/theme";
 
@@ -11,6 +11,7 @@ type VocabularyView="due"|"saved";
 export default function VocabularyScreen(){
  const [items,setItems]=useState<LearnerVocabularyItem[]>([]);
  const [savedItems,setSavedItems]=useState<LearnerVocabularyItem[]>([]);
+ const [stats,setStats]=useState<LearnerVocabularyStats|null>(null);
  const [view,setView]=useState<VocabularyView>("due");
  const [loading,setLoading]=useState(true);
  const [busy,setBusy]=useState<string|null>(null);
@@ -19,9 +20,10 @@ export default function VocabularyScreen(){
  const load=useCallback(async()=>{
   setLoading(true);setError("");
   try{
-   const [due,collection]=await Promise.all([getDueLearnerVocabulary(50),listLearnerVocabulary()]);
+   const [due,collection,analytics]=await Promise.all([getDueLearnerVocabulary(50),listLearnerVocabulary(),getLearnerVocabularyStats()]);
    setItems(due.items);
    setSavedItems(collection.items.filter(item=>item.status==="active"));
+   setStats(analytics.stats);
   }catch(reason){
    if(!(reason instanceof AuthApiError&&[401,403].includes(reason.status??0)))setError(reason instanceof Error?reason.message:"Could not load your vocabulary.");
   }finally{setLoading(false);}
@@ -44,12 +46,19 @@ export default function VocabularyScreen(){
    setSavedItems(current=>current.filter(value=>value.id!==item.id));
    setItems(current=>current.filter(value=>value.id!==item.id));
    setNotice(`“${item.source_term}” was removed from your active vocabulary.`);
+   void getLearnerVocabularyStats().then(value=>setStats(value.stats)).catch(()=>undefined);
   }catch(reason){setError(reason instanceof Error?reason.message:"Could not archive this word.");}
   finally{setBusy(null);}
  }
  const visible=view==="due"?items:savedItems;
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
   <View style={s.header}><Link href="/progress" style={s.back}>‹ Your progress</Link><BrandMark size={42}/><Text style={s.title}>My vocabulary</Text><Text style={s.subtitle}>Keep useful words close and make them part of everyday speech.</Text></View>
+  {stats?<SurfaceCard soft><Eyebrow>YOUR LAST 7 DAYS</Eyebrow><View style={s.statsGrid}>
+   <View style={s.stat}><Text style={s.statValue}>{stats.active_items}</Text><Text style={s.statLabel}>Active words</Text></View>
+   <View style={s.stat}><Text style={s.statValue}>{stats.due_items}</Text><Text style={s.statLabel}>Due now</Text></View>
+   <View style={s.stat}><Text style={s.statValue}>{stats.reviewed_last_7_days}</Text><Text style={s.statLabel}>Reviews</Text></View>
+   <View style={s.stat}><Text style={s.statValue}>{stats.practice_days_last_7_days}/7</Text><Text style={s.statLabel}>Days practiced</Text></View>
+  </View><Text style={s.body}>{stats.reviewed_last_7_days?Math.round(stats.positive_ratings_last_7_days/stats.reviewed_last_7_days*100)+"% positive review ratings · "+stats.again_ratings_last_7_days+" marked Again":"Your review activity will appear here after your first vocabulary review."}</Text></SurfaceCard>:null}
   <View style={s.tabs}>
    <Pressable accessibilityRole="tab" accessibilityState={{selected:view==="due"}} onPress={()=>setView("due")} style={[s.tab,view==="due"&&s.tabActive]}><Text style={[s.tabText,view==="due"&&s.tabTextActive]}>Due now · {items.length}</Text></Pressable>
    <Pressable accessibilityRole="tab" accessibilityState={{selected:view==="saved"}} onPress={()=>setView("saved")} style={[s.tab,view==="saved"&&s.tabActive]}><Text style={[s.tabText,view==="saved"&&s.tabTextActive]}>Saved · {savedItems.length}</Text></Pressable>
@@ -64,5 +73,5 @@ export default function VocabularyScreen(){
  </ScrollView></SafeAreaView>;
 }
 const s=StyleSheet.create({
- safe:{flex:1,backgroundColor:colors.background},page:{flexGrow:1,padding:space.xl,paddingBottom:36,gap:space.lg},header:{alignItems:"center",gap:7},back:{alignSelf:"flex-start",color:colors.primary,fontSize:13,fontWeight:"900",marginBottom:6},title:{fontSize:25,fontWeight:"900",color:colors.text},subtitle:{fontSize:12,color:colors.textMuted,textAlign:"center"},tabs:{flexDirection:"row",gap:8},tab:{flex:1,alignItems:"center",paddingVertical:12,borderRadius:radius.md,backgroundColor:colors.surfaceSoft},tabActive:{backgroundColor:colors.primary},tabText:{fontSize:12,fontWeight:"800",color:colors.textMuted},tabTextActive:{color:"#FFFFFF"},summary:{fontSize:22,fontWeight:"900",color:colors.primaryStrong,marginTop:7},body:{fontSize:12,lineHeight:19,color:colors.textMuted,marginTop:7},loading:{padding:32,alignItems:"center",gap:10},term:{fontSize:21,fontWeight:"900",color:colors.primaryStrong},meaning:{fontSize:16,fontWeight:"800",color:colors.text,marginTop:5},example:{fontSize:12,lineHeight:18,color:colors.textMuted,marginTop:9},meta:{fontSize:10,color:colors.textMuted,marginTop:10},ratings:{flexDirection:"row",gap:6,marginTop:14},rating:{flex:1,alignItems:"center",paddingVertical:10,borderRadius:radius.md,backgroundColor:colors.surfaceSoft},ratingBusy:{opacity:0.5},ratingText:{fontSize:11,fontWeight:"900",color:colors.primaryStrong},archive:{alignSelf:"flex-start",paddingVertical:9,paddingHorizontal:13,borderRadius:radius.md,backgroundColor:colors.surfaceSoft,marginTop:12},archiveText:{fontSize:11,fontWeight:"900",color:colors.danger},emptyTitle:{fontSize:18,fontWeight:"900",color:colors.primaryStrong},action:{fontSize:12,fontWeight:"900",color:colors.primary,marginTop:12},notice:{fontSize:12,color:colors.secondary,fontWeight:"800"},error:{padding:13,borderRadius:radius.md,backgroundColor:"#FCE8E6"},errorText:{fontSize:12,color:colors.danger}
+ safe:{flex:1,backgroundColor:colors.background},page:{flexGrow:1,padding:space.xl,paddingBottom:36,gap:space.lg},header:{alignItems:"center",gap:7},back:{alignSelf:"flex-start",color:colors.primary,fontSize:13,fontWeight:"900",marginBottom:6},title:{fontSize:25,fontWeight:"900",color:colors.text},subtitle:{fontSize:12,color:colors.textMuted,textAlign:"center"},statsGrid:{flexDirection:"row",flexWrap:"wrap",gap:8,marginTop:10},stat:{width:"47%",padding:10,borderRadius:radius.md,backgroundColor:colors.surface},statValue:{fontSize:20,fontWeight:"900",color:colors.primaryStrong},statLabel:{fontSize:10,fontWeight:"800",color:colors.textMuted,marginTop:3},tabs:{flexDirection:"row",gap:8},tab:{flex:1,alignItems:"center",paddingVertical:12,borderRadius:radius.md,backgroundColor:colors.surfaceSoft},tabActive:{backgroundColor:colors.primary},tabText:{fontSize:12,fontWeight:"800",color:colors.textMuted},tabTextActive:{color:"#FFFFFF"},summary:{fontSize:22,fontWeight:"900",color:colors.primaryStrong,marginTop:7},body:{fontSize:12,lineHeight:19,color:colors.textMuted,marginTop:7},loading:{padding:32,alignItems:"center",gap:10},term:{fontSize:21,fontWeight:"900",color:colors.primaryStrong},meaning:{fontSize:16,fontWeight:"800",color:colors.text,marginTop:5},example:{fontSize:12,lineHeight:18,color:colors.textMuted,marginTop:9},meta:{fontSize:10,color:colors.textMuted,marginTop:10},ratings:{flexDirection:"row",gap:6,marginTop:14},rating:{flex:1,alignItems:"center",paddingVertical:10,borderRadius:radius.md,backgroundColor:colors.surfaceSoft},ratingBusy:{opacity:0.5},ratingText:{fontSize:11,fontWeight:"900",color:colors.primaryStrong},archive:{alignSelf:"flex-start",paddingVertical:9,paddingHorizontal:13,borderRadius:radius.md,backgroundColor:colors.surfaceSoft,marginTop:12},archiveText:{fontSize:11,fontWeight:"900",color:colors.danger},emptyTitle:{fontSize:18,fontWeight:"900",color:colors.primaryStrong},action:{fontSize:12,fontWeight:"900",color:colors.primary,marginTop:12},notice:{fontSize:12,color:colors.secondary,fontWeight:"800"},error:{padding:13,borderRadius:radius.md,backgroundColor:"#FCE8E6"},errorText:{fontSize:12,color:colors.danger}
 });
