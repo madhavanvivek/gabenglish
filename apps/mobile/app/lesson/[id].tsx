@@ -37,7 +37,8 @@ export default function LessonScreen(){
  const lessonRequestEpoch=useRef(0);
  const setAnswer=(exerciseId:string,value:string)=>setAnswersState(current=>({...current,[exerciseId]:value}));
  const exerciseBlocks=data?.lesson.content.blocks.filter(block=>block.type==="exercise")??[];
- const currentVersionAttempts=(exerciseId:string)=>exerciseHistory[exerciseId]?.filter(attempt=>attempt.lesson_version_id===data?.lesson.version_id)??[];
+ const currentVersionHistory=Object.fromEntries(Object.entries(exerciseHistory).map(([exerciseId,attempts])=>[exerciseId,attempts.filter(attempt=>attempt.lesson_version_id===data?.lesson.version_id)]));
+ const currentVersionAttempts=(exerciseId:string)=>currentVersionHistory[exerciseId]??[];
  const attemptedExercises=exerciseBlocks.filter(block=>currentVersionAttempts(block.id).length>0||!!exerciseResults[block.id]);
  const latestCorrectCount=attemptedExercises.filter(block=>currentVersionAttempts(block.id)[0]?.correct??exerciseResults[block.id]?.correct??false).length;
  const needsReviewExercises=exerciseBlocks.filter(block=>{
@@ -78,7 +79,7 @@ export default function LessonScreen(){
     {busy?<Text style={s.detail}>Saving progress…</Text>:null}{message?<Text style={s.success}>{message}</Text>:null}{error?<Text style={s.error}>{error}</Text>:null}
     <PrimaryButton label={busy?"Saving…":"Save progress"} onPress={()=>void save(progress)} disabled={busy}/>
    </SurfaceCard>
-   <SurfaceCard><Eyebrow>LEARN</Eyebrow><LessonBlocks content={data.lesson.content} answers={answers} setAnswers={setAnswer} results={exerciseResults} history={exerciseHistory} attemptsForExercise={currentVersionAttempts} onSubmit={submitExercise} busyExercise={busyExercise}/></SurfaceCard>
+   <SurfaceCard><Eyebrow>LEARN</Eyebrow><LessonBlocks content={data.lesson.content} answers={answers} setAnswers={setAnswer} results={exerciseResults} history={currentVersionHistory} attemptsForExercise={currentVersionAttempts} onSubmit={submitExercise} busyExercise={busyExercise}/></SurfaceCard>
   </>:!error?<Text style={s.detail}>Loading lesson…</Text>:null}
  </ScrollView></SafeAreaView>;
 }
