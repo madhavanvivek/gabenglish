@@ -48,13 +48,18 @@ export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;sup
       4:"Stage 4 English Immersion: use natural English and offer concise Malayalam clarification when requested.",
       5:"Stage 5 Expert Communication: focus on nuance, register, precision and professional communication; allow Malayalam clarification when requested."
     } as const)[input.stage]);
+ const vocabulary=input.vocabularyReviewContext??{activeItems:0,dueItems:0,reviewedLast7Days:0,againLast7Days:0,dueWords:[]};
+ const reviewedLast7Days=Math.max(0,Math.floor(vocabulary.reviewedLast7Days));
+ const againLast7Days=Math.min(reviewedLast7Days,Math.max(0,Math.floor(vocabulary.againLast7Days)));
+ const dueItems=Math.max(0,Math.floor(vocabulary.dueItems));
+ const reviewDifficulty=reviewedLast7Days>=3&&againLast7Days/reviewedLast7Days>=0.4;
  return {
   mode:input.mode,
   supportLanguage:input.supportLanguage,
   learningDirection,
   targetLanguage,
   ...selected,
-  responseGuidance:[...selected.responseGuidance,learningDirection==="ml_to_en"?"The learner is learning English; Malayalam is the support language unless their preference says otherwise. Keep English as the learning target and give useful English examples.":"The learner is learning Malayalam; English is the support language unless their preference says otherwise. Keep Malayalam as the learning target, show Malayalam script, optionally add readable romanisation, and explain register and politeness in English. Never assume casual slang is appropriate.",...(input.vocabularyReviewContext?.dueItems?["Use the learner’s due saved vocabulary when it naturally fits the conversation. Invite them to recall or use one or two words in a sentence; do not turn every conversation into a quiz. If a word is difficult, explain it kindly and encourage another attempt later."]:[])],
+  responseGuidance:[...selected.responseGuidance,learningDirection==="ml_to_en"?"The learner is learning English; Malayalam is the support language unless their preference says otherwise. Keep English as the learning target and give useful English examples.":"The learner is learning Malayalam; English is the support language unless their preference says otherwise. Keep Malayalam as the learning target, show Malayalam script, optionally add readable romanisation, and explain register and politeness in English. Never assume casual slang is appropriate.",...(dueItems>0?["Use the learner’s due saved vocabulary when it naturally fits the conversation. Invite them to recall or use one or two words in a sentence; do not turn every conversation into a quiz. If a word is difficult, explain it kindly and encourage another attempt later."]:[]),...(reviewDifficulty?["Recent vocabulary reviews show that several words have been difficult. Reduce the number of new words, revisit one familiar example at a time, give a clear supportive hint before asking for recall, and avoid implying failure. Do not mention review statistics unless the learner asks."]:[])],
   addressPolicy:"Use the learner's explicitly chosen name if available, otherwise use respectful neutral language. Never use 'eda', 'edi' or similar overfamiliar address by default. Do not infer that a learner welcomes slang from age, gender or writing style.",
   stageGuidance,
   learnerContext:{
