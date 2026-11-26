@@ -2,7 +2,7 @@ import {useCallback,useState} from "react";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {getVocabularyReviewQueue,submitVocabularyRecallRating,type VocabularyReviewItem} from "../src/auth-api";
+import {getVocabularyReviewQueue,getVocabularyRetentionSummary,submitVocabularyRecallRating,type VocabularyReviewItem,type VocabularyRetentionSummary} from "../src/auth-api";
 import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
 import {colors,radius,space} from "../src/theme";
 
@@ -17,6 +17,8 @@ const ratings=[
 
 export default function VocabularyReviewScreen(){
  const [items,setItems]=useState<VocabularyReviewItem[]>([]);
+ const [retention,setRetention]=useState<VocabularyRetentionSummary|null>(null);
+ const [scheduleNotice,setScheduleNotice]=useState("");
  const [index,setIndex]=useState(0);
  const [revealed,setRevealed]=useState(false);
  const [loading,setLoading]=useState(true);
@@ -25,10 +27,11 @@ export default function VocabularyReviewScreen(){
  const [notice,setNotice]=useState("");
  const [completed,setCompleted]=useState(0);
  const load=useCallback(async()=>{
-  setLoading(true);setError("");setNotice("");
-  try{const queue=await getVocabularyReviewQueue(30);setItems(queue.items);setIndex(0);setRevealed(false);}
-  catch(reason){setError(reason instanceof Error?reason.message:"Your vocabulary reviews could not be loaded.");}
-  finally{setLoading(false);}
+  setLoading(true);setError("");setNotice("");setScheduleNotice("");
+  const queueTask=getVocabularyReviewQueue(30).then(queue=>{setItems(queue.items);setIndex(0);setRevealed(false);}).catch(reason=>{setError(reason instanceof Error?reason.message:"Your vocabulary reviews could not be loaded.");});
+  const summaryTask=getVocabularyRetentionSummary().then(setRetention).catch(()=>setRetention(null));
+  await Promise.all([queueTask,summaryTask]);
+  setLoading(false);
  },[]);
  useFocusEffect(useCallback(()=>{void load();},[load]));
  const current=items[index];
@@ -36,7 +39,9 @@ export default function VocabularyReviewScreen(){
   if(!current||saving)return;
   setSaving(true);setError("");
   try{
-   await submitVocabularyRecallRating(current.lesson_id,current.vocabulary_item_id,value);
+   const result=await submitVocabularyRecallRating(current.lesson_id,current.vocabulary_item_id,value);
+   const dueDate=new Date(result.schedule.due_at);
+   setScheduleNotice(Number.isFinite(dueDate.getTime())?`Next review planned for ${dueDate.toLocaleDateString(undefined,{month:"short",day:"numeric"})}.`:"Your next review has been scheduled.");
    setCompleted(count=>count+1);
    if(index+1<items.length){setIndex(index+1);setRevealed(false);}
    else{setItems([]);setNotice("Lovely work. You've finished every word currently due for review.");}
@@ -46,6 +51,8 @@ export default function VocabularyReviewScreen(){
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
   <View style={s.header}><Link href="/home" style={s.back}>‹ Home</Link><BrandMark size={42}/><Text style={s.brand}>Word garden</Text><Text style={s.subtitle}>Small reviews. Stronger memories.</Text></View>
   <View style={s.intro}><Eyebrow>YOUR VOCABULARY RETENTION</Eyebrow><Text style={s.introTitle}>Bring the words back to life.</Text><Text style={s.introBody}>Try to remember each word before revealing its meaning. Be honest about how well you recalled it — Gabroo will use your rating to plan the next review.</Text></View>
+  {retention?<SurfaceCard><Eyebrow>YOUR WORD GARDEN</Eyebrow><View style={s.statsGrid}><View style={s.stat}><Text style={s.statValue}>{retention.summary.total_words}</Text><Text style={s.statLabel}>WORDS LEARNED</Text></View><View style={s.stat}><Text style={s.statValue}>{retention.summary.reviewed_words}</Text><Text style={s.statLabel}>REVIEWED</Text></View><View style={s.stat}><Text style={s.statValue}>{retention.summary.due_words}</Text><Text style={s.statLabel}>DUE NOW</Text></View><View style={s.stat}><Text style={s.statValue}>{retention.summary.mastered_words}</Text><Text style={s.statLabel}>STEADY REVIEWS</Text></View><View style={s.stat}><Text style={s.statValue}>{retention.summary.developing_words}</Text><Text style={s.statLabel}>IN PROGRESS</Text></View></View><Text style={s.statFootnote}>Steady reviews are a memory-schedule signal, not a fluency score. {retention.summary.last_reviewed_at?`Last reviewed ${new Date(retention.summary.last_reviewed_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}.`:"No vocabulary reviews recorded yet."}</Text></SurfaceCard>:null}
+  {scheduleNotice?<Text accessibilityLiveRegion="polite" style={s.scheduleNotice}>{scheduleNotice}</Text>:null}
   {loading?<View style={s.loading}><ActivityIndicator size="large" color={colors.primary}/><Text style={s.muted}>Gathering words for you…</Text></View>:error?<SurfaceCard soft><Text style={s.error}>{error}</Text><Pressable accessibilityRole="button" onPress={()=>void load()} style={s.primaryButton}><Text style={s.primaryText}>Try again</Text></Pressable></SurfaceCard>:current?<>
    <View style={s.progressRow}><Text style={s.progressLabel}>WORD {index+1} OF {items.length}</Text><Text style={s.progressLabel}>{completed} REVIEWED THIS SESSION</Text></View>
    <View style={s.progressTrack}><View style={[s.progressFill,{width:`${((index+1)/items.length)*100}%`} ]}/></View>
@@ -79,7 +86,8 @@ const s=StyleSheet.create({
  brand:{fontSize:25,fontWeight:"800",color:colors.text},subtitle:{fontSize:14,color:colors.textMuted},
  intro:{backgroundColor:colors.surfaceWarm,borderRadius:radius.xl,padding:space.xl,gap:space.sm},
  introTitle:{fontSize:25,lineHeight:32,fontWeight:"800",color:colors.text},introBody:{fontSize:15,lineHeight:23,color:colors.textMuted},
- loading:{alignItems:"center",padding:space.xxl,gap:space.md},muted:{fontSize:14,color:colors.textMuted},
+ loading:{alignItems:"center",padding:space.xxl,gap:space.md},
+ statsGrid:{flexDirection:"row",flexWrap:"wrap",gap:space.md,marginTop:space.md},stat:{width:"46%",backgroundColor:colors.surfaceWarm,borderRadius:radius.md,padding:space.md,gap:4},statValue:{fontSize:24,fontWeight:"800",color:colors.text},statLabel:{fontSize:10,fontWeight:"800",letterSpacing:0.7,color:colors.textMuted},statFootnote:{fontSize:11,lineHeight:16,color:colors.textMuted,marginTop:space.md},scheduleNotice:{fontSize:13,fontWeight:"700",color:colors.primary,textAlign:"center"},muted:{fontSize:14,color:colors.textMuted},
  progressRow:{flexDirection:"row",justifyContent:"space-between",gap:space.sm},progressLabel:{fontSize:10,fontWeight:"800",letterSpacing:0.8,color:colors.textMuted},
  progressTrack:{height:7,backgroundColor:colors.border,borderRadius:99,overflow:"hidden"},progressFill:{height:7,backgroundColor:colors.primary,borderRadius:99},
  term:{fontSize:36,lineHeight:44,fontWeight:"800",color:colors.text,textAlign:"center",marginTop:space.lg},
