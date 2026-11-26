@@ -10,6 +10,7 @@ type Direction="ml_to_en"|"en_to_ml";
 type CatalogRow={
  course_id:string;course_code:string;course_title:string;course_description:string|null;course_sort:number;
  learning_direction:Direction;source_language:"ml"|"en";target_language:"ml"|"en";support_language:"ml"|"en";
+ course_progress_percent:string;course_completed_lessons:number;course_total_lessons:number;
  module_id:string|null;module_title:string|null;module_sort:number|null;
  lesson_id:string|null;lesson_slug:string|null;lesson_title:string|null;lesson_sort:number|null;
  lesson_version_id:string|null;lesson_version_number:number|null;
@@ -35,6 +36,9 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
    `SELECT c.id AS course_id,c.code AS course_code,c.title AS course_title,
      c.description AS course_description,c.sort_order AS course_sort,
      c.learning_direction,c.source_language,c.target_language,c.support_language,
+     cprog.progress_percent AS course_progress_percent,
+     cprog.completed_lessons AS course_completed_lessons,
+     cprog.total_lessons AS course_total_lessons,
      m.id AS module_id,m.title AS module_title,m.sort_order AS module_sort,
      l.id AS lesson_id,l.slug AS lesson_slug,l.title AS lesson_title,l.sort_order AS lesson_sort,
      lv.id AS lesson_version_id,lv.version_number AS lesson_version_number,
@@ -45,6 +49,19 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
     LEFT JOIN lesson_versions lv ON lv.id=l.current_published_version_id
       AND lv.lesson_id=l.id AND lv.status='published'
       AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')
+    LEFT JOIN LATERAL (
+      SELECT COALESCE(AVG(COALESCE(p.progress_percent,0)),0)::numeric(5,2)::text AS progress_percent,
+        COUNT(l2.id)::int AS total_lessons,
+        COUNT(*) FILTER(WHERE p.status='completed')::int AS completed_lessons
+      FROM lessons l2 JOIN modules m2 ON m2.id=l2.module_id
+      JOIN courses c2 ON c2.id=m2.course_id
+      JOIN lesson_versions lv2 ON lv2.id=l2.current_published_version_id AND lv2.lesson_id=l2.id
+      LEFT JOIN learner_lesson_progress p ON p.user_id=$2 AND p.lesson_id=l2.id
+        AND p.lesson_version_id=lv2.id AND p.learning_direction=c2.learning_direction
+      WHERE c2.id=c.id AND c2.learning_direction=c.learning_direction AND c2.status='published'
+        AND l2.status='published' AND lv2.status='published'
+        AND (c2.learning_direction<>'en_to_ml' OR lv2.educator_review_status='approved')
+    ) cprog ON TRUE
     WHERE c.status='published' AND c.learning_direction=$1
     ORDER BY c.sort_order,m.sort_order,l.sort_order`,
    [direction]
@@ -53,7 +70,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   for(const row of rows.rows){
    let course=courses.get(row.course_id);
    if(!course){
-    course={id:row.course_id,code:row.course_code,title:row.course_title,description:row.course_description,direction:row.learning_direction,source_language:row.source_language,target_language:row.target_language,support_language:row.support_language,modules:new Map()};
+    course={id:row.course_id,code:row.course_code,title:row.course_title,description:row.course_description,direction:row.learning_direction,source_language:row.source_language,target_language:row.target_language,support_language:row.support_language,progress:{progress_percent:Number(row.course_progress_percent),completed_lessons:row.course_completed_lessons,total_lessons:row.course_total_lessons},modules:new Map()};
     courses.set(row.course_id,course);
    }
    if(!row.module_id||!row.module_title)continue;
