@@ -8,13 +8,25 @@ export const authoredChoiceExerciseSchema=z.object({
  correct_option_id:z.string().regex(/^[a-z0-9_-]{1,32}$/i),
  correct_feedback:z.string().trim().max(1000).optional(),incorrect_feedback:z.string().trim().max(1000).optional()
 }).superRefine((value,ctx)=>{
- if(!value.options.some(option=>option.id===value.correct_option_id))ctx.addIssue({code:z.ZodIssueCode.custom,path:["correct_option_id"],message:"Correct option must be one of the exercise options."});
+ const optionIds=new Set<string>();
+ value.options.forEach((option,index)=>{
+  if(optionIds.has(option.id))ctx.addIssue({code:z.ZodIssueCode.custom,path:["options",index,"id"],message:"Exercise option IDs must be unique."});
+  optionIds.add(option.id);
+ });
+ if(!optionIds.has(value.correct_option_id))ctx.addIssue({code:z.ZodIssueCode.custom,path:["correct_option_id"],message:"Correct option must be one of the exercise options."});
 });
 export const authoredTextExerciseSchema=z.object({
  type:z.literal("exercise"),id:z.string().regex(/^[a-z0-9_-]{1,64}$/i),
  instruction:z.string().trim().min(1).max(500),prompt:z.string().trim().min(1).max(1000),
  response_type:z.literal("text"),accepted_answers:z.array(z.string().trim().min(1).max(500)).min(1).max(30),
  correct_feedback:z.string().trim().max(1000).optional(),incorrect_feedback:z.string().trim().max(1000).optional()
+}).superRefine((value,ctx)=>{
+ const answers=new Set<string>();
+ value.accepted_answers.forEach((answer,index)=>{
+  const normalized=answer.normalize("NFKC").trim().toLocaleLowerCase().replace(/\\s+/g," ");
+  if(answers.has(normalized))ctx.addIssue({code:z.ZodIssueCode.custom,path:["accepted_answers",index],message:"Accepted answers must be unique after normalisation."});
+  answers.add(normalized);
+ });
 });
 export const authoredExerciseSchema=z.union([authoredChoiceExerciseSchema,authoredTextExerciseSchema]);
 export type AuthoredExercise=z.infer<typeof authoredExerciseSchema>;
