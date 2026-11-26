@@ -2,7 +2,7 @@ import {useEffect,useState} from "react";
 import {Link,useLocalSearchParams} from "expo-router";
 import {Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {getLearningExerciseAttempts,getLearningLesson,saveLearnerVocabularyItem,saveLearningLessonProgress,submitLearningExerciseAttempt,type LearningExerciseAttempt,type LearningLessonDetail} from "../../src/auth-api";
+import {getLearningExerciseAttempts,getLearningLesson,saveLearnerVocabulary,saveLearningLessonProgress,submitLearningExerciseAttempt,type LearningExerciseAttempt,type LearningLessonDetail} from "../../src/auth-api";
 import {BrandMark,Eyebrow,PrimaryButton,SurfaceCard} from "../../src/ui";
 import type {LearnerLessonContent} from "@gabenglish/contracts";
 import {colors,radius,space} from "../../src/theme";
@@ -38,7 +38,7 @@ export default function LessonScreen(){
  const [savedVocabulary,setSavedVocabulary]=useState<Record<string,boolean>>({});
  const [savingVocabulary,setSavingVocabulary]=useState<string|null>(null);
  const setAnswer=(exerciseId:string,value:string)=>setAnswersState(current=>({...current,[exerciseId]:value}));
- async function saveVocabulary(term:string,meaning:string,example?:string){if(!id||savingVocabulary)return;setSavingVocabulary(term);setError("");try{await saveLearnerVocabularyItem({source_term:term,target_term:meaning,example,lesson_id:id});setSavedVocabulary(current=>({...current,[term]:true}));}catch(e){setError(e instanceof Error?e.message:"Could not save this word.");}finally{setSavingVocabulary(null);}}
+ async function saveVocabulary(term:string,meaning:string,example?:string){if(!id||savingVocabulary)return;setSavingVocabulary(term);setError("");try{await saveLearnerVocabulary({source_term:term,target_term:meaning,example,lesson_id:id});setSavedVocabulary(current=>({...current,[term]:true}));}catch(e){setError(e instanceof Error?e.message:"Could not save this word.");}finally{setSavingVocabulary(null);}}
  async function submitExercise(exerciseId:string){if(!id||busyExercise)return;setBusyExercise(exerciseId);setError("");try{const result=await submitLearningExerciseAttempt(id,exerciseId,answers[exerciseId]??"");setExerciseResults(current=>({...current,[exerciseId]:result.result}));try{const history=await getLearningExerciseAttempts(id,exerciseId);setExerciseHistory(current=>({...current,[exerciseId]:history.attempts}));}catch{/* The answer was saved; history refresh can retry next time the lesson opens. */}}catch(e){setError(e instanceof Error?e.message:"Could not check this answer.");}finally{setBusyExercise(null);}}
  useEffect(()=>{let active=true;if(id)void getLearningLesson(id).then(async value=>{if(!active)return;setData(value);setProgress(value.progress?.progress_percent??0);const exercises=value.lesson.content.blocks.filter((block):block is Extract<LearnerLessonContent["blocks"][number],{type:"exercise"}>=>block.type==="exercise");const histories=await Promise.all(exercises.map(async exercise=>{try{return [exercise.id,(await getLearningExerciseAttempts(id,exercise.id)).attempts] as const;}catch{return [exercise.id,[]] as const;}}));if(active)setExerciseHistory(Object.fromEntries(histories));}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;};},[id]);
  async function save(value:number){
