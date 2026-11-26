@@ -90,10 +90,10 @@ export async function loginLearner(input:{email:string;password:string}){
  const tokens=await saveTokens(payload);
  return {tokens,email_verified:Boolean(payload.email_verified)};
 }
-async function authorized(path:string,method:"GET"|"POST"|"PATCH"|"DELETE",body?:unknown):Promise<unknown>{
+async function authorized(path:string,method:"GET"|"POST"|"PATCH"|"DELETE",body?:unknown,signal?:AbortSignal):Promise<unknown>{
  let access=await SecureStore.getItemAsync(ACCESS_KEY);
  if(!access){await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);}
- const send=()=>fetch(baseUrl()+path,{method,headers:{"content-type":"application/json",accept:"application/json",authorization:"Bearer "+access},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ const send=()=>fetch(baseUrl()+path,{method,headers:{"content-type":"application/json",accept:"application/json",authorization:"Bearer "+access},...(body===undefined?{}:{body:JSON.stringify(body)}),...(signal?{signal}:{})});
  let response=await send();
  if(response.status===401){
   await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);response=await send();
@@ -192,8 +192,90 @@ export async function getGabrooConversation(id:string){return await authorized("
 export async function createGabrooConversation(input:{mode?:GabrooConversationMode;support_language?:"ml"|"en";title?:string}={}){
  return await authorized("/api/v1/gabroo/conversations","POST",input) as {conversation:GabrooConversation};
 }
-export async function sendGabrooMessage(id:string,message:string){
- return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id)+"/messages","POST",{message}) as {messages:GabrooConversationMessage[]};
+export type GabrooLearningInsights={
+ learning_direction:"ml_to_en"|"en_to_ml";
+ skill_areas:Array<{skill_key:string;attempt_count:number;correct_count:number;accuracy:number;evidence_status:"building_evidence"|"strong_exercise_performance"|"practice_opportunity"|"developing_exercise_performance"}>;
+ saved_practice_phrases:number;
+ interpretation:{exercise_results_are_not_speaking_or_overall_proficiency_scores:boolean;latest_attempt_per_exercise_and_skill:boolean;minimum_evidence_for_coaching:number};
+};
+export type DailyChallengeCompletion={challenge_date:string;learning_direction:"ml_to_en"|"en_to_ml";challenge_title:string;skill_key:string|null;conversation_id:string|null;completed_at:string};
+export type DailyChallengeHistory={
+ learning_direction:"ml_to_en"|"en_to_ml";limit:number;completed_days:number;total_completed_days:number;completions:DailyChallengeCompletion[];
+};
+export async function getDailyChallengeHistory(limit=14){
+ if(!Number.isInteger(limit)||limit<1||limit>30)throw new AuthApiError("Choose between 1 and 30 recent practice days.");
+ return await authorized("/api/v1/learning/daily-challenges?limit="+limit,"GET") as DailyChallengeHistory;
+}
+export async function getDailyChallengeCompletion(date:string){
+ return await authorized("/api/v1/learning/daily-challenges/"+encodeURIComponent(date),"GET") as {completion:DailyChallengeCompletion|null};
+}
+export async function completeDailyChallenge(date:string,input:{title:string;skill_key:string|null;conversation_id?:string}){
+ return await authorized("/api/v1/learning/daily-challenges/"+encodeURIComponent(date)+"/complete","POST",input) as {completion:DailyChallengeCompletion};
+}
+export async function getGabrooLearningInsights(){
+ return await authorized("/api/v1/gabroo/learning-insights","GET") as GabrooLearningInsights;
+}
+export type GabrooSentenceFeedbackItem={category:"grammar"|"word_choice"|"naturalness";original:string;suggested:string;explanation:string;alternative?:string};
+export type GabrooSentenceFeedback={feedback:GabrooSentenceFeedbackItem[];encouragement:string};
+export async function requestGabrooSentenceFeedback(text:string){
+ return await authorized("/api/v1/gabroo/feedback","POST",{text}) as {feedback:GabrooSentenceFeedback;disclaimer:string};
+}
+export async function sendGabrooMessage(id:string,message:string,signal?:AbortSignal){
+ return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id)+"/messages","POST",{message},signal) as {messages:GabrooConversationMessage[]};
+}
+
+export async function sendGabrooMessageStream(id:string,message:string,signal:AbortSignal,onDelta:(text:string)=>void){
+ const path="/api/v1/gabroo/conversations/"+encodeURIComponent(id)+"/messages";
+ let access=await SecureStore.getItemAsync(ACCESS_KEY);
+ if(!access){await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);}
+ const send=()=>fetch(baseUrl()+path,{method:"POST",headers:{"content-type":"application/json",accept:"text/event-stream",authorization:"Bearer "+access},body:JSON.stringify({message}),signal});
+ let response=await send();
+ if(response.status===401){
+  await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);response=await send();
+ }
+ if(!response.ok)await parseResponse(response);
+ let committed:{messages:GabrooConversationMessage[]}|undefined;
+ let frameBuffer="";
+ const dispatch=(frame:string)=>{
+  let event="message";const data:string[]=[];
+  for(const line of frame.split(/\r?\n/)){
+   if(line.startsWith("event:"))event=line.slice(6).trim();
+   else if(line.startsWith("data:"))data.push(line.slice(5).trimStart());
+  }
+  if(!data.length)return;
+  let payload:unknown;
+  try{payload=JSON.parse(data.join("\n")) as unknown;}catch{return;}
+  if(event==="delta"&&typeof payload==="object"&&payload!==null&&"content" in payload&&typeof payload.content==="string")onDelta(payload.content);
+  if(event==="committed"&&typeof payload==="object"&&payload!==null&&"messages" in payload&&Array.isArray(payload.messages))committed=payload as {messages:GabrooConversationMessage[]};
+  if(event==="error"){
+   const message=typeof payload==="object"&&payload!==null&&"error" in payload&&typeof payload.error==="object"&&payload.error!==null&&"message" in payload.error&&typeof payload.error.message==="string"?payload.error.message:"Gabroo could not complete this reply.";
+   throw new AuthApiError(message,502);
+  }
+ };
+ const processText=(chunk:string)=>{
+  frameBuffer+=chunk.replace(/\r\n/g,"\n");
+  let boundary=frameBuffer.indexOf("\n\n");
+  while(boundary>=0){
+   const frame=frameBuffer.slice(0,boundary);frameBuffer=frameBuffer.slice(boundary+2);dispatch(frame);
+   boundary=frameBuffer.indexOf("\n\n");
+  }
+ };
+ if(response.body&&typeof response.body.getReader==="function"){
+  const reader=response.body.getReader();const decoder=new TextDecoder();
+  try{
+   while(true){
+    if(signal.aborted)throw new DOMException("Aborted","AbortError");
+    const chunk=await reader.read();
+    if(chunk.done){processText(decoder.decode());break;}
+    processText(decoder.decode(chunk.value,{stream:true}));
+   }
+  }finally{await reader.cancel().catch(()=>undefined);reader.releaseLock();}
+ }else{
+  processText(await response.text());
+ }
+ if(frameBuffer.trim())dispatch(frameBuffer);
+ if(!committed)throw new AuthApiError("Gabroo's reply ended before it was safely saved. Please reload the conversation.",502);
+ return committed;
 }
 export async function deleteGabrooConversation(id:string){
  await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id),"DELETE");
@@ -239,4 +321,35 @@ export async function saveLearningLessonProgress(id:string,progress_percent:numb
 
 export async function submitLearningExerciseAttempt(lessonId:string,exerciseId:string,response:string){
  return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(lessonId)+"/exercises/"+encodeURIComponent(exerciseId)+"/attempts","POST",{response}) as {lesson_id:string;exercise_id:string;result:{correct:boolean;feedback:string}};
+}
+
+ 
+export type VocabularyReviewItem={
+ lesson_id:string;lesson_title:string;lesson_version_id:string;vocabulary_item_id:string;
+ term:string;meaning:string;pronunciation:string|null;example:string|null;due_at:string;
+ repetitions:number;interval_days:number;
+};
+export type VocabularyReviewQueue={
+ learning_direction:"ml_to_en"|"en_to_ml";due_count:number;items:VocabularyReviewItem[];
+ policy:{only_current_published_versions:boolean;learner_reports_recall:boolean;missed_reviews_never_block_lessons:boolean};
+};
+export async function getVocabularyReviewQueue(limit=20){
+ if(!Number.isInteger(limit)||limit<1||limit>50)throw new AuthApiError("Choose between 1 and 50 vocabulary words.");
+ return await authorized("/api/v1/learning/vocabulary/reviews?limit="+limit,"GET") as VocabularyReviewQueue;
+}
+export type VocabularyRetentionSummary={
+ learning_direction:"ml_to_en"|"en_to_ml";
+ summary:{total_words:number;reviewed_words:number;mastered_words:number;developing_words:number;due_words:number;last_reviewed_at:string|null};
+ policy:{mastery_is_a_review_schedule_signal_not_a_fluency_score:boolean;only_current_published_versions:boolean};
+};
+export async function getVocabularyRetentionSummary(){
+ return await authorized("/api/v1/learning/vocabulary/summary","GET") as VocabularyRetentionSummary;
+}
+export type VocabularyReviewResult={
+ lesson_id:string;vocabulary_item_id:string;learning_direction:"ml_to_en"|"en_to_ml";rating:number;
+ schedule:{due_at:string;repetitions:number;interval_days:number;ease_factor:number};
+};
+export async function submitVocabularyRecallRating(lessonId:string,itemId:string,rating:number){
+ if(!Number.isInteger(rating)||rating<0||rating>5)throw new AuthApiError("Recall rating must be between 0 and 5.");
+ return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(lessonId)+"/vocabulary/"+encodeURIComponent(itemId)+"/review","POST",{rating}) as VocabularyReviewResult;
 }

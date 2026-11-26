@@ -218,3 +218,67 @@ The API now provides a learner-owned private memory store with four intentionall
 Only learner-saved entries enter this store in the current implementation. The system does not automatically extract facts from transcripts, infer sensitive personal attributes, or promote conversation content into shared curriculum. The provider receives at most the 20 most recently updated saved entries as bounded structured context. This context is separate from the current conversation history and from the shared lesson library.
 
 The mobile account screen now exposes the learner's saved memory, category selection, create/edit/delete controls and an explanation of what is used. A confirmed clear-all control is also available. A separate disable-personalisation toggle and a more explicit memory settings policy remain follow-up work. Account deletion cascades the memory records. No raw transcript or hidden model reasoning is stored as memory.
+
+## 17. Evidence-based skill focus in conversation (25 November 2026)
+
+For each authenticated conversation turn, the API may load up to three learner skill areas with at least five distinct exercise records and recent accuracy at or below 50%. The calculation uses only the latest attempt per lesson/exercise, is scoped to the learner and conversation learning direction, and is ordered by the weakest observed exercise accuracy.
+
+These records are exercise-performance signals, not a diagnosis of speaking ability, pronunciation, fluency or general proficiency. Gabroo receives only the skill key, bounded accuracy and evidence count. The policy asks it to offer a small, relevant practice opportunity when the conversation naturally permits; it must not invent the learner's exact errors or label the learner. Skill evidence below the minimum threshold is omitted. This complements the existing vocabulary focus and does not replace the learner's selected conversation mode.
+
+## 18. Learner-owned Speaking Journal (25 November 2026)
+
+The mobile app now provides a Speaking Journal backed by the existing account-scoped Gabroo saved-memory API. Learners can save an original phrase, optionally add their own practice version and note, then edit or delete entries. The journal is linked directly from the Gabroo conversation screen.
+
+Journal entries are learner-authored and remain private to the authenticated account. The current implementation does not automatically extract phrases from conversation transcripts, generate corrections, or claim that a suggested rewrite is grammatically validated. This keeps the journal useful without presenting unverified model output as measured speaking progress. A future coach-generated correction workflow must use an explicitly structured, validated provider response and clear learner confirmation before it is saved.
+
+## 19. Structured sentence coach (25 November 2026)
+
+The authenticated `POST /api/v1/gabroo/feedback` endpoint accepts only a learner-supplied text field (2–1,500 characters) and requires an active subscription. It calls the configured Gabroo provider using the learner's saved learning direction, support language and current learning stage.
+
+The provider is instructed to return a strict JSON response with at most three feedback items. Each item must identify a bounded category (grammar, word choice or naturalness), the original phrase, a suggested alternative and a short explanation; an optional alternative may be included. The server validates the complete response with a strict schema, rejects malformed or oversized output and deduplicates repeated source phrases. It never derives pronunciation, accent, fluency or proficiency scores from text.
+
+The mobile Sentence Coach presents the original and suggested text separately. The learner must explicitly save an item before it enters the existing private Speaking Journal. The API does not persist learner text or provider feedback automatically. An empty feedback array is valid when no clear correction is needed. This is coaching assistance, not a formal assessment or guaranteed grammar verdict; learners should review alternatives in context.
+
+## 20. Personal learning insights endpoint and progress panel (25 November 2026)
+
+The authenticated, active-subscription-gated `GET /api/v1/gabroo/learning-insights` endpoint combines two bounded evidence sources: latest learner exercise attempts grouped by skill and the count of learner-saved `saved_phrase` journal entries. Exercise evidence is scoped to the learner and selected learning direction. Only the latest attempt for each lesson/exercise/skill contributes.
+
+Skill areas expose attempt count, correct count, accuracy and a descriptive evidence band. Fewer than five attempts are labelled as building evidence; at least five attempts can be described as strong exercise performance (80% or above), a practice opportunity (50% or below), or developing exercise performance. These labels describe tagged exercise outcomes only and must not be presented as a diagnosis of speaking, pronunciation, fluency or overall English proficiency.
+
+The mobile Progress screen displays these skill signals and the number of learner-saved practice phrases, with direct links to Sentence Coach and Speaking Journal. No learner text is sent to an AI provider by this endpoint, and no new learner profile or mistake record is inferred from free-form conversations.
+
+## 21. Live conversational adaptation and doubt-first turn handling (25 November 2026)
+
+The deterministic teaching policy now carries shared turn-by-turn guidance across all conversation modes and both learning directions:
+
+- Identify the learner's immediate intent before deciding whether to continue the conversation, explain, model, correct or ask a question.
+- If the learner asks a direct question or signals confusion, answer that doubt first rather than blindly continuing the previous activity.
+- When the doubt is resolved, reconnect briefly to the earlier topic or pending question if it remains useful. Do not make the learner repeat context already present in the conversation history.
+- Use comprehensible stretch: keep most of the reply accessible and introduce at most one manageable new phrase, richer structure or idea when it fits.
+- Prefer one natural next step or focused follow-up question. Understanding checks should feel conversational rather than becoming a repetitive quiz.
+
+These instructions supplement, rather than override, the learner-selected conversation mode, correction preference, target/support-language contract, stage guidance, address policy, private learner memory and evidence guardrails. They are prompt-policy guidance, not a claim that the current provider performs reliable intent classification or maintains a separate hidden conversation-state machine. Provider behaviour still needs evaluation against real Malayalam-English conversations before it can be considered production-quality.
+
+
+## 22. Conversation request cancellation and timeout safety (25 November 2026)
+
+The mobile Gabroo screen now aborts an in-flight send when the screen loses focus, and the authenticated mobile API client forwards that signal to fetch. The non-streaming conversation endpoint observes the HTTP response connection while waiting for the tutor provider. If the learner leaves the screen, loses the connection or otherwise closes the request before a response is completed, the API aborts the provider request and stops waiting for its result. A client that was already disconnected is not sent to inference. The provider adapter forwards the abort signal to its outbound fetch request.
+
+Provider timeouts remain bounded at 15 seconds and now return a distinct 504 timeout response. Both timeout and disconnect paths leave the turn uncommitted: learner and assistant messages are still inserted together only after a valid response and a final conversation/subscription concurrency check. Disconnects are not logged with learner content. This is cancellation support for the existing request/response flow, not yet token streaming or audio streaming.
+
+
+## 23. Progressive conversation streaming
+
+The authenticated conversation message endpoint supports progressive replies when the client sends `Accept: text/event-stream`. The existing JSON request/response contract remains available to clients that do not request streaming.
+
+The SSE event sequence is:
+- `start`: request accepted for streaming, with the request ID
+- `delta`: one incremental text fragment
+- `committed`: the canonical persisted user and assistant messages, emitted only after the provider completes and the final database transaction commits
+- `error`: bounded failure details when generation, validation, or final persistence cannot complete
+
+The API buffers the generated assistant text in memory, enforces the 12,000-character response bound, and does not persist a user-only or partial assistant turn. Before committing, it rechecks conversation ownership, open status, turn count (optimistic concurrency), and active subscription entitlement under a row lock. Provider errors, timeout, client disconnect, empty output, oversized output, and failed final transaction leave the turn uncommitted.
+
+The mobile client displays incoming deltas in a transient bubble. That draft is replaced by canonical server messages only after the `committed` event. The explicit Stop reply control aborts the request; screen blur also aborts it. If the stream ends without a commit event, the mobile client reports that the learner should reload the conversation rather than treating the transient text as saved.
+
+This transport is text streaming only. It does not claim token-level voice synthesis, audio streaming, or lip-sync. Those require a separate measured voice pipeline and should not be implied by progressive text rendering.

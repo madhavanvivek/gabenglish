@@ -32,6 +32,57 @@ describe("Gabroo teaching policy",()=>{
   expect(policy.learnerMemory).toEqual([{category:"saved_phrase",memoryKey:"Useful phrase",content:"Could you please clarify?"}]);
   expect(buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"}).learnerMemory).toEqual([]);
  });
+ it("adds bounded difficult and due vocabulary without turning chat into forced quizzes",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",vocabularyFocus:[
+   {term:"hesitate",meaning:"to pause before doing something",reason:"difficult"},
+   {term:"confident",meaning:"feeling sure of yourself",reason:"due"},
+   ...Array.from({length:6},(_,index)=>({term:"word"+index,meaning:"meaning"+index,reason:"due" as const}))
+  ]});
+  expect(policy.vocabularyFocus).toHaveLength(5);
+  expect(policy.vocabularyFocus[0]).toEqual({term:"hesitate",meaning:"to pause before doing something",reason:"difficult"});
+  expect(policy.responseGuidance.join(" ")).toContain("Do not turn every conversation into a quiz");
+  expect(policy.responseGuidance.join(" ")).toContain("learner is learning English");
+  expect(buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"}).vocabularyFocus).toEqual([]);
+ });
+ it("uses only sufficiently evidenced learner skill gaps and avoids proficiency claims",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"gentle_correction",supportLanguage:"ml",skillFocus:[
+   {skillKey:"grammar",accuracy:0.4,attemptCount:8},
+   {skillKey:"vocabulary",accuracy:0.5,attemptCount:5},
+   {skillKey:"pronunciation",accuracy:0.1,attemptCount:4},
+   {skillKey:"fluency",accuracy:0.3,attemptCount:9},
+   {skillKey:"writing",accuracy:0.2,attemptCount:12}
+  ]});
+  expect(policy.skillFocus).toHaveLength(3);
+  expect(policy.skillFocus.map(item=>item.skillKey)).toEqual(["grammar","vocabulary","fluency"]);
+  expect(policy.responseGuidance.join(" ")).toContain("do not invent specific errors");
+  expect(buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"}).skillFocus).toEqual([]);
+ });
+ it("resolves learner doubts before resuming an earlier conversation thread",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",stage:2});
+  const guidance=policy.responseGuidance.join(" ");
+  expect(guidance).toContain("resolve that doubt first");
+  expect(guidance).toContain("reconnect to the earlier topic");
+  expect(guidance).toContain("do not make the learner repeat context");
+ });
+ it("uses one manageable stretch element instead of forcing advanced language every turn",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"topic_practice",supportLanguage:"ml",stage:1});
+  const guidance=policy.responseGuidance.join(" ");
+  expect(guidance).toContain("at most one manageable new phrase");
+  expect(guidance).toContain("one natural next step");
+  expect(guidance).toContain("not with a repetitive quiz");
+ });
+ it("keeps adaptive conversational guidance across all modes and language directions",()=>{
+  const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
+  for(const mode of modes){
+   for(const direction of ["ml_to_en","en_to_ml"] as const){
+    const policy=buildGabrooTeachingPolicy({mode,supportLanguage:direction==="ml_to_en"?"ml":"en",learningDirection:direction});
+    const guidance=policy.responseGuidance.join(" ");
+    expect(guidance).toContain("Identify the immediate intent");
+    expect(guidance).toContain("resolve that doubt first");
+    expect(guidance).toContain("comprehensible stretch");
+   }
+  }
+ });
  it("defines distinct correction and learning goals for each mode",()=>{
   const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
   const policies=modes.map(mode=>buildGabrooTeachingPolicy({mode,supportLanguage:"en"}));

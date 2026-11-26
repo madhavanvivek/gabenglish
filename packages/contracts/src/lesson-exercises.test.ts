@@ -1,8 +1,9 @@
 import {describe,expect,it} from "vitest";
 import {authoredExerciseSchema,evaluateAuthoredExercise} from "./lesson-exercises.js";
 
+const choice={type:"exercise",id:"greeting",instruction:"Choose the greeting",prompt:"Morning",response_type:"single_choice",options:[{id:"morning",label:"Good morning"},{id:"night",label:"Good night"}],correct_option_id:"morning",correct_feedback:"Exactly right.",incorrect_feedback:"Try the time-of-day clue."};
+
 describe("authored exercise evaluation",()=>{
- const choice={type:"exercise",id:"greeting",instruction:"Choose the greeting",prompt:"Morning",response_type:"single_choice",options:[{id:"morning",label:"Good morning"},{id:"night",label:"Good night"}],correct_option_id:"morning",correct_feedback:"Exactly right.",incorrect_feedback:"Try the time-of-day clue."};
  it("validates choice answer keys against available options",()=>{
   expect(authoredExerciseSchema.safeParse(choice).success).toBe(true);
   expect(authoredExerciseSchema.safeParse({...choice,correct_option_id:"missing"}).success).toBe(false);
@@ -19,6 +20,16 @@ describe("authored exercise evaluation",()=>{
  });
  it("rejects missing or malformed answer rubrics",()=>{
   expect(evaluateAuthoredExercise({type:"exercise",id:"q",response_type:"text"},"answer")).toBeNull();
-  expect(evaluateAuthoredExercise(choice," ".repeat(3))).toBeNull();
+  expect(evaluateAuthoredExercise(choice,"   ")).toBeNull();
+ });
+ it("accepts valid optional curriculum stage tags and rejects out-of-range stages",()=>{
+  expect(authoredExerciseSchema.safeParse({...choice,stage:3}).success).toBe(true);
+  expect(authoredExerciseSchema.safeParse({...choice,stage:6}).success).toBe(false);
+  expect(authoredExerciseSchema.safeParse({...choice,stage:0}).success).toBe(false);
+ });
+ it("accepts only controlled skill taxonomy tags",()=>{
+  expect(authoredExerciseSchema.safeParse({...choice,skill_key:"vocabulary"}).success).toBe(true);
+  expect(authoredExerciseSchema.safeParse({...choice,skill_key:"grammar"}).success).toBe(true);
+  expect(authoredExerciseSchema.safeParse({...choice,skill_key:"confidence"}).success).toBe(false);
  });
 });

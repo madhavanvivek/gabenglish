@@ -26,6 +26,45 @@ function recognitionPool(hasEntitlement:boolean){
  }} as any;
 }
 
+function insightsPool(){
+ const queryOriginal=async(sql:string)=>{
+  if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+  if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1",plan_code:"monthly"}]};
+  if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
+  if(sql.includes("FROM learner_exercise_attempts"))return {rows:[
+   {skill_key:"grammar",attempt_count:6,correct_count:3,accuracy:"0.50"},
+   {skill_key:"vocabulary",attempt_count:4,correct_count:4,accuracy:"1.00"}
+  ]};
+  if(sql.includes("FROM gabroo_learner_memory"))return {rows:[{saved_phrase_count:2}]};
+  return {rows:[]};
+ };
+ const pool:any={query:queryOriginal,queryOriginal};return pool;
+}
+
+describe("Gabroo learning insights",()=>{
+ it("returns learner-scoped exercise evidence and saved practice phrase count",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const app=await buildApp(config,async()=>true,insightsPool());
+  const response=await app.inject({method:"GET",url:"/api/v1/gabroo/learning-insights",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toMatchObject({learning_direction:"ml_to_en",skill_areas:[
+   {skill_key:"grammar",attempt_count:6,correct_count:3,accuracy:0.5,evidence_status:"practice_opportunity"},
+   {skill_key:"vocabulary",attempt_count:4,correct_count:4,accuracy:1,evidence_status:"building_evidence"}
+  ],saved_practice_phrases:2,interpretation:{minimum_evidence_for_coaching:5}});
+  await app.close();
+ });
+ it("does not expose personalised insights to a free learner",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const pool=insightsPool();
+  pool.query=async(sql:string,...args:any[])=>sql.includes("active_subscription_entitlements")?{rows:[]}:pool.queryOriginal(sql,...args);
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"GET",url:"/api/v1/gabroo/learning-insights",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(403);
+  expect(response.json().error.code).toBe("PAID_SUBSCRIPTION_REQUIRED");
+  await app.close();
+ });
+});
+
 describe("API foundation",()=>{
  it("serves liveness",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>false);const r=await app.inject({method:"GET",url:"/api/v1/health"});expect(r.statusCode).toBe(200);expect(r.json().status).toBe("ok");await app.close();});
  it("reports ready when database check passes",async()=>{const app=await buildApp(loadConfig({NODE_ENV:"test"}),async()=>true);const r=await app.inject({method:"GET",url:"/api/v1/ready"});expect(r.statusCode).toBe(200);await app.close();});
@@ -182,6 +221,106 @@ describe("API foundation",()=>{
   const response=await app.inject({method:"GET",url:"/api/v1/subscriptions/prices"});
   expect(response.statusCode).toBe(503);
   expect(response.json().error.code).toBe("SUBSCRIPTION_PRICING_UNAVAILABLE");
+  await app.close();
+ });
+
+ it("persists a learner-selected stage separately for each learning direction",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let direction:"ml_to_en"|"en_to_ml"="ml_to_en";
+  const stages=new Map<string,{stage:number;stage_source:string;updated_at:Date}>();
+  const pool={query:async(sql:string,values?:unknown[])=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:direction}]};
+   if(sql.includes("SELECT stage,stage_source,updated_at FROM learner_learning_stages")){
+    const saved=stages.get(String(values?.[1]));return {rows:saved?[saved]:[]};
+   }
+   if(sql.includes("INSERT INTO learner_learning_stages")){
+    const saved={stage:Number(values?.[2]),stage_source:"learner_selected",updated_at:new Date()};
+    stages.set(String(values?.[1]),saved);return {rows:[saved]};
+   }
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const headers={authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)};
+  const selected=await app.inject({method:"PUT",url:"/api/v1/learning/stage",headers,payload:{stage:4}});
+  expect(selected.statusCode).toBe(200);
+  expect(selected.json()).toMatchObject({learning_direction:"ml_to_en",stage:4,stage_source:"learner_selected",stage_status:"confirmed"});
+  const sameDirection=await app.inject({method:"GET",url:"/api/v1/learning/stage",headers});
+  expect(sameDirection.json().stage).toBe(4);
+  direction="en_to_ml";
+  const otherDirection=await app.inject({method:"GET",url:"/api/v1/learning/stage",headers});
+  expect(otherDirection.json()).toMatchObject({learning_direction:"en_to_ml",stage:null,stage_status:"not_selected"});
+  direction="ml_to_en";
+  const restored=await app.inject({method:"GET",url:"/api/v1/learning/stage",headers});
+  expect(restored.json().stage).toBe(4);
+  await app.close();
+ });
+
+ it("returns a learner-scoped vocabulary review queue from published content",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const calls:string[]=[];
+  const pool={query:async(sql:string,values?:unknown[])=>{
+   calls.push(sql);
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("FROM active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
+   if(sql.includes("FROM lessons l")&&sql.includes("learner_vocabulary_reviews"))return {rows:[{lesson_id:"00000000-0000-4000-8000-000000000002",lesson_title:"Greetings",lesson_version_id:"00000000-0000-4000-8000-000000000003",vocabulary_item_id:"greeting_hello",term:"hello",meaning:"നമസ്കാരം",pronunciation:null,example:"Hello, how are you?",due_at:new Date(),repetitions:0,interval_days:0}]};
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"GET",url:"/api/v1/learning/vocabulary/reviews",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toMatchObject({learning_direction:"ml_to_en",due_count:1,items:[{vocabulary_item_id:"greeting_hello",term:"hello",meaning:"നമസ്കാരം"}]});
+  expect(calls.some(sql=>sql.includes("educator_review_status='approved'"))).toBe(true);
+  await app.close();
+ });
+ it("persists a learner recall rating against the current published vocabulary version",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const statements:string[]=[];
+  const dueAt=new Date(Date.now()+24*60*60*1000);
+  const pool={query:async(sql:string)=>{
+   statements.push(sql);
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("FROM active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
+   if(sql.includes("SELECT lv.id AS lesson_version_id"))return {rows:[{lesson_version_id:"00000000-0000-4000-8000-000000000003"}]};
+   if(sql.includes("SELECT repetitions,interval_days,ease_factor"))return {rows:[]};
+   if(sql.includes("INSERT INTO learner_vocabulary_reviews"))return {rows:[{due_at:dueAt,repetitions:1,interval_days:1,ease_factor:"2.60"}]};
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"POST",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000002/vocabulary/greeting_hello/review",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{rating:4}});
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toMatchObject({vocabulary_item_id:"greeting_hello",rating:4,schedule:{repetitions:1,interval_days:1,ease_factor:2.6}});
+  expect(statements.some(sql=>sql.includes("ON CONFLICT(user_id,learning_direction,lesson_version_id,vocabulary_item_id)"))).toBe(true);
+  await app.close();
+ });
+ it("returns learner vocabulary retention counts from current published content",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const pool={query:async(sql:string)=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("FROM active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
+   if(sql.includes("WITH eligible AS"))return {rows:[{total_words:18,reviewed_words:10,mastered_words:4,developing_words:6,due_words:7,last_reviewed_at:new Date()}]};
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"GET",url:"/api/v1/learning/vocabulary/summary",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toMatchObject({learning_direction:"ml_to_en",summary:{total_words:18,reviewed_words:10,mastered_words:4,developing_words:6,due_words:7},policy:{mastery_is_a_review_schedule_signal_not_a_fluency_score:true}});
+  await app.close();
+ });
+ it("rejects invalid vocabulary recall ratings before writing",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const pool={query:async(sql:string)=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("FROM active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({method:"POST",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000002/vocabulary/greeting_hello/review",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{rating:6}});
+  expect(response.statusCode).toBe(400);
+  expect(response.json().error.code).toBe("VALIDATION_ERROR");
   await app.close();
  });
 

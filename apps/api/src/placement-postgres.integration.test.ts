@@ -39,7 +39,7 @@ integration("PostgreSQL placement session integration",()=>{
   if(!pool||!migrationApplied)return;
   await runMigrations(pool);
   const result=await pool.query<{version:string}>("SELECT version FROM schema_migrations ORDER BY version");
-  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql","0011_learning_direction.sql","0012_gabroo_conversation_direction.sql","0013_directional_diagnostic_reports.sql","0014_direction_aware_curriculum_progress.sql","0015_learner_exercise_attempts.sql","0016_subscription_offer_pricing.sql","0017_subscription_checkout_quotes.sql","0018_admin_subscription_controls.sql","0019_admin_session_idle_timeout.sql"]);
+  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql","0011_learning_direction.sql","0012_gabroo_conversation_direction.sql","0013_directional_diagnostic_reports.sql","0014_direction_aware_curriculum_progress.sql","0015_learner_exercise_attempts.sql","0016_subscription_offer_pricing.sql","0017_subscription_checkout_quotes.sql","0018_admin_subscription_controls.sql","0019_admin_session_idle_timeout.sql","0020_learner_stage_progression.sql","0021_learner_skill_evidence.sql","0022_learner_vocabulary_reviews.sql","0023_learner_daily_challenge_completions.sql"]);
  });
 
  it("authenticates Superadmins, manages offer windows, audits changes and revokes admin sessions",async()=>{
@@ -341,6 +341,29 @@ integration("PostgreSQL placement session integration",()=>{
    expect(receivedPolicy?.learnerContext).toEqual({preferredName:"Anu K",learningGoal:"Speak confidently at work",profileCorrectionPreference:"detailed"});
    expect(receivedPolicy?.stageGuidance).toContain("not yet available");
    expect(receivedPolicy?.learnerMemory).toEqual([{category:"saved_phrase",memoryKey:"Useful phrase",content:"Could you please clarify?"}]);
+   const challengeDate="2026-11-25";
+   const invalidChallengeDate=await app.inject({method:"POST",url:"/api/v1/learning/daily-challenges/2026-02-30/complete",headers,payload:{title:"Daily speaking",skill_key:"speaking"}});
+   expect(invalidChallengeDate.statusCode).toBe(400);
+   const unauthenticatedChallenge=await app.inject({method:"POST",url:"/api/v1/learning/daily-challenges/"+challengeDate+"/complete",payload:{title:"Daily speaking",skill_key:"speaking"}});
+   expect(unauthenticatedChallenge.statusCode).toBe(401);
+   const completedChallenge=await app.inject({method:"POST",url:"/api/v1/learning/daily-challenges/"+challengeDate+"/complete",headers,payload:{title:"Explain your choice",skill_key:"sentence_formation",conversation_id:conversationId}});
+   expect(completedChallenge.statusCode).toBe(201);
+   expect(completedChallenge.json().completion).toMatchObject({challenge_date:challengeDate,learning_direction:"ml_to_en",challenge_title:"Explain your choice",skill_key:"sentence_formation",conversation_id:conversationId});
+   const challengeHistory=await app.inject({method:"GET",url:"/api/v1/learning/daily-challenges/"+challengeDate,headers});
+   expect(challengeHistory.statusCode).toBe(200);
+   expect(challengeHistory.json().completion.challenge_title).toBe("Explain your choice");
+   const repeatedCompletion=await app.inject({method:"POST",url:"/api/v1/learning/daily-challenges/"+challengeDate+"/complete",headers,payload:{title:"Explain your choice",skill_key:"sentence_formation",conversation_id:conversationId}});
+   expect(repeatedCompletion.statusCode).toBe(201);
+   const singleCompletion=await pool.query("SELECT user_id FROM learner_daily_challenge_completions WHERE user_id=$1 AND challenge_date=$2",[userId,challengeDate]);
+   expect(singleCompletion.rows).toHaveLength(1);
+   const historyList=await app.inject({method:"GET",url:"/api/v1/learning/daily-challenges?limit=14",headers});
+   expect(historyList.statusCode).toBe(200);
+   expect(historyList.json()).toMatchObject({learning_direction:"ml_to_en",limit:14,completed_days:1,total_completed_days:1});
+   expect(historyList.json().completions[0]).toMatchObject({challenge_date:challengeDate,challenge_title:"Explain your choice",skill_key:"sentence_formation"});
+   const invalidHistoryLimit=await app.inject({method:"GET",url:"/api/v1/learning/daily-challenges?limit=31",headers});
+   expect(invalidHistoryLimit.statusCode).toBe(400);
+   const unauthenticatedHistory=await app.inject({method:"GET",url:"/api/v1/learning/daily-challenges?limit=14"});
+   expect(unauthenticatedHistory.statusCode).toBe(401);
    const read=await app.inject({method:"GET",url:"/api/v1/gabroo/conversations/"+conversationId,headers});
    expect(read.statusCode).toBe(200);
    expect(read.json().messages).toHaveLength(2);

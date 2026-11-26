@@ -3,24 +3,43 @@ import * as Speech from "expo-speech";
 import {Audio} from "expo-av";
 import * as FileSystem from "expo-file-system";
 import {confirmGabrooTranscript,GABROO_LOCAL_CAPTURE_MAX_MS,playGabrooSpeechSegments,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooVoiceSessionState,type GabrooTranscript} from "@gabenglish/contracts";
-import {Link,useFocusEffect} from "expo-router";
+import {Link,useFocusEffect,useLocalSearchParams} from "expo-router";
 import {ActivityIndicator,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
 import {adjustGabrooSpeechRate} from "../src/learner-settings";
 import {BrandMark} from "../src/ui";
-import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabrooConversation,getGabrooRecognitionStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessage,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences} from "../src/auth-api";
+import {AuthApiError,completeDailyChallenge,createGabrooConversation,deleteGabrooConversation,getDailyChallengeCompletion,getGabrooConversation,getGabrooRecognitionStatus,recognizeGabrooAudio,getLearnerMe,getSubscriptionStatus,listGabrooConversations,sendGabrooMessageStream,type GabrooConversation,type GabrooConversationMessage,type GabrooConversationMode,type GabrooRecognitionStatus,type SubscriptionStatus,updateGabrooConversation,updateLearnerPreferences} from "../src/auth-api";
 
 const conversationModes:{value:GabrooConversationMode;label:string}[]=[{value:"free_flow",label:"Free flow"},{value:"gentle_correction",label:"Gentle correction"},{value:"detailed_correction",label:"Detailed correction"},{value:"topic_practice",label:"Topic practice"},{value:"role_play",label:"Role-play"},{value:"vocabulary_building",label:"Vocabulary"},{value:"confidence_practice",label:"Confidence"}];
 
 export default function GabrooScreen(){
+ const {challenge,challengeTitle,challengeDate,challengeSkillKey}=useLocalSearchParams<{challenge?:string;challengeTitle?:string;challengeDate?:string;challengeSkillKey?:string}>();
  const [subscription,setSubscription]=useState<SubscriptionStatus|null>(null);
  const [recognitionStatus,setRecognitionStatus]=useState<GabrooRecognitionStatus|null>(null);
  const [conversations,setConversations]=useState<GabrooConversation[]>([]);
  const [active,setActive]=useState<GabrooConversation|null>(null);
  const [messages,setMessages]=useState<GabrooConversationMessage[]>([]);
+ const [streamingReply,setStreamingReply]=useState("");
  const [draft,setDraft]=useState("");
  const [mode,setMode]=useState<GabrooConversationMode>("gentle_correction");
+ const [challengeCompleted,setChallengeCompleted]=useState(false);
+ const [challengeCompletionBusy,setChallengeCompletionBusy]=useState(false);
+ useEffect(()=>{
+  if(typeof challenge==="string"&&challenge.trim()){
+   setDraft(challenge.trim());
+   setMode("topic_practice");
+  }
+ },[challenge]);
+ useEffect(()=>{
+  let current=true;
+  if(typeof challengeDate==="string"&&challengeDate){
+   void getDailyChallengeCompletion(challengeDate).then(result=>{
+    if(current)setChallengeCompleted(!!result.completion);
+   }).catch(()=>{if(current)setChallengeCompleted(false);});
+  }else setChallengeCompleted(false);
+  return ()=>{current=false;};
+ },[challengeDate]);
  const [busy,setBusy]=useState(false);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
@@ -40,6 +59,7 @@ export default function GabrooScreen(){
  const [transcriptionBusy,setTranscriptionBusy]=useState(false);
  const [transcript,setTranscript]=useState<GabrooTranscript|null>(null);
  const [reviewedTranscript,setReviewedTranscript]=useState("");
+ const requestControllerRef=useRef<AbortController|null>(null);
  const transcriptionRecordingRef=useRef<Audio.Recording|null>(null);
  const transcriptionUriRef=useRef<string|null>(null);
  const transcriptionOperationRef=useRef(false);
@@ -67,6 +87,8 @@ export default function GabrooScreen(){
  useFocusEffect(useCallback(()=>{
   void load();
   return ()=>{
+   requestControllerRef.current?.abort();
+   requestControllerRef.current=null;
    speechRunRef.current+=1;
    void Speech.stop();
    const recording=recordingRef.current;
@@ -89,10 +111,17 @@ export default function GabrooScreen(){
  const start=async()=>{
   setBusy(true);setError("");
   try{
-   const result=await createGabrooConversation({mode,support_language:"ml"});
+   const initialPrompt=typeof challenge==="string"?challenge.trim():"";
+   const title=typeof challengeTitle==="string"?challengeTitle.trim().slice(0,120):"";
+   const result=await createGabrooConversation({title:title||undefined,mode:initialPrompt?"topic_practice":mode,support_language:"ml"});
    setActive(result.conversation);setMode(result.conversation.mode);setMessages([]);setConversations(current=>[result.conversation,...current]);
+   if(initialPrompt){
+    const controller=new AbortController();requestControllerRef.current=controller;setStreamingReply("");
+    const firstReply=await sendGabrooMessageStream(result.conversation.id,initialPrompt,controller.signal,fragment=>setStreamingReply(current=>current+fragment));
+    setMessages(firstReply.messages);setStreamingReply("");setDraft("");
+   }
   }catch(reason){setError(reason instanceof AuthApiError&&reason.status===503? "Gabroo's conversation service is not connected yet. Your subscription and account are unchanged.":reason instanceof Error?reason.message:"Could not start a conversation.");}
-  finally{setBusy(false);}
+  finally{requestControllerRef.current=null;setStreamingReply("");setBusy(false);}
  };
  const changeMode=async(next:GabrooConversationMode)=>{
   setMode(next);
@@ -104,10 +133,25 @@ export default function GabrooScreen(){
  };
  const send=async()=>{
   const text=draft.trim();if(!text||!active||busy)return;
+  const controller=new AbortController();requestControllerRef.current=controller;
   setBusy(true);setError("");
-  try{const result=await sendGabrooMessage(active.id,text);setMessages(current=>[...current,...result.messages]);setDraft("");}
-  catch(reason){setError(reason instanceof AuthApiError&&reason.status===503?"Gabroo could not reply just now. Your message was not saved. Please try again.":reason instanceof Error?reason.message:"Could not send your message.");}
-  finally{setBusy(false);}
+  setStreamingReply("");
+  try{const result=await sendGabrooMessageStream(active.id,text,controller.signal,fragment=>setStreamingReply(current=>current+fragment));setMessages(current=>[...current,...result.messages]);setStreamingReply("");setDraft("");}
+  catch(reason){setStreamingReply("");if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Could not send your message.");}
+  finally{if(requestControllerRef.current===controller)requestControllerRef.current=null;setBusy(false);}
+ };
+ const markChallengeComplete=async()=>{
+  if(typeof challengeDate!=="string"||!active||challengeCompletionBusy||challengeCompleted||!messages.some(message=>message.role==="assistant"))return;
+  setChallengeCompletionBusy(true);setError("");
+  try{
+   await completeDailyChallenge(challengeDate,{
+    title:typeof challengeTitle==="string"&&challengeTitle.trim()?challengeTitle.trim():"Daily speaking challenge",
+    skill_key:typeof challengeSkillKey==="string"&&challengeSkillKey?challengeSkillKey:null,
+    conversation_id:active.id
+   });
+   setChallengeCompleted(true);
+  }catch(reason){setError(reason instanceof Error?reason.message:"Could not save your challenge completion. Please try again.");}
+  finally{setChallengeCompletionBusy(false);}
  };
  const stopSpeech=async()=>{
   speechRunRef.current+=1;
@@ -228,14 +272,16 @@ export default function GabrooScreen(){
  };
  const sendReviewedTranscript=async()=>{
   if(!active||!transcript||!reviewedTranscript.trim()||busy)return;
+  const controller=new AbortController();requestControllerRef.current=controller;
   setBusy(true);setError("");
   try{
    const confirmed=confirmGabrooTranscript({providerTranscript:transcript,reviewedText:reviewedTranscript,confirmed:true});
-   const result=await sendGabrooMessage(active.id,confirmed.text);
-   setMessages(current=>[...current,...result.messages]);
+   setStreamingReply("");
+   const result=await sendGabrooMessageStream(active.id,confirmed.text,controller.signal,fragment=>setStreamingReply(current=>current+fragment));
+   setMessages(current=>[...current,...result.messages]);setStreamingReply("");
    setTranscript(null);setReviewedTranscript("");setTranscriptionConsent(false);
-  }catch(reason){setError(reason instanceof Error?reason.message:"Could not send the reviewed transcript.");}
-  finally{setBusy(false);}
+  }catch(reason){setStreamingReply("");if(!controller.signal.aborted)setError(reason instanceof Error?reason.message:"Could not send the reviewed transcript.");}
+  finally{if(requestControllerRef.current===controller)requestControllerRef.current=null;setBusy(false);}
  };
  const requestVoicePermission=async()=>{
   if(!voiceConsent||voicePermissionBusy)return;
@@ -363,6 +409,7 @@ export default function GabrooScreen(){
   {loading?<ActivityIndicator size="large" color={colors.primary} style={{marginTop:40}}/>:!subscription?.active?<View style={s.panel}><Text style={s.title}>Your English companion awaits</Text><Text style={s.copy}>Open conversations with Gabroo are included with an active Gabenglish subscription. Your free English analysis remains available in your account.</Text><Link href="/account" style={s.action}>Go to your account</Link></View>:<>
    {!active?<><View style={s.panel}><Text style={s.title}>Talk about anything suitable for practice.</Text><Text style={s.copy}>Work, travel, daily life, hobbies or a topic you are curious about. Choose how much correction you want as we build out the conversation experience.</Text><Text style={s.modeLabel}>Choose your conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>setMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View><Pressable disabled={busy} onPress={start} style={[s.button,busy&&s.disabled]}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Start a conversation</Text>}</Pressable></View><Text style={s.section}>Your conversations</Text>{conversations.length===0?<Text style={s.empty}>Your saved conversations will appear here.</Text>:conversations.map(item=><Pressable key={item.id} onPress={()=>openConversation(item)} style={s.listItem}><Text style={s.listTitle}>{item.title??"Conversation"}</Text><Text style={s.listMeta}>{item.turn_count} exchanges · {new Date(item.updated_at).toLocaleDateString()}</Text></Pressable>)}</>:<>
     <View style={s.conversationHeader}><Pressable onPress={()=>{setActive(null);setMessages([]);}}><Text style={s.back}>‹ All conversations</Text></Pressable><Pressable onPress={remove} disabled={busy}><Text style={s.delete}>Delete</Text></Pressable></View>
+    {typeof challengeDate==="string"&&challengeDate?<View style={s.challengePanel}><Text style={s.challengeEyebrow}>DAILY SPEAKING CHALLENGE</Text><Text style={s.challengeTitle}>{typeof challengeTitle==="string"&&challengeTitle?challengeTitle:"Today's practice"}</Text>{challengeCompleted?<Text style={s.challengeDone}>✓ Challenge completed and saved to your learning history</Text>:<><Text style={s.challengeCopy}>When you have finished practising with Gabroo, mark this challenge complete.</Text><Pressable disabled={challengeCompletionBusy||busy||!messages.some(message=>message.role==="assistant")} onPress={()=>void markChallengeComplete()} style={[s.challengeCompleteButton,(challengeCompletionBusy||busy||!messages.some(message=>message.role==="assistant"))&&s.disabled]}>{challengeCompletionBusy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Mark challenge complete</Text>}</Pressable></>}</View>:null}
     <View style={s.voiceControls}><Text style={s.voiceTitle}>Playback speed · {speechRate.toFixed(2).replace(/0$/,"")}×</Text><View style={s.voiceSpeedRow}><Pressable accessibilityRole="button" accessibilityLabel="Slow Gabroo speech" disabled={speechRate<=0.75||busy||speechSaving} onPress={()=>void changeSpeechRate(-0.05)} style={s.voiceSpeedButton}><Text style={s.voiceSpeedButtonText}>−</Text></Pressable><Text style={s.voiceSpeedHint}>Applies to the next listen or replay</Text><Pressable accessibilityRole="button" accessibilityLabel="Speed up Gabroo speech" disabled={speechRate>=1.5||busy||speechSaving} onPress={()=>void changeSpeechRate(0.05)} style={s.voiceSpeedButton}><Text style={s.voiceSpeedButtonText}>+</Text></Pressable></View></View><View style={s.voicePermissionPanel}>
      <Text style={s.voiceTitle}>Prepare voice conversations</Text>
      <Text style={s.voicePermissionCopy}>Microphone access is requested only after you agree below. Recording and transcription are separate permissions. Your speech is never uploaded without a separate action.</Text>
@@ -386,6 +433,10 @@ export default function GabrooScreen(){
       {transcript?<View style={s.captureConsentPanel}>
        <Text style={s.captureConsentTitle}>Review your words</Text>
        <Text style={s.captureConsentCopy}>Edit anything that was not recognised correctly. Gabroo will receive only the text you confirm below.</Text>
+       <View style={s.transcriptMeta}>
+        <Text style={s.transcriptMetaText}>Detected language: {transcript.languageDetected==="ml"?"Malayalam":transcript.languageDetected==="en"?"English":transcript.languageDetected==="mixed"?"Malayalam + English":"Not identified"}</Text>
+        {transcript.confidence!==undefined?<Text style={s.transcriptMetaText}>Recognition confidence: {Math.round(transcript.confidence*100)}% · This estimates transcription certainty, not pronunciation quality.</Text>:<Text style={s.transcriptMetaText}>Recognition confidence was not supplied by the provider. Please check the transcript carefully.</Text>}
+       </View>
        <TextInput value={reviewedTranscript} onChangeText={setReviewedTranscript} multiline editable={!busy} style={s.input} placeholder="Your recognised words…"/>
        <Pressable disabled={!reviewedTranscript.trim()||busy} onPress={()=>void sendReviewedTranscript()} style={[s.permissionButton,(!reviewedTranscript.trim()||busy)&&s.disabled]}><Text style={s.buttonText}>Confirm & send to Gabroo</Text></Pressable>
        <Pressable disabled={busy} onPress={()=>{setTranscript(null);setReviewedTranscript("");setTranscriptionConsent(false);}} style={s.permissionReset}><Text style={s.permissionResetText}>Discard transcript</Text></Pressable>
@@ -410,9 +461,11 @@ export default function GabrooScreen(){
       {voicePermissionStatus!=="not_requested"?<Pressable disabled={recordingActive||recordingBusy} onPress={resetVoiceConsent} style={s.permissionReset}><Text style={s.permissionResetText}>Clear in-app consent</Text></Pressable>:null}
      </View>
     </View>
-    <Text style={s.modeLabel}>Conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>void changeMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View>{messages.length===0?<View style={s.emptyPanel}><Text style={s.title}>Hi! I'm Gabroo.</Text><Text style={s.copy}>Let's have a natural conversation. What's on your mind today?</Text></View>:messages.map(message=><View key={message.id} style={[s.bubble,message.role==="user"?s.userBubble:s.gabrooBubble]}><Text style={s.speaker}>{message.role==="user"?"YOU":"GABROO"}</Text><Text style={s.message}>{message.content}</Text>{message.role==="assistant"?<Pressable accessibilityRole="button" onPress={()=>void speakMessage(message)} style={s.listenButton}><Text style={s.listenButtonText}>{speakingMessageId===message.id?"Stop speaking":"Listen · device voice"}</Text></Pressable>:null}</View>)}
+    <Link href="/speaking-journal" style={{color:colors.primary,fontWeight:"900",marginTop:16,marginBottom:4}}>Open Speaking Journal →</Link>
+    <Link href="/sentence-coach" style={{color:colors.primary,fontWeight:"900",marginTop:10,marginBottom:4}}>Try Sentence Coach →</Link>
+    <Text style={s.modeLabel}>Conversation style</Text><View style={s.modeGrid}>{conversationModes.map(item=><Pressable key={item.value} disabled={busy} onPress={()=>void changeMode(item.value)} style={[s.modeChip,mode===item.value&&s.modeSelected]}><Text style={[s.modeText,mode===item.value&&s.modeTextSelected]}>{item.label}</Text></Pressable>)}</View>{messages.length===0?<View style={s.emptyPanel}><Text style={s.title}>Hi! I'm Gabroo.</Text><Text style={s.copy}>Let's have a natural conversation. What's on your mind today?</Text></View>:messages.map(message=><View key={message.id} style={[s.bubble,message.role==="user"?s.userBubble:s.gabrooBubble]}><Text style={s.speaker}>{message.role==="user"?"YOU":"GABROO"}</Text><Text style={s.message}>{message.content}</Text>{message.role==="assistant"?<Pressable accessibilityRole="button" onPress={()=>void speakMessage(message)} style={s.listenButton}><Text style={s.listenButtonText}>{speakingMessageId===message.id?"Stop speaking":"Listen · device voice"}</Text></Pressable>:null}</View>)}{streamingReply?<View key="gabroo-streaming-draft" style={[s.bubble,s.gabrooBubble]}><Text style={s.speaker}>GABROO · REPLYING</Text><Text style={s.message}>{streamingReply}</Text></View>:null}
     <TextInput value={draft} onChangeText={setDraft} placeholder="Write your message…" multiline style={s.input} editable={!busy}/>
-    <Pressable disabled={!draft.trim()||busy} onPress={send} style={[s.button,(!draft.trim()||busy)&&s.disabled]}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Send message</Text>}</Pressable>
+    <Pressable disabled={!draft.trim()||busy} onPress={send} style={[s.button,(!draft.trim()||busy)&&s.disabled]}>{busy?<ActivityIndicator color="#fff"/>:<Text style={s.buttonText}>Send message</Text>}</Pressable>{busy&&requestControllerRef.current?<Pressable accessibilityRole="button" accessibilityLabel="Stop Gabroo reply" onPress={()=>requestControllerRef.current?.abort()} style={s.permissionReset}><Text style={s.permissionResetText}>Stop reply</Text></Pressable>:null}
     <Text style={s.hint}>You can ask for gentle corrections, detailed explanations or just a natural chat. Listen uses the voice installed on your device; Gabroo’s final character voice and live voice conversations are still being developed.</Text>{speechNotice?<Text style={s.speechNotice}>{speechNotice}</Text>:null}
    </>}
   </>}
@@ -420,5 +473,6 @@ export default function GabrooScreen(){
  </ScrollView></SafeAreaView>;
 }
 const s=StyleSheet.create({
- safe:{flex:1,backgroundColor:colors.background},page:{flexGrow:1,padding:20,paddingBottom:36},top:{alignItems:"center",marginBottom:26},back:{color:colors.primary,fontWeight:"800",fontSize:14,alignSelf:"flex-start"},brand:{fontSize:30,fontWeight:"900",color:colors.text,marginTop:12},subtitle:{color:"#777084",fontSize:13,marginTop:4},panel:{backgroundColor:colors.surfaceSoft,borderRadius:22,padding:22},title:{fontSize:21,fontWeight:"900",color:colors.primaryStrong},copy:{fontSize:14,lineHeight:22,color:"#51476A",marginTop:10},action:{color:colors.primaryStrong,fontWeight:"900",marginTop:20},button:{backgroundColor:colors.primary,borderRadius:14,padding:16,alignItems:"center",marginTop:18},buttonText:{color:"#fff",fontWeight:"900",fontSize:15},disabled:{opacity:.5},section:{fontSize:17,fontWeight:"900",color:"#30254A",marginTop:28,marginBottom:12},modeLabel:{fontSize:12,fontWeight:"900",color:"#51476A",marginTop:18,marginBottom:8},modeGrid:{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:4},modeChip:{paddingVertical:9,paddingHorizontal:11,borderRadius:18,borderWidth:1,borderColor:"#D9CBEA",backgroundColor:"#fff"},modeSelected:{backgroundColor:colors.primary,borderColor:colors.primary},modeText:{fontSize:11,fontWeight:"700",color:"#51476A"},modeTextSelected:{color:"#fff"},empty:{color:"#777084",fontSize:13,paddingVertical:16},listItem:{backgroundColor:"#fff",borderColor:"#E8DFEF",borderWidth:1,borderRadius:14,padding:15,marginBottom:9},listTitle:{color:"#30254A",fontWeight:"800"},listMeta:{color:"#82798E",fontSize:12,marginTop:5},conversationHeader:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:18},voiceControls:{backgroundColor:"#F7F2FF",borderRadius:14,padding:12,marginBottom:14},voicePermissionPanel:{backgroundColor:"#F1F8F5",borderWidth:1,borderColor:"#D7E9DE",borderRadius:16,padding:14,marginBottom:16},voicePermissionCopy:{fontSize:12,lineHeight:18,color:"#52665A",marginTop:7},consentRow:{flexDirection:"row",alignItems:"flex-start",gap:10,marginTop:12},consentBox:{width:22,height:22,borderWidth:1.5,borderColor:"#81988A",borderRadius:6,alignItems:"center",justifyContent:"center",backgroundColor:"#fff"},consentBoxChecked:{backgroundColor:"#28734A",borderColor:"#28734A"},consentCheck:{color:"#fff",fontWeight:"900"},consentText:{flex:1,fontSize:12,lineHeight:18,color:"#334B3B"},permissionActions:{marginTop:12},permissionButton:{backgroundColor:"#28734A",borderRadius:11,padding:12,alignItems:"center"},permissionGranted:{color:"#246B43",fontSize:12,fontWeight:"800",marginTop:10},permissionDenied:{color:"#9A4B1B",fontSize:12,fontWeight:"800",marginTop:10},permissionReset:{alignSelf:"flex-start",paddingVertical:10},permissionResetText:{color:"#5D6D63",fontWeight:"800",fontSize:12},recognitionStatusPanel:{backgroundColor:"#FFF",borderRadius:12,padding:12,marginTop:12,borderWidth:1,borderColor:"#D7E9DE"},captureConsentPanel:{backgroundColor:"#FFF",borderRadius:12,padding:12,marginTop:14,borderWidth:1,borderColor:"#D7E9DE"},captureConsentTitle:{fontSize:12,fontWeight:"900",color:"#246B43"},captureConsentCopy:{fontSize:11,lineHeight:17,color:"#52665A",marginTop:6},captureButton:{backgroundColor:"#28734A",borderRadius:11,padding:12,alignItems:"center",marginTop:12},captureStopButton:{backgroundColor:"#B42318"},voiceTitle:{fontSize:12,fontWeight:"900",color:colors.primaryStrong},voiceSpeedRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:8},voiceSpeedButton:{width:34,height:34,borderRadius:10,backgroundColor:colors.primary,alignItems:"center",justifyContent:"center"},voiceSpeedButtonText:{fontSize:22,color:"#fff",fontWeight:"800"},voiceSpeedHint:{fontSize:10,color:"#70677B",flex:1,textAlign:"center"},listenButton:{alignSelf:"flex-start",marginTop:10,backgroundColor:"#F0E8FA",paddingVertical:7,paddingHorizontal:10,borderRadius:10},listenButtonText:{fontSize:11,fontWeight:"800",color:colors.primaryStrong},speechNotice:{fontSize:11,color:"#8A3B12",marginTop:10,lineHeight:17},delete:{color:"#B42318",fontWeight:"800"},bubble:{padding:15,borderRadius:17,marginBottom:12,maxWidth:"92%"},userBubble:{backgroundColor:"#E7DDF8",alignSelf:"flex-end"},gabrooBubble:{backgroundColor:"#fff",alignSelf:"flex-start",borderWidth:1,borderColor:"#EEE7F4"},speaker:{fontSize:9,fontWeight:"900",letterSpacing:1,color:"#7C55A6",marginBottom:6},message:{fontSize:15,lineHeight:22,color:"#30254A"},input:{backgroundColor:"#fff",borderWidth:1,borderColor:colors.border,borderRadius:14,padding:14,fontSize:15,color:colors.text,minHeight:88,textAlignVertical:"top",marginTop:16},hint:{fontSize:11,lineHeight:17,color:"#777084",marginTop:12},emptyPanel:{backgroundColor:colors.surfaceSoft,padding:22,borderRadius:18},error:{backgroundColor:"#FCE8E6",padding:13,borderRadius:12,marginTop:18},errorText:{color:"#9F2D24",fontSize:13,lineHeight:19}
+ challengePanel:{backgroundColor:"#F0EAF9",borderWidth:1,borderColor:"#DCCEF0",borderRadius:16,padding:14,marginBottom:14},challengeEyebrow:{fontSize:9,fontWeight:"900",letterSpacing:1,color:colors.primaryStrong},challengeTitle:{fontSize:16,fontWeight:"900",color:colors.text,marginTop:5},challengeCopy:{fontSize:12,lineHeight:18,color:"#51476A",marginTop:6},challengeCompleteButton:{backgroundColor:colors.primary,borderRadius:11,padding:12,alignItems:"center",marginTop:12},challengeDone:{fontSize:12,lineHeight:18,color:"#246B43",fontWeight:"900",marginTop:8},
+ safe:{flex:1,backgroundColor:colors.background},page:{flexGrow:1,padding:20,paddingBottom:36},top:{alignItems:"center",marginBottom:26},back:{color:colors.primary,fontWeight:"800",fontSize:14,alignSelf:"flex-start"},brand:{fontSize:30,fontWeight:"900",color:colors.text,marginTop:12},subtitle:{color:"#777084",fontSize:13,marginTop:4},panel:{backgroundColor:colors.surfaceSoft,borderRadius:22,padding:22},title:{fontSize:21,fontWeight:"900",color:colors.primaryStrong},copy:{fontSize:14,lineHeight:22,color:"#51476A",marginTop:10},action:{color:colors.primaryStrong,fontWeight:"900",marginTop:20},button:{backgroundColor:colors.primary,borderRadius:14,padding:16,alignItems:"center",marginTop:18},buttonText:{color:"#fff",fontWeight:"900",fontSize:15},disabled:{opacity:.5},section:{fontSize:17,fontWeight:"900",color:"#30254A",marginTop:28,marginBottom:12},modeLabel:{fontSize:12,fontWeight:"900",color:"#51476A",marginTop:18,marginBottom:8},modeGrid:{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:4},modeChip:{paddingVertical:9,paddingHorizontal:11,borderRadius:18,borderWidth:1,borderColor:"#D9CBEA",backgroundColor:"#fff"},modeSelected:{backgroundColor:colors.primary,borderColor:colors.primary},modeText:{fontSize:11,fontWeight:"700",color:"#51476A"},modeTextSelected:{color:"#fff"},empty:{color:"#777084",fontSize:13,paddingVertical:16},listItem:{backgroundColor:"#fff",borderColor:"#E8DFEF",borderWidth:1,borderRadius:14,padding:15,marginBottom:9},listTitle:{color:"#30254A",fontWeight:"800"},listMeta:{color:"#82798E",fontSize:12,marginTop:5},conversationHeader:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:18},voiceControls:{backgroundColor:"#F7F2FF",borderRadius:14,padding:12,marginBottom:14},voicePermissionPanel:{backgroundColor:"#F1F8F5",borderWidth:1,borderColor:"#D7E9DE",borderRadius:16,padding:14,marginBottom:16},voicePermissionCopy:{fontSize:12,lineHeight:18,color:"#52665A",marginTop:7},consentRow:{flexDirection:"row",alignItems:"flex-start",gap:10,marginTop:12},consentBox:{width:22,height:22,borderWidth:1.5,borderColor:"#81988A",borderRadius:6,alignItems:"center",justifyContent:"center",backgroundColor:"#fff"},consentBoxChecked:{backgroundColor:"#28734A",borderColor:"#28734A"},consentCheck:{color:"#fff",fontWeight:"900"},consentText:{flex:1,fontSize:12,lineHeight:18,color:"#334B3B"},permissionActions:{marginTop:12},permissionButton:{backgroundColor:"#28734A",borderRadius:11,padding:12,alignItems:"center"},permissionGranted:{color:"#246B43",fontSize:12,fontWeight:"800",marginTop:10},permissionDenied:{color:"#9A4B1B",fontSize:12,fontWeight:"800",marginTop:10},permissionReset:{alignSelf:"flex-start",paddingVertical:10},permissionResetText:{color:"#5D6D63",fontWeight:"800",fontSize:12},recognitionStatusPanel:{backgroundColor:"#FFF",borderRadius:12,padding:12,marginTop:12,borderWidth:1,borderColor:"#D7E9DE"},captureConsentPanel:{backgroundColor:"#FFF",borderRadius:12,padding:12,marginTop:14,borderWidth:1,borderColor:"#D7E9DE"},captureConsentTitle:{fontSize:12,fontWeight:"900",color:"#246B43"},captureConsentCopy:{fontSize:11,lineHeight:17,color:"#52665A",marginTop:6},transcriptMeta:{backgroundColor:"#F5F1FA",borderRadius:10,padding:10,marginTop:10,gap:5},transcriptMetaText:{fontSize:11,lineHeight:16,color:"#51476A"},captureButton:{backgroundColor:"#28734A",borderRadius:11,padding:12,alignItems:"center",marginTop:12},captureStopButton:{backgroundColor:"#B42318"},voiceTitle:{fontSize:12,fontWeight:"900",color:colors.primaryStrong},voiceSpeedRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:8},voiceSpeedButton:{width:34,height:34,borderRadius:10,backgroundColor:colors.primary,alignItems:"center",justifyContent:"center"},voiceSpeedButtonText:{fontSize:22,color:"#fff",fontWeight:"800"},voiceSpeedHint:{fontSize:10,color:"#70677B",flex:1,textAlign:"center"},listenButton:{alignSelf:"flex-start",marginTop:10,backgroundColor:"#F0E8FA",paddingVertical:7,paddingHorizontal:10,borderRadius:10},listenButtonText:{fontSize:11,fontWeight:"800",color:colors.primaryStrong},speechNotice:{fontSize:11,color:"#8A3B12",marginTop:10,lineHeight:17},delete:{color:"#B42318",fontWeight:"800"},bubble:{padding:15,borderRadius:17,marginBottom:12,maxWidth:"92%"},userBubble:{backgroundColor:"#E7DDF8",alignSelf:"flex-end"},gabrooBubble:{backgroundColor:"#fff",alignSelf:"flex-start",borderWidth:1,borderColor:"#EEE7F4"},speaker:{fontSize:9,fontWeight:"900",letterSpacing:1,color:"#7C55A6",marginBottom:6},message:{fontSize:15,lineHeight:22,color:"#30254A"},input:{backgroundColor:"#fff",borderWidth:1,borderColor:colors.border,borderRadius:14,padding:14,fontSize:15,color:colors.text,minHeight:88,textAlignVertical:"top",marginTop:16},hint:{fontSize:11,lineHeight:17,color:"#777084",marginTop:12},emptyPanel:{backgroundColor:colors.surfaceSoft,padding:22,borderRadius:18},error:{backgroundColor:"#FCE8E6",padding:13,borderRadius:12,marginTop:18},errorText:{color:"#9F2D24",fontSize:13,lineHeight:19}
 });

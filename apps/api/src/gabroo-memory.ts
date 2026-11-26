@@ -3,6 +3,7 @@ import {z} from "zod";
 import type {Pool} from "pg";
 import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
+import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
 
 const categories=["goal","interest","saved_phrase","learning_note"] as const;
 const createSchema=z.object({
@@ -21,6 +22,38 @@ function fail(reply:any,requestId:string,status:number,code:string,message:strin
 }
 
 export async function registerGabrooMemoryRoutes(app:FastifyInstance,pool:Pool,config:AppConfig){
+ app.get("/api/v1/gabroo/learning-insights",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return fail(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
+  const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);
+  if(!entitlement)return fail(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required for personalised learning insights.");
+  const preferences=await pool.query<{learning_direction:"ml_to_en"|"en_to_ml"}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preferences.rows[0]?.learning_direction??"ml_to_en";
+  const [skills,phrases]=await Promise.all([
+   pool.query<{skill_key:string;attempt_count:number;correct_count:number;accuracy:string}>(
+    `SELECT skill_key,COUNT(*)::int AS attempt_count,
+      COUNT(*) FILTER (WHERE is_correct)::int AS correct_count,
+      ROUND(AVG(CASE WHEN is_correct THEN 1.0 ELSE 0.0 END)::numeric,2)::text AS accuracy
+     FROM (
+      SELECT DISTINCT ON (lesson_id,exercise_id,skill_key) lesson_id,exercise_id,skill_key,is_correct,attempted_at
+      FROM learner_exercise_attempts
+      WHERE user_id=$1 AND learning_direction=$2 AND skill_key IS NOT NULL
+      ORDER BY lesson_id,exercise_id,skill_key,attempted_at DESC
+     ) latest
+     GROUP BY skill_key
+     ORDER BY COUNT(*) DESC,skill_key ASC`,
+    [learner.id,direction]
+   ),
+   pool.query<{saved_phrase_count:number}>("SELECT COUNT(*)::int AS saved_phrase_count FROM gabroo_learner_memory WHERE user_id=$1 AND category='saved_phrase'",[learner.id])
+  ]);
+  const skillAreas=skills.rows.map(row=>{
+   const accuracy=Number(row.accuracy);
+   return {skill_key:row.skill_key,attempt_count:row.attempt_count,correct_count:row.correct_count,accuracy,
+    evidence_status:row.attempt_count<5?"building_evidence" as const:accuracy>=0.8?"strong_exercise_performance" as const:accuracy<=0.5?"practice_opportunity" as const:"developing_exercise_performance" as const};
+  });
+  return {learning_direction:direction,skill_areas:skillAreas,saved_practice_phrases:phrases.rows[0]?.saved_phrase_count??0,
+   interpretation:{exercise_results_are_not_speaking_or_overall_proficiency_scores:true,latest_attempt_per_exercise_and_skill:true,minimum_evidence_for_coaching:5}};
+ });
  app.get("/api/v1/gabroo/memory",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
   if(!learner)return fail(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");

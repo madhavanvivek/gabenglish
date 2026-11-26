@@ -1,0 +1,107 @@
+import {describe,expect,it} from "vitest";
+import {buildDailySpeakingChallenge,localPracticeDateKey,parseSavedPracticePhrase} from "./daily-practice.js";
+describe("daily speaking challenge",()=>{
+ it("formats the learner device-local calendar date without UTC conversion",()=>{
+  const date=new Date(2026,10,25,23,45,0);
+  expect(localPracticeDateKey(date)).toBe("2026-11-25");
+ });
+ it("returns a stable challenge for the same calendar date",()=>{
+  expect(buildDailySpeakingChallenge("2026-11-25")).toEqual(buildDailySpeakingChallenge("2026-11-25"));
+ });
+ it("rotates the general challenge across dates",()=>{
+  expect(buildDailySpeakingChallenge("2026-11-25").title).not.toBe(buildDailySpeakingChallenge("2026-11-26").title);
+ });
+ it("chooses the weakest skill with enough evidence for a practice opportunity",()=>{
+  const challenge=buildDailySpeakingChallenge("2026-11-25",[
+   {skill_key:"vocabulary",attempt_count:8,accuracy:.4,evidence_status:"practice_opportunity"},
+   {skill_key:"grammar",attempt_count:7,accuracy:.6,evidence_status:"developing_exercise_performance"},
+   {skill_key:"fluency",attempt_count:2,accuracy:.2,evidence_status:"building_evidence"}
+  ]);
+  expect(challenge.skillKey).toBe("vocabulary");
+  expect(challenge.focus).toBe("Use precise words");
+ });
+ it("rotates conversation prompts instead of repeating a single prompt",()=>{
+  const skill=[{skill_key:"conversation",attempt_count:7,accuracy:.5,evidence_status:"developing_exercise_performance" as const}];
+  const first=buildDailySpeakingChallenge("2026-11-25",skill);
+  const next=buildDailySpeakingChallenge("2026-11-26",skill);
+  expect(first.skillKey).toBe("conversation");
+  expect(next.skillKey).toBe("conversation");
+  expect(first.prompt).not.toBe(next.prompt);
+ });
+ it("rotates listening, speaking, comprehension and writing practice prompts",()=>{
+  for(const skillKey of ["listening","speaking","comprehension","writing"]){
+   const evidence=[{skill_key:skillKey,attempt_count:6,accuracy:.5,evidence_status:"developing_exercise_performance" as const}];
+   expect(buildDailySpeakingChallenge("2026-11-25",evidence).prompt).not.toBe(buildDailySpeakingChallenge("2026-11-26",evidence).prompt);
+  }
+ });
+ it("does not infer a weakness from insufficient or strong evidence",()=>{
+  const challenge=buildDailySpeakingChallenge("2026-11-25",[
+   {skill_key:"grammar",attempt_count:2,accuracy:.2,evidence_status:"building_evidence"},
+   {skill_key:"vocabulary",attempt_count:10,accuracy:.9,evidence_status:"strong_exercise_performance"}
+  ]);
+  expect(challenge.skillKey).toBeNull();
+ });
+ it("provides a general practice when no skill evidence exists",()=>{
+  expect(buildDailySpeakingChallenge("2026-11-25").skillKey).toBeNull();
+ });
+ it("prioritises the learner-approved practice version while preserving the original phrase",()=>{
+  const challenge=buildDailySpeakingChallenge("2026-11-25",[],[
+   {memory_key:"Useful phrase",content:"Learner phrase: Could you please clarify?\nPractice version: Could you explain that again?\nLearner note: At work"}
+  ]);
+  expect(challenge.title).toBe("Bring a saved phrase to life");
+  expect(challenge.skillKey).toBeNull();
+  expect(challenge.prompt).toContain("Could you please clarify?");
+  expect(challenge.prompt).toContain("Could you explain that again?");
+  expect(challenge.prompt).toContain("Keep the meaning you intended");
+ });
+ it("uses the original phrase when no practice version was saved",()=>{
+  const challenge=buildDailySpeakingChallenge("2026-11-25",[],[
+   {memory_key:"Useful phrase",content:"Learner phrase: Could you please clarify?\nLearner note: At work"}
+  ]);
+  expect(challenge.prompt).toContain("Could you please clarify?");
+  expect(challenge.focus).toBe("Practise a phrase you chose to keep");
+ });
+ it("keeps today's saved phrase stable when the journal returns entries in a different order",()=>{
+  const phrases=[
+   {memory_key:"Phrase B",content:"Learner phrase: Could you send me the details?"},
+   {memory_key:"Phrase A",content:"Learner phrase: I will get back to you."}
+  ];
+  expect(buildDailySpeakingChallenge("2026-11-25",[],phrases)).toEqual(buildDailySpeakingChallenge("2026-11-25",[],[...phrases].reverse()));
+ });
+ it("deduplicates identical saved phrases before rotating",()=>{
+  const phrase={memory_key:"Useful phrase",content:"Learner phrase: Could you please clarify?"};
+  const unique=buildDailySpeakingChallenge("2026-11-25",[],[phrase,{memory_key:"Another key",content:"Learner phrase: I will check and confirm."}]);
+  const duplicated=buildDailySpeakingChallenge("2026-11-25",[],[phrase,{memory_key:"Duplicate journal entry",content:"Learner phrase: Could you please clarify?"},{memory_key:"Another key",content:"Learner phrase: I will check and confirm."}]);
+  expect(duplicated).toEqual(unique);
+ });
+ it("rotates through distinct saved phrases across consecutive local dates",()=>{
+  const phrases=[
+   {memory_key:"Phrase B",content:"Learner phrase: Could you send me the details?"},
+   {memory_key:"Phrase A",content:"Learner phrase: I will get back to you."}
+  ];
+  expect(buildDailySpeakingChallenge("2026-11-25",[],phrases).prompt).not.toBe(buildDailySpeakingChallenge("2026-11-26",[],phrases).prompt);
+ });
+ it("falls back to the normal challenge when the journal has no usable phrase",()=>{
+  const challenge=buildDailySpeakingChallenge("2026-11-25",[],[{memory_key:"",content:"Practice version: "}]);
+  expect(challenge.title).not.toBe("Bring a saved phrase to life");
+ });
+});
+
+describe("saved practice phrase parsing",()=>{
+ it("returns the learner's original phrase and explicitly saved practice version",()=>{
+  expect(parseSavedPracticePhrase({memory_key:"Useful phrase",content:"Learner phrase: Could you please clarify?\nPractice version: Could you explain that again?"})).toEqual({
+   original:"Could you please clarify?",practiceVersion:"Could you explain that again?",fallback:"Useful phrase"
+  });
+ });
+ it("supports legacy journal entries that contain only a memory key",()=>{
+  expect(parseSavedPracticePhrase({memory_key:"Useful expression",content:"A note about a phrase"})).toEqual({
+   original:null,practiceVersion:null,fallback:"Useful expression"
+  });
+ });
+ it("bounds extracted phrases to 180 characters",()=>{
+  const longPhrase="a".repeat(220);
+  const parsed=parseSavedPracticePhrase({memory_key:"Phrase",content:"Learner phrase: "+longPhrase+"\nPractice version: "+longPhrase});
+  expect(parsed.original).toHaveLength(180);
+  expect(parsed.practiceVersion).toHaveLength(180);
+ });
+});

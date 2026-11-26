@@ -5,6 +5,9 @@ import type {Pool} from "pg";
 import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
+import {evaluateLearningStage, type LearningStage} from "./learning-stage.js";
+import {selectNextLessonRecommendation,type RecommendationCandidate} from "./lesson-recommendation.js";
+import {initialVocabularyReview,scheduleVocabularyReview,type RecallRating} from "./vocabulary-scheduler.js";
 
 type Direction="ml_to_en"|"en_to_ml";
 type CatalogRow={
@@ -70,6 +73,69 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   }
   return {learning_direction:direction,target_language:direction==="ml_to_en"?"en":"ml",courses:[...courses.values()].map(course=>({...course,modules:[...course.modules.values()]})),publication_policy:{drafts_hidden:true,malayalam_requires_educator_approval:true}};
  });
+
+
+ app.get("/api/v1/learning/recommendation",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view your next learning recommendation.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to access lessons.");
+  const preference=await pool.query<{learning_direction:Direction}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preference.rows[0]?.learning_direction??"ml_to_en";
+  const saved=await pool.query<{stage:LearningStage}>("SELECT stage FROM learner_learning_stages WHERE user_id=$1 AND learning_direction=$2",[learner.id,direction]);
+  const stage=saved.rows[0]?.stage;
+  if(!stage)return {learning_direction:direction,stage:null,recommendation:null,reason:"stage_not_selected",message:"Choose your learning stage to receive a lesson recommendation."};
+  const candidates=await pool.query<RecommendationCandidate>(
+   `SELECT l.id AS "lessonId",c.id AS "courseId",l.title,l.slug,m.title AS "moduleTitle",
+      p.status AS "progressStatus",COALESCE(p.progress_percent,0)::int AS "progressPercent",
+      c.sort_order AS "courseSort",m.sort_order AS "moduleSort",l.sort_order AS "lessonSort"
+    FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
+    JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id
+    LEFT JOIN learner_lesson_progress p ON p.user_id=$1 AND p.lesson_id=l.id
+      AND p.lesson_version_id=lv.id AND p.learning_direction=c.learning_direction
+    WHERE c.status='published' AND l.status='published' AND lv.status='published'
+      AND c.learning_direction=$2
+      AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')
+      AND EXISTS (
+       SELECT 1 FROM jsonb_array_elements(COALESCE(lv.content->'blocks','[]'::jsonb)) AS exercise(value)
+       WHERE exercise.value->>'type'='exercise' AND exercise.value->>'stage'=$3
+      )
+    ORDER BY c.sort_order,m.sort_order,l.sort_order`,
+   [learner.id,direction,String(stage)]
+  );
+  const recommendation=selectNextLessonRecommendation(stage,candidates.rows);
+  return {learning_direction:direction,stage,recommendation,reason:recommendation?.reason??"no_matching_published_lesson",
+   message:recommendation?"A lesson matched your selected stage and learning direction.":"There is no unfinished published lesson for your selected stage yet."};
+ });
+
+ app.get("/api/v1/learning/stage",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view your learning stage.");
+  const preferences=await pool.query<{learning_direction:Direction}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preferences.rows[0]?.learning_direction??"ml_to_en";
+  const saved=await pool.query<{stage:number;stage_source:string;updated_at:Date}>(
+   "SELECT stage,stage_source,updated_at FROM learner_learning_stages WHERE user_id=$1 AND learning_direction=$2",[learner.id,direction]
+  );
+  return {learning_direction:direction,stage:saved.rows[0]?.stage??null,stage_source:saved.rows[0]?.stage_source??null,updated_at:saved.rows[0]?.updated_at??null,stage_status:saved.rows[0]?"confirmed":"not_selected"};
+ });
+
+ app.put("/api/v1/learning/stage",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to update your learning stage.");
+  const body=request.body as {stage?:unknown}|null;
+  if(!body||typeof body.stage!=="number"||!Number.isInteger(body.stage)||body.stage<1||body.stage>5||Object.keys(body).some(key=>key!=="stage")){
+   return failure(reply,request.id,400,"VALIDATION_ERROR","Choose a learning stage from 1 to 5.");
+  }
+  const preferences=await pool.query<{learning_direction:Direction}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preferences.rows[0]?.learning_direction??"ml_to_en";
+  const saved=await pool.query<{stage:number;stage_source:string;updated_at:Date}>(
+   `INSERT INTO learner_learning_stages(user_id,learning_direction,stage,stage_source)
+    VALUES($1,$2,$3,'learner_selected')
+    ON CONFLICT(user_id,learning_direction) DO UPDATE SET stage=EXCLUDED.stage,stage_source='learner_selected',updated_at=now()
+    RETURNING stage,stage_source,updated_at`,[learner.id,direction,body.stage]
+  );
+  return {learning_direction:direction,stage:saved.rows[0]!.stage,stage_source:saved.rows[0]!.stage_source,updated_at:saved.rows[0]!.updated_at,stage_status:"confirmed"};
+ });
+
  const lessonIdPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
  app.get("/api/v1/learning/lessons/:id",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);
@@ -208,12 +274,192 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
    return failure(reply,request.id,503,"EXERCISE_NOT_CONFIGURED","This exercise is awaiting a valid answer key or accepted-answer rubric.");
   }
   const {correct,feedback}=evaluated;
-  await pool.query(
-   `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-   [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,submitted,correct,feedback]
+  const stageRow=await pool.query<{stage:LearningStage}>(
+   "SELECT stage FROM learner_learning_stages WHERE user_id=$1 AND learning_direction=$2",
+   [learner.id,lesson.learning_direction]
   );
-  return {lesson_id:id,exercise_id:exerciseId,result:{correct,feedback}};
+  const currentStage=stageRow.rows[0]?.stage??null;
+  const exerciseStage=typeof exercise.stage==="number"&&Number.isInteger(exercise.stage)&&exercise.stage>=1&&exercise.stage<=5?exercise.stage as LearningStage:null;
+  const evidenceStage=currentStage!==null&&exerciseStage===currentStage?currentStage:null;
+  await pool.query(
+   `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback,learner_stage,skill_key)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+   [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,submitted,correct,feedback,evidenceStage,typeof exercise.skill_key==="string"?exercise.skill_key:null]
+  );
+  let stageProgression:ReturnType<typeof evaluateLearningStage>|null=null;
+  if(currentStage!==null&&evidenceStage===currentStage){
+   const recent=await pool.query<{is_correct:boolean}>(
+    `SELECT is_correct FROM (
+       SELECT DISTINCT ON (lesson_id,exercise_id) is_correct,attempted_at
+       FROM learner_exercise_attempts
+       WHERE user_id=$1 AND learning_direction=$2 AND learner_stage=$3
+       ORDER BY lesson_id,exercise_id,attempted_at DESC
+     ) AS latest_per_exercise
+     ORDER BY attempted_at DESC LIMIT 8`,
+    [learner.id,lesson.learning_direction,currentStage]
+   );
+   stageProgression=evaluateLearningStage(currentStage,recent.rows.map(row=>row.is_correct));
+   if(stageProgression.outcome==="promote"||stageProgression.outcome==="demote"){
+    await pool.query(
+     `UPDATE learner_learning_stages SET stage=$3,stage_source='evidence_progression',updated_at=now()
+      WHERE user_id=$1 AND learning_direction=$2 AND stage=$4`,
+     [learner.id,lesson.learning_direction,stageProgression.nextStage,currentStage]
+    );
+   }
+  }
+  return {lesson_id:id,exercise_id:exerciseId,result:{correct,feedback},stage_progression:stageProgression?{
+   current_stage:stageProgression.currentStage,next_stage:stageProgression.nextStage,outcome:stageProgression.outcome,
+   sample_size:stageProgression.sampleSize,correct_count:stageProgression.correctCount,accuracy:stageProgression.accuracy,
+   rationale:stageProgression.rationale
+  }:null,stage_evidence:{eligible:evidenceStage!==null,reason:evidenceStage!==null?"Exercise is tagged for the learner’s confirmed stage.":exerciseStage===null?"Exercise has no curriculum stage tag.":"Exercise stage does not match the learner’s confirmed stage."}};
  });
+
+ app.get("/api/v1/learning/vocabulary/reviews",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to review vocabulary.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to access vocabulary reviews.");
+  const preference=await pool.query<{learning_direction:Direction}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preference.rows[0]?.learning_direction??"ml_to_en";
+  const query=(request.query??{}) as {limit?:string};
+  const limit=query.limit===undefined?20:Number(query.limit);
+  if(!Number.isInteger(limit)||limit<1||limit>50)return failure(reply,request.id,400,"VALIDATION_ERROR","Review queue limit must be from 1 to 50.");
+  const due=await pool.query<{lesson_id:string;lesson_title:string;lesson_version_id:string;vocabulary_item_id:string;term:string;meaning:string;pronunciation:string|null;example:string|null;due_at:Date;repetitions:number;interval_days:number}>(
+   `SELECT l.id AS lesson_id,l.title AS lesson_title,lv.id AS lesson_version_id,
+      vocabulary_item.value->>'id' AS vocabulary_item_id,vocabulary_item.value->>'term' AS term,vocabulary_item.value->>'meaning' AS meaning,
+      vocabulary_item.value->>'pronunciation' AS pronunciation,vocabulary_item.value->>'example' AS example,
+      COALESCE(r.due_at,now()) AS due_at,COALESCE(r.repetitions,0)::int AS repetitions,
+      COALESCE(r.interval_days,0)::int AS interval_days
+    FROM lessons l
+    JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
+    JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id
+    CROSS JOIN LATERAL jsonb_array_elements(COALESCE(lv.content->'blocks','[]'::jsonb)) AS lesson_block(value)
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN lesson_block.value->>'type'='vocabulary' THEN COALESCE(lesson_block.value->'items','[]'::jsonb) ELSE '[]'::jsonb END) AS vocabulary_item(value)
+    LEFT JOIN learner_vocabulary_reviews r ON r.user_id=$1 AND r.learning_direction=$2
+      AND r.lesson_version_id=lv.id AND r.vocabulary_item_id=vocabulary_item.value->>'id'
+    WHERE l.status='published' AND c.status='published' AND lv.status='published'
+      AND c.learning_direction=$2 AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')
+      AND vocabulary_item.value->>'id' IS NOT NULL AND (r.user_id IS NULL OR r.due_at<=now())
+    ORDER BY COALESCE(r.due_at,now()) ASC,l.title,vocabulary_item.value->>'term' LIMIT $3`,
+   [learner.id,direction,limit]
+  );
+  return {learning_direction:direction,due_count:due.rows.length,items:due.rows.map(row=>({
+   lesson_id:row.lesson_id,lesson_title:row.lesson_title,lesson_version_id:row.lesson_version_id,
+   vocabulary_item_id:row.vocabulary_item_id,term:row.term,meaning:row.meaning,
+   pronunciation:row.pronunciation,example:row.example,due_at:row.due_at,
+   repetitions:row.repetitions,interval_days:row.interval_days
+  })),policy:{only_current_published_versions:true,learner_reports_recall:true,missed_reviews_never_block_lessons:true}};
+ });
+
+ app.post("/api/v1/learning/lessons/:id/vocabulary/:itemId/review",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to save your vocabulary review.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to save vocabulary reviews.");
+  const params=request.params as {id?:string;itemId?:string};
+  const lessonId=params.id??"",itemId=params.itemId??"";
+  if(!lessonIdPattern.test(lessonId)||!/^[a-zA-Z0-9_-]{1,64}$/.test(itemId))return failure(reply,request.id,400,"INVALID_VOCABULARY_REFERENCE","This vocabulary review link is invalid.");
+  const body=request.body as {rating?:unknown}|null;
+  if(!body||typeof body.rating!=="number"||!Number.isInteger(body.rating)||body.rating<0||body.rating>5||Object.keys(body).some(key=>key!=="rating"))return failure(reply,request.id,400,"VALIDATION_ERROR","Recall rating must be a whole number from 0 to 5.");
+  const preference=await pool.query<{learning_direction:Direction}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preference.rows[0]?.learning_direction??"ml_to_en";
+  const published=await pool.query<{lesson_version_id:string}>(
+   `SELECT lv.id AS lesson_version_id
+    FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
+    JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id
+    CROSS JOIN LATERAL jsonb_array_elements(COALESCE(lv.content->'blocks','[]'::jsonb)) AS lesson_block(value)
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN lesson_block.value->>'type'='vocabulary' THEN COALESCE(lesson_block.value->'items','[]'::jsonb) ELSE '[]'::jsonb END) AS vocabulary_item(value)
+    WHERE l.id=$1 AND l.status='published' AND c.status='published' AND lv.status='published'
+      AND c.learning_direction=$2 AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')
+      AND vocabulary_item.value->>'id'=$3 LIMIT 1`,
+   [lessonId,direction,itemId]
+  );
+  const versionId=published.rows[0]?.lesson_version_id;
+  if(!versionId)return failure(reply,request.id,404,"VOCABULARY_ITEM_NOT_FOUND","This vocabulary item is not in your current published learning content.");
+  const existing=await pool.query<{repetitions:number;interval_days:number;ease_factor:string}>(
+   "SELECT repetitions,interval_days,ease_factor::text FROM learner_vocabulary_reviews WHERE user_id=$1 AND learning_direction=$2 AND lesson_version_id=$3 AND vocabulary_item_id=$4",
+   [learner.id,direction,versionId,itemId]
+  );
+  const previous=existing.rows[0]??initialVocabularyReview();
+  const schedule=scheduleVocabularyReview({repetitions:previous.repetitions,intervalDays:previous.interval_days,easeFactor:Number(previous.ease_factor)},body.rating as RecallRating,new Date());
+  const saved=await pool.query<{due_at:Date;repetitions:number;interval_days:number;ease_factor:string}>(
+   `INSERT INTO learner_vocabulary_reviews(user_id,learning_direction,lesson_id,lesson_version_id,vocabulary_item_id,repetitions,interval_days,ease_factor,due_at,last_rating,last_reviewed_at,updated_at)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now(),now())
+    ON CONFLICT(user_id,learning_direction,lesson_version_id,vocabulary_item_id)
+    DO UPDATE SET repetitions=EXCLUDED.repetitions,interval_days=EXCLUDED.interval_days,
+      ease_factor=EXCLUDED.ease_factor,due_at=EXCLUDED.due_at,last_rating=EXCLUDED.last_rating,
+      last_reviewed_at=now(),updated_at=now()
+    RETURNING due_at,repetitions,interval_days,ease_factor::text`,
+   [learner.id,direction,lessonId,versionId,itemId,schedule.repetitions,schedule.intervalDays,schedule.easeFactor,schedule.dueAt,body.rating]
+  );
+  return {lesson_id:lessonId,vocabulary_item_id:itemId,learning_direction:direction,
+   rating:body.rating,schedule:{due_at:saved.rows[0]!.due_at,repetitions:saved.rows[0]!.repetitions,
+    interval_days:saved.rows[0]!.interval_days,ease_factor:Number(saved.rows[0]!.ease_factor)}};
+ });
+ 
+ app.get("/api/v1/learning/vocabulary/summary",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view vocabulary progress.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to view vocabulary insights.");
+  const preference=await pool.query<{learning_direction:Direction}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preference.rows[0]?.learning_direction??"ml_to_en";
+  const result=await pool.query<{total_words:number;reviewed_words:number;mastered_words:number;developing_words:number;due_words:number;last_reviewed_at:Date|null}>(
+   `WITH eligible AS (
+     SELECT l.id AS lesson_id,lv.id AS lesson_version_id,vocabulary_item.value->>'id' AS item_id
+     FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
+     JOIN lesson_versions lv ON lv.id=l.current_published_version_id AND lv.lesson_id=l.id
+     CROSS JOIN LATERAL jsonb_array_elements(COALESCE(lv.content->'blocks','[]'::jsonb)) AS lesson_block(value)
+     CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN lesson_block.value->>'type'='vocabulary' THEN COALESCE(lesson_block.value->'items','[]'::jsonb) ELSE '[]'::jsonb END) AS vocabulary_item(value)
+     WHERE l.status='published' AND c.status='published' AND lv.status='published'
+       AND c.learning_direction=$2 AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')
+       AND vocabulary_item.value->>'id' IS NOT NULL
+   ), progress AS (
+     SELECT e.lesson_id,e.lesson_version_id,e.item_id,r.last_reviewed_at,r.due_at,
+       COALESCE(r.repetitions,0)::int AS repetitions,COALESCE(r.interval_days,0)::int AS interval_days
+     FROM eligible e LEFT JOIN learner_vocabulary_reviews r
+       ON r.user_id=$1 AND r.learning_direction=$2 AND r.lesson_version_id=e.lesson_version_id
+       AND r.vocabulary_item_id=e.item_id
+   )
+   SELECT COUNT(*)::int AS total_words,
+     COUNT(*) FILTER(WHERE last_reviewed_at IS NOT NULL)::int AS reviewed_words,
+     COUNT(*) FILTER(WHERE repetitions>=3 AND interval_days>=7)::int AS mastered_words,
+     COUNT(*) FILTER(WHERE last_reviewed_at IS NOT NULL AND NOT(repetitions>=3 AND interval_days>=7))::int AS developing_words,
+     COUNT(*) FILTER(WHERE last_reviewed_at IS NULL OR due_at<=now())::int AS due_words,
+     MAX(last_reviewed_at) AS last_reviewed_at
+   FROM progress`,
+   [learner.id,direction]
+  );
+  const row=result.rows[0]??{total_words:0,reviewed_words:0,mastered_words:0,developing_words:0,due_words:0,last_reviewed_at:null};
+  return {learning_direction:direction,summary:row,policy:{mastery_is_a_review_schedule_signal_not_a_fluency_score:true,only_current_published_versions:true}};
+ });
+
+ app.get("/api/v1/learning/skill-profile",async(request,reply)=>{
+  const learner=await authenticateLearner(request,pool,config);
+  if(!learner)return failure(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in to view your learning profile.");
+  if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to view detailed learning insights.");
+  const preference=await pool.query<{learning_direction:Direction}>("SELECT learning_direction FROM user_preferences WHERE user_id=$1",[learner.id]);
+  const direction=preference.rows[0]?.learning_direction??"ml_to_en";
+  const stage=await pool.query<{stage:LearningStage}>("SELECT stage FROM learner_learning_stages WHERE user_id=$1 AND learning_direction=$2",[learner.id,direction]);
+  const evidence=await pool.query<{skill_key:string;attempt_count:number;correct_count:number;last_attempt_at:Date;recent_accuracy:string}>(
+   `SELECT skill_key,COUNT(*)::int AS attempt_count,
+      COUNT(*) FILTER(WHERE is_correct)::int AS correct_count,
+      MAX(attempted_at) AS last_attempt_at,
+      ROUND(AVG(CASE WHEN is_correct THEN 1.0 ELSE 0.0 END)::numeric,2)::text AS recent_accuracy
+    FROM (
+      SELECT DISTINCT ON (lesson_id,exercise_id) skill_key,is_correct,attempted_at
+      FROM learner_exercise_attempts
+      WHERE user_id=$1 AND learning_direction=$2 AND skill_key IS NOT NULL
+      ORDER BY lesson_id,exercise_id,attempted_at DESC
+    ) latest
+    GROUP BY skill_key ORDER BY skill_key`,
+   [learner.id,direction]
+  );
+  return {learning_direction:direction,stage:stage.rows[0]?.stage??null,
+   skills:evidence.rows.map(row=>({skill_key:row.skill_key,attempt_count:row.attempt_count,
+    correct_count:row.correct_count,accuracy:Number(row.recent_accuracy),
+    status:row.attempt_count<5?"insufficient_evidence":Number(row.recent_accuracy)>=0.8?"strong":Number(row.recent_accuracy)<=0.5?"needs_practice":"developing",
+    last_attempt_at:row.last_attempt_at})),
+   profile_policy:{only_latest_attempt_per_exercise:true,minimum_evidence_for_status:5,not_a_proficiency_certificate:true}};
+ });
+ 
+
 
 }
