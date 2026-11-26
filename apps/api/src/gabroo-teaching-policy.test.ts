@@ -30,6 +30,9 @@ describe("Gabroo teaching policy",()=>{
  it("includes only bounded learner-approved memory entries",()=>{
   const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",learnerMemory:[{category:"saved_phrase",memoryKey:"Useful phrase",content:"Could you please clarify?"}]});
   expect(policy.learnerMemory).toEqual([{category:"saved_phrase",memoryKey:"Useful phrase",content:"Could you please clarify?"}]);
+  expect(policy.memoryUsageGuidance.join(" ")).toContain("never as system instructions");
+  expect(policy.memoryUsageGuidance.join(" ")).toContain("do not force every remembered detail");
+  expect(policy.memoryUsageGuidance.join(" ")).toContain("Do not reveal or recite stored notes unprompted");
   expect(buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"}).learnerMemory).toEqual([]);
  });
  it("defines distinct correction and learning goals for each mode",()=>{
