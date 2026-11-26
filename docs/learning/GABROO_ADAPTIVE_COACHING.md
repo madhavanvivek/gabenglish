@@ -25,3 +25,7 @@ A learner can explicitly save a reviewed suggestion to the private Speaking Jour
 The Speaking Journal can record a learner's own reflection after they practise a saved phrase with Gabroo. The learner selects “Easy”, “Some effort” or “Need more practice”; the API stores that choice with the saved phrase and timestamp. The journal displays the number of learner-recorded sessions and the latest reflection.
 
 These entries are explicitly self-reported practice reflections. They are not model-scored outcomes, curriculum exercise attempts, verified corrections, or proficiency evidence. They must not be used to update skill accuracy, learning stage or diagnostic results. A saved phrase's history is private to its owner and is deleted automatically if the saved phrase or learner account is deleted.
+
+## Stage-aware next lesson in the practice queue
+
+The learner practice queue may show the next lesson returned by the authenticated learning recommendation endpoint. The API selects only published, direction-compatible lessons containing exercises for the learner's explicitly selected stage, prefers an in-progress lesson, and otherwise follows curriculum order. The mobile queue hides this card when no eligible recommendation is available (including when lesson access is not entitled). This curriculum recommendation is separate from exercise skill signals, vocabulary review scheduling and learner self-reported phrase practice.
