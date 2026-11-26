@@ -17,6 +17,12 @@ describe("authored exercise evaluation",()=>{
   expect(evaluateAuthoredExercise(exercise,"  HELLO  ")?.correct).toBe(true);
   expect(evaluateAuthoredExercise(exercise,"Goodbye")?.correct).toBe(false);
  });
+ it("normalises repeated whitespace and compatibility characters in text answers",()=>{
+  const exercise={type:"exercise",id:"phrase",instruction:"Translate",prompt:"Say hello",response_type:"text",accepted_answers:["hello there","café"]};
+  expect(evaluateAuthoredExercise(exercise,"  HELLO   THERE  ")?.correct).toBe(true);
+  expect(evaluateAuthoredExercise(exercise,"ＣＡＦÉ")?.correct).toBe(true);
+  expect(evaluateAuthoredExercise(exercise,"hello\\tthere")?.correct).toBe(true);
+ });
  it("rejects missing or malformed answer rubrics",()=>{
   expect(evaluateAuthoredExercise({type:"exercise",id:"q",response_type:"text"},"answer")).toBeNull();
   expect(evaluateAuthoredExercise(choice," ".repeat(3))).toBeNull();
