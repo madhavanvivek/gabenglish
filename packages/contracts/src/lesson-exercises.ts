@@ -27,7 +27,7 @@ export function evaluateAuthoredExercise(input:unknown,response:string):{correct
  if(!submitted||submitted.length>2000)return null;
  const correct=exercise.response_type==="single_choice"
   ?exercise.options.some(option=>option.id===submitted)&&submitted===exercise.correct_option_id
-  :exercise.accepted_answers.some(answer=>answer.normalize("NFKC").trim().toLocaleLowerCase().replace(/\\s+/g," ")===submitted.normalize("NFKC").trim().toLocaleLowerCase().replace(/\\s+/g," "));
+  :exercise.accepted_answers.some(answer=>answer.normalize("NFKC").trim().toLocaleLowerCase().replace(/\s+/g," ")===submitted.normalize("NFKC").trim().toLocaleLowerCase().replace(/\s+/g," "));
  if(exercise.response_type==="single_choice"&&!exercise.options.some(option=>option.id===submitted))return null;
  return {correct,feedback:correct?(exercise.correct_feedback??"Good work. Your answer is correct."):(exercise.incorrect_feedback??"Not quite. Review the lesson and try again.")};
 }
