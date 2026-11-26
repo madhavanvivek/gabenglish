@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState} from "react";
 import {Link,useLocalSearchParams} from "expo-router";
-import {Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
+import {AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {AuthApiError,getLearnerMe,getLearningLesson,getLearningExerciseAttemptHistory,saveLearningLessonProgress,submitLearningExerciseAttempt,type LearningExerciseAttemptHistory,type LearningLessonDetail} from "../../src/auth-api";
 import {BrandMark,Eyebrow,PrimaryButton,SurfaceCard} from "../../src/ui";
@@ -92,29 +92,37 @@ export default function LessonScreen(){
  useEffect(()=>{
   if(!id||!data||!draftOwnerId)return;
   let active=true;
+  let replaying=false;
   const requestEpoch=lessonRequestEpoch.current;
   const lessonId=id;
   const versionId=data.lesson.version_id;
   const ownerId=draftOwnerId;
   const pendingExercises=data.lesson.content.blocks.filter((block):block is Extract<typeof block,{type:"exercise"}>=>block.type==="exercise");
-  void (async()=>{
-   for(const exercise of pendingExercises){
-    const pending=await readPendingExerciseSubmission(ownerId,lessonId,versionId,exercise.id);
-    if(!pending||!active||lessonRequestEpoch.current!==requestEpoch)continue;
-    setAnswersState(current=>({...current,[exercise.id]:pending.response}));
-    setSubmissionStatuses(current=>({...current,[exercise.id]:"sending"}));
-    try{
-     const result=await submitLearningExerciseAttempt(lessonId,exercise.id,versionId,pending.submissionId,pending.response);
-     await clearPendingExerciseSubmission(ownerId,lessonId,versionId,exercise.id);
+  const replayPending=async()=>{
+   if(!active||replaying||AppState.currentState!=="active")return;
+   replaying=true;
+   try{
+    for(const exercise of pendingExercises){
      if(!active||lessonRequestEpoch.current!==requestEpoch)return;
-     setExerciseResults(current=>({...current,[exercise.id]:result.result}));
-     setSubmissionStatuses(current=>({...current,[exercise.id]:"submitted"}));
-    }catch{
-     if(active&&lessonRequestEpoch.current===requestEpoch)setSubmissionStatuses(current=>({...current,[exercise.id]:"failed"}));
+     const pending=await readPendingExerciseSubmission(ownerId,lessonId,versionId,exercise.id);
+     if(!pending||!active||lessonRequestEpoch.current!==requestEpoch)continue;
+     setAnswersState(current=>({...current,[exercise.id]:pending.response}));
+     setSubmissionStatuses(current=>({...current,[exercise.id]:"sending"}));
+     try{
+      const result=await submitLearningExerciseAttempt(lessonId,exercise.id,versionId,pending.submissionId,pending.response);
+      await clearPendingExerciseSubmission(ownerId,lessonId,versionId,exercise.id);
+      if(!active||lessonRequestEpoch.current!==requestEpoch)return;
+      setExerciseResults(current=>({...current,[exercise.id]:result.result}));
+      setSubmissionStatuses(current=>({...current,[exercise.id]:"submitted"}));
+     }catch{
+      if(active&&lessonRequestEpoch.current===requestEpoch)setSubmissionStatuses(current=>({...current,[exercise.id]:"failed"}));
+     }
     }
-   }
-  })();
-  return()=>{active=false;};
+   }finally{replaying=false;}
+  };
+  void replayPending();
+  const subscription=AppState.addEventListener("change",state=>{if(state==="active")void replayPending();});
+  return()=>{active=false;subscription.remove();};
  },[id,data?.lesson.version_id,draftOwnerId]);
  useEffect(()=>{if(!id||!data||!draftOwnerId)return;const ownerId=draftOwnerId;const lessonId=id;const versionId=data.lesson.version_id;draftWriteRef.current=draftWriteRef.current.then(()=>writeLessonAnswerDraft(ownerId,lessonId,versionId,answers));},[id,data?.lesson.version_id,draftOwnerId,answers]);
  async function reloadUpdatedLesson(){
