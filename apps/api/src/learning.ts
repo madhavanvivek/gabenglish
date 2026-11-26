@@ -1,4 +1,4 @@
-import {evaluateAuthoredExercise} from "@gabenglish/contracts";
+import {evaluateAuthoredExercise,learningLessonProgressUpdateSchema} from "@gabenglish/contracts";
 import {projectLearnerLessonContent} from "@gabenglish/contracts";
 import type {FastifyInstance} from "fastify";
 import type {Pool} from "pg";
@@ -165,11 +165,9 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   if(!await getActiveSubscriptionEntitlement(pool,learner.id))return failure(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active subscription is required to save lesson progress.");
   const id=(request.params as {id?:string}).id??"";
   if(!lessonIdPattern.test(id))return failure(reply,request.id,400,"INVALID_LESSON_ID","This lesson link is invalid.");
-  const body=request.body as {progress_percent?:unknown}|null;
-  const percent=body?.progress_percent;
-  if(!body||typeof percent!=="number"||!Number.isInteger(percent)||percent<0||percent>100||Object.keys(body).some(key=>key!=="progress_percent")){
-   return failure(reply,request.id,400,"VALIDATION_ERROR","Progress must be a whole number from 0 to 100.");
-  }
+  const parsedProgress=learningLessonProgressUpdateSchema.safeParse(request.body);
+  if(!parsedProgress.success)return failure(reply,request.id,400,"VALIDATION_ERROR","Progress must be a whole number from 0 to 100.");
+  const percent=parsedProgress.data.progress_percent;
   const client=await pool.connect();
   try{
    await client.query("BEGIN");
