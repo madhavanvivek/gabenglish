@@ -272,15 +272,46 @@ paths:
   /progress/overview:
     get:
       tags: [Progress]
-      summary: Get learner progress overview
+      summary: Get published-course progress for the authenticated learner
+      description: Aggregates progress against each course's current published lesson versions in the learner's selected learning direction. Requires an active subscription.
       responses:
         '200':
-          description: Progress overview
+          description: Learner progress overview
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
+                required: [learning_direction, summary, courses]
+                properties:
+                  learning_direction: { type: string, enum: [ml_to_en, en_to_ml] }
+                  summary:
+                    type: object
+                    required: [total_courses, total_lessons, started_lessons, completed_lessons, progress_percent]
+                    properties:
+                      total_courses: { type: integer }
+                      total_lessons: { type: integer }
+                      started_lessons: { type: integer }
+                      completed_lessons: { type: integer }
+                      progress_percent: { type: number, minimum: 0, maximum: 100 }
+                  courses:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, code, title, total_lessons, started_lessons, completed_lessons, progress_percent]
+                      properties:
+                        id: { type: string, format: uuid }
+                        code: { type: string }
+                        title: { type: string }
+                        description: { type: [string, 'null'] }
+                        total_lessons: { type: integer }
+                        started_lessons: { type: integer }
+                        completed_lessons: { type: integer }
+                        progress_percent: { type: number, minimum: 0, maximum: 100 }
+                        last_activity_at: { type: [string, 'null'], format: date-time }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Active subscription required
   /vocabulary/review:
     get:
       tags: [Vocabulary]
