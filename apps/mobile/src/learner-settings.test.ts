@@ -6,6 +6,7 @@ import {
   GABROO_SPEECH_RATE_MIN,
   resolveLearningDirection,
   isCourseForLearningDirection,
+  filterVocabularyItems,
 } from "./learner-settings";
 
 describe("Gabroo speech-rate preference", () => {
@@ -51,5 +52,35 @@ describe("learner learning-direction safeguards", () => {
     expect(isCourseForLearningDirection("en_to_ml", "ml_to_en")).toBe(false);
     expect(isCourseForLearningDirection("en_to_ml", "en_to_ml")).toBe(true);
     expect(isCourseForLearningDirection("ml_to_en", "en_to_ml")).toBe(false);
+  });
+});
+
+
+describe("saved vocabulary search", () => {
+  const words = [
+    { id: "1", source_term: "hello", target_term: "നമസ്കാരം", example: "Hello, how are you?" },
+    { id: "2", source_term: "beautiful", target_term: "സുന്ദരം", example: "A beautiful morning" },
+    { id: "3", source_term: "thank you", target_term: "നന്ദി", example: null },
+  ];
+
+  it("returns the full collection for an empty or whitespace-only query", () => {
+    expect(filterVocabularyItems(words, "")).toEqual(words);
+    expect(filterVocabularyItems(words, "   ")).toEqual(words);
+  });
+
+  it("matches source words, Malayalam meanings, and example sentences without case sensitivity", () => {
+    expect(filterVocabularyItems(words, "HELLO").map((word) => word.id)).toEqual(["1"]);
+    expect(filterVocabularyItems(words, "സുന്ദരം").map((word) => word.id)).toEqual(["2"]);
+    expect(filterVocabularyItems(words, "morning").map((word) => word.id)).toEqual(["2"]);
+  });
+
+  it("requires every query term to match somewhere in the word details", () => {
+    expect(filterVocabularyItems(words, "beautiful morning").map((word) => word.id)).toEqual(["2"]);
+    expect(filterVocabularyItems(words, "beautiful hello")).toEqual([]);
+  });
+
+  it("normalizes Unicode text and ignores repeated whitespace in the query", () => {
+    expect(filterVocabularyItems(words, "  thank   YOU  ").map((word) => word.id)).toEqual(["3"]);
+    expect(filterVocabularyItems(words, "  no   match ")).toEqual([]);
   });
 });
