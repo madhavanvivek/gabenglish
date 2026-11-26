@@ -166,6 +166,7 @@ export type LearningLessonProgressSaveContract=z.infer<typeof learningLessonProg
 
 export const learningExerciseAttemptSubmitSchema=z.object({
  lesson_version_id:z.string().min(1).max(128),
+ submission_id:z.string().uuid(),
  response:z.string().trim().min(1).max(2000)
 }).strict();
 export type LearningExerciseAttemptSubmitContract=z.infer<typeof learningExerciseAttemptSubmitSchema>;
