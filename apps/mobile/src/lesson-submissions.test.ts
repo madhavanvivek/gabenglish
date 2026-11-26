@@ -6,7 +6,7 @@ vi.mock("expo-secure-store",()=>({
  setItemAsync:vi.fn(async(key:string,value:string)=>{store.set(key,value);}),
  deleteItemAsync:vi.fn(async(key:string)=>{store.delete(key);})
 }));
-import {clearPendingExerciseSubmission,getOrCreatePendingExerciseSubmission} from "./lesson-submissions";
+import {clearPendingExerciseSubmission,getOrCreatePendingExerciseSubmission,readPendingExerciseSubmission} from "./lesson-submissions";
 
 afterEach(()=>{store.clear();vi.clearAllMocks();});
 
@@ -15,6 +15,11 @@ describe("pending exercise submissions",()=>{
   const first=await getOrCreatePendingExerciseSubmission("learner","lesson","version","exercise-1","  hello  ");
   const retry=await getOrCreatePendingExerciseSubmission("learner","lesson","version","exercise-1","hello");
   expect(retry).toBe(first);
+ });
+ it("restores the full pending answer envelope after app restart",async()=>{
+  const submissionId=await getOrCreatePendingExerciseSubmission("learner","lesson","version","exercise-1","hello");
+  await expect(readPendingExerciseSubmission("learner","lesson","version","exercise-1")).resolves.toEqual({submissionId,response:"hello"});
+  await expect(readPendingExerciseSubmission("other-learner","lesson","version","exercise-1")).resolves.toBeNull();
  });
  it("creates a new identifier when the answer changes",async()=>{
   const first=await getOrCreatePendingExerciseSubmission("learner","lesson","version","exercise-1","hello");
