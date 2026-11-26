@@ -22,10 +22,14 @@ export default function VocabularyScreen(){
  const load=useCallback(async()=>{
   setLoading(true);setError("");
   try{
-   const [due,collection,analytics]=await Promise.all([getDueLearnerVocabulary(50),listLearnerVocabulary(),getLearnerVocabularyStats()]);
+   const [due,collection,analytics]=await Promise.all([
+    getDueLearnerVocabulary(50),
+    listLearnerVocabulary(),
+    getLearnerVocabularyStats().catch(()=>null)
+   ]);
    setItems(due.items);
    setSavedItems(collection.items.filter(item=>item.status==="active"));
-   setStats(analytics.stats);
+   setStats(analytics?.stats??null);
   }catch(reason){
    if(!(reason instanceof AuthApiError&&[401,403].includes(reason.status??0)))setError(reason instanceof Error?reason.message:"Could not load your vocabulary.");
   }finally{setLoading(false);}
