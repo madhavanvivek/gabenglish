@@ -37,6 +37,7 @@ export default function LessonScreen(){
  const [exerciseResults,setExerciseResults]=useState<Record<string,{correct:boolean;feedback:string}>>({});
  const [exerciseHistory,setExerciseHistory]=useState<Record<string,LearningExerciseAttemptHistory["attempts"]>>({});
  const [busyExercise,setBusyExercise]=useState<string|null>(null);
+ const busyExerciseRef=useRef<string|null>(null);
  const lessonRequestEpoch=useRef(0);
  const historyRequestEpoch=useRef<Record<string,number>>({});
  const setAnswer=(exerciseId:string,value:string)=>setAnswersState(current=>({...current,[exerciseId]:value}));
@@ -47,8 +48,29 @@ export default function LessonScreen(){
  const attemptedExercises=exerciseBlocks.filter(block=>latestExerciseCorrect(block.id)!==undefined);
  const latestCorrectCount=attemptedExercises.filter(block=>latestExerciseCorrect(block.id)===true).length;
  const needsReviewExercises=exerciseBlocks.filter(block=>latestExerciseCorrect(block.id)===false);
- async function submitExercise(exerciseId:string){if(!id||busyExercise)return;const requestLessonId=id;const requestEpoch=lessonRequestEpoch.current;setBusyExercise(exerciseId);setError("");try{const result=await submitLearningExerciseAttempt(requestLessonId,exerciseId,answers[exerciseId]??"");if(lessonRequestEpoch.current!==requestEpoch)return;setExerciseResults(current=>({...current,[exerciseId]:result.result}));const historyEpoch=(historyRequestEpoch.current[exerciseId]??0)+1;historyRequestEpoch.current[exerciseId]=historyEpoch;try{const history=await getLearningExerciseAttemptHistory(requestLessonId,exerciseId);if(lessonRequestEpoch.current===requestEpoch&&historyRequestEpoch.current[exerciseId]===historyEpoch)setExerciseHistory(current=>({...current,[exerciseId]:history.attempts}));}catch{/* Keep the just-returned result visible if history is temporarily unavailable. */}}catch(e){if(lessonRequestEpoch.current===requestEpoch)setError(e instanceof Error?e.message:"Could not check this answer.");}finally{if(lessonRequestEpoch.current===requestEpoch)setBusyExercise(null);}}
- useEffect(()=>{let active=true;lessonRequestEpoch.current+=1;const requestEpoch=lessonRequestEpoch.current;setData(null);setProgress(0);setBusy(false);setAnswersState({});setExerciseResults({});setExerciseHistory({});historyRequestEpoch.current={};setBusyExercise(null);setError("");setLessonVersionChanged(false);setReloading(false);setMessage("");if(id)void getLearningLesson(id).then(async value=>{if(!active)return;setData(value);setProgress(value.progress?.progress_percent??0);const exerciseIds=value.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);const historyEpochs=Object.fromEntries(exerciseIds.map(exerciseId=>[exerciseId,historyRequestEpoch.current[exerciseId]??0]));const histories=await Promise.all(exerciseIds.map(async exerciseId=>{try{return [exerciseId,(await getLearningExerciseAttemptHistory(id,exerciseId)).attempts] as const;}catch{return [exerciseId,[]] as const;}}));if(active)setExerciseHistory(current=>({...current,...Object.fromEntries(histories.filter(([exerciseId])=>(historyRequestEpoch.current[exerciseId]??0)===historyEpochs[exerciseId]))}));}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;if(lessonRequestEpoch.current===requestEpoch)lessonRequestEpoch.current+=1;};},[id]);
+ async function submitExercise(exerciseId:string){
+  if(!id||busyExerciseRef.current!==null)return;
+  const requestLessonId=id;
+  const requestEpoch=lessonRequestEpoch.current;
+  busyExerciseRef.current=exerciseId;
+  setBusyExercise(exerciseId);setError("");
+  try{
+   const result=await submitLearningExerciseAttempt(requestLessonId,exerciseId,answers[exerciseId]??"");
+   if(lessonRequestEpoch.current!==requestEpoch)return;
+   setExerciseResults(current=>({...current,[exerciseId]:result.result}));
+   const historyEpoch=(historyRequestEpoch.current[exerciseId]??0)+1;
+   historyRequestEpoch.current[exerciseId]=historyEpoch;
+   try{
+    const history=await getLearningExerciseAttemptHistory(requestLessonId,exerciseId);
+    if(lessonRequestEpoch.current===requestEpoch&&historyRequestEpoch.current[exerciseId]===historyEpoch)setExerciseHistory(current=>({...current,[exerciseId]:history.attempts}));
+   }catch{/* Keep the just-returned result visible if history is temporarily unavailable. */}
+  }catch(e){
+   if(lessonRequestEpoch.current===requestEpoch)setError(e instanceof Error?e.message:"Could not check this answer.");
+  }finally{
+   if(busyExerciseRef.current===exerciseId&&lessonRequestEpoch.current===requestEpoch){busyExerciseRef.current=null;setBusyExercise(null);}
+  }
+ }
+ useEffect(()=>{let active=true;lessonRequestEpoch.current+=1;const requestEpoch=lessonRequestEpoch.current;setData(null);setProgress(0);setBusy(false);setAnswersState({});setExerciseResults({});setExerciseHistory({});historyRequestEpoch.current={};busyExerciseRef.current=null;setBusyExercise(null);setError("");setLessonVersionChanged(false);setReloading(false);setMessage("");if(id)void getLearningLesson(id).then(async value=>{if(!active)return;setData(value);setProgress(value.progress?.progress_percent??0);const exerciseIds=value.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);const historyEpochs=Object.fromEntries(exerciseIds.map(exerciseId=>[exerciseId,historyRequestEpoch.current[exerciseId]??0]));const histories=await Promise.all(exerciseIds.map(async exerciseId=>{try{return [exerciseId,(await getLearningExerciseAttemptHistory(id,exerciseId)).attempts] as const;}catch{return [exerciseId,[]] as const;}}));if(active)setExerciseHistory(current=>({...current,...Object.fromEntries(histories.filter(([exerciseId])=>(historyRequestEpoch.current[exerciseId]??0)===historyEpochs[exerciseId]))}));}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;if(lessonRequestEpoch.current===requestEpoch)lessonRequestEpoch.current+=1;};},[id]);
  async function reloadUpdatedLesson(){
   if(!id||reloading)return;
   const requestLessonId=id;
