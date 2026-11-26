@@ -227,7 +227,8 @@ describe("API foundation",()=>{
    {method:"GET" as const,url:"/api/v1/learning/courses"},
    {method:"GET" as const,url:"/api/v1/learning/lessons/"+lessonId},
    {method:"POST" as const,url:"/api/v1/learning/lessons/"+lessonId+"/progress",payload:{progress_percent:25}},
-   {method:"POST" as const,url:"/api/v1/learning/lessons/"+lessonId+"/exercises/greeting/attempts",payload:{response:"hello"}}
+   {method:"POST" as const,url:"/api/v1/learning/lessons/"+lessonId+"/exercises/greeting/attempts",payload:{response:"hello"}},
+   {method:"GET" as const,url:"/api/v1/learning/lessons/"+lessonId+"/exercises/greeting/attempts"}
   ];
   try{
    for(const request of requests){
@@ -262,6 +263,50 @@ describe("API foundation",()=>{
    expect(invalidExercise.statusCode).toBe(400);
    expect(invalidExercise.json().error.code).toBe("INVALID_EXERCISE_REFERENCE");
    expect(queries.some(sql=>sql.includes("FROM lessons l JOIN modules m"))).toBe(false);
+  }finally{await app.close();}
+ });
+
+
+ it("returns only the authenticated learner's attempts for the current published lesson version",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const learnerId="00000000-0000-4000-8000-000000000001";
+  const lessonId="00000000-0000-4000-8000-000000000020";
+  const versionId="00000000-0000-4000-8000-000000000021";
+  const attemptQuery:{sql:string;values?:unknown[]}[]=[];
+  const pool={query:async(sql:string,values?:unknown[])=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:learnerId,email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
+   if(sql.includes("SELECT lv.id AS version_id,c.learning_direction,lv.content"))return {rows:[{version_id:versionId,learning_direction:"ml_to_en",content:{schema_version:1,blocks:[{type:"exercise",id:"greeting",instruction:"Choose",prompt:"Morning",response_type:"single_choice",options:[{id:"morning",label:"Good morning"},{id:"night",label:"Good night"}]}]}}]};
+   if(sql.includes("FROM learner_exercise_attempts")){attemptQuery.push({sql,values});return {rows:[{response:"morning",is_correct:true,feedback:"Correct.",attempted_at:new Date("2026-11-26T10:00:00Z")}]};}
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  try{
+   const response=await app.inject({method:"GET",url:"/api/v1/learning/lessons/"+lessonId+"/exercises/greeting/attempts",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+   expect(response.statusCode).toBe(200);
+   expect(response.json()).toMatchObject({lesson_id:lessonId,exercise_id:"greeting",learning_direction:"ml_to_en",attempts:[{response:"morning",is_correct:true,feedback:"Correct."}]});
+   expect(attemptQuery).toHaveLength(1);
+   expect(attemptQuery[0]?.values).toEqual([learnerId,lessonId,versionId,"ml_to_en","greeting"]);
+   expect(attemptQuery[0]?.sql).toContain("LIMIT 20");
+  }finally{await app.close();}
+ });
+
+ it("does not query exercise history for an unpublished or unknown exercise",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const queries:string[]=[];
+  const pool={query:async(sql:string)=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("SELECT lv.id AS version_id,c.learning_direction,lv.content"))return {rows:[{version_id:"00000000-0000-4000-8000-000000000021",learning_direction:"ml_to_en",content:{schema_version:1,blocks:[{type:"text",body:"Hello"}]}}]};
+   queries.push(sql);return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  try{
+   const response=await app.inject({method:"GET",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000020/exercises/missing/attempts",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+   expect(response.statusCode).toBe(404);
+   expect(response.json().error.code).toBe("EXERCISE_NOT_FOUND");
+   expect(queries.some(sql=>sql.includes("FROM learner_exercise_attempts"))).toBe(false);
   }finally{await app.close();}
  });
 
