@@ -19,3 +19,9 @@ Policy tests cover evidence thresholds, recognized skill keys, bounded context a
 ## Learner-owned phrase practice
 
 A learner can explicitly save a reviewed suggestion to the private Speaking Journal. Each saved entry remains editable and deletable by its owner. The journal offers a direct route to open a Gabroo topic-practice conversation with the saved practice version (or the original learner phrase when no improved version was saved) prefilled as the learner's draft. The learner chooses whether to send it; opening the conversation does not submit text or create assessment evidence automatically.
+
+## Learner-confirmed practice history
+
+The Speaking Journal can record a learner's own reflection after they practise a saved phrase with Gabroo. The learner selects “Easy”, “Some effort” or “Need more practice”; the API stores that choice with the saved phrase and timestamp. The journal displays the number of learner-recorded sessions and the latest reflection.
+
+These entries are explicitly self-reported practice reflections. They are not model-scored outcomes, curriculum exercise attempts, verified corrections, or proficiency evidence. They must not be used to update skill accuracy, learning stage or diagnostic results. A saved phrase's history is private to its owner and is deleted automatically if the saved phrase or learner account is deleted.
