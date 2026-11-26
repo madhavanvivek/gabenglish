@@ -29,7 +29,7 @@ describe("Gabroo recording upload validation", () => {
     ]) expect(() => validateGabrooRecordingUpload(input)).toThrow();
   });
 
-  it("rejects recordings larger than 15 MiB", () => {
+  it("rejects recordings larger than 10 MiB", () => {
     expect(() => validateGabrooRecordingUpload({
       uri: "file:///private/audio.m4a",
       exists: true,
