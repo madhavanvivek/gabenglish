@@ -42,6 +42,22 @@ integration("PostgreSQL placement session integration",()=>{
   expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql","0011_learning_direction.sql","0012_gabroo_conversation_direction.sql","0013_directional_diagnostic_reports.sql","0014_direction_aware_curriculum_progress.sql","0015_learner_exercise_attempts.sql","0016_subscription_offer_pricing.sql","0017_subscription_checkout_quotes.sql","0018_admin_subscription_controls.sql","0019_admin_session_idle_timeout.sql","0020_learner_vocabulary_review.sql"]);
  });
 
+
+ it("creates learner-owned vocabulary and durable spaced-review history tables",async()=>{
+  if(!pool||!migrationApplied)return;
+  const columns=await pool.query<{table_name:string;column_name:string;is_nullable:string}>(`
+   SELECT table_name,column_name,is_nullable FROM information_schema.columns
+   WHERE table_schema=current_schema() AND table_name IN ('learner_vocabulary_items','learner_vocabulary_reviews')
+  `);
+  const itemColumns=new Set(columns.rows.filter(row=>row.table_name==="learner_vocabulary_items").map(row=>row.column_name));
+  const reviewColumns=new Set(columns.rows.filter(row=>row.table_name==="learner_vocabulary_reviews").map(row=>row.column_name));
+  for(const name of ["user_id","learning_direction","source_term","target_term","due_at","interval_days","ease_factor","repetitions","lapses","status"])expect(itemColumns.has(name),name).toBe(true);
+  for(const name of ["vocabulary_item_id","user_id","rating","previous_interval_days","next_interval_days","reviewed_at"])expect(reviewColumns.has(name),name).toBe(true);
+  const indexes=await pool.query<{indexname:string}>(`SELECT indexname FROM pg_indexes WHERE schemaname=current_schema() AND tablename IN ('learner_vocabulary_items','learner_vocabulary_reviews')`);
+  expect(indexes.rows.map(row=>row.indexname)).toContain("learner_vocabulary_due_idx");
+  expect(indexes.rows.map(row=>row.indexname)).toContain("learner_vocabulary_reviews_owner_idx");
+ });
+
  it("authenticates Superadmins, manages offer windows, audits changes and revokes admin sessions",async()=>{
   if(!pool||!migrationApplied)return;
   const email="superadmin-"+randomUUID()+"@example.test";
