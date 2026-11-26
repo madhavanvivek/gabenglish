@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {defaultLearningCourseContext,learningCourseContextSchema,learningDirectionSchema} from "./language-learning.js";
+import {defaultLearningCourseContext,learningCourseContextSchema,learningDirectionSchema,publishedLearningCatalogSchema} from "./language-learning.js";
 
 describe("bidirectional learning contracts",()=>{
  it("supports the two explicitly approved learning directions",()=>{
