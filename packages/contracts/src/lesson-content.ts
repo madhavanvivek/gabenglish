@@ -6,9 +6,23 @@ export const lessonExampleBlockSchema=z.object({type:z.literal("examples"),items
 export const lessonExerciseBlockSchema=z.object({type:z.literal("exercise"),id:z.string().regex(/^[a-z0-9_-]{1,64}$/i),instruction:z.string().trim().min(1).max(500),prompt:z.string().trim().min(1).max(1000),response_type:z.enum(["text","single_choice"]),options:z.array(z.object({id:z.string().regex(/^[a-z0-9_-]{1,32}$/i),label:z.string().trim().min(1).max(300)})).max(8).optional()}).superRefine((value,ctx)=>{
  if(value.response_type==="single_choice"&&(!value.options||value.options.length<2))ctx.addIssue({code:z.ZodIssueCode.custom,path:["options"],message:"Choice exercises require at least two options."});
  if(value.response_type==="text"&&value.options!==undefined)ctx.addIssue({code:z.ZodIssueCode.custom,path:["options"],message:"Text exercises cannot include choice options."});
+ if(value.options){
+  const optionIds=new Set<string>();
+  value.options.forEach((option,index)=>{
+   if(optionIds.has(option.id))ctx.addIssue({code:z.ZodIssueCode.custom,path:["options",index,"id"],message:"Exercise option IDs must be unique."});
+   optionIds.add(option.id);
+  });
+ }
 });
 export const lessonContentBlockSchema=z.union([lessonTextBlockSchema,lessonVocabularyBlockSchema,lessonExampleBlockSchema,lessonExerciseBlockSchema]);
-export const learnerLessonContentSchema=z.object({schema_version:z.literal(1),blocks:z.array(lessonContentBlockSchema).min(1).max(80)});
+export const learnerLessonContentSchema=z.object({schema_version:z.literal(1),blocks:z.array(lessonContentBlockSchema).min(1).max(80)}).superRefine((value,ctx)=>{
+ const exerciseIds=new Set<string>();
+ value.blocks.forEach((block,index)=>{
+  if(block.type!=="exercise")return;
+  if(exerciseIds.has(block.id))ctx.addIssue({code:z.ZodIssueCode.custom,path:["blocks",index,"id"],message:"Exercise IDs must be unique within a lesson."});
+  exerciseIds.add(block.id);
+ });
+});
 export type LearnerLessonContent=z.infer<typeof learnerLessonContentSchema>;
 
 /** Parse and project learner-safe content; authoring-only fields never pass through. */
