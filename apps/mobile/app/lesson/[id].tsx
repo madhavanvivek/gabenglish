@@ -11,7 +11,7 @@ import type {LearnerLessonContent} from "@gabenglish/contracts";
 import {colors,radius,space} from "../../src/theme";
 
 const milestones=[25,50,75,100];
-type SubmissionStatus="queued"|"sending"|"failed"|"submitted";
+type SubmissionStatus="queued"|"sending"|"failed"|"not_saved"|"needs_reload"|"submitted";
 function LessonBlocks({content,answers,setAnswers,results,history,attemptsForExercise,onSubmit,busyExercise,submissionStatuses}:{content:LearnerLessonContent;answers:Record<string,string>;setAnswers:(id:string,value:string)=>void;results:Record<string,{correct:boolean;feedback:string}>;history:Record<string,LearningExerciseAttemptHistory["attempts"]>;attemptsForExercise:(id:string)=>LearningExerciseAttemptHistory["attempts"];onSubmit:(id:string)=>void;busyExercise:string|null;submissionStatuses:Record<string,SubmissionStatus>}){
  return <View style={{gap:12}}>
   {content.blocks.map((block,index)=><View key={"block-"+index} style={s.contentBlock}>
@@ -20,7 +20,7 @@ function LessonBlocks({content,answers,setAnswers,results,history,attemptsForExe
    {block.type==="examples"?<>{block.items.map((item,i)=><View key={i} style={s.exampleRow}><Text style={s.example}>{item.target}</Text>{item.support?<Text style={s.blockBody}>{item.support}</Text>:null}{item.note?<Text style={s.detail}>{item.note}</Text>:null}</View>)}</>:null}
    {block.type==="exercise"?<><Text style={s.blockHeading}>{(results[block.id]?.correct??attemptsForExercise(block.id)[0]?.correct)===false?"Try this again":"Try it"}</Text>{(results[block.id]?.correct??attemptsForExercise(block.id)[0]?.correct)===false?<Text style={s.reviewPrompt}>Review focus · Your latest answer needs another try</Text>:null}<Text style={s.detail}>{block.instruction}</Text><Text style={s.blockBody}>{block.prompt}</Text>
     {block.response_type==="single_choice"?block.options?.map(option=><Pressable key={option.id} accessibilityRole="radio" accessibilityLabel={option.label} accessibilityHint={block.instruction} accessibilityState={{checked:answers[block.id]===option.id,disabled:busyExercise===block.id}} onPress={()=>setAnswers(block.id,option.id)} disabled={busyExercise===block.id} style={[s.option,answers[block.id]===option.id&&s.optionSelected,busyExercise===block.id&&s.optionDisabled]}><Text style={s.blockBody}>{option.label}</Text></Pressable>):<TextInput accessibilityLabel={"Answer: "+block.prompt} accessibilityHint={block.instruction} accessibilityState={{disabled:busyExercise===block.id}} value={answers[block.id]??""} onChangeText={value=>setAnswers(block.id,value)} editable={busyExercise!==block.id} multiline placeholder="Write your answer…" placeholderTextColor={colors.textMuted} style={s.answerInput}/>}
-    <PrimaryButton label={busyExercise===block.id?"Checking…":"Check answer"} onPress={()=>onSubmit(block.id)} disabled={busyExercise!==null||!(answers[block.id]??"").trim()}/>{submissionStatuses[block.id]==="queued"?<Text style={s.queueStatus}>Preparing your answer…</Text>:null}{submissionStatuses[block.id]==="sending"?<Text style={s.queueStatus}>Sending saved answer…</Text>:null}{submissionStatuses[block.id]==="failed"?<Text style={s.queueStatus}>Not sent yet · your answer remains on this screen. Tap Check answer to retry.</Text>:null}{submissionStatuses[block.id]==="submitted"?<Text style={s.queueSuccess}>Answer submitted</Text>:null}
+    <PrimaryButton label={busyExercise===block.id?"Checking…":"Check answer"} onPress={()=>onSubmit(block.id)} disabled={busyExercise!==null||!(answers[block.id]??"").trim()}/>{submissionStatuses[block.id]==="queued"?<Text style={s.queueStatus}>Preparing your answer…</Text>:null}{submissionStatuses[block.id]==="sending"?<Text style={s.queueStatus}>Sending saved answer…</Text>:null}{submissionStatuses[block.id]==="failed"?<Text style={s.queueStatus}>Not sent yet · your answer is saved on this device. Tap Check answer to retry.</Text>:null}{submissionStatuses[block.id]==="not_saved"?<Text style={s.queueStatus}>Not saved yet · your answer remains on this screen. Check your storage and try again.</Text>:null}{submissionStatuses[block.id]==="needs_reload"?<Text style={s.queueStatus}>Lesson updated · your saved answer is retained. Reload this lesson to continue.</Text>:null}{submissionStatuses[block.id]==="submitted"?<Text style={s.queueSuccess}>Answer submitted</Text>:null}
     {results[block.id]?<View style={s.feedback}><Text style={results[block.id]!.correct?s.correct:s.incorrect}>{results[block.id]!.correct?"Correct":"Keep practising"}</Text><Text style={s.blockBody}>{results[block.id]!.feedback}</Text></View>:null}
     {history[block.id]?.length?<View style={s.history}><Text style={s.historyTitle}>Recent attempts</Text>{history[block.id].slice(0,5).map(attempt=><View key={attempt.id} style={s.historyAttempt}><View style={s.historyHeading}><Text style={attempt.correct?s.correct:s.incorrect}>{attempt.correct?"Correct":"Needs practice"}</Text><Text style={s.historyDate}>{new Date(attempt.attempted_at).toLocaleDateString()}</Text></View><Text style={s.historyResponse}>{attempt.response}</Text>{attempt.feedback?<Text style={s.blockBody}>{attempt.feedback}</Text>:null}</View>)}</View>:null}
    </>:null}
@@ -63,6 +63,7 @@ export default function LessonScreen(){
   const requestLessonId=id;
   const requestEpoch=lessonRequestEpoch.current;
   busyExerciseRef.current=exerciseId;
+  let persisted=false;
   setBusyExercise(exerciseId);setSubmissionStatuses(current=>({...current,[exerciseId]:"queued"}));setError("");
   try{
    const requestVersionId=data?.lesson.version_id;
@@ -71,6 +72,7 @@ export default function LessonScreen(){
    if(!requestVersionId)throw new Error("Reload this lesson before submitting an answer.");
    if(!ownerId)throw new Error("Please sign in again before submitting this answer.");
    const submissionId=await getOrCreatePendingExerciseSubmission(ownerId,requestLessonId,requestVersionId,exerciseId,response);
+   persisted=true;
    setSubmissionStatuses(current=>({...current,[exerciseId]:"sending"}));
    const result=await submitLearningExerciseAttempt(requestLessonId,exerciseId,requestVersionId,submissionId,response);
    await clearPendingExerciseSubmission(ownerId,requestLessonId,requestVersionId,exerciseId);
@@ -85,8 +87,8 @@ export default function LessonScreen(){
    }catch{/* Keep the just-returned result visible if history is temporarily unavailable. */}
   }catch(e){
    if(lessonRequestEpoch.current===requestEpoch){
-    if(e instanceof AuthApiError&&e.status===409){setLessonVersionChanged(true);setError("This lesson was updated while you were answering. Your answer is still on this screen; reload the latest version before trying again.");}
-    else {setError(e instanceof Error?e.message:"Could not check this answer.");setSubmissionStatuses(current=>({...current,[exerciseId]:"failed"}));}
+    if(e instanceof AuthApiError&&e.status===409){setLessonVersionChanged(true);setError("This lesson was updated while you were answering. Your saved answer is retained; reload the latest version before trying again.");setSubmissionStatuses(current=>({...current,[exerciseId]:"needs_reload"}));}
+    else {setError(e instanceof Error?e.message:"Could not check this answer.");setSubmissionStatuses(current=>({...current,[exerciseId]:persisted?"failed":"not_saved"}));}
    }
   }finally{
    if(submissionLockRef.current===submissionLock){submissionLockRef.current=null;if(busyExerciseRef.current===exerciseId){busyExerciseRef.current=null;setBusyExercise(null);}}
