@@ -278,7 +278,7 @@ describe("API foundation",()=>{
   const pool={query:async(sql:string)=>{
    if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
    if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
-   if(sql.includes("FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c"))return {rows:[{course_id:"course-1",learning_direction:"ml_to_en",version_id:"version-1",content}]};
+   if(sql.includes("FROM lessons l JOIN modules m")&&sql.includes("JOIN courses c"))return {rows:[{course_id:"course-1",learning_direction:"ml_to_en",version_id:"version-1",content}]};
    if(sql.includes("INSERT INTO learner_exercise_attempts")){inserts+=1;return {rows:[]};}
    if(sql.includes("FROM learner_exercise_attempts")){historyReads+=1;return {rows:[]};}
    return {rows:[]};
@@ -336,7 +336,7 @@ describe("API foundation",()=>{
   const pool={query:async(sql:string,values?:unknown[])=>{
    if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
    if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
-   if(sql.includes("FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c"))return {rows:[{learning_direction:"ml_to_en",version_id:"version-current",content:{schema_version:1,blocks:[exercise]}}]};
+   if(sql.includes("FROM lessons l JOIN modules m")&&sql.includes("JOIN courses c"))return {rows:[{learning_direction:"ml_to_en",version_id:"version-current",content:{schema_version:1,blocks:[exercise]}}]};
    if(sql.includes("FROM learner_exercise_attempts")){historyQueries.push({sql,values:values??[]});return {rows:[attempt]};}
    return {rows:[]};
   }} as any;
