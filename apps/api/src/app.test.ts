@@ -406,7 +406,7 @@ describe("API foundation",()=>{
    lesson_id:"00000000-0000-4000-8000-000000000003",
    learning_direction:"ml_to_en",
    progress:{status:"in_progress",progress_percent:60},
-   course_progress:{progress_percent:30,completed_lessons:1,total_started_lessons:4}
+   course_progress:{progress_percent:30,completed_lessons:1,total_lessons:4}
   });
   expect(statements[0]?.sql).toBe("BEGIN");
   expect(statements.some(item=>item.sql.includes("FOR SHARE OF l,c,lv"))).toBe(true);
