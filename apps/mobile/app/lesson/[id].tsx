@@ -2,7 +2,7 @@ import {useEffect,useRef,useState} from "react";
 import {Link,useLocalSearchParams} from "expo-router";
 import {Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {AuthApiError,getLearningLesson,getLearningExerciseAttemptHistory,saveLearningLessonProgress,submitLearningExerciseAttempt,type LearningExerciseAttemptHistory,type LearningLessonDetail} from "../../src/auth-api";
+import {AuthApiError,getLearnerMe,getLearningLesson,getLearningExerciseAttemptHistory,saveLearningLessonProgress,submitLearningExerciseAttempt,type LearningExerciseAttemptHistory,type LearningLessonDetail} from "../../src/auth-api";
 import {BrandMark,Eyebrow,PrimaryButton,SurfaceCard} from "../../src/ui";
 import {readLessonAnswerDraft,writeLessonAnswerDraft} from "../../src/lesson-drafts";
 import type {LearnerLessonContent} from "@gabenglish/contracts";
@@ -28,6 +28,7 @@ function LessonBlocks({content,answers,setAnswers,results,history,attemptsForExe
 export default function LessonScreen(){
  const {id}=useLocalSearchParams<{id:string}>();
  const [data,setData]=useState<LearningLessonDetail|null>(null);
+ const [draftOwnerId,setDraftOwnerId]=useState<string|null>(null);
  const [progress,setProgress]=useState(0);
  const [busy,setBusy]=useState(false);
  const [message,setMessage]=useState("");
@@ -77,8 +78,8 @@ export default function LessonScreen(){
    if(busyExerciseRef.current===exerciseId&&lessonRequestEpoch.current===requestEpoch){busyExerciseRef.current=null;setBusyExercise(null);}
   }
  }
- useEffect(()=>{let active=true;lessonRequestEpoch.current+=1;const requestEpoch=lessonRequestEpoch.current;setData(null);setProgress(0);setBusy(false);setAnswersState({});setExerciseResults({});setExerciseHistory({});historyRequestEpoch.current={};busyExerciseRef.current=null;setBusyExercise(null);setError("");setLessonVersionChanged(false);setReloading(false);setMessage("");if(id)void getLearningLesson(id).then(async value=>{if(!active)return;const exerciseIds=value.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);const restored=await readLessonAnswerDraft(id,value.lesson.version_id);if(!active)return;const available=new Set(exerciseIds);setAnswersState(Object.fromEntries(Object.entries(restored).filter(([exerciseId])=>available.has(exerciseId))));setData(value);setProgress(value.progress?.progress_percent??0);const historyEpochs=Object.fromEntries(exerciseIds.map(exerciseId=>[exerciseId,historyRequestEpoch.current[exerciseId]??0]));const histories=await Promise.all(exerciseIds.map(async exerciseId=>{try{return [exerciseId,(await getLearningExerciseAttemptHistory(id,exerciseId)).attempts] as const;}catch{return [exerciseId,[]] as const;}}));if(active)setExerciseHistory(current=>({...current,...Object.fromEntries(histories.filter(([exerciseId])=>(historyRequestEpoch.current[exerciseId]??0)===historyEpochs[exerciseId]))}));}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;if(lessonRequestEpoch.current===requestEpoch)lessonRequestEpoch.current+=1;};},[id]);
- useEffect(()=>{if(!id||!data)return;const lessonId=id;const versionId=data.lesson.version_id;draftWriteRef.current=draftWriteRef.current.then(()=>writeLessonAnswerDraft(lessonId,versionId,answers));},[id,data?.lesson.version_id,answers]);
+ useEffect(()=>{let active=true;lessonRequestEpoch.current+=1;const requestEpoch=lessonRequestEpoch.current;setData(null);setDraftOwnerId(null);setProgress(0);setBusy(false);setAnswersState({});setExerciseResults({});setExerciseHistory({});historyRequestEpoch.current={};busyExerciseRef.current=null;setBusyExercise(null);setError("");setLessonVersionChanged(false);setReloading(false);setMessage("");if(id)void Promise.all([getLearningLesson(id),getLearnerMe().catch(()=>null)]).then(async([value,account])=>{if(!active)return;const exerciseIds=value.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);const ownerId=account?.user.id??null;const restored=ownerId?await readLessonAnswerDraft(ownerId,id,value.lesson.version_id):{};if(!active)return;const available=new Set(exerciseIds);setAnswersState(Object.fromEntries(Object.entries(restored).filter(([exerciseId])=>available.has(exerciseId))));setDraftOwnerId(ownerId);setData(value);setProgress(value.progress?.progress_percent??0);const historyEpochs=Object.fromEntries(exerciseIds.map(exerciseId=>[exerciseId,historyRequestEpoch.current[exerciseId]??0]));const histories=await Promise.all(exerciseIds.map(async exerciseId=>{try{return [exerciseId,(await getLearningExerciseAttemptHistory(id,exerciseId)).attempts] as const;}catch{return [exerciseId,[]] as const;}}));if(active)setExerciseHistory(current=>({...current,...Object.fromEntries(histories.filter(([exerciseId])=>(historyRequestEpoch.current[exerciseId]??0)===historyEpochs[exerciseId]))}));}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;if(lessonRequestEpoch.current===requestEpoch)lessonRequestEpoch.current+=1;};},[id]);
+ useEffect(()=>{if(!id||!data||!draftOwnerId)return;const ownerId=draftOwnerId;const lessonId=id;const versionId=data.lesson.version_id;draftWriteRef.current=draftWriteRef.current.then(()=>writeLessonAnswerDraft(ownerId,lessonId,versionId,answers));},[id,data?.lesson.version_id,draftOwnerId,answers]);
  async function reloadUpdatedLesson(){
   if(!id||reloading)return;
   const requestLessonId=id;
