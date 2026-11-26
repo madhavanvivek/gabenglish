@@ -66,7 +66,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
     ORDER BY c.sort_order,m.sort_order,l.sort_order`,
    [direction,learner.id]
   );
-  const courses=new Map<string,{id:string;code:string;title:string;description:string|null;direction:Direction;source_language:string;target_language:string;support_language:string;modules:Map<string,{id:string;title:string;lessons:Array<Record<string,unknown>>}>}>();
+  const courses=new Map<string,{id:string;code:string;title:string;description:string|null;direction:Direction;source_language:string;target_language:string;support_language:string;progress:{progress_percent:number;completed_lessons:number;total_lessons:number};modules:Map<string,{id:string;title:string;lessons:Array<Record<string,unknown>>}>}>();
   for(const row of rows.rows){
    let course=courses.get(row.course_id);
    if(!course){
