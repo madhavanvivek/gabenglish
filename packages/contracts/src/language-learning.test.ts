@@ -60,6 +60,22 @@ describe("published learning catalog contract",()=>{
  it("rejects impossible exercise practice totals",()=>{
   expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[{...validCatalog.courses[0],practice:{attempts:2,exercises_attempted:3,correct_attempts:3}}]}).success).toBe(false);
  });
+ it("rejects more correct attempts than the total attempt count",()=>{
+  expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[{...validCatalog.courses[0],practice:{attempts:2,exercises_attempted:1,correct_attempts:3}}]}).success).toBe(false);
+ });
+ it("rejects negative or fractional practice counters",()=>{
+  for(const practice of [
+   {attempts:-1,exercises_attempted:0,correct_attempts:0},
+   {attempts:1.5,exercises_attempted:1,correct_attempts:1},
+   {attempts:2,exercises_attempted:-1,correct_attempts:0}
+  ]){
+   expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[{...validCatalog.courses[0],practice}]}).success).toBe(false);
+  }
+ });
+ it("accepts an untouched course with zero practice activity",()=>{
+  const course={...validCatalog.courses[0],practice:{attempts:0,exercises_attempted:0,correct_attempts:0}};
+  expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[course]}).success).toBe(true);
+ });
  it("rejects lessons with malformed progress rather than passing them to the learner UI",()=>{
   const course={...validCatalog.courses[0],modules:[{...validCatalog.courses[0].modules[0],lessons:[{...validCatalog.courses[0].modules[0].lessons[0],progress:{status:"finished",progress_percent:100}}]}]};
   expect(publishedLearningCatalogSchema.safeParse({...validCatalog,courses:[course]}).success).toBe(false);
