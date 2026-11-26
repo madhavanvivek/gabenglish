@@ -223,6 +223,596 @@ paths:
                   content: { type: object, additionalProperties: true }
         '404':
           $ref: '#/components/responses/NotFound'
+  /lessons/{lessonId}/exercises/{exerciseId}/attempts:
+    get:
+      tags: [Learning]
+      summary: Get the authenticated learner's recent attempts for a published exercise
+      description: Returns at most 20 attempts for the current published lesson version and selected learning direction. Results are always scoped to the authenticated learner.
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: path
+          name: exerciseId
+          required: true
+          schema: { type: string, pattern: '^[a-zA-Z0-9_-]{1,64}    post:
+      tags: [Learning]
+      summary: Start or resume lesson progress
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Current progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonProgress'
+  /lessons/{lessonId}/complete:
+    post:
+      tags: [Learning]
+      summary: Complete a lesson after server-side validation
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Completion result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonProgress'
+        '409':
+          description: Completion requirements not met
+  /progress/overview:
+    get:
+      tags: [Progress]
+      summary: Get learner progress overview
+      responses:
+        '200':
+          description: Progress overview
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /vocabulary/review:
+    get:
+      tags: [Vocabulary]
+      summary: Get vocabulary due for revision
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Due vocabulary items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+  /speaking/sessions:
+    post:
+      tags: [Speaking]
+      summary: Start a speaking practice session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode: { type: string, default: free_practice }
+                correction_mode:
+                  type: string
+                  enum: [gentle, balanced, detailed]
+      responses:
+        '201':
+          description: Session started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeakingSession'
+  /speaking/sessions/{sessionId}/turns:
+    post:
+      tags: [Speaking]
+      summary: Submit a text turn or a controlled audio asset reference
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpeakingTurnRequest'
+      responses:
+        '201':
+          description: Tutor reply and optional structured feedback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeakingTurnResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /speaking/sessions/{sessionId}/end:
+    post:
+      tags: [Speaking]
+      summary: End speaking session and request summary
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Session summary
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /subscriptions/prices:
+    get:
+      tags: [Subscription]
+      security: []
+      summary: Get the current server-calculated monthly and yearly prices
+      responses:
+        '200':
+          description: Current INR prices and active offer details
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [currency, prices]
+                properties:
+                  currency: { type: string, enum: [INR] }
+                  prices:
+                    type: array
+                    items:
+                      type: object
+                      required: [plan_code, billing_days, standard_amount_minor, discount_amount_minor, payable_amount_minor, offer_version, quoted_at]
+                      properties:
+                        plan_code: { type: string, enum: [monthly, yearly] }
+                        currency: { type: string, enum: [INR] }
+                        billing_days: { type: integer, enum: [30, 360] }
+                        standard_amount_minor: { type: integer }
+                        discount_amount_minor: { type: integer }
+                        payable_amount_minor: { type: integer }
+                        discount_basis_points: { type: integer }
+                        offer_applied: { type: boolean }
+                        offer_version: { type: integer }
+                        quoted_at: { type: string, format: date-time }
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /subscriptions/checkout/quote:
+    post:
+      tags: [Subscription]
+      summary: Create a learner-owned, short-lived immutable price quote
+      description: Creates a 15-minute price quote only. It does not create a payment intent, process a payment or grant paid access.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan_code]
+              properties:
+                plan_code: { type: string, enum: [monthly, yearly] }
+      responses:
+        '201':
+          description: Quote created; payment is still required
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [quote_id, plan_code, currency, standard_amount_minor, discount_amount_minor, payable_amount_minor, offer_version, quoted_at, expires_at, payment_required, access_granted]
+                properties:
+                  quote_id: { type: string, format: uuid }
+                  plan_code: { type: string, enum: [monthly, yearly] }
+                  currency: { type: string, enum: [INR] }
+                  standard_amount_minor: { type: integer }
+                  discount_amount_minor: { type: integer }
+                  payable_amount_minor: { type: integer }
+                  discount_basis_points: { type: integer }
+                  offer_version: { type: integer }
+                  quoted_at: { type: string, format: date-time }
+                  expires_at: { type: string, format: date-time }
+                  payment_required: { type: boolean, enum: [true] }
+                  access_granted: { type: boolean, enum: [false] }
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /subscriptions/current:
+    get:
+      tags: [Subscription]
+      summary: Get the authenticated learner's current paid entitlement
+      responses:
+        '200':
+          description: Current paid entitlement or free access
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/auth/login:
+    post:
+      tags: [Admin]
+      security: []
+      summary: Sign in a provisioned Superadmin account
+      description: Admin authentication is separate from learner authentication. There is no public administrator registration or default account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 1, maxLength: 128 }
+      responses:
+        '200':
+          description: Admin session created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in, admin]
+                properties:
+                  access_token: { type: string }
+                  token_type: { type: string, enum: [Bearer] }
+                  expires_in: { type: integer }
+                  admin:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      email: { type: string, format: email }
+                      roles: { type: array, items: { type: string } }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Active account does not have the Superadmin role
+  /admin/auth/logout:
+    post:
+      tags: [Admin]
+      summary: Revoke the current administrator session
+      responses:
+        '204': { description: Session revoked }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /admin/sessions:
+    get:
+      tags: [Admin]
+      summary: List active administrator sessions
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, maximum: 100000, default: 0 }
+      responses:
+        '200':
+          description: Paginated active sessions, including the current-session marker
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: { type: integer }
+                  limit: { type: integer }
+                  offset: { type: integer }
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string, format: uuid }
+                        admin_account_id: { type: string, format: uuid }
+                        admin_email: { type: string, format: email }
+                        created_at: { type: string, format: date-time }
+                        expires_at: { type: string, format: date-time }
+                        is_current: { type: boolean }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: Superadmin role required }
+  /admin/sessions/{sessionId}:
+    delete:
+      tags: [Admin]
+      summary: Revoke one active administrator session
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Session revoked and audit event recorded }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: Superadmin role required }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/audit-events:
+    get:
+      tags: [Admin]
+      summary: Browse redacted administrator audit events
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, maximum: 100000, default: 0 }
+        - in: query
+          name: action
+          schema: { type: string, maxLength: 100 }
+      responses:
+        '200':
+          description: Paginated audit events and total count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: { type: integer }
+                  limit: { type: integer }
+                  offset: { type: integer }
+                  events:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: Superadmin role required }
+
+  /admin/subscription-offers:
+    get:
+      tags: [Admin]
+      summary: List current subscription offer rules
+      responses:
+        '200':
+          description: Monthly and yearly offer configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  offers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        plan_code: { type: string, enum: [monthly, yearly] }
+                        standard_amount_minor: { type: integer }
+                        discount_basis_points: { type: integer, minimum: 0, maximum: 9999 }
+                        enabled: { type: boolean }
+                        starts_at: { type: string, format: date-time, nullable: true }
+                        ends_at: { type: string, format: date-time, nullable: true }
+                        version: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: Superadmin role required }
+  /admin/subscription-offers/{planCode}:
+    put:
+      tags: [Admin]
+      summary: Update the discount and offer window for one plan
+      parameters:
+        - in: path
+          name: planCode
+          required: true
+          schema: { type: string, enum: [monthly, yearly] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [discount_basis_points, enabled, starts_at, ends_at]
+              properties:
+                discount_basis_points: { type: integer, minimum: 0, maximum: 9999 }
+                enabled: { type: boolean }
+                starts_at: { type: string, format: date-time, nullable: true }
+                ends_at: { type: string, format: date-time, nullable: true }
+      responses:
+        '200':
+          description: Updated offer with incremented version
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  offer: { type: object, additionalProperties: true }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: Superadmin role required }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        request_id: { type: string }
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 10, maxLength: 128 }
+        display_name: { type: string, maxLength: 80 }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    AuthResponse:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in]
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { type: string, enum: [Bearer] }
+        expires_in: { type: integer }
+        user:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string }
+    LearnerProfile:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        display_name: { type: string }
+        locale: { type: string }
+        timezone: { type: string }
+    Preferences:
+      type: object
+      properties:
+        support_language: { type: string, enum: [ml, en] }
+        learning_goal: { type: string }
+        correction_mode: { type: string, enum: [gentle, balanced, detailed] }
+        daily_target_minutes: { type: integer, minimum: 1, maximum: 240 }
+        reduced_motion: { type: boolean }
+        reminders_enabled: { type: boolean }
+    LessonProgress:
+      type: object
+      properties:
+        lesson_id: { type: string, format: uuid }
+        status: { type: string, enum: [not_started, in_progress, completed] }
+        progress_percent: { type: number, minimum: 0, maximum: 100 }
+        completed_at: { type: string, format: date-time, nullable: true }
+    SpeakingSession:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [active, completed, abandoned] }
+        correction_mode: { type: string, enum: [gentle, balanced, detailed] }
+    SpeakingTurnRequest:
+      type: object
+      properties:
+        input:
+          oneOf:
+            - type: object
+              required: [type, text]
+              properties:
+                type: { const: text }
+                text: { type: string, minLength: 1, maxLength: 5000 }
+            - type: object
+              required: [type, media_asset_id]
+              properties:
+                type: { const: audio }
+                media_asset_id: { type: string, format: uuid }
+        correction_mode: { type: string, enum: [gentle, balanced, detailed] }
+      required: [input]
+    SpeakingTurnResponse:
+      type: object
+      properties:
+        turn_id: { type: string, format: uuid }
+        reply:
+          type: object
+          properties:
+            text: { type: string }
+            language: { type: string, enum: [ml, en, mixed] }
+            audio_asset_id: { type: string, format: uuid, nullable: true }
+        feedback:
+          type: array
+          items:
+            type: object
+            properties:
+              category: { type: string, enum: [grammar, naturalness, vocabulary, pronunciation, register, clarity] }
+              original: { type: string }
+              suggested: { type: string }
+              explanation_ml: { type: string }
+              severity: { type: string, enum: [note, suggestion, important] }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            request_id: { type: string }
+            details: { type: array, items: { type: object, additionalProperties: true } }
+  responses:
+    Unauthorized:
+      description: Authentication required or invalid
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ServiceUnavailable:
+      description: Dependency unavailable
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+ }
+      responses:
+        '200':
+          description: Learner-owned exercise attempt history
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [lesson_id, exercise_id, learning_direction, attempts]
+                properties:
+                  lesson_id: { type: string, format: uuid }
+                  exercise_id: { type: string }
+                  learning_direction: { type: string, enum: [ml_to_en, en_to_ml] }
+                  attempts:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      required: [response, is_correct, attempted_at]
+                      properties:
+                        response: { type: string }
+                        is_correct: { type: boolean }
+                        feedback: { type: [string, 'null'] }
+                        attempted_at: { type: string, format: date-time }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Active subscription required
+        '404':
+          $ref: '#/components/responses/NotFound'
   /lessons/{lessonId}/start:
     post:
       tags: [Learning]
