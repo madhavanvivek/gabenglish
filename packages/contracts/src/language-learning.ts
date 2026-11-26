@@ -135,6 +135,7 @@ export type LearningLessonDetailContract=z.infer<typeof learningLessonDetailSche
 
 
 export const learningLessonProgressUpdateSchema=z.object({
+ lesson_version_id:z.string().min(1).max(128),
  progress_percent:z.number().finite().int().min(0).max(100)
 }).strict();
 export type LearningLessonProgressUpdateContract=z.infer<typeof learningLessonProgressUpdateSchema>;
