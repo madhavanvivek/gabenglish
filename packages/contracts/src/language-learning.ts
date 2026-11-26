@@ -134,6 +134,11 @@ export const learningLessonDetailSchema=z.object({
 export type LearningLessonDetailContract=z.infer<typeof learningLessonDetailSchema>;
 
 
+export const learningLessonProgressUpdateSchema=z.object({
+ progress_percent:z.number().finite().int().min(0).max(100)
+}).strict();
+export type LearningLessonProgressUpdateContract=z.infer<typeof learningLessonProgressUpdateSchema>;
+
 export const learningLessonProgressSaveSchema=z.object({
  lesson_id:z.string().min(1),
  learning_direction:learningDirectionSchema,
