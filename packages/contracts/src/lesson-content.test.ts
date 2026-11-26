@@ -29,6 +29,16 @@ describe("learner-safe lesson content",()=>{
   const exercise={type:"exercise",id:"q1",instruction:"Choose",prompt:"Pick one",response_type:"single_choice",options:[{id:"a",label:"A"},{id:"a",label:"Another A"}]};
   expect(learnerLessonContentSchema.safeParse({schema_version:1,blocks:[exercise]}).success).toBe(false);
  });
+ it("strips text-answer rubrics and feedback from learner exercise content",()=>{
+  const content={schema_version:1,blocks:[{
+   type:"exercise",id:"typed-greeting",instruction:"Translate",prompt:"Say hello",response_type:"text",
+   accepted_answers:["hello","hi"],correct_feedback:"Exactly right.",incorrect_feedback:"Try again.",
+   internal_rubric:{case_sensitive:false}
+  }]};
+  expect(projectLearnerLessonContent(content)).toEqual({
+   schema_version:1,blocks:[{type:"exercise",id:"typed-greeting",instruction:"Translate",prompt:"Say hello",response_type:"text"}]
+  });
+ });
  it("projects only learner-visible fields and strips authoring answer keys",()=>{
   const content={schema_version:1,blocks:[{type:"exercise",id:"q1",instruction:"Choose",prompt:"Pick one",response_type:"single_choice",options:[{id:"a",label:"A"},{id:"b",label:"B"}],correct_option_id:"a",answer_key:["a"],rubric:{secret:"private"}}]};
   const projected=projectLearnerLessonContent(content);
