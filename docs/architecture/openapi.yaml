@@ -312,6 +312,35 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           description: Active subscription required
+  /vocabulary/stats:
+    get:
+      tags: [Vocabulary]
+      summary: Get vocabulary review activity for the learner's selected direction
+      description: Requires an active subscription. Positive review ratings are hard, good and easy; this is a self-reported review-rating signal, not an objective measure of language mastery. Practice days are counted using UTC calendar dates.
+      responses:
+        '200':
+          description: Vocabulary collection and last-seven-day review activity
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [learning_direction, stats]
+                properties:
+                  learning_direction: { type: string, enum: [ml_to_en, en_to_ml] }
+                  stats:
+                    type: object
+                    required: [active_items, due_items, reviewed_last_7_days, positive_ratings_last_7_days, again_ratings_last_7_days, practice_days_last_7_days]
+                    properties:
+                      active_items: { type: integer, minimum: 0 }
+                      due_items: { type: integer, minimum: 0 }
+                      reviewed_last_7_days: { type: integer, minimum: 0 }
+                      positive_ratings_last_7_days: { type: integer, minimum: 0 }
+                      again_ratings_last_7_days: { type: integer, minimum: 0 }
+                      practice_days_last_7_days: { type: integer, minimum: 0, maximum: 7 }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Active subscription required
   /vocabulary:
     get:
       tags: [Vocabulary]
