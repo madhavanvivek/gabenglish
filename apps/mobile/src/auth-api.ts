@@ -1,14 +1,17 @@
-import type {LearnerLessonContent} from "@gabenglish/contracts";
+import type {PublishedLearningCatalog as PublishedLearningCatalogContract,PublishedLearningLesson as PublishedLearningLessonContract} from "@gabenglish/contracts";
 import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system";
-import {authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
+import { parseGabrooSpeechStatus, type GabrooSpeechStatus } from "./gabroo/speech-status";
+import { validateGabrooRecordingUpload } from "./gabroo/recording-upload-validation";
+import { buildGabrooSpeechRequest, parseGabrooSpeechResponse } from "./gabroo/speech-request";
+import {learningLessonDetailSchema,learningLessonProgressUpdateSchema,learningLessonProgressSaveSchema,learningExerciseAttemptResultSchema,learningExerciseAttemptHistorySchema,type LearningExerciseAttemptResultContract,type LearningExerciseAttemptHistoryContract,type LearningLessonDetailContract,type LearningLessonProgressSaveContract,type GabrooSpeechAsset,authTokenResponseSchema,gabrooRecognitionResponseSchema,gabrooRecognitionStatusSchema,publishedLearningCatalogSchema,type AuthTokenResponse,type GabrooRecognitionLanguage,type GabrooRecognitionResponse,type GabrooRecognitionStatus} from "@gabenglish/contracts";
 
 const API_BASE_URL=process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/,"");
 const ACCESS_KEY="gabenglish.auth.access";
 const REFRESH_KEY="gabenglish.auth.refresh";
 
 export class AuthApiError extends Error{
- constructor(message:string,readonly status?:number){super(message);this.name="AuthApiError";}
+ constructor(message:string,readonly status?:number,readonly code?:string){super(message);this.name="AuthApiError";}
 }
 export type LearnerAccount={
  id:string;email:string|null;email_verified:boolean;phone_verified:boolean;display_name:string|null;locale:string;timezone:string;
@@ -30,8 +33,10 @@ function baseUrl(){
 async function parseResponse(response:Response){
  const payload=await response.json().catch(()=>null) as unknown;
  if(!response.ok){
-  const message=typeof payload==="object"&&payload!==null&&"error" in payload&&typeof payload.error==="object"&&payload.error!==null&&"message" in payload.error&&typeof payload.error.message==="string"?payload.error.message:`The account service returned an error (${response.status}).`;
-  throw new AuthApiError(message,response.status);
+  const apiError=typeof payload==="object"&&payload!==null&&"error" in payload&&typeof payload.error==="object"&&payload.error!==null?payload.error:null;
+  const message=apiError&&"message" in apiError&&typeof apiError.message==="string"?apiError.message:`The account service returned an error (${response.status}).`;
+  const code=apiError&&"code" in apiError&&typeof apiError.code==="string"?apiError.code:undefined;
+  throw new AuthApiError(message,response.status,code);
  }
  return payload;
 }
@@ -90,10 +95,10 @@ export async function loginLearner(input:{email:string;password:string}){
  const tokens=await saveTokens(payload);
  return {tokens,email_verified:Boolean(payload.email_verified)};
 }
-async function authorized(path:string,method:"GET"|"POST"|"PATCH"|"DELETE",body?:unknown):Promise<unknown>{
+async function authorized(path:string,method:"GET"|"POST"|"PATCH"|"DELETE",body?:unknown,extraHeaders:Record<string,string>={}):Promise<unknown>{
  let access=await SecureStore.getItemAsync(ACCESS_KEY);
  if(!access){await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);}
- const send=()=>fetch(baseUrl()+path,{method,headers:{"content-type":"application/json",accept:"application/json",authorization:"Bearer "+access},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ const send=()=>fetch(baseUrl()+path,{method,headers:{"content-type":"application/json",accept:"application/json",authorization:"Bearer "+access,...extraHeaders},...(body===undefined?{}:{body:JSON.stringify(body)})});
  let response=await send();
  if(response.status===401){
   await renewSession();access=await SecureStore.getItemAsync(ACCESS_KEY);response=await send();
@@ -138,8 +143,15 @@ export async function recognizeGabrooAudio(input:{
  consentGranted:true;
 }):Promise<GabrooRecognitionResponse>{
  if(input.consentGranted!==true)throw new AuthApiError("Explicit microphone and transcription consent is required.");
+ let recording:{uri:string;size:number};
+ try{
+  const info=await FileSystem.getInfoAsync(input.uri);
+  recording=validateGabrooRecordingUpload({uri:input.uri,exists:info.exists,size:"size" in info?info.size:undefined});
+ }catch(error){
+  throw new AuthApiError(error instanceof Error?error.message:"The Gabroo recording could not be validated.");
+ }
  const upload=async(accessToken:string)=>{
-  const result=await FileSystem.uploadAsync(baseUrl()+"/api/v1/gabroo/recognition",input.uri,{
+  const result=await FileSystem.uploadAsync(baseUrl()+"/api/v1/gabroo/recognition",recording.uri,{
    httpMethod:"POST",
    uploadType:FileSystem.FileSystemUploadType.BINARY_CONTENT,
    headers:{
@@ -179,6 +191,21 @@ export async function recognizeGabrooAudio(input:{
 }
 
 export type {GabrooRecognitionStatus};
+export async function generateGabrooSpeech(input:{text:string;language:"ml"|"en";speech_rate:number;consentGranted:true}):Promise<GabrooSpeechAsset>{
+ let request:ReturnType<typeof buildGabrooSpeechRequest>;
+ try{request=buildGabrooSpeechRequest(input);}
+ catch(error){throw new AuthApiError(error instanceof Error?error.message:"Gabroo speech request is invalid.");}
+ const payload=await authorized("/api/v1/gabroo/speech","POST",request.body,request.headers);
+ try{return parseGabrooSpeechResponse(payload);}
+ catch{throw new AuthApiError("Gabroo returned an invalid or expired speech asset.");}
+}
+
+export async function getGabrooSpeechStatus():Promise<GabrooSpeechStatus>{
+ const payload=await authorized("/api/v1/gabroo/speech/status","GET");
+ try{return parseGabrooSpeechStatus(payload);}
+ catch{throw new AuthApiError("Gabroo speech availability returned an invalid response.");}
+}
+
 export async function getGabrooRecognitionStatus(){
  const payload=await authorized("/api/v1/gabroo/recognition/status","GET");
  const parsed=gabrooRecognitionStatusSchema.safeParse(payload);
@@ -213,30 +240,46 @@ export async function deleteGabrooMemory(id:string){await authorized("/api/v1/ga
 
 export async function clearGabrooMemory(){return await authorized("/api/v1/gabroo/memory","DELETE") as {deleted_count:number};}
 
-export type PublishedLearningLesson={
- id:string;slug:string|null;title:string;version_id:string;version:number|null;
- content:unknown;script_mode:string|null;register:string|null;dialect_scope:string|null;romanisation:string|null;
-};
-export type PublishedLearningCatalog={
- learning_direction:"ml_to_en"|"en_to_ml";target_language:"en"|"ml";
- courses:Array<{id:string;code:string;title:string;description:string|null;direction:"ml_to_en"|"en_to_ml";source_language:string;target_language:string;support_language:string;modules:Array<{id:string;title:string;lessons:PublishedLearningLesson[]}>}>;
- publication_policy:{drafts_hidden:boolean;malayalam_requires_educator_approval:boolean};
-};
-export async function getPublishedLearningCatalog(){
- return await authorized("/api/v1/learning/courses","GET") as PublishedLearningCatalog;
+export type PublishedLearningLesson=PublishedLearningLessonContract;
+export type PublishedLearningCatalog=PublishedLearningCatalogContract;
+export async function getPublishedLearningCatalog():Promise<PublishedLearningCatalog>{
+ const payload=await authorized("/api/v1/learning/courses","GET");
+ const parsed=publishedLearningCatalogSchema.safeParse(payload);
+ if(!parsed.success)throw new AuthApiError("The published learning catalog returned invalid lesson or progress data.");
+ return parsed.data;
 }
 
-export type LearningLessonDetail={
- lesson:{id:string;slug:string;title:string;version_id:string;version:number;learning_direction:"ml_to_en"|"en_to_ml";source_language:string;target_language:string;support_language:string;script_mode:string;register:string|null;dialect_scope:string|null;romanisation:string|null;content:LearnerLessonContent};
- progress:null|{status:"not_started"|"in_progress"|"completed";progress_percent:number;updated_at:string};
-};
+export type LearningLessonDetail=LearningLessonDetailContract;
 export async function getLearningLesson(id:string){
- return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(id),"GET") as LearningLessonDetail;
+ const payload=await authorized("/api/v1/learning/lessons/"+encodeURIComponent(id),"GET");
+ const parsed=learningLessonDetailSchema.safeParse(payload);
+ if(!parsed.success)throw new AuthApiError("This lesson returned invalid or incomplete learning content.");
+ return parsed.data;
 }
-export async function saveLearningLessonProgress(id:string,progress_percent:number){
- return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(id)+"/progress","POST",{progress_percent}) as {lesson_id:string;learning_direction:"ml_to_en"|"en_to_ml";progress:{status:string;progress_percent:number;updated_at:string};course_progress:{progress_percent:number;completed_lessons:number;total_started_lessons:number}};
+export async function saveLearningLessonProgress(id:string,lesson_version_id:string,progress_percent:number):Promise<LearningLessonProgressSaveContract>{
+ const request=learningLessonProgressUpdateSchema.safeParse({lesson_version_id,progress_percent});
+ if(!request.success)throw new AuthApiError("Progress must include the current lesson version and a whole number from 0 to 100.");
+ const payload=await authorized("/api/v1/learning/lessons/"+encodeURIComponent(id)+"/progress","POST",request.data);
+ const parsed=learningLessonProgressSaveSchema.safeParse(payload);
+ if(!parsed.success||parsed.data.lesson_id!==id)throw new AuthApiError("The saved lesson progress returned invalid or mismatched data.");
+ return parsed.data;
 }
 
-export async function submitLearningExerciseAttempt(lessonId:string,exerciseId:string,response:string){
- return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(lessonId)+"/exercises/"+encodeURIComponent(exerciseId)+"/attempts","POST",{response}) as {lesson_id:string;exercise_id:string;result:{correct:boolean;feedback:string}};
+export async function submitLearningExerciseAttempt(lessonId:string,exerciseId:string,lessonVersionId:string,submissionId:string,response:string):Promise<LearningExerciseAttemptResultContract>{
+ if(!lessonVersionId.trim())throw new AuthApiError("Reload this lesson before submitting an answer.");
+ const payload=await authorized("/api/v1/learning/lessons/"+encodeURIComponent(lessonId)+"/exercises/"+encodeURIComponent(exerciseId)+"/attempts","POST",{lesson_version_id:lessonVersionId,submission_id:submissionId,response});
+ const parsed=learningExerciseAttemptResultSchema.safeParse(payload);
+ if(!parsed.success||parsed.data.lesson_id!==lessonId||parsed.data.exercise_id!==exerciseId)throw new AuthApiError("The exercise result returned invalid or mismatched data.");
+ return parsed.data;
+}
+
+export type LearningExerciseAttemptHistory=LearningExerciseAttemptHistoryContract;
+export async function getLearningExerciseAttemptHistory(lessonId:string,exerciseId:string):Promise<LearningExerciseAttemptHistory>{
+ const payload=await authorized(
+  "/api/v1/learning/lessons/"+encodeURIComponent(lessonId)+"/exercises/"+encodeURIComponent(exerciseId)+"/attempts",
+  "GET"
+ );
+ const parsed=learningExerciseAttemptHistorySchema.safeParse(payload);
+ if(!parsed.success||parsed.data.lesson_id!==lessonId||parsed.data.exercise_id!==exerciseId)throw new AuthApiError("The exercise history returned invalid or mismatched data.");
+ return parsed.data;
 }

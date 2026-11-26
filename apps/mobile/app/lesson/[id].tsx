@@ -1,23 +1,28 @@
-import {useEffect,useState} from "react";
+import {useEffect,useRef,useState} from "react";
 import {Link,useLocalSearchParams} from "expo-router";
-import {Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
+import {AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
+import * as Network from "expo-network";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {getLearningLesson,saveLearningLessonProgress,submitLearningExerciseAttempt,type LearningLessonDetail} from "../../src/auth-api";
+import {AuthApiError,getLearnerMe,getLearningLesson,getLearningExerciseAttemptHistory,saveLearningLessonProgress,submitLearningExerciseAttempt,type LearningExerciseAttemptHistory,type LearningLessonDetail} from "../../src/auth-api";
 import {BrandMark,Eyebrow,PrimaryButton,SurfaceCard} from "../../src/ui";
+import {readLessonAnswerDraft,writeLessonAnswerDraft} from "../../src/lesson-drafts";
+import {clearPendingExerciseSubmission,getOrCreatePendingExerciseSubmission,readPendingExerciseSubmission} from "../../src/lesson-submissions";
 import type {LearnerLessonContent} from "@gabenglish/contracts";
 import {colors,radius,space} from "../../src/theme";
 
 const milestones=[25,50,75,100];
-function LessonBlocks({content,answers,setAnswers,results,onSubmit,busyExercise}:{content:LearnerLessonContent;answers:Record<string,string>;setAnswers:(id:string,value:string)=>void;results:Record<string,{correct:boolean;feedback:string}>;onSubmit:(id:string)=>void;busyExercise:string|null}){
+type SubmissionStatus="queued"|"sending"|"failed"|"not_saved"|"needs_reload"|"submitted";
+function LessonBlocks({content,answers,setAnswers,results,history,attemptsForExercise,onSubmit,busyExercise,submissionStatuses}:{content:LearnerLessonContent;answers:Record<string,string>;setAnswers:(id:string,value:string)=>void;results:Record<string,{correct:boolean;feedback:string}>;history:Record<string,LearningExerciseAttemptHistory["attempts"]>;attemptsForExercise:(id:string)=>LearningExerciseAttemptHistory["attempts"];onSubmit:(id:string)=>void;busyExercise:string|null;submissionStatuses:Record<string,SubmissionStatus>}){
  return <View style={{gap:12}}>
   {content.blocks.map((block,index)=><View key={"block-"+index} style={s.contentBlock}>
    {block.type==="text"?<>{block.heading?<Text style={s.blockHeading}>{block.heading}</Text>:null}<Text style={s.blockBody}>{block.body}</Text></>:null}
    {block.type==="vocabulary"?<>{block.items.map((item,i)=><View key={i} style={s.vocabRow}><Text style={s.vocabTerm}>{item.term}</Text><Text style={s.blockBody}>{item.meaning}</Text>{item.pronunciation?<Text style={s.detail}>{item.pronunciation}</Text>:null}{item.example?<Text style={s.example}>{item.example}</Text>:null}</View>)}</>:null}
    {block.type==="examples"?<>{block.items.map((item,i)=><View key={i} style={s.exampleRow}><Text style={s.example}>{item.target}</Text>{item.support?<Text style={s.blockBody}>{item.support}</Text>:null}{item.note?<Text style={s.detail}>{item.note}</Text>:null}</View>)}</>:null}
-   {block.type==="exercise"?<><Text style={s.blockHeading}>Try it</Text><Text style={s.detail}>{block.instruction}</Text><Text style={s.blockBody}>{block.prompt}</Text>
-    {block.response_type==="single_choice"?block.options?.map(option=><Pressable key={option.id} accessibilityRole="radio" accessibilityState={{checked:answers[block.id]===option.id}} onPress={()=>setAnswers(block.id,option.id)} style={[s.option,answers[block.id]===option.id&&s.optionSelected]}><Text style={s.blockBody}>{option.label}</Text></Pressable>):<TextInput accessibilityLabel="Your answer" value={answers[block.id]??""} onChangeText={value=>setAnswers(block.id,value)} multiline placeholder="Write your answer…" placeholderTextColor={colors.textMuted} style={s.answerInput}/>}
-    <PrimaryButton label={busyExercise===block.id?"Checking…":"Check answer"} onPress={()=>onSubmit(block.id)} disabled={busyExercise!==null||!(answers[block.id]??"").trim()}/>
+   {block.type==="exercise"?<><Text style={s.blockHeading}>{(results[block.id]?.correct??attemptsForExercise(block.id)[0]?.correct)===false?"Try this again":"Try it"}</Text>{(results[block.id]?.correct??attemptsForExercise(block.id)[0]?.correct)===false?<Text style={s.reviewPrompt}>Review focus · Your latest answer needs another try</Text>:null}<Text style={s.detail}>{block.instruction}</Text><Text style={s.blockBody}>{block.prompt}</Text>
+    {block.response_type==="single_choice"?block.options?.map(option=><Pressable key={option.id} accessibilityRole="radio" accessibilityLabel={option.label} accessibilityHint={block.instruction} accessibilityState={{checked:answers[block.id]===option.id,disabled:busyExercise===block.id}} onPress={()=>setAnswers(block.id,option.id)} disabled={busyExercise===block.id} style={[s.option,answers[block.id]===option.id&&s.optionSelected,busyExercise===block.id&&s.optionDisabled]}><Text style={s.blockBody}>{option.label}</Text></Pressable>):<TextInput accessibilityLabel={"Answer: "+block.prompt} accessibilityHint={block.instruction} accessibilityState={{disabled:busyExercise===block.id}} value={answers[block.id]??""} onChangeText={value=>setAnswers(block.id,value)} editable={busyExercise!==block.id} multiline placeholder="Write your answer…" placeholderTextColor={colors.textMuted} style={s.answerInput}/>}
+    <PrimaryButton label={busyExercise===block.id?"Checking…":"Check answer"} onPress={()=>onSubmit(block.id)} disabled={busyExercise!==null||!(answers[block.id]??"").trim()}/>{submissionStatuses[block.id]==="queued"?<Text style={s.queueStatus}>Preparing your answer…</Text>:null}{submissionStatuses[block.id]==="sending"?<Text style={s.queueStatus}>Sending saved answer…</Text>:null}{submissionStatuses[block.id]==="failed"?<Text style={s.queueStatus}>Not sent yet · your answer is saved on this device. Tap Check answer to retry.</Text>:null}{submissionStatuses[block.id]==="not_saved"?<Text style={s.queueStatus}>Not saved yet · your answer remains on this screen. Check your storage and try again.</Text>:null}{submissionStatuses[block.id]==="needs_reload"?<Text style={s.queueStatus}>Lesson updated · your saved answer is retained. Reload this lesson to continue.</Text>:null}{submissionStatuses[block.id]==="submitted"?<Text style={s.queueSuccess}>Answer submitted</Text>:null}
     {results[block.id]?<View style={s.feedback}><Text style={results[block.id]!.correct?s.correct:s.incorrect}>{results[block.id]!.correct?"Correct":"Keep practising"}</Text><Text style={s.blockBody}>{results[block.id]!.feedback}</Text></View>:null}
+    {history[block.id]?.length?<View style={s.history}><Text style={s.historyTitle}>Recent attempts</Text>{history[block.id].slice(0,5).map(attempt=><View key={attempt.id} style={s.historyAttempt}><View style={s.historyHeading}><Text style={attempt.correct?s.correct:s.incorrect}>{attempt.correct?"Correct":"Needs practice"}</Text><Text style={s.historyDate}>{new Date(attempt.attempted_at).toLocaleDateString()}</Text></View><Text style={s.historyResponse}>{attempt.response}</Text>{attempt.feedback?<Text style={s.blockBody}>{attempt.feedback}</Text>:null}</View>)}</View>:null}
    </>:null}
   </View>)}
  </View>;
@@ -26,22 +31,174 @@ function LessonBlocks({content,answers,setAnswers,results,onSubmit,busyExercise}
 export default function LessonScreen(){
  const {id}=useLocalSearchParams<{id:string}>();
  const [data,setData]=useState<LearningLessonDetail|null>(null);
+ const [draftOwnerId,setDraftOwnerId]=useState<string|null>(null);
  const [progress,setProgress]=useState(0);
  const [busy,setBusy]=useState(false);
  const [message,setMessage]=useState("");
  const [error,setError]=useState("");
+ const [lessonVersionChanged,setLessonVersionChanged]=useState(false);
+ const [reloading,setReloading]=useState(false);
  const [answers,setAnswersState]=useState<Record<string,string>>({});
  const [exerciseResults,setExerciseResults]=useState<Record<string,{correct:boolean;feedback:string}>>({});
+ const [submissionStatuses,setSubmissionStatuses]=useState<Record<string,SubmissionStatus>>({});
+ const [exerciseHistory,setExerciseHistory]=useState<Record<string,LearningExerciseAttemptHistory["attempts"]>>({});
  const [busyExercise,setBusyExercise]=useState<string|null>(null);
+ const busyExerciseRef=useRef<string|null>(null);
+ const submissionLockRef=useRef<object|null>(null);
+ const lessonRequestEpoch=useRef(0);
+ const historyRequestEpoch=useRef<Record<string,number>>({});
+ const draftWriteRef=useRef<Promise<void>>(Promise.resolve());
  const setAnswer=(exerciseId:string,value:string)=>setAnswersState(current=>({...current,[exerciseId]:value}));
- async function submitExercise(exerciseId:string){if(!id||busyExercise)return;setBusyExercise(exerciseId);setError("");try{const result=await submitLearningExerciseAttempt(id,exerciseId,answers[exerciseId]??"");setExerciseResults(current=>({...current,[exerciseId]:result.result}));}catch(e){setError(e instanceof Error?e.message:"Could not check this answer.");}finally{setBusyExercise(null);}}
- useEffect(()=>{let active=true;if(id)void getLearningLesson(id).then(value=>{if(!active)return;setData(value);setProgress(value.progress?.progress_percent??0);}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;};},[id]);
+ const exerciseBlocks=data?.lesson.content.blocks.filter(block=>block.type==="exercise")??[];
+ const currentVersionHistory=Object.fromEntries(Object.entries(exerciseHistory).map(([exerciseId,attempts])=>[exerciseId,attempts.filter(attempt=>attempt.lesson_version_id===data?.lesson.version_id)]));
+ const currentVersionAttempts=(exerciseId:string)=>currentVersionHistory[exerciseId]??[];
+ const latestExerciseCorrect=(exerciseId:string)=>exerciseResults[exerciseId]?.correct??currentVersionAttempts(exerciseId)[0]?.correct;
+ const attemptedExercises=exerciseBlocks.filter(block=>latestExerciseCorrect(block.id)!==undefined);
+ const latestCorrectCount=attemptedExercises.filter(block=>latestExerciseCorrect(block.id)===true).length;
+ const needsReviewExercises=exerciseBlocks.filter(block=>latestExerciseCorrect(block.id)===false);
+ async function submitExercise(exerciseId:string){
+  if(!id||submissionLockRef.current!==null)return;
+  const submissionLock={};
+  submissionLockRef.current=submissionLock;
+  const requestLessonId=id;
+  const requestEpoch=lessonRequestEpoch.current;
+  busyExerciseRef.current=exerciseId;
+  let persisted=false;
+  setBusyExercise(exerciseId);setSubmissionStatuses(current=>({...current,[exerciseId]:"queued"}));setError("");
+  try{
+   const requestVersionId=data?.lesson.version_id;
+   const ownerId=draftOwnerId;
+   const response=answers[exerciseId]??"";
+   if(!requestVersionId)throw new Error("Reload this lesson before submitting an answer.");
+   if(!ownerId)throw new Error("Please sign in again before submitting this answer.");
+   const submissionId=await getOrCreatePendingExerciseSubmission(ownerId,requestLessonId,requestVersionId,exerciseId,response);
+   persisted=true;
+   setSubmissionStatuses(current=>({...current,[exerciseId]:"sending"}));
+   const result=await submitLearningExerciseAttempt(requestLessonId,exerciseId,requestVersionId,submissionId,response);
+   await clearPendingExerciseSubmission(ownerId,requestLessonId,requestVersionId,exerciseId);
+   if(lessonRequestEpoch.current!==requestEpoch)return;
+   setExerciseResults(current=>({...current,[exerciseId]:result.result}));
+   setSubmissionStatuses(current=>({...current,[exerciseId]:"submitted"}));
+   const historyEpoch=(historyRequestEpoch.current[exerciseId]??0)+1;
+   historyRequestEpoch.current[exerciseId]=historyEpoch;
+   try{
+    const history=await getLearningExerciseAttemptHistory(requestLessonId,exerciseId);
+    if(lessonRequestEpoch.current===requestEpoch&&historyRequestEpoch.current[exerciseId]===historyEpoch)setExerciseHistory(current=>({...current,[exerciseId]:history.attempts}));
+   }catch{/* Keep the just-returned result visible if history is temporarily unavailable. */}
+  }catch(e){
+   if(lessonRequestEpoch.current===requestEpoch){
+    if(e instanceof AuthApiError&&e.status===409){setLessonVersionChanged(true);setError("This lesson was updated while you were answering. Your saved answer is retained; reload the latest version before trying again.");setSubmissionStatuses(current=>({...current,[exerciseId]:"needs_reload"}));}
+    else {setError(e instanceof Error?e.message:"Could not check this answer.");setSubmissionStatuses(current=>({...current,[exerciseId]:persisted?"failed":"not_saved"}));}
+   }
+  }finally{
+   if(submissionLockRef.current===submissionLock){submissionLockRef.current=null;if(busyExerciseRef.current===exerciseId){busyExerciseRef.current=null;setBusyExercise(null);}}
+  }
+ }
+ useEffect(()=>{let active=true;lessonRequestEpoch.current+=1;const requestEpoch=lessonRequestEpoch.current;setData(null);setDraftOwnerId(null);setProgress(0);setBusy(false);setAnswersState({});setExerciseResults({});setExerciseHistory({});setSubmissionStatuses({});historyRequestEpoch.current={};submissionLockRef.current=null;busyExerciseRef.current=null;setBusyExercise(null);setError("");setLessonVersionChanged(false);setReloading(false);setMessage("");if(id)void Promise.all([getLearningLesson(id),getLearnerMe().catch(()=>null)]).then(async([value,account])=>{if(!active)return;const exerciseIds=value.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);const ownerId=account?.user.id??null;const restored=ownerId?await readLessonAnswerDraft(ownerId,id,value.lesson.version_id):{};if(!active)return;const available=new Set(exerciseIds);setAnswersState(Object.fromEntries(Object.entries(restored).filter(([exerciseId])=>available.has(exerciseId))));setDraftOwnerId(ownerId);setData(value);setProgress(value.progress?.progress_percent??0);const historyEpochs=Object.fromEntries(exerciseIds.map(exerciseId=>[exerciseId,historyRequestEpoch.current[exerciseId]??0]));const histories=await Promise.all(exerciseIds.map(async exerciseId=>{try{return [exerciseId,(await getLearningExerciseAttemptHistory(id,exerciseId)).attempts] as const;}catch{return [exerciseId,[]] as const;}}));if(active)setExerciseHistory(current=>({...current,...Object.fromEntries(histories.filter(([exerciseId])=>(historyRequestEpoch.current[exerciseId]??0)===historyEpochs[exerciseId]))}));}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;if(lessonRequestEpoch.current===requestEpoch)lessonRequestEpoch.current+=1;};},[id]);
+ useEffect(()=>{
+  if(!id||!data||!draftOwnerId)return;
+  let active=true;
+  let replaying=false;
+  const requestEpoch=lessonRequestEpoch.current;
+  const lessonId=id;
+  const versionId=data.lesson.version_id;
+  const ownerId=draftOwnerId;
+  const pendingExercises=data.lesson.content.blocks.filter((block):block is Extract<typeof block,{type:"exercise"}>=>block.type==="exercise");
+  const replayPending=async()=>{
+   if(!active||replaying||submissionLockRef.current!==null||AppState.currentState!=="active")return;
+   replaying=true;
+   try{
+    for(const exercise of pendingExercises){
+     if(!active||lessonRequestEpoch.current!==requestEpoch||submissionLockRef.current!==null)return;
+     const replayLock={};
+     submissionLockRef.current=replayLock;
+     busyExerciseRef.current=exercise.id;
+     setBusyExercise(exercise.id);
+     try{
+      const pending=await readPendingExerciseSubmission(ownerId,lessonId,versionId,exercise.id);
+      if(!pending||!active||lessonRequestEpoch.current!==requestEpoch)continue;
+      setAnswersState(current=>({...current,[exercise.id]:pending.response}));
+      setSubmissionStatuses(current=>({...current,[exercise.id]:"sending"}));
+      try{
+       const result=await submitLearningExerciseAttempt(lessonId,exercise.id,versionId,pending.submissionId,pending.response);
+       await clearPendingExerciseSubmission(ownerId,lessonId,versionId,exercise.id);
+       if(!active||lessonRequestEpoch.current!==requestEpoch)return;
+       setExerciseResults(current=>({...current,[exercise.id]:result.result}));
+       setSubmissionStatuses(current=>({...current,[exercise.id]:"submitted"}));
+      }catch{
+       if(active&&lessonRequestEpoch.current===requestEpoch)setSubmissionStatuses(current=>({...current,[exercise.id]:"failed"}));
+      }
+     }finally{
+      if(submissionLockRef.current===replayLock){
+       submissionLockRef.current=null;
+       if(busyExerciseRef.current===exercise.id)busyExerciseRef.current=null;
+       if(active&&lessonRequestEpoch.current===requestEpoch)setBusyExercise(null);
+      }
+     }
+    }
+   }finally{replaying=false;}
+  };
+  void replayPending();
+  const appStateSubscription=AppState.addEventListener("change",state=>{if(state==="active")void replayPending();});
+  const networkSubscription=Network.addNetworkStateListener(state=>{
+   if(state.isConnected!==false&&state.isInternetReachable!==false&&AppState.currentState==="active")void replayPending();
+  });
+  return()=>{active=false;appStateSubscription.remove();networkSubscription.remove();};
+ },[id,data?.lesson.version_id,draftOwnerId]);
+ useEffect(()=>{if(!id||!data||!draftOwnerId)return;const ownerId=draftOwnerId;const lessonId=id;const versionId=data.lesson.version_id;draftWriteRef.current=draftWriteRef.current.then(()=>writeLessonAnswerDraft(ownerId,lessonId,versionId,answers));},[id,data?.lesson.version_id,draftOwnerId,answers]);
+ async function reloadUpdatedLesson(){
+  if(!id||reloading)return;
+  const requestLessonId=id;
+  const requestEpoch=++lessonRequestEpoch.current;
+  submissionLockRef.current=null;
+  busyExerciseRef.current=null;
+  setBusyExercise(null);setBusy(false);
+  setReloading(true);setError("");setMessage("");
+  try{
+   const latest=await getLearningLesson(requestLessonId);
+   if(lessonRequestEpoch.current!==requestEpoch)return;
+   const exerciseIds=latest.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);
+   const available=new Set(exerciseIds);
+   setAnswersState(current=>Object.fromEntries(Object.entries(current).filter(([exerciseId])=>available.has(exerciseId))));
+   setExerciseResults({});
+   setExerciseHistory({});
+   historyRequestEpoch.current={};
+   setData(latest);
+   setProgress(latest.progress?.progress_percent??0);
+   setLessonVersionChanged(false);
+   setMessage("Updated lesson loaded. Answers for matching exercises were kept.");
+   const histories=await Promise.all(exerciseIds.map(async exerciseId=>{
+    try{return [exerciseId,(await getLearningExerciseAttemptHistory(requestLessonId,exerciseId)).attempts] as const;}
+    catch{return [exerciseId,[]] as const;}
+   }));
+   if(lessonRequestEpoch.current===requestEpoch)setExerciseHistory(Object.fromEntries(histories));
+  }catch(e){
+   if(lessonRequestEpoch.current===requestEpoch)setError(e instanceof Error?e.message:"Could not load the updated lesson.");
+  }finally{
+   if(lessonRequestEpoch.current===requestEpoch)setReloading(false);
+  }
+ }
  async function save(value:number){
   if(!id||busy)return;
+  const requestLessonId=id;
+  const requestVersionId=data?.lesson.version_id;
+  if(!requestVersionId){setError("Reload this lesson before saving progress.");return;}
+  const requestEpoch=lessonRequestEpoch.current;
   setBusy(true);setMessage("");setError("");
-  try{const result=await saveLearningLessonProgress(id,value);setProgress(result.progress.progress_percent);setMessage(value===100?"Lesson marked complete. Your progress is saved.":"Your lesson progress is saved.");}
-  catch(e){setError(e instanceof Error?e.message:"Could not save your progress.");}
-  finally{setBusy(false);}
+  try{
+   const result=await saveLearningLessonProgress(requestLessonId,requestVersionId,value);
+   if(lessonRequestEpoch.current!==requestEpoch)return;
+   setProgress(result.progress.progress_percent);
+   setData(current=>current?{...current,progress:result.progress}:current);
+   setMessage(value===100?"Lesson marked complete. Your progress is saved.":"Your lesson progress is saved.");
+  }catch(e){
+   if(lessonRequestEpoch.current===requestEpoch){
+    if(e instanceof AuthApiError&&e.status===409){setLessonVersionChanged(true);setError("This lesson was updated after you opened it. Your answers are still on this screen; reload the latest version before saving progress.");}
+    else setError(e instanceof Error?e.message:"Could not save your progress.");
+   }
+  }finally{
+   if(lessonRequestEpoch.current===requestEpoch)setBusy(false);
+  }
  }
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
   <Link href="/learn" style={s.back}>‹ Your learning path</Link>
@@ -53,14 +210,15 @@ export default function LessonScreen(){
    {data.lesson.dialect_scope?<Text style={s.detail}>Language context: {data.lesson.dialect_scope}</Text>:null}
    {data.lesson.script_mode==="native_with_optional_romanisation"?<Text style={s.detail}>Malayalam script is primary. Romanisation is an optional support.</Text>:null}
    </SurfaceCard>
-   <SurfaceCard><Eyebrow>YOUR PROGRESS</Eyebrow><Text style={s.progress}>{progress}%</Text><View style={s.track}><View style={[s.fill,{width:`${progress}%` as `${number}%`}]}/></View><Text style={s.detail}>{data.progress?.status==="completed"?"Completed":data.progress?.status==="in_progress"?"In progress":"Not started"}</Text><Text style={s.body}>Save your place as you work through this lesson. Completion is recorded only when you mark it complete.</Text>
+   {exerciseBlocks.length>0?<SurfaceCard soft><Eyebrow>PRACTICE SUMMARY</Eyebrow><Text style={s.practiceCount}>{attemptedExercises.length} of {exerciseBlocks.length} exercises attempted</Text><Text style={s.detail}>{latestCorrectCount} latest answers correct · {exerciseBlocks.length-attemptedExercises.length} still to try · {needsReviewExercises.length} to revisit</Text>{needsReviewExercises.length>0?<View style={s.reviewFocus}><Text style={s.reviewFocusTitle}>FOCUS YOUR NEXT PRACTICE</Text>{needsReviewExercises.map(block=><Text key={block.id} style={s.reviewFocusItem}>• {block.prompt}</Text>)}</View>:null}<Text style={s.practiceNote}>A revisit suggestion means the latest answer was incorrect. It is not a proficiency score. Only attempts for this published lesson version count here.</Text></SurfaceCard>:null}
+   {lessonVersionChanged?<SurfaceCard soft><Eyebrow>LESSON UPDATED</Eyebrow><Text style={s.blockBody}>A newer version is available. Your typed and selected answers are being kept while you review the update. Reloading will retain answers only for exercises that still exist in the new version.</Text><PrimaryButton label={reloading?"Loading updated lesson…":"Reload updated lesson"} onPress={()=>void reloadUpdatedLesson()} disabled={reloading}/></SurfaceCard>:null}\n   <SurfaceCard><Eyebrow>YOUR PROGRESS</Eyebrow><Text style={s.progress}>{progress}%</Text><View style={s.track}><View style={[s.fill,{width:`${progress}%` as `${number}%`}]}/></View><Text style={s.detail}>{data.progress?.status==="completed"?"Completed":data.progress?.status==="in_progress"?"In progress":"Not started"}</Text><Text style={s.body}>Save your place as you work through this lesson. Completion is recorded only when you mark it complete.</Text>
     <View style={s.actions}>{milestones.map(value=><Pressable key={value} accessibilityRole="button" accessibilityState={{selected:progress===value,disabled:busy}} disabled={busy} onPress={()=>void save(value)} style={[s.milestone,progress===value&&s.selected]}><Text style={[s.milestoneText,progress===value&&s.selectedText]}>{value===100?"Complete":value+"%"}</Text></Pressable>)}</View>
     {busy?<Text style={s.detail}>Saving progress…</Text>:null}{message?<Text style={s.success}>{message}</Text>:null}{error?<Text style={s.error}>{error}</Text>:null}
     <PrimaryButton label={busy?"Saving…":"Save progress"} onPress={()=>void save(progress)} disabled={busy}/>
    </SurfaceCard>
-   <SurfaceCard><Eyebrow>LEARN</Eyebrow><LessonBlocks content={data.lesson.content} answers={answers} setAnswers={setAnswer} results={exerciseResults} onSubmit={submitExercise} busyExercise={busyExercise}/></SurfaceCard>
+   <SurfaceCard><Eyebrow>LEARN</Eyebrow><LessonBlocks content={data.lesson.content} answers={answers} setAnswers={setAnswer} results={exerciseResults} history={currentVersionHistory} attemptsForExercise={currentVersionAttempts} onSubmit={submitExercise} busyExercise={busyExercise} submissionStatuses={submissionStatuses}/></SurfaceCard>
   </>:!error?<Text style={s.detail}>Loading lesson…</Text>:null}
  </ScrollView></SafeAreaView>;
 }
 const s=StyleSheet.create({
- safe:{flex:1,backgroundColor:colors.background},page:{flexGrow:1,padding:space.xl,paddingBottom:36,gap:space.lg},back:{color:colors.primary,fontSize:13,fontWeight:"900"},header:{alignItems:"center",gap:8},title:{fontSize:23,fontWeight:"900",color:colors.primaryStrong,marginTop:8},meta:{fontSize:11,color:colors.textMuted,marginTop:8},detail:{fontSize:12,lineHeight:19,color:colors.textMuted,marginTop:7},body:{fontSize:13,lineHeight:20,color:colors.textMuted,marginTop:10},contentBlock:{gap:8,paddingVertical:8},blockHeading:{fontSize:15,fontWeight:"900",color:colors.primaryStrong},blockBody:{fontSize:13,lineHeight:21,color:colors.text},vocabRow:{paddingVertical:10,borderBottomWidth:1,borderBottomColor:colors.border,gap:4},vocabTerm:{fontSize:15,fontWeight:"900",color:colors.primary},exampleRow:{padding:12,borderRadius:radius.md,backgroundColor:colors.surfaceSoft,gap:5},example:{fontSize:14,fontWeight:"800",lineHeight:21,color:colors.primaryStrong},option:{padding:10,borderWidth:1,borderColor:colors.border,borderRadius:radius.md},optionSelected:{borderColor:colors.primary,backgroundColor:colors.surfaceSoft},answerInput:{minHeight:88,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,padding:12,color:colors.text,textAlignVertical:"top"},feedback:{padding:12,borderRadius:radius.md,backgroundColor:colors.surfaceSoft,gap:5},correct:{fontSize:13,fontWeight:"900",color:"#19734B"},incorrect:{fontSize:13,fontWeight:"900",color:colors.primaryStrong},progress:{fontSize:30,fontWeight:"900",color:colors.primaryStrong,marginTop:8},track:{height:9,borderRadius:9,backgroundColor:colors.border,overflow:"hidden",marginTop:12},fill:{height:9,backgroundColor:colors.primary,borderRadius:9},actions:{flexDirection:"row",flexWrap:"wrap",gap:8,marginVertical:16},milestone:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingVertical:10,paddingHorizontal:13},selected:{backgroundColor:colors.primary,borderColor:colors.primary},milestoneText:{fontSize:12,fontWeight:"800",color:colors.text},selectedText:{color:"#FFFFFF"},success:{fontSize:12,color:"#19734B",marginBottom:10},error:{fontSize:12,color:"#B42318"},});
+ safe:{flex:1,backgroundColor:colors.background},page:{flexGrow:1,padding:space.xl,paddingBottom:36,gap:space.lg},back:{color:colors.primary,fontSize:13,fontWeight:"900"},header:{alignItems:"center",gap:8},title:{fontSize:23,fontWeight:"900",color:colors.primaryStrong,marginTop:8},practiceCount:{fontSize:17,fontWeight:"900",color:colors.primaryStrong,marginTop:8},practiceNote:{fontSize:11,lineHeight:17,color:colors.textMuted,marginTop:7},reviewFocus:{marginTop:10,padding:12,borderRadius:radius.md,backgroundColor:colors.surfaceSoft,gap:7},reviewFocusTitle:{fontSize:10,fontWeight:"900",letterSpacing:0.6,color:colors.primary},reviewFocusItem:{fontSize:12,lineHeight:18,color:colors.text},reviewPrompt:{fontSize:11,fontWeight:"800",color:colors.primary,marginTop:-2},meta:{fontSize:11,color:colors.textMuted,marginTop:8},detail:{fontSize:12,lineHeight:19,color:colors.textMuted,marginTop:7},body:{fontSize:13,lineHeight:20,color:colors.textMuted,marginTop:10},contentBlock:{gap:8,paddingVertical:8},blockHeading:{fontSize:15,fontWeight:"900",color:colors.primaryStrong},blockBody:{fontSize:13,lineHeight:21,color:colors.text},vocabRow:{paddingVertical:10,borderBottomWidth:1,borderBottomColor:colors.border,gap:4},vocabTerm:{fontSize:15,fontWeight:"900",color:colors.primary},exampleRow:{padding:12,borderRadius:radius.md,backgroundColor:colors.surfaceSoft,gap:5},example:{fontSize:14,fontWeight:"800",lineHeight:21,color:colors.primaryStrong},option:{padding:10,borderWidth:1,borderColor:colors.border,borderRadius:radius.md},optionSelected:{borderColor:colors.primary,backgroundColor:colors.surfaceSoft},optionDisabled:{opacity:0.6},answerInput:{minHeight:88,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,padding:12,color:colors.text,textAlignVertical:"top"},feedback:{padding:12,borderRadius:radius.md,backgroundColor:colors.surfaceSoft,gap:5},history:{padding:12,borderRadius:radius.md,backgroundColor:"#F8F5FC",gap:8},historyTitle:{fontSize:12,fontWeight:"900",color:colors.primaryStrong},historyAttempt:{paddingTop:8,borderTopWidth:1,borderTopColor:colors.border,gap:4},historyHeading:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},historyDate:{fontSize:10,color:colors.textMuted},historyResponse:{fontSize:12,lineHeight:18,color:colors.text},correct:{fontSize:13,fontWeight:"900",color:"#19734B"},incorrect:{fontSize:13,fontWeight:"900",color:colors.primaryStrong},progress:{fontSize:30,fontWeight:"900",color:colors.primaryStrong,marginTop:8},track:{height:9,borderRadius:9,backgroundColor:colors.border,overflow:"hidden",marginTop:12},fill:{height:9,backgroundColor:colors.primary,borderRadius:9},actions:{flexDirection:"row",flexWrap:"wrap",gap:8,marginVertical:16},milestone:{borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingVertical:10,paddingHorizontal:13},selected:{backgroundColor:colors.primary,borderColor:colors.primary},milestoneText:{fontSize:12,fontWeight:"800",color:colors.text},selectedText:{color:"#FFFFFF"},success:{fontSize:12,color:"#19734B",marginBottom:10},error:{fontSize:12,color:"#B42318"},queueStatus:{fontSize:11,lineHeight:17,color:colors.textMuted},queueSuccess:{fontSize:11,lineHeight:17,color:"#19734B",fontWeight:"800"},});

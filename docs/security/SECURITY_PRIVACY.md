@@ -41,3 +41,8 @@ Before public release, review applicable Indian privacy, consumer, payment, plat
 The API exposes `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, `GET/PATCH /api/v1/auth/me`, `PATCH /api/v1/auth/me/preferences`, `POST /api/v1/auth/me/consents` and `POST /api/v1/auth/me/deletion-request` when a PostgreSQL pool is configured. Account records and preferences are stored in PostgreSQL. The anonymous placement flow remains separate; placement reports are not yet linked to learner IDs.
 
 Voice consent records are currently only recorded as declarations against a policy version; no voice capture or provider processing is enabled. A deletion request disables the account and revokes refresh sessions but does not yet run final deletion or retention cleanup. Do not describe this as complete account erasure.
+
+
+### Gabroo speech-recognition abuse and cost controls
+
+The authenticated transcription endpoint applies an atomic PostgreSQL-backed fixed-window quota of 20 recognition requests per learner per hour. The counter is shared across API instances, resets after the one-hour window, and stores only the learner ID, window start, request count and update timestamp. It does not store audio or transcript content. Requests beyond the allowance receive HTTP 429 with a `Retry-After` header; if the quota store is unavailable, recognition fails closed with HTTP 503. This is an initial platform safety ceiling, not a paid-plan usage promise; production limits should be reviewed against provider costs and learner usage before launch.

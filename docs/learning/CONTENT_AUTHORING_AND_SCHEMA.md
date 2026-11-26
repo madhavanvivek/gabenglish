@@ -103,3 +103,12 @@ Draft content is not eligible for production retrieval. Approval requires Englis
 ## 9. Draft status and safety
 
 All starter examples in `content/seed` are `draft` and `review_status: pending`. They are design examples, not a published curriculum. They must not be served to learners as approved teaching material until review is complete.
+
+
+## Learner exercise history API
+
+Authenticated learners with an active subscription can retrieve their own attempts for an exercise in the currently published lesson version:
+
+`GET /api/v1/learning/lessons/:id/exercises/:exerciseId/attempts`
+
+The endpoint validates that the lesson is published for the learner's selected language direction and that the exercise exists in its current published content. It returns at most the 50 most recent attempts, including the lesson-version ID, submitted response, correctness, feedback and timestamp. Attempts from earlier lesson versions remain visible as history but are never mixed with another learner or learning direction. The answer key is not returned. This history is learner-private and is not an assessment score or proficiency claim.

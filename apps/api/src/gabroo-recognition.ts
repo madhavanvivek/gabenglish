@@ -14,6 +14,7 @@ import type {AppConfig} from "./config.js";
 import {authenticateLearner} from "./auth.js";
 import {getActiveSubscriptionEntitlement} from "./subscriptions.js";
 import {recognizeGabrooAudio} from "./gabroo-recognition-service.js";
+import {consumeGabrooRecognitionQuota} from "./gabroo-recognition-quota.js";
 
 function sendError(reply:any,requestId:string,status:number,code:string,message:string){
  return reply.code(status).send({error:{code,message,request_id:requestId}});
@@ -81,6 +82,20 @@ export async function registerGabrooRecognitionRoutes(
   }
   if(body.byteLength>GABROO_AUDIO_MAX_BYTES){
    return sendError(reply,request.id,413,"AUDIO_TOO_LARGE","The audio recording exceeds the 10 MB limit.");
+  }
+
+  let quota:{allowed:boolean;remaining:number;retryAfterSeconds:number};
+  try{
+   quota=await consumeGabrooRecognitionQuota(pool,learner.id);
+  }catch(error){
+   request.log.error({request_id:request.id}, "Gabroo recognition quota check failed");
+   return sendError(reply,request.id,503,"QUOTA_UNAVAILABLE","Voice recognition is temporarily unavailable. Please try again.");
+  }
+  reply.header("x-ratelimit-limit","20");
+  reply.header("x-ratelimit-remaining",String(quota.remaining));
+  if(!quota.allowed){
+   reply.header("retry-after",String(quota.retryAfterSeconds));
+   return sendError(reply,request.id,429,"RECOGNITION_RATE_LIMITED","You've reached the voice-practice limit for this hour. Please try again after the limit resets.");
   }
 
   const controller=new AbortController();

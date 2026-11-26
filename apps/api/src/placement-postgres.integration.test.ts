@@ -8,6 +8,7 @@ import {buildApp} from "./app.js";
 import {loadConfig} from "./config.js";
 import {runMigrations} from "./migrate.js";
 import {activateVerifiedSubscriptionPayment} from "./subscription-entitlements.js";
+import {consumeGabrooRecognitionQuota,GABROO_RECOGNITION_REQUESTS_PER_HOUR} from "./gabroo-recognition-quota.js";
 
 const databaseUrl=process.env.DATABASE_URL;
 const integration=databaseUrl?describe:describe.skip;
@@ -39,7 +40,44 @@ integration("PostgreSQL placement session integration",()=>{
   if(!pool||!migrationApplied)return;
   await runMigrations(pool);
   const result=await pool.query<{version:string}>("SELECT version FROM schema_migrations ORDER BY version");
-  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql","0011_learning_direction.sql","0012_gabroo_conversation_direction.sql","0013_directional_diagnostic_reports.sql","0014_direction_aware_curriculum_progress.sql","0015_learner_exercise_attempts.sql","0016_subscription_offer_pricing.sql","0017_subscription_checkout_quotes.sql","0018_admin_subscription_controls.sql","0019_admin_session_idle_timeout.sql"]);
+  expect(result.rows.map(row=>row.version)).toEqual(["0001_initial_foundation.sql","0002_placement_sessions.sql","0003_auth_login_throttling.sql","0004_passwordless_otp.sql","0005_placement_owner.sql","0006_free_diagnostic_reports.sql","0007_gabroo_speech_rate.sql","0008_verified_subscription_entitlements.sql","0009_gabroo_conversations.sql","0010_gabroo_learner_memory.sql","0011_learning_direction.sql","0012_gabroo_conversation_direction.sql","0013_directional_diagnostic_reports.sql","0014_direction_aware_curriculum_progress.sql","0015_learner_exercise_attempts.sql","0016_subscription_offer_pricing.sql","0017_subscription_checkout_quotes.sql","0018_admin_subscription_controls.sql","0019_admin_session_idle_timeout.sql","0020_gabroo_recognition_quotas.sql","0021_exercise_attempt_idempotency.sql"]);
+ });
+
+ it("enforces a shared per-learner Gabroo recognition quota and resets its one-hour window",async()=>{
+  if(!pool||!migrationApplied)return;
+  const userId=randomUUID();
+  await pool.query("INSERT INTO users(id,email) VALUES($1,$2)",[userId,"quota-"+userId+"@example.test"]);
+  try{
+   for(let index=0;index<GABROO_RECOGNITION_REQUESTS_PER_HOUR;index++){
+    const result=await consumeGabrooRecognitionQuota(pool,userId);
+    expect(result.allowed).toBe(true);
+    expect(result.remaining).toBe(GABROO_RECOGNITION_REQUESTS_PER_HOUR-index-1);
+   }
+   const exhausted=await consumeGabrooRecognitionQuota(pool,userId);
+   expect(exhausted.allowed).toBe(false);
+   expect(exhausted.remaining).toBe(0);
+   expect(exhausted.retryAfterSeconds).toBeGreaterThan(0);
+   await pool.query("UPDATE gabroo_recognition_quotas SET window_started_at=now()-interval '2 hours' WHERE user_id=$1",[userId]);
+   const reset=await consumeGabrooRecognitionQuota(pool,userId);
+   expect(reset).toMatchObject({allowed:true,remaining:GABROO_RECOGNITION_REQUESTS_PER_HOUR-1});
+  }finally{
+   await pool.query("DELETE FROM users WHERE id=$1",[userId]);
+  }
+ });
+
+ it("serializes concurrent recognition requests so the learner cannot exceed the hourly allowance",async()=>{
+  if(!pool||!migrationApplied)return;
+  const userId=randomUUID();
+  await pool.query("INSERT INTO users(id,email) VALUES($1,$2)",[userId,"quota-race-"+userId+"@example.test"]);
+  try{
+   const results=await Promise.all(Array.from({length:GABROO_RECOGNITION_REQUESTS_PER_HOUR+8},()=>consumeGabrooRecognitionQuota(pool,userId)));
+   expect(results.filter(result=>result.allowed)).toHaveLength(GABROO_RECOGNITION_REQUESTS_PER_HOUR);
+   expect(results.filter(result=>!result.allowed)).toHaveLength(8);
+   const stored=await pool.query<{request_count:number}>("SELECT request_count FROM gabroo_recognition_quotas WHERE user_id=$1",[userId]);
+   expect(stored.rows[0]?.request_count).toBe(GABROO_RECOGNITION_REQUESTS_PER_HOUR+8);
+  }finally{
+   await pool.query("DELETE FROM users WHERE id=$1",[userId]);
+  }
  });
 
  it("authenticates Superadmins, manages offer windows, audits changes and revokes admin sessions",async()=>{

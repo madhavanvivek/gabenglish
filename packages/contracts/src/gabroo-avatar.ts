@@ -99,23 +99,26 @@ export function sampleGabrooAvatarFrame(
   throw new Error("Playback time and fade duration must be finite; fade duration cannot be negative.");
  }
  const at=Math.max(0,Math.min(playbackMs,timeline.duration_ms));
- const viseme=timeline.visemes
-  .map(event=>({shape:event.shape,weight:eventWeight(event.start_ms,event.end_ms,event.weight,at,fadeMs)}))
-  .filter(event=>event.weight>0)
-  .sort((a,b)=>b.weight-a.weight)[0];
- const expression=timeline.expressions
-  .map(event=>({expression:event.expression,weight:eventWeight(event.start_ms,event.end_ms,event.weight,at,fadeMs)}))
-  .filter(event=>event.weight>0)
-  .sort((a,b)=>b.weight-a.weight)[0];
- const gesture=timeline.gestures
-  .map(event=>({gesture:event.gesture,weight:eventWeight(event.start_ms,event.end_ms,event.weight,at,fadeMs)}))
-  .filter(event=>event.weight>0)
-  .sort((a,b)=>b.weight-a.weight)[0];
+ let visemeShape:GabrooVisemeShape="neutral",visemeWeight=0;
+ for(const event of timeline.visemes){
+  const weight=eventWeight(event.start_ms,event.end_ms,event.weight,at,fadeMs);
+  if(weight>visemeWeight){visemeShape=event.shape;visemeWeight=weight;}
+ }
+ let expressionValue:GabrooExpression="neutral",expressionWeight=0;
+ for(const event of timeline.expressions){
+  const weight=eventWeight(event.start_ms,event.end_ms,event.weight,at,fadeMs);
+  if(weight>expressionWeight){expressionValue=event.expression;expressionWeight=weight;}
+ }
+ let gestureValue:GabrooGesture|null=null,gestureWeight=0;
+ for(const event of timeline.gestures){
+  const weight=eventWeight(event.start_ms,event.end_ms,event.weight,at,fadeMs);
+  if(weight>gestureWeight){gestureValue=event.gesture;gestureWeight=weight;}
+ }
  return {
-  viseme:viseme?{shape:viseme.shape,weight:viseme.weight}:{shape:"neutral",weight:0},
-  expression:expression?.expression??"neutral",
-  expressionWeight:expression?.weight??0,
-  gesture:gesture?.gesture??null,
-  gestureWeight:gesture?.weight??0
+  viseme:{shape:visemeShape,weight:visemeWeight},
+  expression:expressionValue,
+  expressionWeight,
+  gesture:gestureValue,
+  gestureWeight
  };
 }
