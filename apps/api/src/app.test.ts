@@ -349,4 +349,28 @@ describe("API foundation",()=>{
   await app.close();
  });
 
+ it("rejects malformed lesson progress before opening a database transaction",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  let connectCalls=0;
+  const pool=recognitionPool(true) as any;
+  pool.connect=async()=>{connectCalls+=1;throw new Error("transaction must not start for invalid input");};
+  const app=await buildApp(config,async()=>true,pool);
+  const url="/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/progress";
+  const headers={authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)};
+  for(const payload of [
+   {progress_percent:12.5},
+   {progress_percent:-1},
+   {progress_percent:101},
+   {progress_percent:"50"},
+   {progress_percent:50,lesson_id:"another-lesson"},
+   {}
+  ]){
+   const response=await app.inject({method:"POST",url,headers,payload});
+   expect(response.statusCode).toBe(400);
+   expect(response.json().error.code).toBe("VALIDATION_ERROR");
+  }
+  expect(connectCalls).toBe(0);
+  await app.close();
+ });
+
 });
