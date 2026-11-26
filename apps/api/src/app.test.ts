@@ -330,7 +330,7 @@ describe("API foundation",()=>{
    if(sql.includes("FROM lessons l JOIN modules m")&&sql.includes("JOIN courses c"))return {rows:[{course_id:"course-1",learning_direction:"ml_to_en",version_id:versionId,content}]};
    if(sql.includes("INSERT INTO learner_exercise_attempts")){
     inserts+=1;
-    stored={lesson_id:lessonId,lesson_version_id:versionId,exercise_id:"exercise-1",response:String(values[6]),is_correct:true,feedback:"Good work."};
+    stored={lesson_id:lessonId,lesson_version_id:versionId,exercise_id:"exercise-1",response:String(values[6]),is_correct:true,feedback:"Good work. Your answer is correct."};
     return {rows:[{id:"attempt-1"}],rowCount:1};
    }
    return {rows:[]};
