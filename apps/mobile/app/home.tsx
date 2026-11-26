@@ -2,7 +2,7 @@ import {useCallback,useState} from "react";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {AuthApiError,getDailyChallengeCompletion,getLearnerMe,getSubscriptionStatus,listGabrooConversations,listGabrooMemory,updateLearnerPreferences,getVocabularyRetentionSummary,getGabrooLearningInsights,getLearningStage,type LearningStageStatus,type GabrooMemoryItem,type LearnerMe,type SubscriptionStatus,type GabrooConversation,type VocabularyRetentionSummary,type GabrooLearningInsights} from "../src/auth-api";
+import {AuthApiError,getDailyChallengeCompletion,getLearnerMe,getSubscriptionStatus,listGabrooConversations,listGabrooMemory,updateLearnerPreferences,getVocabularyRetentionSummary,getGabrooLearningInsights,getLearningStage,getLearningRecommendation,type LearningLessonRecommendation,type LearningStageStatus,type GabrooMemoryItem,type LearnerMe,type SubscriptionStatus,type GabrooConversation,type VocabularyRetentionSummary,type GabrooLearningInsights} from "../src/auth-api";
 import {BrandMark,SurfaceCard,Eyebrow} from "../src/ui";
 import {colors,radius,space} from "../src/theme";
 import {adjustGabrooSpeechRate,resolveLearningDirection} from "../src/learner-settings";
@@ -23,8 +23,14 @@ export default function HomeScreen(){
  const [speechRate,setSpeechRate]=useState(1);
  const [learningDirection,setLearningDirection]=useState<"ml_to_en"|"en_to_ml">("ml_to_en");
  const [learningStage,setLearningStage]=useState<LearningStageStatus|null>(null);
+ const [lessonRecommendation,setLessonRecommendation]=useState<LearningLessonRecommendation|null>(null);
+ const [lessonRecommendationError,setLessonRecommendationError]=useState("");
  const [savingDirection,setSavingDirection]=useState(false);
  const [refreshKey,setRefreshKey]=useState(0);
+ const refreshLessonRecommendation=useCallback(async()=>{
+  try{setLessonRecommendation(await getLearningRecommendation());setLessonRecommendationError("");}
+  catch(reason){setLessonRecommendation(null);setLessonRecommendationError(reason instanceof Error?reason.message:"Your next lesson is temporarily unavailable.");}
+ },[]);
  const load=useCallback(async()=>{
   setLoading(true);setError("");setNotice("");
   try{
@@ -33,6 +39,7 @@ export default function HomeScreen(){
    try{setLearningStage(await getLearningStage());}catch{setLearningStage(null);}
    const status=await getSubscriptionStatus();setSubscription(status);
    if(status.active){
+    if(resolveLearningDirection(me.preferences?.learning_direction)==="ml_to_en")await refreshLessonRecommendation();else{setLessonRecommendation(null);setLessonRecommendationError("");}
     const [conversationResult,vocabularyResult,insightResult,challengeResult,memoryResult]=await Promise.allSettled([
      listGabrooConversations(),getVocabularyRetentionSummary(),getGabrooLearningInsights(),getDailyChallengeCompletion(localPracticeDateKey()),listGabrooMemory()
     ]);
@@ -42,11 +49,11 @@ export default function HomeScreen(){
     setLearningInsights(insightResult.status==="fulfilled"?insightResult.value:null);
     setDailyChallengeCompleted(challengeResult.status==="fulfilled"&&!!challengeResult.value.completion);
     setSavedPracticePhrases(memoryResult.status==="fulfilled"?memoryResult.value.memory.filter(item=>item.category==="saved_phrase"):[]);
-   }else{setConversations([]);setVocabularySummary(null);setLearningInsights(null);setDailyChallengeCompleted(false);setSavedPracticePhrases([]);}
+   }else{setConversations([]);setVocabularySummary(null);setLearningInsights(null);setDailyChallengeCompleted(false);setSavedPracticePhrases([]);setLessonRecommendation(null);setLessonRecommendationError("");}
   }catch(reason){
    setError(reason instanceof Error?reason.message:"Could not load your learning home.");
   }finally{setLoading(false);}
- },[]);
+ },[refreshLessonRecommendation]);
  useFocusEffect(useCallback(()=>{void load();},[load,refreshKey]));
  const saveDirection=async(next:"ml_to_en"|"en_to_ml")=>{
   if(next===learningDirection||savingDirection)return;
@@ -54,6 +61,7 @@ export default function HomeScreen(){
   try{
    await updateLearnerPreferences({learning_direction:next});
    const me=await getLearnerMe();setLearner(me);setLearningDirection(resolveLearningDirection(me.preferences?.learning_direction));
+   if(next==="ml_to_en"&&subscription?.active)await refreshLessonRecommendation();else{setLessonRecommendation(null);setLessonRecommendationError("");}
    setNotice("Your learning direction preference is saved.");
   }catch(reason){setLearningDirection(previous);setError(reason instanceof Error?reason.message:"Could not save your learning direction.");}
   finally{setSavingDirection(false);}
@@ -74,6 +82,7 @@ export default function HomeScreen(){
   {loading?<View style={s.loading}><ActivityIndicator size="large" color={colors.primary}/><Text style={s.muted}>Getting your learning space ready…</Text></View>:<>
    <View style={s.welcome}><Eyebrow>YOUR LEARNING SPACE</Eyebrow><Text style={s.greeting}>Hello{firstName?" "+firstName:""}! 👋</Text><Text style={s.intro}>{learningDirection==="ml_to_en"?"A little English, a little confidence — and Gabroo whenever you need a conversation.":"Learn Malayalam at your pace, with English explanations and Gabroo as your conversation buddy."}</Text></View>
    {learningDirection==="ml_to_en"?<SurfaceCard soft><Eyebrow>YOUR CURRENT LEARNING STAGE</Eyebrow><Text style={s.cardTitle}>{learningStage?.stage?["","Malayalam Mode","Malayalam + English Mix","English Practice Mode","English Immersion","Expert Communication"][learningStage.stage]:"Choose your starting stage"}</Text><Text style={s.body}>{learningStage?.stage?("Stage "+learningStage.stage+" is "+(learningStage.stage_source==="evidence_progression"?"currently suggested by recent stage-matched exercise evidence.":"your saved learning choice.")):"Set a starting point so Gabroo can recommend lessons that match your comfort level."}</Text><Link href="/learn" asChild><Pressable style={s.stageButton}><Text style={s.stageButtonText}>{learningStage?.stage?"Review or change stage →":"Choose my learning stage →"}</Text></Pressable></Link></SurfaceCard>:null}
+   {learningDirection==="ml_to_en"&&active?(lessonRecommendation?.recommendation?<SurfaceCard><Eyebrow>YOUR NEXT LESSON · STAGE {lessonRecommendation.stage}</Eyebrow><Text style={s.cardTitle}>{lessonRecommendation.recommendation.reason==="continue_learning"?"Pick up where you left off":"Ready for your next lesson?"}</Text><Text style={s.lessonName}>{lessonRecommendation.recommendation.title}</Text><Text style={s.body}>{lessonRecommendation.recommendation.moduleTitle} · {lessonRecommendation.recommendation.reason==="continue_learning"?`${lessonRecommendation.recommendation.progressPercent}% completed — continue at your pace.`:"A published lesson selected for your current stage."}</Text><Link href={{pathname:"/lesson/[id]",params:{id:lessonRecommendation.recommendation.lessonId}}} asChild><Pressable style={s.lessonButton}><Text style={s.lessonButtonText}>{lessonRecommendation.recommendation.reason==="continue_learning"?"Continue lesson →":"Start lesson →"}</Text></Pressable></Link></SurfaceCard>:lessonRecommendation?.reason==="stage_not_selected"?<SurfaceCard soft><Eyebrow>YOUR NEXT LESSON</Eyebrow><Text style={s.cardTitle}>Choose a stage to find your first lesson</Text><Link href="/learn" style={s.textLink}>Choose my learning stage →</Link></SurfaceCard>:lessonRecommendation?.reason==="no_matching_published_lesson"?<SurfaceCard soft><Eyebrow>YOUR NEXT LESSON</Eyebrow><Text style={s.cardTitle}>More lessons are being prepared</Text><Text style={s.body}>There is no unfinished published lesson for your current stage right now. You can keep practising with Gabroo.</Text><Link href="/practice-queue" style={s.textLink}>Open practice queue →</Link></SurfaceCard>:lessonRecommendationError?<SurfaceCard><Eyebrow>YOUR NEXT LESSON</Eyebrow><Text style={s.body}>Your lesson recommendation could not be loaded.</Text><Pressable onPress={()=>void refreshLessonRecommendation()} style={s.retry}><Text style={s.textLink}>Try again</Text></Pressable></SurfaceCard>:null):null}
    <SurfaceCard soft><Eyebrow>YOUR LEARNING DIRECTION</Eyebrow><Text style={s.cardTitle}>What would you like to learn?</Text><Text style={s.body}>Choose the language you want to learn. Your selection is saved to your account. The Malayalam course is still being prepared.</Text><Pressable accessibilityRole="button" accessibilityState={{selected:learningDirection==="ml_to_en"}} disabled={savingDirection} onPress={()=>void saveDirection("ml_to_en")} style={[s.directionOption,learningDirection==="ml_to_en"&&s.directionSelected]}><View style={s.directionCopy}><Text style={s.directionTitle}>English through Malayalam</Text><Text style={s.directionSub}>Learn English with Malayalam support</Text></View><Text style={s.directionMark}>{learningDirection==="ml_to_en"?"✓":"○"}</Text></Pressable><Pressable accessibilityRole="button" accessibilityState={{selected:learningDirection==="en_to_ml"}} disabled={savingDirection} onPress={()=>void saveDirection("en_to_ml")} style={[s.directionOption,learningDirection==="en_to_ml"&&s.directionSelected]}><View style={s.directionCopy}><Text style={s.directionTitle}>Malayalam through English</Text><Text style={s.directionSub}>Learn Malayalam with English explanations</Text></View><Text style={s.directionMark}>{learningDirection==="en_to_ml"?"✓":"○"}</Text></Pressable><Text style={s.directionNote}>{learningDirection==="ml_to_en"?"Your current English-learning journey remains selected.":"Malayalam learning is being prepared. Your selection is saved, but its reviewed lessons and full learning experience are not yet available."}</Text></SurfaceCard>
    <View style={s.hero}><View style={s.heroTop}><View style={s.avatar}><Text style={s.avatarText}>G</Text></View><View style={s.heroCopy}><Text style={s.heroEyebrow}>YOUR EVERYDAY LEARNING BUDDY</Text><Text style={s.heroTitle}>Talk to Gabroo</Text></View></View><Text style={s.heroBody}>{learningDirection==="ml_to_en"?"Start with any topic. Ask a question, practise a real-life situation, or simply say hello. You don't need to choose a lesson first.":"Start a conversation with Gabroo. Malayalam-specific teaching and reviewed lessons are still being prepared."}</Text>{active?<Link href="/gabroo" asChild><Pressable style={s.heroButton}><Text style={s.heroButtonText}>Start talking with Gabroo  →</Text></Pressable></Link>:<Link href="/account" asChild><Pressable style={s.heroButton}><Text style={s.heroButtonText}>View account and subscription  →</Text></Pressable></Link>}<Text style={s.heroFoot}>{active?"Included in your active Gabenglish subscription.":"An active subscription is required for open conversations."}</Text></View>
    <View style={s.sectionHead}><Text style={s.sectionTitle}>Your learning activity</Text><Text style={s.sectionMeta}>LIVE ACCOUNT DATA</Text></View>
@@ -90,6 +99,7 @@ export default function HomeScreen(){
  </ScrollView></SafeAreaView>;
 }
 const s=StyleSheet.create({
+ lessonName:{fontSize:16,fontWeight:"900",color:colors.primaryStrong,marginTop:9},lessonButton:{backgroundColor:colors.primary,borderRadius:radius.md,padding:space.md,alignItems:"center",marginTop:space.md},lessonButtonText:{fontSize:13,fontWeight:"900",color:"#FFFFFF"},
  stageButton:{backgroundColor:colors.primary,borderRadius:radius.md,padding:space.md,alignItems:"center",marginTop:space.md},stageButtonText:{fontSize:13,fontWeight:"900",color:"#FFFFFF"},
  challengePrompt:{fontSize:14,lineHeight:22,color:colors.text,backgroundColor:colors.surface,borderRadius:radius.lg,padding:space.md,marginTop:space.sm},challengeDone:{fontSize:13,lineHeight:19,color:"#246B43",fontWeight:"900",marginTop:12},challengeButton:{backgroundColor:colors.primary,borderRadius:radius.lg,padding:space.md,alignItems:"center",marginTop:space.md},challengeButtonText:{fontSize:13,fontWeight:"900",color:"#FFFFFF"},
  practiceGrid:{flexDirection:"row",gap:10,marginTop:space.sm},practiceStat:{flex:1,backgroundColor:colors.surfaceSoft,borderRadius:radius.md,padding:space.md},practiceValue:{fontSize:24,fontWeight:"900",color:colors.primaryStrong},practiceLabel:{fontSize:10,fontWeight:"700",color:colors.textMuted,marginTop:3},practiceLinks:{gap:9,marginTop:space.sm},
