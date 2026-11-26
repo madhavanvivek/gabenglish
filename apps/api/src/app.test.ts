@@ -443,4 +443,33 @@ describe("API foundation",()=>{
   }finally{await app.close();}
  });
 
+
+ it("lists the authenticated learner's vocabulary collection for the selected direction",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const learnerId="00000000-0000-4000-8000-000000000001";
+  const collectionQueries:{sql:string;values?:unknown[]}[]=[];
+  const pool={query:async(sql:string,values?:unknown[])=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:learnerId,email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"en_to_ml"}]};
+   if(sql.includes("FROM learner_vocabulary_items")&&sql.includes("ORDER BY CASE WHEN status='active'")){
+    collectionQueries.push({sql,values});
+    return {rows:[
+     {id:"active-word",source_term:"hello",target_term:"നമസ്കാരം",status:"active"},
+     {id:"archived-word",source_term:"goodbye",target_term:"വിട",status:"archived"}
+    ]};
+   }
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  try{
+   const response=await app.inject({method:"GET",url:"/api/v1/vocabulary",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+   expect(response.statusCode).toBe(200);
+   expect(response.json()).toMatchObject({learning_direction:"en_to_ml",items:[{id:"active-word",status:"active"},{id:"archived-word",status:"archived"}]});
+   expect(collectionQueries).toHaveLength(1);
+   expect(collectionQueries[0]?.values).toEqual([learnerId,"en_to_ml"]);
+   expect(collectionQueries[0]?.sql).toContain("LIMIT 200");
+  }finally{await app.close();}
+ });
+
 });
