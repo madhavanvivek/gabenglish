@@ -222,10 +222,12 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
     `INSERT INTO learner_course_progress(user_id,course_id,learning_direction,status,progress_percent,started_at,completed_at)
      VALUES($1,$2,$3,$4,$5,now(),CASE WHEN $4='completed' THEN now() ELSE NULL END)
      ON CONFLICT(user_id,course_id,learning_direction)
-     DO UPDATE SET status=CASE WHEN learner_course_progress.status='completed' THEN 'completed' ELSE EXCLUDED.status END,
-      progress_percent=CASE WHEN learner_course_progress.status='completed' THEN 100 ELSE EXCLUDED.progress_percent END,
+     DO UPDATE SET status=EXCLUDED.status,
+      progress_percent=EXCLUDED.progress_percent,
       started_at=COALESCE(learner_course_progress.started_at,EXCLUDED.started_at),
-      completed_at=COALESCE(learner_course_progress.completed_at,EXCLUDED.completed_at),updated_at=now()`,
+      completed_at=CASE WHEN EXCLUDED.status='completed'
+        THEN COALESCE(learner_course_progress.completed_at,EXCLUDED.completed_at) ELSE NULL END,
+      updated_at=now()`,
     [learner.id,lesson.course_id,lesson.direction,aggregate.rows[0]!.total>0&&aggregate.rows[0]!.completed===aggregate.rows[0]!.total?"completed":aggregate.rows[0]!.completed===0&&Number(aggregate.rows[0]!.average)===0?"not_started":"in_progress",Number(aggregate.rows[0]!.average)]
    );
    await client.query("COMMIT");
