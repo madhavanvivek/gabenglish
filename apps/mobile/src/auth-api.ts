@@ -240,6 +240,7 @@ export async function clearGabrooMemory(){return await authorized("/api/v1/gabro
 
 export type PublishedLearningLesson={
  id:string;slug:string|null;title:string;version_id:string;version:number|null;
+ progress:null|{status:"not_started"|"in_progress"|"completed";progress_percent:number};
  content:unknown;script_mode:string|null;register:string|null;dialect_scope:string|null;romanisation:string|null;
 };
 export type PublishedLearningCatalog={
