@@ -50,6 +50,7 @@ export default function ProgressScreen(){
    </View>):<Text style={s.body}>Published lessons for this learning direction will appear here as they become available.</Text>}
   </SurfaceCard>:null}
   {!!error&&<View style={s.error}><Text style={s.errorText}>{error}</Text><Pressable onPress={()=>setRefreshKey(value=>value+1)}><Text style={s.retry}>Try again</Text></Pressable></View>}
+  <View style={s.footerCard}><Text style={s.footerTitle}>Build your vocabulary</Text><Text style={s.footerBody}>Review saved words with a spaced repetition schedule that adapts to your answers.</Text><Link href="/vocabulary" style={s.action}>Review vocabulary →</Link></View>
   <View style={s.footerCard}><Text style={s.footerTitle}>Ready for a little practice?</Text><Text style={s.footerBody}>Talk to Gabroo about your goals and ask for a gentle practice conversation.</Text><Link href="/gabroo" style={s.action}>Talk to Gabroo →</Link></View>
  </ScrollView></SafeAreaView>;
 }
