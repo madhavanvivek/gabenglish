@@ -1,4 +1,4 @@
-import {useEffect,useState} from "react";
+import {useEffect,useRef,useState} from "react";
 import {Link,useLocalSearchParams} from "expo-router";
 import {Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
@@ -34,6 +34,7 @@ export default function LessonScreen(){
  const [exerciseResults,setExerciseResults]=useState<Record<string,{correct:boolean;feedback:string}>>({});
  const [exerciseHistory,setExerciseHistory]=useState<Record<string,LearningExerciseAttemptHistory["attempts"]>>({});
  const [busyExercise,setBusyExercise]=useState<string|null>(null);
+ const activeLessonId=useRef<string|undefined>(undefined);
  const setAnswer=(exerciseId:string,value:string)=>setAnswersState(current=>({...current,[exerciseId]:value}));
  const exerciseBlocks=data?.lesson.content.blocks.filter(block=>block.type==="exercise")??[];
  const currentVersionAttempts=(exerciseId:string)=>exerciseHistory[exerciseId]?.filter(attempt=>attempt.lesson_version_id===data?.lesson.version_id)??[];
@@ -43,8 +44,8 @@ export default function LessonScreen(){
   const latest=currentVersionAttempts(block.id)[0];
   return latest?!latest.correct:exerciseResults[block.id]?.correct===false;
  });
- async function submitExercise(exerciseId:string){if(!id||busyExercise)return;setBusyExercise(exerciseId);setError("");try{const result=await submitLearningExerciseAttempt(id,exerciseId,answers[exerciseId]??"");setExerciseResults(current=>({...current,[exerciseId]:result.result}));try{const history=await getLearningExerciseAttemptHistory(id,exerciseId);setExerciseHistory(current=>({...current,[exerciseId]:history.attempts}));}catch{/* Keep the just-returned result visible if history is temporarily unavailable. */}}catch(e){setError(e instanceof Error?e.message:"Could not check this answer.");}finally{setBusyExercise(null);}}
- useEffect(()=>{let active=true;if(id)void getLearningLesson(id).then(async value=>{if(!active)return;setData(value);setProgress(value.progress?.progress_percent??0);const exerciseIds=value.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);const histories=await Promise.all(exerciseIds.map(async exerciseId=>{try{return [exerciseId,(await getLearningExerciseAttemptHistory(id,exerciseId)).attempts] as const;}catch{return [exerciseId,[]] as const;}}));if(active)setExerciseHistory(Object.fromEntries(histories));}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;};},[id]);
+ async function submitExercise(exerciseId:string){if(!id||busyExercise)return;const requestLessonId=id;setBusyExercise(exerciseId);setError("");try{const result=await submitLearningExerciseAttempt(requestLessonId,exerciseId,answers[exerciseId]??"");if(activeLessonId.current!==requestLessonId)return;setExerciseResults(current=>({...current,[exerciseId]:result.result}));try{const history=await getLearningExerciseAttemptHistory(requestLessonId,exerciseId);if(activeLessonId.current===requestLessonId)setExerciseHistory(current=>({...current,[exerciseId]:history.attempts}));}catch{/* Keep the just-returned result visible if history is temporarily unavailable. */}}catch(e){if(activeLessonId.current===requestLessonId)setError(e instanceof Error?e.message:"Could not check this answer.");}finally{if(activeLessonId.current===requestLessonId)setBusyExercise(null);}}
+ useEffect(()=>{let active=true;activeLessonId.current=id;setAnswersState({});setExerciseResults({});setExerciseHistory({});setBusyExercise(null);setError("");setMessage("");if(id)void getLearningLesson(id).then(async value=>{if(!active)return;setData(value);setProgress(value.progress?.progress_percent??0);const exerciseIds=value.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);const histories=await Promise.all(exerciseIds.map(async exerciseId=>{try{return [exerciseId,(await getLearningExerciseAttemptHistory(id,exerciseId)).attempts] as const;}catch{return [exerciseId,[]] as const;}}));if(active)setExerciseHistory(Object.fromEntries(histories));}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;};},[id]);
  async function save(value:number){
   if(!id||busy)return;
   setBusy(true);setMessage("");setError("");
