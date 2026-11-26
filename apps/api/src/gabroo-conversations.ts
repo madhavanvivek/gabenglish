@@ -16,7 +16,7 @@ export type GabrooConversationProvider={
 };
 const PROVIDER_TIMEOUT_MS=15_000;
 const modes=["free_flow","gentle_correction","detailed_correction","topic_practice","role_play","vocabulary_building","confidence_practice"] as const;
-const createSchema=z.object({title:z.string().trim().min(1).max(120).optional(),mode:z.enum(modes).default("gentle_correction"),support_language:z.enum(["ml","en"]).optional()}).strict();
+const createSchema=z.object({title:z.string().trim().min(1).max(120).optional(),mode:z.enum(modes).default("gentle_correction"),support_language:z.enum(["ml","en"]).optional(),include_vocabulary_support:z.boolean().default(false)}).strict();
 const sendSchema=z.object({message:z.string().trim().min(1).max(12000)}).strict();
 const idSchema=z.string().uuid();
 function error(reply:any,requestId:string,status:number,code:string,message:string){return reply.code(status).send({error:{code,message,request_id:requestId}});}
@@ -27,7 +27,7 @@ async function learnerFor(request:any,reply:any,pool:Pool,config:AppConfig){
  if(!entitlement){error(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to chat with Gabroo.");return undefined;}
  return learner;
 }
-const conversationSelect="id,title,mode,support_language,learning_direction,target_language,learning_stage,status,turn_count,created_at,updated_at,closed_at";
+const conversationSelect="id,title,mode,support_language,learning_direction,target_language,learning_stage,include_vocabulary_support,status,turn_count,created_at,updated_at,closed_at";
 export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:Pool,config:AppConfig,provider?:GabrooConversationProvider){
  app.post("/api/v1/gabroo/feedback",async(request,reply)=>{
   const learner=await learnerFor(request,reply,pool,config);if(!learner)return;
@@ -71,7 +71,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   const supportLanguage=parsed.data.support_language??saved.support_language;
   const stage=await pool.query<{stage:1|2|3|4|5}>("SELECT stage FROM learner_learning_stages WHERE user_id=$1 AND learning_direction=$2",[learner.id,direction]);
   const learningStage=stage.rows[0]?.stage??null;
-  const created=await pool.query("INSERT INTO gabroo_conversations(user_id,title,mode,support_language,learning_direction,target_language,learning_stage) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING "+conversationSelect,[learner.id,parsed.data.title??null,parsed.data.mode,supportLanguage,direction,targetLanguage,learningStage]);
+  const created=await pool.query("INSERT INTO gabroo_conversations(user_id,title,mode,support_language,learning_direction,target_language,learning_stage,include_vocabulary_support) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "+conversationSelect,[learner.id,parsed.data.title??null,parsed.data.mode,supportLanguage,direction,targetLanguage,learningStage,parsed.data.include_vocabulary_support]);
   return reply.code(201).send({conversation:created.rows[0]});
  });
  app.get("/api/v1/gabroo/conversations",async(request,reply)=>{
@@ -92,11 +92,11 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
  app.patch("/api/v1/gabroo/conversations/:id",async(request,reply)=>{
   const learner=await authenticateLearner(request,pool,config);if(!learner)return error(reply,request.id,401,"VERIFIED_ACCOUNT_REQUIRED","Please sign in with your verified account.");
   const parsedId=idSchema.safeParse((request.params as {id?:string}).id);
-  const parsedBody=z.object({title:z.string().trim().min(1).max(120).nullable().optional(),mode:z.enum(modes).optional(),support_language:z.enum(["ml","en"]).optional()}).strict().safeParse(request.body);
+  const parsedBody=z.object({title:z.string().trim().min(1).max(120).nullable().optional(),mode:z.enum(modes).optional(),support_language:z.enum(["ml","en"]).optional(),include_vocabulary_support:z.boolean().optional()}).strict().safeParse(request.body);
   if(!parsedId.success||!parsedBody.success||Object.keys(parsedBody.data??{}).length===0)return error(reply,request.id,400,"VALIDATION_ERROR","Please provide valid conversation settings.");
   const owned=await pool.query("SELECT id FROM gabroo_conversations WHERE id=$1 AND user_id=$2",[parsedId.data,learner.id]);if(!owned.rows[0])return error(reply,request.id,404,"CONVERSATION_NOT_FOUND","This conversation is not available.");
   const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);if(!entitlement)return error(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to update conversations.");
-  const updated=await pool.query("UPDATE gabroo_conversations SET title=COALESCE($3,title),mode=COALESCE($4,mode),support_language=COALESCE($5,support_language),updated_at=now() WHERE id=$1 AND user_id=$2 AND status='open' RETURNING "+conversationSelect,[parsedId.data,learner.id,parsedBody.data.title??null,parsedBody.data.mode??null,parsedBody.data.support_language??null]);
+  const updated=await pool.query("UPDATE gabroo_conversations SET title=COALESCE($3,title),mode=COALESCE($4,mode),support_language=COALESCE($5,support_language),include_vocabulary_support=COALESCE($6,include_vocabulary_support),updated_at=now() WHERE id=$1 AND user_id=$2 AND status='open' RETURNING "+conversationSelect,[parsedId.data,learner.id,parsedBody.data.title??null,parsedBody.data.mode??null,parsedBody.data.support_language??null,parsedBody.data.include_vocabulary_support??null]);
   if(!updated.rows[0])return error(reply,request.id,409,"CONVERSATION_CLOSED","This conversation is closed and cannot be changed.");
   return {conversation:updated.rows[0]};
  });
@@ -115,7 +115,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
   const entitlement=await getActiveSubscriptionEntitlement(pool,learner.id);if(!entitlement)return error(reply,request.id,403,"PAID_SUBSCRIPTION_REQUIRED","An active Gabenglish subscription is required to chat with Gabroo.");
   if(!provider)return error(reply,request.id,503,"GABROO_PROVIDER_UNAVAILABLE","Gabroo conversations are not available yet. No message was saved.");
   const client:PoolClient=await pool.connect();
-  let snapshot:{id:string;mode:GabrooConversationMode;support_language:"ml"|"en";learning_direction:"ml_to_en"|"en_to_ml";target_language:"ml"|"en";learning_stage:1|2|3|4|5|null;status:string;turn_count:number}|undefined;
+  let snapshot:{id:string;mode:GabrooConversationMode;support_language:"ml"|"en";learning_direction:"ml_to_en"|"en_to_ml";target_language:"ml"|"en";learning_stage:1|2|3|4|5|null;include_vocabulary_support:boolean;status:string;turn_count:number}|undefined;
   let history:GabrooMessage[]=[];
   let learnerProfile:{display_name:string|null;learning_goal:string|null;correction_mode:"gentle"|"balanced"|"detailed"}|undefined;
   let savedMemory:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>=[];
@@ -123,8 +123,8 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
  let skillFocus:Array<{skillKey:string;accuracy:number;attemptCount:number}>=[];
   try{
    await client.query("BEGIN");
-   const found=await client.query<{id:string;mode:GabrooConversationMode;support_language:"ml"|"en";learning_direction:"ml_to_en"|"en_to_ml";target_language:"ml"|"en";learning_stage:1|2|3|4|5|null;status:string;turn_count:number}>(
-    "SELECT id,mode,support_language,learning_direction,target_language,learning_stage,status,turn_count FROM gabroo_conversations WHERE id=$1 AND user_id=$2 FOR UPDATE",[parsedId.data,learner.id]);
+   const found=await client.query<{id:string;mode:GabrooConversationMode;support_language:"ml"|"en";learning_direction:"ml_to_en"|"en_to_ml";target_language:"ml"|"en";learning_stage:1|2|3|4|5|null;include_vocabulary_support:boolean;status:string;turn_count:number}>(
+    "SELECT id,mode,support_language,learning_direction,target_language,learning_stage,include_vocabulary_support,status,turn_count FROM gabroo_conversations WHERE id=$1 AND user_id=$2 FOR UPDATE",[parsedId.data,learner.id]);
    snapshot=found.rows[0];
    if(!snapshot){await client.query("ROLLBACK");return error(reply,request.id,404,"CONVERSATION_NOT_FOUND","This conversation is not available.");}
    if(snapshot.status!=="open"){await client.query("ROLLBACK");return error(reply,request.id,409,"CONVERSATION_CLOSED","This conversation is closed.");}
@@ -134,7 +134,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
    const memory=await client.query<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memory_key:string;content:string}>(
     "SELECT category,memory_key,content FROM gabroo_learner_memory WHERE user_id=$1 ORDER BY updated_at DESC LIMIT 20",[learner.id]);
    savedMemory=memory.rows;
-   const vocabulary=await client.query<{term:string;meaning:string;reason:"difficult"|"due"}>(
+   const vocabulary=snapshot.include_vocabulary_support?await client.query<{term:string;meaning:string;reason:"difficult"|"due"}>(
     `SELECT vocabulary_item.value->>'term' AS term,vocabulary_item.value->>'meaning' AS meaning,
       CASE WHEN r.last_rating<=2 THEN 'difficult' ELSE 'due' END AS reason
      FROM learner_vocabulary_reviews r
@@ -151,7 +151,7 @@ export async function registerGabrooConversationRoutes(app:FastifyInstance,pool:
      ORDER BY CASE WHEN r.last_rating<=2 THEN 0 ELSE 1 END,r.due_at ASC
      LIMIT 5`,
     [learner.id,snapshot.learning_direction]
-   );
+   ): {rows:[] as Array<{term:string;meaning:string;reason:"difficult"|"due"}>};
    vocabularyFocus=vocabulary.rows;
    const skillEvidence=await client.query<{skill_key:string;attempt_count:number;accuracy:string}>(
     `SELECT skill_key,COUNT(*)::int AS attempt_count,

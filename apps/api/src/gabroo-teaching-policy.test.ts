@@ -135,4 +135,15 @@ describe("Gabroo teaching policy",()=>{
    expect(policy.stageGuidance).toContain("register");
   }
  });
+ it("does not introduce vocabulary review prompts when the learner has not opted in",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml"});
+  expect(policy.vocabularyFocus).toEqual([]);
+  expect(policy.responseGuidance.some(x=>x.includes("difficult or due vocabulary"))).toBe(false);
+ });
+ it("uses vocabulary review context only when explicitly supplied for the conversation",()=>{
+  const policy=buildGabrooTeachingPolicy({mode:"free_flow",supportLanguage:"ml",vocabularyFocus:[{term:"appointment",meaning:"a planned meeting",reason:"difficult"}]});
+  expect(policy.vocabularyFocus).toEqual([{term:"appointment",meaning:"a planned meeting",reason:"difficult"}]);
+  expect(policy.responseGuidance.some(x=>x.includes("gently reuse one of the learner's difficult or due vocabulary items"))).toBe(true);
+ });
+
 });
