@@ -285,7 +285,7 @@ describe("API foundation",()=>{
   }} as any;
   const app=await buildApp(config,async()=>true,pool);
   const headers={authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)};
-  const submitted=await app.inject({method:"POST",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/exercises/duplicate/attempts",headers,payload:{lesson_version_id:"version-1",response:"a"}});
+  const submitted=await app.inject({method:"POST",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/exercises/duplicate/attempts",headers,payload:{lesson_version_id:"version-1",submission_id:"00000000-0000-4000-8000-000000000009",response:"a"}});
   expect(submitted.statusCode).toBe(503);
   expect(submitted.json().error.code).toBe("EXERCISE_CONTENT_AMBIGUOUS");
   const history=await app.inject({method:"GET",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/exercises/duplicate/attempts",headers});
@@ -308,7 +308,7 @@ describe("API foundation",()=>{
    return {rows:[]};
   }} as any;
   const app=await buildApp(config,async()=>true,pool);
-  const response=await app.inject({method:"POST",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/exercises/exercise-1/attempts",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{lesson_version_id:"version-old",response:"a"}});
+  const response=await app.inject({method:"POST",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/exercises/exercise-1/attempts",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{lesson_version_id:"version-old",submission_id:"00000000-0000-4000-8000-000000000009",response:"a"}});
   expect(response.statusCode).toBe(409);
   expect(response.json().error.code).toBe("LESSON_VERSION_CHANGED");
   expect(inserts).toBe(0);
