@@ -3,7 +3,7 @@ import {defaultLearningCourseContext,learningCourseContextSchema,learningDirecti
 
 describe("bidirectional learning contracts",()=>{
  it("requires exercise attempts to identify their published lesson version",()=>{
-  expect(learningExerciseAttemptSubmitSchema.safeParse({lesson_version_id:"version-1",response:"hello"}).success).toBe(true);
+  expect(learningExerciseAttemptSubmitSchema.safeParse({lesson_version_id:"version-1",submission_id:"00000000-0000-4000-8000-000000000009",response:"hello"}).success).toBe(true);
   for(const value of [
    {response:"hello"},
    {lesson_version_id:"",response:"hello"},
