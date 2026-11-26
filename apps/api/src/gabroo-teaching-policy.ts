@@ -8,6 +8,7 @@ export type GabrooTeachingPolicy={
   correction:"none"|"gentle"|"detailed"|"task_focused";
   primaryGoal:"communicate"|"build_accuracy"|"practise_topic"|"rehearse_roleplay"|"grow_vocabulary"|"build_confidence";
   responseGuidance:string[];
+  adaptiveTeachingGuidance:string[];
   addressPolicy:string;
   stageGuidance:string;
   learnerContext:{preferredName?:string;learningGoal?:string;profileCorrectionPreference?:"gentle"|"balanced"|"detailed"};
@@ -15,7 +16,7 @@ export type GabrooTeachingPolicy={
   learnerMemory:Array<{category:"goal"|"interest"|"saved_phrase"|"learning_note";memoryKey:string;content:string}>;
 };
 
-const policyByMode:Record<GabrooConversationMode,Omit<GabrooTeachingPolicy,"mode"|"supportLanguage"|"learningDirection"|"targetLanguage"|"addressPolicy"|"stageGuidance"|"learnerContext"|"memoryUsageGuidance"|"learnerMemory">>={
+const policyByMode:Record<GabrooConversationMode,Omit<GabrooTeachingPolicy,"mode"|"supportLanguage"|"learningDirection"|"targetLanguage"|"addressPolicy"|"stageGuidance"|"learnerContext"|"memoryUsageGuidance"|"learnerMemory"|"adaptiveTeachingGuidance">>={
   free_flow:{correction:"none",primaryGoal:"communicate",responseGuidance:["Prioritise a natural conversation over teaching.","Do not interrupt the flow for minor errors.","Offer a correction only when meaning is unclear or the learner asks."]},
   gentle_correction:{correction:"gentle",primaryGoal:"build_accuracy",responseGuidance:["Acknowledge the learner's meaning first.","Correct at most one high-value issue in a turn.","Give a short, kind explanation and one natural example."]},
   detailed_correction:{correction:"detailed",primaryGoal:"build_accuracy",responseGuidance:["Give structured feedback on meaningful grammar and word-choice issues.","Distinguish errors from valid but less natural alternatives.","Avoid overwhelming the learner; group related feedback and invite a retry."]},
@@ -55,6 +56,14 @@ export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;sup
   targetLanguage,
   ...selected,
   responseGuidance:[...selected.responseGuidance,learningDirection==="ml_to_en"?"The learner is learning English; Malayalam is the support language unless their preference says otherwise. Keep English as the learning target and give useful English examples.":"The learner is learning Malayalam; English is the support language unless their preference says otherwise. Keep Malayalam as the learning target, show Malayalam script, optionally add readable romanisation, and explain register and politeness in English. Never assume casual slang is appropriate."],
+  adaptiveTeachingGuidance:[
+   "Adapt challenge from evidence in the recent conversation, not from a single mistake, message length, confidence claim or assumed learner trait.",
+   "When the learner independently handles two consecutive turns comfortably, raise difficulty by only one small step: a slightly richer phrase, a more open question or a realistic variation.",
+   "When the learner struggles repeatedly, simplify the next prompt, model one useful example and invite a short retry; do not label or shame the learner.",
+   "Recycle one useful target-language word or phrase from earlier in the conversation after a few turns in a fresh context; do not turn every reply into a vocabulary quiz.",
+   "When correcting, prioritise meaning-blocking or repeated high-value patterns and respect this mode's correction level; never interrupt a successful free-flow exchange for minor errors.",
+   "Ask at most one clear learner-facing question at a time and leave room for the learner to speak more than Gabroo."
+  ],
   addressPolicy:"Use the learner's explicitly chosen name if available, otherwise use respectful neutral language. Never use 'eda', 'edi' or similar overfamiliar address by default. Do not infer that a learner welcomes slang from age, gender or writing style.",
   stageGuidance,
   learnerContext:{
