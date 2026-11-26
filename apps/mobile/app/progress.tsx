@@ -2,7 +2,7 @@ import {useCallback,useState} from "react";
 import {Link,useFocusEffect} from "expo-router";
 import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
-import {AuthApiError,getDailyChallengeHistory,getLatestFreeDiagnosticReport,getVocabularyRetentionSummary,getGabrooLearningInsights,listGabrooMemory,getGabrooPhrasePracticeHistory,type GabrooPhrasePractice,type DailyChallengeHistory,type SavedFreeDiagnosticReport,type VocabularyRetentionSummary,type GabrooLearningInsights} from "../src/auth-api";
+import {AuthApiError,getDailyChallengeHistory,getLatestFreeDiagnosticReport,getVocabularyRetentionSummary,getGabrooLearningInsights,listGabrooMemory,getGabrooPhrasePracticeHistory,getLearningStage,type LearningStageStatus,type GabrooPhrasePractice,type DailyChallengeHistory,type SavedFreeDiagnosticReport,type VocabularyRetentionSummary,type GabrooLearningInsights} from "../src/auth-api";
 import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
 import {colors,radius,space} from "../src/theme";
 
@@ -12,11 +12,14 @@ export default function ProgressScreen(){
  const [insights,setInsights]=useState<GabrooLearningInsights|null>(null);
  const [dailyHistory,setDailyHistory]=useState<DailyChallengeHistory|null>(null);
  const [phraseTimeline,setPhraseTimeline]=useState<Array<{id:string;title:string;rating:GabrooPhrasePractice["self_rating"];practiced_at:string;note:string|null}>>([]);
+ const [learningStage,setLearningStage]=useState<LearningStageStatus|null>(null);
+ const [stageLoadError,setStageLoadError]=useState(false);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const [refreshKey,setRefreshKey]=useState(0);
  const load=useCallback(async()=>{
-  setLoading(true);setError("");
+  setLoading(true);setError("");setStageLoadError(false);
+  try{setLearningStage(await getLearningStage());}catch{setLearningStage(null);setStageLoadError(true);}
   try{setReport(await getLatestFreeDiagnosticReport());}
   catch(reason){
    setReport(null);
@@ -41,7 +44,7 @@ export default function ProgressScreen(){
  useFocusEffect(useCallback(()=>{void load();},[load,refreshKey]));
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
   <View style={s.header}><Link href="/home" style={s.back}>‹ Home</Link><BrandMark size={42}/><Text style={s.brand}>Your progress</Text><Text style={s.subtitle}>A clear picture of what we have learned so far.</Text></View>
-  {loading?<View style={s.loading}><ActivityIndicator color={colors.primary} size="large"/><Text style={s.muted}>Loading your latest report…</Text></View>:report?<>
+  {!loading&&learningStage?.learning_direction==="ml_to_en"?(<SurfaceCard soft><Eyebrow>YOUR ENGLISH LEARNING STAGE</Eyebrow><Text style={s.cardTitle}>{learningStage.stage?["","Malayalam Mode","Malayalam + English Mix","English Practice Mode","English Immersion","Expert Communication"][learningStage.stage]:"Choose a starting stage"}</Text><Text style={s.body}>{learningStage.stage?(learningStage.stage_source==="evidence_progression"?"Your current stage was adjusted using recent stage-matched exercise evidence. You can still change it at any time.":"This is the stage you selected for your learning journey. You can change it whenever you like."):"Choose a stage so Gabenglish can recommend lessons that match your comfort level."}</Text><Link href="/learn" style={s.action}>{learningStage.stage?"Review or change my stage →":"Choose my learning stage →"}</Link></SurfaceCard>):!loading&&stageLoadError?<SurfaceCard soft><Eyebrow>YOUR ENGLISH LEARNING STAGE</Eyebrow><Text style={s.body}>Your current learning stage could not be loaded.</Text><Pressable onPress={()=>setRefreshKey(value=>value+1)}><Text style={s.retry}>Try again</Text></Pressable></SurfaceCard>:null}\n  {loading?<View style={s.loading}><ActivityIndicator color={colors.primary} size="large"/><Text style={s.muted}>Loading your latest report…</Text></View>:report?<>
    <View style={s.hero}><Eyebrow>YOUR LATEST FREE ANALYSIS</Eyebrow><Text style={s.heroTitle}>Your learning snapshot</Text><Text style={s.heroBody}>This is an evidence summary from your latest conversation-based analysis, not a final proficiency score or a verified stage placement.</Text><Text style={s.date}>Saved {new Date(report.created_at).toLocaleDateString()}</Text></View>
    <View style={s.stats}><SurfaceCard soft><Text style={s.stat}>{report.report.response_count}</Text><Text style={s.statLabel}>Responses analysed</Text></SurfaceCard><SurfaceCard><Text style={s.stat}>{report.report.extended_samples}</Text><Text style={s.statLabel}>Extended samples</Text></SurfaceCard><SurfaceCard><Text style={s.stat}>{report.report.brief_samples}</Text><Text style={s.statLabel}>Brief samples</Text></SurfaceCard></View>
    <SurfaceCard><Text style={s.cardTitle}>Gabroo's explanation</Text><Text style={s.body}>{report.gabroo_explanation}</Text></SurfaceCard>
