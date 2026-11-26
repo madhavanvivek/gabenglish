@@ -44,6 +44,7 @@ export default function LessonScreen(){
  const [exerciseHistory,setExerciseHistory]=useState<Record<string,LearningExerciseAttemptHistory["attempts"]>>({});
  const [busyExercise,setBusyExercise]=useState<string|null>(null);
  const busyExerciseRef=useRef<string|null>(null);
+ const submissionLockRef=useRef<object|null>(null);
  const lessonRequestEpoch=useRef(0);
  const historyRequestEpoch=useRef<Record<string,number>>({});
  const draftWriteRef=useRef<Promise<void>>(Promise.resolve());
@@ -56,7 +57,9 @@ export default function LessonScreen(){
  const latestCorrectCount=attemptedExercises.filter(block=>latestExerciseCorrect(block.id)===true).length;
  const needsReviewExercises=exerciseBlocks.filter(block=>latestExerciseCorrect(block.id)===false);
  async function submitExercise(exerciseId:string){
-  if(!id||busyExerciseRef.current!==null)return;
+  if(!id||submissionLockRef.current!==null)return;
+  const submissionLock={};
+  submissionLockRef.current=submissionLock;
   const requestLessonId=id;
   const requestEpoch=lessonRequestEpoch.current;
   busyExerciseRef.current=exerciseId;
@@ -86,10 +89,10 @@ export default function LessonScreen(){
     else {setError(e instanceof Error?e.message:"Could not check this answer.");setSubmissionStatuses(current=>({...current,[exerciseId]:"failed"}));}
    }
   }finally{
-   if(busyExerciseRef.current===exerciseId&&lessonRequestEpoch.current===requestEpoch){busyExerciseRef.current=null;setBusyExercise(null);}
+   if(submissionLockRef.current===submissionLock){submissionLockRef.current=null;if(busyExerciseRef.current===exerciseId){busyExerciseRef.current=null;setBusyExercise(null);}}
   }
  }
- useEffect(()=>{let active=true;lessonRequestEpoch.current+=1;const requestEpoch=lessonRequestEpoch.current;setData(null);setDraftOwnerId(null);setProgress(0);setBusy(false);setAnswersState({});setExerciseResults({});setExerciseHistory({});setSubmissionStatuses({});historyRequestEpoch.current={};busyExerciseRef.current=null;setBusyExercise(null);setError("");setLessonVersionChanged(false);setReloading(false);setMessage("");if(id)void Promise.all([getLearningLesson(id),getLearnerMe().catch(()=>null)]).then(async([value,account])=>{if(!active)return;const exerciseIds=value.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);const ownerId=account?.user.id??null;const restored=ownerId?await readLessonAnswerDraft(ownerId,id,value.lesson.version_id):{};if(!active)return;const available=new Set(exerciseIds);setAnswersState(Object.fromEntries(Object.entries(restored).filter(([exerciseId])=>available.has(exerciseId))));setDraftOwnerId(ownerId);setData(value);setProgress(value.progress?.progress_percent??0);const historyEpochs=Object.fromEntries(exerciseIds.map(exerciseId=>[exerciseId,historyRequestEpoch.current[exerciseId]??0]));const histories=await Promise.all(exerciseIds.map(async exerciseId=>{try{return [exerciseId,(await getLearningExerciseAttemptHistory(id,exerciseId)).attempts] as const;}catch{return [exerciseId,[]] as const;}}));if(active)setExerciseHistory(current=>({...current,...Object.fromEntries(histories.filter(([exerciseId])=>(historyRequestEpoch.current[exerciseId]??0)===historyEpochs[exerciseId]))}));}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;if(lessonRequestEpoch.current===requestEpoch)lessonRequestEpoch.current+=1;};},[id]);
+ useEffect(()=>{let active=true;lessonRequestEpoch.current+=1;const requestEpoch=lessonRequestEpoch.current;setData(null);setDraftOwnerId(null);setProgress(0);setBusy(false);setAnswersState({});setExerciseResults({});setExerciseHistory({});setSubmissionStatuses({});historyRequestEpoch.current={};submissionLockRef.current=null;busyExerciseRef.current=null;setBusyExercise(null);setError("");setLessonVersionChanged(false);setReloading(false);setMessage("");if(id)void Promise.all([getLearningLesson(id),getLearnerMe().catch(()=>null)]).then(async([value,account])=>{if(!active)return;const exerciseIds=value.lesson.content.blocks.flatMap(block=>block.type==="exercise"?[block.id]:[]);const ownerId=account?.user.id??null;const restored=ownerId?await readLessonAnswerDraft(ownerId,id,value.lesson.version_id):{};if(!active)return;const available=new Set(exerciseIds);setAnswersState(Object.fromEntries(Object.entries(restored).filter(([exerciseId])=>available.has(exerciseId))));setDraftOwnerId(ownerId);setData(value);setProgress(value.progress?.progress_percent??0);const historyEpochs=Object.fromEntries(exerciseIds.map(exerciseId=>[exerciseId,historyRequestEpoch.current[exerciseId]??0]));const histories=await Promise.all(exerciseIds.map(async exerciseId=>{try{return [exerciseId,(await getLearningExerciseAttemptHistory(id,exerciseId)).attempts] as const;}catch{return [exerciseId,[]] as const;}}));if(active)setExerciseHistory(current=>({...current,...Object.fromEntries(histories.filter(([exerciseId])=>(historyRequestEpoch.current[exerciseId]??0)===historyEpochs[exerciseId]))}));}).catch(e=>{if(active)setError(e instanceof Error?e.message:"Could not load this lesson.");});return()=>{active=false;if(lessonRequestEpoch.current===requestEpoch)lessonRequestEpoch.current+=1;};},[id]);
  useEffect(()=>{
   if(!id||!data||!draftOwnerId)return;
   let active=true;
@@ -100,11 +103,13 @@ export default function LessonScreen(){
   const ownerId=draftOwnerId;
   const pendingExercises=data.lesson.content.blocks.filter((block):block is Extract<typeof block,{type:"exercise"}>=>block.type==="exercise");
   const replayPending=async()=>{
-   if(!active||replaying||busyExerciseRef.current!==null||AppState.currentState!=="active")return;
+   if(!active||replaying||submissionLockRef.current!==null||AppState.currentState!=="active")return;
    replaying=true;
    try{
     for(const exercise of pendingExercises){
-     if(!active||lessonRequestEpoch.current!==requestEpoch||busyExerciseRef.current!==null)return;
+     if(!active||lessonRequestEpoch.current!==requestEpoch||submissionLockRef.current!==null)return;
+     const replayLock={};
+     submissionLockRef.current=replayLock;
      busyExerciseRef.current=exercise.id;
      setBusyExercise(exercise.id);
      try{
@@ -122,8 +127,9 @@ export default function LessonScreen(){
        if(active&&lessonRequestEpoch.current===requestEpoch)setSubmissionStatuses(current=>({...current,[exercise.id]:"failed"}));
       }
      }finally{
-      if(busyExerciseRef.current===exercise.id){
-       busyExerciseRef.current=null;
+      if(submissionLockRef.current===replayLock){
+       submissionLockRef.current=null;
+       if(busyExerciseRef.current===exercise.id)busyExerciseRef.current=null;
        if(active&&lessonRequestEpoch.current===requestEpoch)setBusyExercise(null);
       }
      }
@@ -142,6 +148,7 @@ export default function LessonScreen(){
   if(!id||reloading)return;
   const requestLessonId=id;
   const requestEpoch=++lessonRequestEpoch.current;
+  submissionLockRef.current=null;
   busyExerciseRef.current=null;
   setBusyExercise(null);setBusy(false);
   setReloading(true);setError("");setMessage("");
