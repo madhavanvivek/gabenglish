@@ -198,6 +198,7 @@ describe("API foundation",()=>{
   expect(catalogQuery?.sql).toContain("lp.lesson_version_id=lv.id");
   expect(catalogQuery?.sql).toContain("a.lesson_version_id");
   expect(catalogQuery?.sql).toContain("DISTINCT ON (lesson_id,exercise_id)");
+  expect(catalogQuery?.sql).toContain("ORDER BY lesson_id,exercise_id,attempted_at DESC,id DESC");
   expect(catalogQuery?.sql).toContain("exercises_to_review");
   expect(catalogQuery?.sql).toContain("a.user_id=$2");
   expect(catalogQuery?.sql).toContain("lv.educator_review_status='approved'");
