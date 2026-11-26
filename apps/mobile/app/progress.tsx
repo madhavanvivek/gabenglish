@@ -7,7 +7,8 @@ import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
 import {colors,radius,space} from "../src/theme";
 
 export default function ProgressScreen(){
- const [report,setReport]=useState<SavedFreeDiagnosticReport|null>(null);\n const [learningProgress,setLearningProgress]=useState<LearningProgressOverview|null>(null);
+ const [report,setReport]=useState<SavedFreeDiagnosticReport|null>(null);
+ const [learningProgress,setLearningProgress]=useState<LearningProgressOverview|null>(null);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const [refreshKey,setRefreshKey]=useState(0);
@@ -17,7 +18,11 @@ export default function ProgressScreen(){
   catch(reason){
    setReport(null);
    if(!(reason instanceof AuthApiError&&[401,404].includes(reason.status??0)))setError(reason instanceof Error?reason.message:"Could not load your progress snapshot.");
-  }finally{\n   try{const subscription=await getSubscriptionStatus();setLearningProgress(subscription.active?await getLearningProgressOverview():null);}\n   catch{setLearningProgress(null);}\n   setLoading(false);\n  }
+  }finally{
+   try{const subscription=await getSubscriptionStatus();setLearningProgress(subscription.active?await getLearningProgressOverview():null);}
+   catch{setLearningProgress(null);}
+   setLoading(false);
+  }
  },[]);
  useFocusEffect(useCallback(()=>{void load();},[load,refreshKey]));
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
