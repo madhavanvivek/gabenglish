@@ -3,7 +3,7 @@ import * as Speech from "expo-speech";
 import {Audio} from "expo-av";
 import * as FileSystem from "expo-file-system";
 import {confirmGabrooTranscript,GABROO_LOCAL_CAPTURE_MAX_MS,playGabrooSpeechSegments,splitGabrooSpeechText,transitionGabrooVoiceSession,type GabrooVoiceSessionState,type GabrooTranscript} from "@gabenglish/contracts";
-import {Link,useFocusEffect} from "expo-router";
+import {Link,useFocusEffect,useLocalSearchParams} from "expo-router";
 import {ActivityIndicator,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {colors} from "../src/theme";
@@ -14,6 +14,7 @@ import {AuthApiError,createGabrooConversation,deleteGabrooConversation,getGabroo
 const conversationModes:{value:GabrooConversationMode;label:string}[]=[{value:"free_flow",label:"Free flow"},{value:"gentle_correction",label:"Gentle correction"},{value:"detailed_correction",label:"Detailed correction"},{value:"topic_practice",label:"Topic practice"},{value:"role_play",label:"Role-play"},{value:"vocabulary_building",label:"Vocabulary"},{value:"confidence_practice",label:"Confidence"}];
 
 export default function GabrooScreen(){
+ const {conversationId}=useLocalSearchParams<{conversationId?:string}>();
  const [subscription,setSubscription]=useState<SubscriptionStatus|null>(null);
  const [recognitionStatus,setRecognitionStatus]=useState<GabrooRecognitionStatus|null>(null);
  const [generatedSpeechAvailable,setGeneratedSpeechAvailable]=useState<boolean|null>(null);
@@ -59,6 +60,13 @@ export default function GabrooScreen(){
    if(status.active){
     const result=await listGabrooConversations();
     setConversations(result.conversations);
+    if(typeof conversationId==="string"){
+     const requested=result.conversations.find(item=>item.id===conversationId);
+     if(requested){
+      const opened=await getGabrooConversation(requested.id);
+      setActive(opened.conversation);setMode(opened.conversation.mode);setMessages(opened.messages);
+     }else{setError("That saved conversation is no longer available.");setActive(null);setMessages([]);}
+    }
     try{setRecognitionStatus(await getGabrooRecognitionStatus());}
     catch{setRecognitionStatus(null);}
     try{setGeneratedSpeechAvailable((await getGabrooSpeechStatus()).available);}
@@ -69,7 +77,7 @@ export default function GabrooScreen(){
    }
   }catch(reason){setError(reason instanceof Error?reason.message:"Could not load Gabroo.");}
   finally{setLoading(false);}
- },[]);
+ },[conversationId]);
  useFocusEffect(useCallback(()=>{
   screenFocusedRef.current=true;
   void load();
