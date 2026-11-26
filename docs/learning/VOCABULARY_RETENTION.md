@@ -53,6 +53,14 @@ Only review events attached to the learner's current published lesson versions a
 
 ## Gabroo conversation integration
 
+Vocabulary review context is **off by default** for every new conversation. Before starting a chat, the learner may explicitly enable “Use my vocabulary review history”. The choice is stored on that conversation, not inferred from ratings or carried over as a global preference. When disabled, Gabroo does not query or receive vocabulary review history for that conversation.
+
+When enabled, the API loads up to five of that learner's difficult or due vocabulary items from the current published lesson versions in the selected learning direction. Only learner-owned review rows are considered; English-to-Malayalam content must still be educator-approved.
+
+The items are passed to Gabroo's teaching policy as bounded context. Gabroo is instructed to reuse a relevant word naturally when it fits the conversation, without turning every chat into a quiz, interrupting the learner, or claiming mastery. A conversation without eligible review evidence receives an empty vocabulary focus and behaves as before. The learner's normal conversation history and saved memory remain separate.
+
+
+
 When a learner starts or continues a conversation, the API now loads up to five of that learner's difficult or due vocabulary items from the current published lesson versions in the selected learning direction. Only learner-owned review rows are considered; English-to-Malayalam content must still be educator-approved.
 
 The items are passed to Gabroo's teaching policy as bounded context. Gabroo is instructed to reuse a relevant word naturally when it fits the conversation, without turning every chat into a quiz, interrupting the learner, or claiming mastery. A conversation without eligible review evidence receives an empty vocabulary focus and behaves as before. The learner's normal conversation history and saved memory remain separate.
