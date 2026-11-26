@@ -373,4 +373,48 @@ describe("API foundation",()=>{
   await app.close();
  });
 
+ it("saves lesson progress and returns the updated course aggregate in one transaction",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const statements:Array<{sql:string;values:unknown[]|undefined}>=[];
+  const client={
+   query:async(sql:string,values?:unknown[])=>{
+    statements.push({sql,values});
+    if(sql==="SELECT c.id AS course_id,c.learning_direction AS direction,lv.id AS version_id"){
+     return {rows:[{course_id:"course-1",direction:"ml_to_en",version_id:"version-3"}]};
+    }
+    if(sql.includes("INSERT INTO learner_lesson_progress")){
+     return {rows:[{status:"in_progress",progress_percent:"60",updated_at:new Date("2026-11-26T05:00:00.000Z")}]};
+    }
+    if(sql.includes("SELECT COALESCE(AVG(COALESCE(p.progress_percent,0))")){
+     return {rows:[{average:"30.00",total:4,completed:1}]};
+    }
+    return {rows:[]};
+   },
+   release:()=>{}
+  };
+  const pool=recognitionPool(true) as any;
+  pool.connect=async()=>client;
+  const app=await buildApp(config,async()=>true,pool);
+  const response=await app.inject({
+   method:"POST",
+   url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/progress",
+   headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},
+   payload:{progress_percent:60}
+  });
+  expect(response.statusCode).toBe(200);
+  expect(response.json()).toMatchObject({
+   lesson_id:"00000000-0000-4000-8000-000000000003",
+   learning_direction:"ml_to_en",
+   progress:{status:"in_progress",progress_percent:60},
+   course_progress:{progress_percent:30,completed_lessons:1,total_started_lessons:4}
+  });
+  expect(statements[0]?.sql).toBe("BEGIN");
+  expect(statements.some(item=>item.sql.includes("FOR SHARE OF l,c,lv"))).toBe(true);
+  expect(statements.some(item=>item.sql.includes("ON CONFLICT(user_id,lesson_id,lesson_version_id,learning_direction)"))).toBe(true);
+  expect(statements.some(item=>item.sql.includes("learner_lesson_progress.status='completed'"))).toBe(true);
+  expect(statements.some(item=>item.sql==="COMMIT")).toBe(true);
+  expect(statements.some(item=>item.sql==="ROLLBACK")).toBe(false);
+  await app.close();
+ });
+
 });
