@@ -285,10 +285,10 @@ describe("API foundation",()=>{
   }} as any;
   const app=await buildApp(config,async()=>true,pool);
   const headers={authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)};
-  const submitted=await app.inject({method:"POST",url:"/api/v1/learning/lessons/lesson-1/exercises/duplicate/attempts",headers,payload:{response:"a"}});
+  const submitted=await app.inject({method:"POST",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/exercises/duplicate/attempts",headers,payload:{response:"a"}});
   expect(submitted.statusCode).toBe(503);
   expect(submitted.json().error.code).toBe("EXERCISE_CONTENT_AMBIGUOUS");
-  const history=await app.inject({method:"GET",url:"/api/v1/learning/lessons/lesson-1/exercises/duplicate/attempts",headers});
+  const history=await app.inject({method:"GET",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/exercises/duplicate/attempts",headers});
   expect(history.statusCode).toBe(503);
   expect(history.json().error.code).toBe("EXERCISE_CONTENT_AMBIGUOUS");
   expect(inserts).toBe(0);
@@ -309,11 +309,11 @@ describe("API foundation",()=>{
    return {rows:[]};
   }} as any;
   const app=await buildApp(config,async()=>true,pool);
-  const response=await app.inject({method:"GET",url:"/api/v1/learning/lessons/lesson-1/exercises/exercise-1/attempts",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+  const response=await app.inject({method:"GET",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000003/exercises/exercise-1/attempts",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
   expect(response.statusCode).toBe(200);
-  expect(response.json()).toMatchObject({lesson_id:"lesson-1",exercise_id:"exercise-1",current_version_id:"version-current",attempts:[{id:"attempt-1",lesson_version_id:"version-current",response:"hello",correct:true}]});
+  expect(response.json()).toMatchObject({lesson_id:"00000000-0000-4000-8000-000000000003",exercise_id:"exercise-1",current_version_id:"version-current",attempts:[{id:"attempt-1",lesson_version_id:"version-current",response:"hello",correct:true}]});
   expect(historyQuery?.sql).toContain("lesson_version_id=$5");
-  expect(historyQuery?.values).toEqual(["00000000-0000-4000-8000-000000000001","lesson-1","exercise-1","ml_to_en","version-current"]);
+  expect(historyQuery?.values).toEqual(["00000000-0000-4000-8000-000000000001","00000000-0000-4000-8000-000000000003","exercise-1","ml_to_en","version-current"]);
   await app.close();
  });
 
