@@ -36,6 +36,7 @@ export default function VocabularyScreen(){
    setItems(current=>current.filter(value=>value.id!==item.id));
    setSavedItems(current=>current.map(value=>value.id===item.id?{...value,...result.item}:value));
    setNotice(`Saved. You'll see “${item.source_term}” again in ${result.review.next_interval_days} day(s).`);
+   void getLearnerVocabularyStats().then(value=>setStats(value.stats)).catch(()=>undefined);
   }catch(reason){setError(reason instanceof Error?reason.message:"Could not save your review.");}
   finally{setBusy(null);}
  }
