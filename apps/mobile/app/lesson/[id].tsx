@@ -8,13 +8,13 @@ import type {LearnerLessonContent} from "@gabenglish/contracts";
 import {colors,radius,space} from "../../src/theme";
 
 const milestones=[25,50,75,100];
-function LessonBlocks({content,answers,setAnswers,results,history,onSubmit,busyExercise}:{content:LearnerLessonContent;answers:Record<string,string>;setAnswers:(id:string,value:string)=>void;results:Record<string,{correct:boolean;feedback:string}>;history:Record<string,LearningExerciseAttemptHistory["attempts"]>;onSubmit:(id:string)=>void;busyExercise:string|null}){
+function LessonBlocks({content,answers,setAnswers,results,history,attemptsForExercise,onSubmit,busyExercise}:{content:LearnerLessonContent;answers:Record<string,string>;setAnswers:(id:string,value:string)=>void;results:Record<string,{correct:boolean;feedback:string}>;history:Record<string,LearningExerciseAttemptHistory["attempts"]>;attemptsForExercise:(id:string)=>LearningExerciseAttemptHistory["attempts"];onSubmit:(id:string)=>void;busyExercise:string|null}){
  return <View style={{gap:12}}>
   {content.blocks.map((block,index)=><View key={"block-"+index} style={s.contentBlock}>
    {block.type==="text"?<>{block.heading?<Text style={s.blockHeading}>{block.heading}</Text>:null}<Text style={s.blockBody}>{block.body}</Text></>:null}
    {block.type==="vocabulary"?<>{block.items.map((item,i)=><View key={i} style={s.vocabRow}><Text style={s.vocabTerm}>{item.term}</Text><Text style={s.blockBody}>{item.meaning}</Text>{item.pronunciation?<Text style={s.detail}>{item.pronunciation}</Text>:null}{item.example?<Text style={s.example}>{item.example}</Text>:null}</View>)}</>:null}
    {block.type==="examples"?<>{block.items.map((item,i)=><View key={i} style={s.exampleRow}><Text style={s.example}>{item.target}</Text>{item.support?<Text style={s.blockBody}>{item.support}</Text>:null}{item.note?<Text style={s.detail}>{item.note}</Text>:null}</View>)}</>:null}
-   {block.type==="exercise"?<><Text style={s.blockHeading}>{currentVersionAttempts(block.id)[0]&&!currentVersionAttempts(block.id)[0].correct?"Try this again":"Try it"}</Text>{currentVersionAttempts(block.id)[0]&&!currentVersionAttempts(block.id)[0].correct?<Text style={s.reviewPrompt}>Review focus · Your latest answer needs another try</Text>:null}<Text style={s.detail}>{block.instruction}</Text><Text style={s.blockBody}>{block.prompt}</Text>
+   {block.type==="exercise"?<><Text style={s.blockHeading}>{attemptsForExercise(block.id)[0]&&!attemptsForExercise(block.id)[0].correct?"Try this again":"Try it"}</Text>{attemptsForExercise(block.id)[0]&&!attemptsForExercise(block.id)[0].correct?<Text style={s.reviewPrompt}>Review focus · Your latest answer needs another try</Text>:null}<Text style={s.detail}>{block.instruction}</Text><Text style={s.blockBody}>{block.prompt}</Text>
     {block.response_type==="single_choice"?block.options?.map(option=><Pressable key={option.id} accessibilityRole="radio" accessibilityState={{checked:answers[block.id]===option.id}} onPress={()=>setAnswers(block.id,option.id)} style={[s.option,answers[block.id]===option.id&&s.optionSelected]}><Text style={s.blockBody}>{option.label}</Text></Pressable>):<TextInput accessibilityLabel="Your answer" value={answers[block.id]??""} onChangeText={value=>setAnswers(block.id,value)} multiline placeholder="Write your answer…" placeholderTextColor={colors.textMuted} style={s.answerInput}/>}
     <PrimaryButton label={busyExercise===block.id?"Checking…":"Check answer"} onPress={()=>onSubmit(block.id)} disabled={busyExercise!==null||!(answers[block.id]??"").trim()}/>
     {results[block.id]?<View style={s.feedback}><Text style={results[block.id]!.correct?s.correct:s.incorrect}>{results[block.id]!.correct?"Correct":"Keep practising"}</Text><Text style={s.blockBody}>{results[block.id]!.feedback}</Text></View>:null}\n    {history[block.id]?.length?<View style={s.history}><Text style={s.historyTitle}>Recent attempts</Text>{history[block.id].slice(0,5).map(attempt=><View key={attempt.id} style={s.historyAttempt}><View style={s.historyHeading}><Text style={attempt.correct?s.correct:s.incorrect}>{attempt.correct?"Correct":"Needs practice"}</Text><Text style={s.historyDate}>{new Date(attempt.attempted_at).toLocaleDateString()}</Text></View><Text style={s.historyResponse}>{attempt.response}</Text>{attempt.feedback?<Text style={s.blockBody}>{attempt.feedback}</Text>:null}</View>)}</View>:null}
@@ -37,10 +37,10 @@ export default function LessonScreen(){
  const setAnswer=(exerciseId:string,value:string)=>setAnswersState(current=>({...current,[exerciseId]:value}));
  const exerciseBlocks=data?.lesson.content.blocks.filter(block=>block.type==="exercise")??[];
  const currentVersionAttempts=(exerciseId:string)=>exerciseHistory[exerciseId]?.filter(attempt=>attempt.lesson_version_id===data?.lesson.version_id)??[];
- const attemptedExercises=exerciseBlocks.filter(block=>currentVersionAttempts(block.id).length>0||!!exerciseResults[block.id]);
- const latestCorrectCount=attemptedExercises.filter(block=>currentVersionAttempts(block.id)[0]?.correct??exerciseResults[block.id]?.correct??false).length;
+ const attemptedExercises=exerciseBlocks.filter(block=>attemptsForExercise(block.id).length>0||!!exerciseResults[block.id]);
+ const latestCorrectCount=attemptedExercises.filter(block=>attemptsForExercise(block.id)[0]?.correct??exerciseResults[block.id]?.correct??false).length;
  const needsReviewExercises=exerciseBlocks.filter(block=>{
-  const latest=currentVersionAttempts(block.id)[0];
+  const latest=attemptsForExercise(block.id)[0];
   return latest?!latest.correct:exerciseResults[block.id]?.correct===false;
  });
  async function submitExercise(exerciseId:string){if(!id||busyExercise)return;setBusyExercise(exerciseId);setError("");try{const result=await submitLearningExerciseAttempt(id,exerciseId,answers[exerciseId]??"");setExerciseResults(current=>({...current,[exerciseId]:result.result}));try{const history=await getLearningExerciseAttemptHistory(id,exerciseId);setExerciseHistory(current=>({...current,[exerciseId]:history.attempts}));}catch{/* Keep the just-returned result visible if history is temporarily unavailable. */}}catch(e){setError(e instanceof Error?e.message:"Could not check this answer.");}finally{setBusyExercise(null);}}
@@ -68,7 +68,7 @@ export default function LessonScreen(){
     {busy?<Text style={s.detail}>Saving progress…</Text>:null}{message?<Text style={s.success}>{message}</Text>:null}{error?<Text style={s.error}>{error}</Text>:null}
     <PrimaryButton label={busy?"Saving…":"Save progress"} onPress={()=>void save(progress)} disabled={busy}/>
    </SurfaceCard>
-   <SurfaceCard><Eyebrow>LEARN</Eyebrow><LessonBlocks content={data.lesson.content} answers={answers} setAnswers={setAnswer} results={exerciseResults} history={exerciseHistory} onSubmit={submitExercise} busyExercise={busyExercise}/></SurfaceCard>
+   <SurfaceCard><Eyebrow>LEARN</Eyebrow><LessonBlocks content={data.lesson.content} answers={answers} setAnswers={setAnswer} results={exerciseResults} history={exerciseHistory} attemptsForExercise={currentVersionAttempts} onSubmit={submitExercise} busyExercise={busyExercise}/></SurfaceCard>
   </>:!error?<Text style={s.detail}>Loading lesson…</Text>:null}
  </ScrollView></SafeAreaView>;
 }
