@@ -244,7 +244,7 @@ export type PublishedLearningLesson={
 };
 export type PublishedLearningCatalog={
  learning_direction:"ml_to_en"|"en_to_ml";target_language:"en"|"ml";
- courses:Array<{id:string;code:string;title:string;description:string|null;direction:"ml_to_en"|"en_to_ml";source_language:string;target_language:string;support_language:string;modules:Array<{id:string;title:string;lessons:PublishedLearningLesson[]}>}>;
+ courses:Array<{id:string;code:string;title:string;description:string|null;direction:"ml_to_en"|"en_to_ml";source_language:string;target_language:string;support_language:string;progress:{progress_percent:number;completed_lessons:number;total_lessons:number};modules:Array<{id:string;title:string;lessons:PublishedLearningLesson[]}>}>;
  publication_policy:{drafts_hidden:boolean;malayalam_requires_educator_approval:boolean};
 };
 export async function getPublishedLearningCatalog(){
