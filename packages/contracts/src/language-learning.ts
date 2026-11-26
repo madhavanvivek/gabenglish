@@ -155,6 +155,12 @@ export const learningExerciseAttemptHistorySchema=z.object({
   feedback:z.string().nullable(),
   attempted_at:z.string().datetime()
  }))
+}).superRefine((history,ctx)=>{
+ history.attempts.forEach((attempt,index)=>{
+  if(attempt.lesson_version_id!==history.current_version_id){
+   ctx.addIssue({code:z.ZodIssueCode.custom,path:["attempts",index,"lesson_version_id"],message:"Attempt history must belong to the current published lesson version."});
+  }
+ });
 });
 export type LearningExerciseAttemptResultContract=z.infer<typeof learningExerciseAttemptResultSchema>;
 export type LearningExerciseAttemptHistoryContract=z.infer<typeof learningExerciseAttemptHistorySchema>;
