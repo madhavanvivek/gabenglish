@@ -132,3 +132,29 @@ export const learningLessonDetailSchema=z.object({
  progress:z.object({status:z.enum(["not_started","in_progress","completed"]),progress_percent:z.number().finite().min(0).max(100),updated_at:z.string().datetime()}).nullable()
 });
 export type LearningLessonDetailContract=z.infer<typeof learningLessonDetailSchema>;
+
+
+export const learningExerciseAttemptResultSchema=z.object({
+ lesson_id:z.string().min(1),
+ exercise_id:z.string().min(1),
+ result:z.object({
+  correct:z.boolean(),
+  feedback:z.string()
+ })
+});
+
+export const learningExerciseAttemptHistorySchema=z.object({
+ lesson_id:z.string().min(1),
+ exercise_id:z.string().min(1),
+ current_version_id:z.string().min(1),
+ attempts:z.array(z.object({
+  id:z.string().min(1),
+  lesson_version_id:z.string().min(1),
+  response:z.string(),
+  correct:z.boolean(),
+  feedback:z.string().nullable(),
+  attempted_at:z.string().datetime()
+ }))
+});
+export type LearningExerciseAttemptResultContract=z.infer<typeof learningExerciseAttemptResultSchema>;
+export type LearningExerciseAttemptHistoryContract=z.infer<typeof learningExerciseAttemptHistorySchema>;
