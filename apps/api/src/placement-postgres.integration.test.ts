@@ -65,6 +65,21 @@ integration("PostgreSQL placement session integration",()=>{
   }
  });
 
+ it("serializes concurrent recognition requests so the learner cannot exceed the hourly allowance",async()=>{
+  if(!pool||!migrationApplied)return;
+  const userId=randomUUID();
+  await pool.query("INSERT INTO users(id,email) VALUES($1,$2)",[userId,"quota-race-"+userId+"@example.test"]);
+  try{
+   const results=await Promise.all(Array.from({length:GABROO_RECOGNITION_REQUESTS_PER_HOUR+8},()=>consumeGabrooRecognitionQuota(pool,userId)));
+   expect(results.filter(result=>result.allowed)).toHaveLength(GABROO_RECOGNITION_REQUESTS_PER_HOUR);
+   expect(results.filter(result=>!result.allowed)).toHaveLength(8);
+   const stored=await pool.query<{request_count:number}>("SELECT request_count FROM gabroo_recognition_quotas WHERE user_id=$1",[userId]);
+   expect(stored.rows[0]?.request_count).toBe(GABROO_RECOGNITION_REQUESTS_PER_HOUR+8);
+  }finally{
+   await pool.query("DELETE FROM users WHERE id=$1",[userId]);
+  }
+ });
+
  it("authenticates Superadmins, manages offer windows, audits changes and revokes admin sessions",async()=>{
   if(!pool||!migrationApplied)return;
   const email="superadmin-"+randomUUID()+"@example.test";
