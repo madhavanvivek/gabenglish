@@ -5,6 +5,7 @@ import {SafeAreaView} from "react-native-safe-area-context";
 import {AuthApiError,getLearnerMe,getLearningLesson,getLearningExerciseAttemptHistory,saveLearningLessonProgress,submitLearningExerciseAttempt,type LearningExerciseAttemptHistory,type LearningLessonDetail} from "../../src/auth-api";
 import {BrandMark,Eyebrow,PrimaryButton,SurfaceCard} from "../../src/ui";
 import {readLessonAnswerDraft,writeLessonAnswerDraft} from "../../src/lesson-drafts";
+import {clearPendingExerciseSubmission,getOrCreatePendingExerciseSubmission} from "../../src/lesson-submissions";
 import type {LearnerLessonContent} from "@gabenglish/contracts";
 import {colors,radius,space} from "../../src/theme";
 
@@ -59,8 +60,13 @@ export default function LessonScreen(){
   setBusyExercise(exerciseId);setError("");
   try{
    const requestVersionId=data?.lesson.version_id;
+   const ownerId=draftOwnerId;
+   const response=answers[exerciseId]??"";
    if(!requestVersionId)throw new Error("Reload this lesson before submitting an answer.");
-   const result=await submitLearningExerciseAttempt(requestLessonId,exerciseId,requestVersionId,answers[exerciseId]??"");
+   if(!ownerId)throw new Error("Please sign in again before submitting this answer.");
+   const submissionId=await getOrCreatePendingExerciseSubmission(ownerId,requestLessonId,requestVersionId,exerciseId,response);
+   const result=await submitLearningExerciseAttempt(requestLessonId,exerciseId,requestVersionId,submissionId,response);
+   await clearPendingExerciseSubmission(ownerId,requestLessonId,requestVersionId,exerciseId);
    if(lessonRequestEpoch.current!==requestEpoch)return;
    setExerciseResults(current=>({...current,[exerciseId]:result.result}));
    const historyEpoch=(historyRequestEpoch.current[exerciseId]??0)+1;
