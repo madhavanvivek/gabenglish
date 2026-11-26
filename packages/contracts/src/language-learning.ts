@@ -69,6 +69,18 @@ const publishedLearningCourseSchema=z.object({
    ctx.addIssue({code:z.ZodIssueCode.custom,path:["completed_lessons"],message:"Completed lessons cannot exceed the course total."});
   }
  }),
+ practice:z.object({
+  attempts:z.number().int().nonnegative(),
+  exercises_attempted:z.number().int().nonnegative(),
+  correct_attempts:z.number().int().nonnegative()
+ }).superRefine((value,ctx)=>{
+  if(value.correct_attempts>value.attempts){
+   ctx.addIssue({code:z.ZodIssueCode.custom,path:["correct_attempts"],message:"Correct attempts cannot exceed all attempts."});
+  }
+  if(value.exercises_attempted>value.attempts){
+   ctx.addIssue({code:z.ZodIssueCode.custom,path:["exercises_attempted"],message:"Distinct exercises attempted cannot exceed all attempts."});
+  }
+ }),
  modules:z.array(z.object({
   id:z.string().min(1),
   title:z.string().min(1),
