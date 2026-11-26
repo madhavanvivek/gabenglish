@@ -403,7 +403,7 @@ describe("API foundation",()=>{
   const client={query:async(sql:string,values?:unknown[])=>{
    clientQueries.push({sql,values});
    if(sql.includes("SELECT interval_days,ease_factor"))return {rows:[{interval_days:1,ease_factor:"2.50",repetitions:1,lapses:0}]};
-   if(sql.includes("UPDATE learner_vocabulary_items"))return {rows:[{id:"vocab-1",source_term:"വെള്ളം",target_term:"water",interval_days:6,repetitions:2,lapses:0}]};
+   if(sql.includes("UPDATE learner_vocabulary_items"))return {rows:[{id:"00000000-0000-4000-8000-000000000099",source_term:"വെള്ളം",target_term:"water",interval_days:6,repetitions:2,lapses:0}]};
    return {rows:[]};
   },release:()=>{}};
   const pool={query:async(sql:string)=>{
@@ -416,9 +416,9 @@ describe("API foundation",()=>{
   try{
    const response=await app.inject({method:"POST",url:"/api/v1/vocabulary/vocab-1/review",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{rating:"good"}});
    expect(response.statusCode).toBe(200);
-   expect(response.json()).toMatchObject({item:{id:"vocab-1",interval_days:6,repetitions:2},review:{rating:"good",next_interval_days:6}});
+   expect(response.json()).toMatchObject({item:{id:"00000000-0000-4000-8000-000000000099",interval_days:6,repetitions:2},review:{rating:"good",next_interval_days:6}});
    expect(clientQueries.map(query=>query.sql.split(" ")[0])).toEqual(["BEGIN","SELECT","UPDATE","INSERT","COMMIT"]);
-   expect(clientQueries[3]?.values).toEqual(["vocab-1",learnerId,"good",1,6]);
+   expect(clientQueries[3]?.values).toEqual(["00000000-0000-4000-8000-000000000099",learnerId,"good",1,6]);
   }finally{await app.close();}
  });
 
