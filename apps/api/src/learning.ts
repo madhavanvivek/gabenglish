@@ -295,9 +295,9 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   const history=await pool.query<{id:string;lesson_version_id:string;response:string;is_correct:boolean;feedback:string|null;attempted_at:Date}>(
    `SELECT id,lesson_version_id,response,is_correct,feedback,attempted_at
     FROM learner_exercise_attempts
-    WHERE user_id=$1 AND lesson_id=$2 AND exercise_id=$3 AND learning_direction=$4
+    WHERE user_id=$1 AND lesson_id=$2 AND exercise_id=$3 AND learning_direction=$4 AND lesson_version_id=$5
     ORDER BY attempted_at DESC,id DESC LIMIT 50`,
-   [learner.id,id,exerciseId,current.learning_direction]
+   [learner.id,id,exerciseId,current.learning_direction,current.version_id]
   );
   return {lesson_id:id,exercise_id:exerciseId,current_version_id:current.version_id,attempts:history.rows.map(attempt=>({id:attempt.id,lesson_version_id:attempt.lesson_version_id,response:attempt.response,correct:attempt.is_correct,feedback:attempt.feedback,attempted_at:attempt.attempted_at}))};
  });
