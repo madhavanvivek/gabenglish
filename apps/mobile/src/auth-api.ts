@@ -186,6 +186,16 @@ export async function getGabrooRecognitionStatus(){
  return parsed.data;
 }
 
+
+export type LearningProgressOverview={
+ learning_direction:"ml_to_en"|"en_to_ml";
+ summary:{total_courses:number;total_lessons:number;started_lessons:number;completed_lessons:number;progress_percent:number};
+ courses:Array<{id:string;code:string;title:string;description:string|null;total_lessons:number;started_lessons:number;completed_lessons:number;progress_percent:number;last_activity_at:string|null}>;
+};
+export async function getLearningProgressOverview(){
+ return await authorized("/api/v1/progress/overview","GET") as LearningProgressOverview;
+}
+
 export async function getSubscriptionStatus(){return await authorized("/api/v1/subscriptions/current","GET") as SubscriptionStatus;}
 export async function listGabrooConversations(){return await authorized("/api/v1/gabroo/conversations","GET") as {conversations:GabrooConversation[]};}
 export async function getGabrooConversation(id:string){return await authorized("/api/v1/gabroo/conversations/"+encodeURIComponent(id),"GET") as {conversation:GabrooConversation;messages:GabrooConversationMessage[]};}
