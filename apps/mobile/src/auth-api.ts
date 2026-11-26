@@ -265,3 +265,24 @@ export async function saveLearningLessonProgress(id:string,progress_percent:numb
 export async function submitLearningExerciseAttempt(lessonId:string,exerciseId:string,response:string){
  return await authorized("/api/v1/learning/lessons/"+encodeURIComponent(lessonId)+"/exercises/"+encodeURIComponent(exerciseId)+"/attempts","POST",{response}) as {lesson_id:string;exercise_id:string;result:{correct:boolean;feedback:string}};
 }
+
+
+export type LearningExerciseAttemptHistory = {
+ lesson_id:string;
+ exercise_id:string;
+ current_version_id:string;
+ attempts:Array<{
+  id:string;
+  lesson_version_id:string;
+  response:string;
+  correct:boolean;
+  feedback:string|null;
+  attempted_at:string;
+ }>;
+};
+export async function getLearningExerciseAttemptHistory(lessonId:string,exerciseId:string){
+ return await authorized(
+  "/api/v1/learning/lessons/"+encodeURIComponent(lessonId)+"/exercises/"+encodeURIComponent(exerciseId)+"/attempts",
+  "GET"
+ ) as LearningExerciseAttemptHistory;
+}
