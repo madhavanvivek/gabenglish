@@ -265,9 +265,9 @@ export async function saveLearningLessonProgress(id:string,lesson_version_id:str
  return parsed.data;
 }
 
-export async function submitLearningExerciseAttempt(lessonId:string,exerciseId:string,lessonVersionId:string,response:string):Promise<LearningExerciseAttemptResultContract>{
+export async function submitLearningExerciseAttempt(lessonId:string,exerciseId:string,lessonVersionId:string,submissionId:string,response:string):Promise<LearningExerciseAttemptResultContract>{
  if(!lessonVersionId.trim())throw new AuthApiError("Reload this lesson before submitting an answer.");
- const payload=await authorized("/api/v1/learning/lessons/"+encodeURIComponent(lessonId)+"/exercises/"+encodeURIComponent(exerciseId)+"/attempts","POST",{lesson_version_id:lessonVersionId,response});
+ const payload=await authorized("/api/v1/learning/lessons/"+encodeURIComponent(lessonId)+"/exercises/"+encodeURIComponent(exerciseId)+"/attempts","POST",{lesson_version_id:lessonVersionId,submission_id:submissionId,response});
  const parsed=learningExerciseAttemptResultSchema.safeParse(payload);
  if(!parsed.success||parsed.data.lesson_id!==lessonId||parsed.data.exercise_id!==exerciseId)throw new AuthApiError("The exercise result returned invalid or mismatched data.");
  return parsed.data;
