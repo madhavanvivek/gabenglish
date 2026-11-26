@@ -33,7 +33,8 @@ const conversationFollowUps:Record<GabrooConversationMode,string[]>={
 const correctionPracticeActions=[
  "Explain your last correction in simple words.",
  "Show me another natural example.",
- "Give me a short question so I can practise that correction."
+ "Give me a short question so I can practise that correction.",
+ "Build a three-step mini practice from that correction. Start easy and gradually make each question harder. Ask one question at a time, wait for my answer, and give feedback before moving on. Do not reveal the answer until I try."
 ];
 const conversationStarters=[
  "Help me introduce myself in English.",
