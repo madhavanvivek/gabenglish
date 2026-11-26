@@ -309,4 +309,47 @@ describe("API foundation",()=>{
   }finally{await app.close();}
  });
 
+
+ it("returns a direction-scoped course progress overview for the authenticated learner",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const learnerId="00000000-0000-4000-8000-000000000001";
+  const queries:{sql:string;values?:unknown[]}[]=[];
+  const pool={query:async(sql:string,values?:unknown[])=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:learnerId,email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
+   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
+   if(sql.includes("COUNT(l.id)::int AS total_lessons")){queries.push({sql,values});return {rows:[
+    {course_id:"course-1",course_code:"A1",course_title:"Everyday English",course_description:"Start speaking",total_lessons:4,started_lessons:2,completed_lessons:1,progress_percent:"37.50",last_activity_at:new Date("2026-11-26T10:00:00Z")},
+    {course_id:"course-2",course_code:"A2",course_title:"Confident English",course_description:null,total_lessons:2,started_lessons:0,completed_lessons:0,progress_percent:"0.00",last_activity_at:null}
+   ]};}
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  try{
+   const response=await app.inject({method:"GET",url:"/api/v1/progress/overview",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+   expect(response.statusCode).toBe(200);
+   expect(response.json()).toMatchObject({learning_direction:"ml_to_en",summary:{total_courses:2,total_lessons:6,started_lessons:2,completed_lessons:1,progress_percent:25},courses:[{id:"course-1",progress_percent:37.5},{id:"course-2",progress_percent:0}]});
+   expect(queries).toHaveLength(1);
+   expect(queries[0]?.values).toEqual([learnerId,"ml_to_en"]);
+   expect(queries[0]?.sql).toContain("educator_review_status='approved'");
+  }finally{await app.close();}
+ });
+
+ it("requires authentication and an active subscription for course progress",async()=>{
+  const config=loadConfig({NODE_ENV:"test"});
+  const pool={query:async(sql:string)=>{
+   if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:"00000000-0000-4000-8000-000000000001",email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
+   if(sql.includes("active_subscription_entitlements"))return {rows:[]};
+   return {rows:[]};
+  }} as any;
+  const app=await buildApp(config,async()=>true,pool);
+  try{
+   const anonymous=await app.inject({method:"GET",url:"/api/v1/progress/overview"});
+   expect(anonymous.statusCode).toBe(401);
+   const free=await app.inject({method:"GET",url:"/api/v1/progress/overview",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)}});
+   expect(free.statusCode).toBe(403);
+   expect(free.json().error.code).toBe("PAID_SUBSCRIPTION_REQUIRED");
+  }finally{await app.close();}
+ });
+
 });
