@@ -160,7 +160,7 @@ describe("API foundation",()=>{
   await app.close();
  });
 
- it("returns only the learner's selected learning direction from the paid catalog",async()=>{
+ it("returns only the learner's selected learning direction and saved course progress",async()=>{
   const config=loadConfig({NODE_ENV:"test"});
   const queries:Array<{sql:string;values:unknown[]|undefined}>=[];
   const pool={query:async(sql:string,values?:unknown[])=>{
@@ -170,7 +170,13 @@ describe("API foundation",()=>{
    }
    if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
    if(sql.includes("FROM user_preferences"))return {rows:[{learning_direction:"en_to_ml"}]};
-   if(sql.includes("FROM courses c")&&sql.includes("LEFT JOIN lesson_versions"))return {rows:[]};
+   if(sql.includes("FROM courses c")&&sql.includes("LEFT JOIN lesson_versions"))return {rows:[{
+    course_id:"course-1",course_code:"ml-basics",course_title:"Malayalam Basics",course_description:null,course_sort:1,
+    learning_direction:"en_to_ml",source_language:"en",target_language:"ml",support_language:"en",
+    course_progress_percent:"37.50",course_completed_lessons:3,course_total_lessons:8,
+    module_id:null,module_title:null,module_sort:null,lesson_id:null,lesson_slug:null,lesson_title:null,lesson_sort:null,
+    lesson_version_id:null,lesson_version_number:null,script_mode:null,register:null,dialect_scope:null,romanisation:null
+   }]};
    return {rows:[]};
   }} as any;
   const app=await buildApp(config,async()=>true,pool);
@@ -178,10 +184,13 @@ describe("API foundation",()=>{
   expect(response.statusCode).toBe(200);
   expect(response.json().learning_direction).toBe("en_to_ml");
   expect(response.json().target_language).toBe("ml");
-  expect(response.json().courses).toEqual([]);
+  expect(response.json().courses).toMatchObject([{
+   id:"course-1",progress:{progress_percent:37.5,completed_lessons:3,total_lessons:8},modules:[]
+  }]);
   const catalogQuery=queries.find(query=>query.sql.includes("FROM courses c")&&query.sql.includes("LEFT JOIN lesson_versions"));
-  expect(catalogQuery?.values).toEqual(["en_to_ml"]);
+  expect(catalogQuery?.values).toEqual(["en_to_ml","00000000-0000-4000-8000-000000000001"]);
   expect(catalogQuery?.sql).toContain("c.learning_direction=$1");
+  expect(catalogQuery?.sql).toContain("p.user_id=$2");
   expect(catalogQuery?.sql).toContain("lv.educator_review_status='approved'");
   await app.close();
  });
