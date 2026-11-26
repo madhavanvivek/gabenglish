@@ -24,6 +24,7 @@ describe("vocabulary spaced repetition scheduler",()=>{
   const next=scheduleVocabularyReview({repetitions:2,intervalDays:3,easeFactor:3.99},5,at);
   expect(next.easeFactor).toBe(4);
  });
+ // Database constraints protect persisted rows; the scheduler also fails closed if invalid state reaches it.
  it("rejects corrupted persisted schedule state",()=>{
   const invalid=[
    {repetitions:-1,intervalDays:0,easeFactor:2.5},
