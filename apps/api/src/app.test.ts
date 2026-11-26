@@ -276,7 +276,6 @@ describe("API foundation",()=>{
   const pool={query:async(sql:string,values?:unknown[])=>{
    if(sql.includes("FROM users u JOIN refresh_sessions"))return {rows:[{id:learnerId,email:"learner@example.com",status:"active",email_verified_at:new Date(),phone_verified_at:null,display_name:"Learner",locale:"ml-IN",timezone:"Asia/Kolkata"}]};
    if(sql.includes("active_subscription_entitlements"))return {rows:[{id:"entitlement-1"}]};
-   if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
    if(sql.includes("SELECT lv.id AS version_id,c.learning_direction,lv.content"))return {rows:[{version_id:versionId,learning_direction:"ml_to_en",content:{schema_version:1,blocks:[{type:"exercise",id:"greeting",instruction:"Choose",prompt:"Morning",response_type:"single_choice",options:[{id:"morning",label:"Good morning"},{id:"night",label:"Good night"}]}]}}]};
    if(sql.includes("FROM learner_exercise_attempts")){attemptQuery.push({sql,values});return {rows:[{response:"morning",is_correct:true,feedback:"Correct.",attempted_at:new Date("2026-11-26T10:00:00Z")}]};}
    return {rows:[]};
