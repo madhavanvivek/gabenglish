@@ -248,8 +248,20 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   const params=request.params as {id?:string;exerciseId?:string};
   const id=params.id??"",exerciseId=params.exerciseId??"";
   if(!lessonIdPattern.test(id)||!/^[a-z0-9_-]{1,64}$/i.test(exerciseId))return failure(reply,request.id,400,"INVALID_EXERCISE_REFERENCE","This exercise link is invalid.");
-  const body=request.body as {lesson_version_id?:unknown;response?:unknown}|null;
-  if(!body||typeof body.lesson_version_id!=="string"||!body.lesson_version_id.trim()||body.lesson_version_id.length>128||typeof body.response!=="string"||!body.response.trim()||body.response.trim().length>2000||Object.keys(body).some(key=>key!=="lesson_version_id"&&key!=="response"))return failure(reply,request.id,400,"VALIDATION_ERROR","Reload the lesson and enter an answer of up to 2,000 characters.");
+  const body=request.body as {lesson_version_id?:unknown;submission_id?:unknown;response?:unknown}|null;
+  const submissionIdPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if(!body||typeof body.lesson_version_id!=="string"||!body.lesson_version_id.trim()||body.lesson_version_id.length>128||typeof body.submission_id!=="string"||!submissionIdPattern.test(body.submission_id)||typeof body.response!=="string"||!body.response.trim()||body.response.trim().length>2000||Object.keys(body).some(key=>key!=="lesson_version_id"&&key!=="submission_id"&&key!=="response"))return failure(reply,request.id,400,"VALIDATION_ERROR","Reload the lesson and enter an answer of up to 2,000 characters.");
+  const submitted=body.response.trim();
+  const previous=await pool.query<{lesson_id:string;lesson_version_id:string;exercise_id:string;response:string;is_correct:boolean;feedback:string|null}>(
+   `SELECT lesson_id,lesson_version_id,exercise_id,response,is_correct,feedback
+    FROM learner_exercise_attempts WHERE user_id=$1 AND submission_id=$2`,
+   [learner.id,body.submission_id]
+  );
+  if(previous.rows[0]){
+   const attempt=previous.rows[0];
+   if(attempt.lesson_id!==id||attempt.lesson_version_id!==body.lesson_version_id||attempt.exercise_id!==exerciseId||attempt.response!==submitted)return failure(reply,request.id,409,"SUBMISSION_ID_CONFLICT","This retry identifier was already used for a different answer. Please submit again.");
+   return {lesson_id:id,exercise_id:exerciseId,result:{correct:attempt.is_correct,feedback:attempt.feedback??(attempt.is_correct?"Good work. Your answer is correct.":"Not quite. Review the lesson and try again.")}};
+  }
   const result=await pool.query<{course_id:string;learning_direction:Direction;version_id:string;content:unknown}>(
    `SELECT c.id AS course_id,c.learning_direction,lv.id AS version_id,lv.content
     FROM lessons l JOIN modules m ON m.id=l.module_id JOIN courses c ON c.id=m.course_id
@@ -266,7 +278,6 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   if(lesson.version_id!==body.lesson_version_id)return failure(reply,request.id,409,"LESSON_VERSION_CHANGED","This lesson has been updated. Reload it before submitting your answer.");
   const exercise=match.exercise;
   if(!exercise)return failure(reply,request.id,404,"EXERCISE_NOT_FOUND","This exercise is not part of the published lesson.");
-  const submitted=body.response.trim();
   const evaluated=evaluateAuthoredExercise(exercise,submitted);
   if(!evaluated){
    if(exercise.response_type==="single_choice"&&Array.isArray(exercise.options)){
@@ -276,11 +287,23 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
    return failure(reply,request.id,503,"EXERCISE_NOT_CONFIGURED","This exercise is awaiting a valid answer key or accepted-answer rubric.");
   }
   const {correct,feedback}=evaluated;
-  await pool.query(
-   `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-   [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,submitted,correct,feedback]
+  const inserted=await pool.query(
+   `INSERT INTO learner_exercise_attempts(user_id,course_id,lesson_id,lesson_version_id,learning_direction,exercise_id,response,is_correct,feedback,submission_id)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    ON CONFLICT(user_id,submission_id) WHERE submission_id IS NOT NULL DO NOTHING
+    RETURNING id`,
+   [learner.id,lesson.course_id,id,lesson.version_id,lesson.learning_direction,exerciseId,submitted,correct,feedback,body.submission_id]
   );
+  if(inserted.rowCount===0){
+   const duplicate=await pool.query<{lesson_id:string;lesson_version_id:string;exercise_id:string;response:string;is_correct:boolean;feedback:string|null}>(
+    `SELECT lesson_id,lesson_version_id,exercise_id,response,is_correct,feedback
+     FROM learner_exercise_attempts WHERE user_id=$1 AND submission_id=$2`,
+    [learner.id,body.submission_id]
+   );
+   const attempt=duplicate.rows[0];
+   if(!attempt||attempt.lesson_id!==id||attempt.lesson_version_id!==body.lesson_version_id||attempt.exercise_id!==exerciseId||attempt.response!==submitted)return failure(reply,request.id,409,"SUBMISSION_ID_CONFLICT","This retry identifier was already used for a different answer. Please submit again.");
+   return {lesson_id:id,exercise_id:exerciseId,result:{correct:attempt.is_correct,feedback:attempt.feedback??feedback}};
+  }
   return {lesson_id:id,exercise_id:exerciseId,result:{correct,feedback}};
  });
 
