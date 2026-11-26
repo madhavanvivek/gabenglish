@@ -69,11 +69,11 @@ export function buildGabrooTeachingPolicy(input:{mode:GabrooConversationMode;sup
   },
   learnerMemory:(input.learnerMemory??[]).slice(0,20).map(item=>({category:item.category,memoryKey:item.memoryKey.slice(0,80),content:item.content.slice(0,500)})),
   vocabularyReviewContext:{
-   activeItems:Math.max(0,Math.floor(input.vocabularyReviewContext?.activeItems??0)),
-   dueItems:Math.max(0,Math.floor(input.vocabularyReviewContext?.dueItems??0)),
-   reviewedLast7Days:Math.max(0,Math.floor(input.vocabularyReviewContext?.reviewedLast7Days??0)),
-   againLast7Days:Math.max(0,Math.floor(input.vocabularyReviewContext?.againLast7Days??0)),
-   dueWords:(input.vocabularyReviewContext?.dueWords??[]).slice(0,5).map(word=>({sourceTerm:word.sourceTerm.slice(0,160),targetTerm:word.targetTerm.slice(0,240)}))
+   activeItems:Math.max(0,Math.floor(vocabulary.activeItems)),
+   dueItems,
+   reviewedLast7Days,
+   againLast7Days,
+   dueWords:(vocabulary.dueWords??[]).slice(0,5).map(word=>({sourceTerm:word.sourceTerm.slice(0,160),targetTerm:word.targetTerm.slice(0,240)}))
   }
  };
 }
