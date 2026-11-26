@@ -14,6 +14,7 @@ type CatalogRow={
  module_id:string|null;module_title:string|null;module_sort:number|null;
  lesson_id:string|null;lesson_slug:string|null;lesson_title:string|null;lesson_sort:number|null;
  lesson_version_id:string|null;lesson_version_number:number|null;
+ lesson_progress_status:"not_started"|"in_progress"|"completed"|null;lesson_progress_percent:string|null;
  script_mode:string|null;register:string|null;dialect_scope:string|null;romanisation:string|null;
 };
 
@@ -42,6 +43,7 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
      m.id AS module_id,m.title AS module_title,m.sort_order AS module_sort,
      l.id AS lesson_id,l.slug AS lesson_slug,l.title AS lesson_title,l.sort_order AS lesson_sort,
      lv.id AS lesson_version_id,lv.version_number AS lesson_version_number,
+     lp.status AS lesson_progress_status,lp.progress_percent::text AS lesson_progress_percent,
      lv.script_mode,lv.register,lv.dialect_scope,lv.romanisation
     FROM courses c
     LEFT JOIN modules m ON m.course_id=c.id
@@ -49,6 +51,8 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
     LEFT JOIN lesson_versions lv ON lv.id=l.current_published_version_id
       AND lv.lesson_id=l.id AND lv.status='published'
       AND (c.learning_direction<>'en_to_ml' OR lv.educator_review_status='approved')
+    LEFT JOIN learner_lesson_progress lp ON lp.user_id=$2 AND lp.lesson_id=l.id
+      AND lp.lesson_version_id=lv.id AND lp.learning_direction=c.learning_direction
     LEFT JOIN LATERAL (
       SELECT COALESCE(AVG(COALESCE(p.progress_percent,0)),0)::numeric(5,2)::text AS progress_percent,
         COUNT(l2.id)::int AS total_lessons,
@@ -82,7 +86,8 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
     id:row.lesson_id,slug:row.lesson_slug,title:row.lesson_title,
     version_id:row.lesson_version_id,version:row.lesson_version_number,
     script_mode:row.script_mode,register:row.register,
-    dialect_scope:row.dialect_scope,romanisation:row.romanisation
+    dialect_scope:row.dialect_scope,romanisation:row.romanisation,
+    progress:row.lesson_progress_status?{status:row.lesson_progress_status,progress_percent:Number(row.lesson_progress_percent)}:null
    });
   }
   return {learning_direction:direction,target_language:direction==="ml_to_en"?"en":"ml",courses:[...courses.values()].map(course=>({...course,modules:[...course.modules.values()]})),publication_policy:{drafts_hidden:true,malayalam_requires_educator_approval:true}};
