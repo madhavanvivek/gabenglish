@@ -1,5 +1,5 @@
-import {useEffect,useState} from "react";
-import {Link} from "expo-router";
+import {useCallback,useState} from "react";
+import {Link,useFocusEffect} from "expo-router";
 import {Pressable,ScrollView,StyleSheet,Text,View} from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {BrandMark,Eyebrow,SurfaceCard} from "../src/ui";
@@ -21,7 +21,7 @@ export default function LearnScreen(){
  const [catalogMessage,setCatalogMessage]=useState("");
  const [catalogLoading,setCatalogLoading]=useState(true);
  const [retryCount,setRetryCount]=useState(0);
- useEffect(()=>{let active=true;setCatalogLoading(true);setCatalogMessage("");void getLearnerMe().then(me=>{if(active)setDirection(resolveLearningDirection(me.preferences?.learning_direction));}).catch(()=>{});void getPublishedLearningCatalog().then(value=>{if(active)setCatalog(value);}).catch(error=>{if(active)setCatalogMessage(error instanceof Error?error.message:"Published lessons are temporarily unavailable.");}).finally(()=>{if(active)setCatalogLoading(false);});return()=>{active=false;};},[retryCount]);
+ useFocusEffect(useCallback(()=>{let active=true;setCatalogLoading(true);setCatalogMessage("");void getLearnerMe().then(me=>{if(active)setDirection(resolveLearningDirection(me.preferences?.learning_direction));}).catch(()=>{});void getPublishedLearningCatalog().then(value=>{if(active)setCatalog(value);}).catch(error=>{if(active)setCatalogMessage(error instanceof Error?error.message:"Published lessons are temporarily unavailable.");}).finally(()=>{if(active)setCatalogLoading(false);});return()=>{active=false;};},[retryCount]));
  const stage=stages[selected-1];
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page}>
   <View style={s.header}><Link href="/home" style={s.back}>‹ Home</Link><BrandMark size={42}/><Text style={s.brand}>Your learning path</Text><Text style={s.subtitle}>Five stages. One step at a time.</Text></View>
