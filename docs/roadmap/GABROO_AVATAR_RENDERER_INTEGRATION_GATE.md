@@ -176,7 +176,7 @@ A transcription request may already be in flight when the learner backgrounds th
 
 ## Bounded transcription uploads
 
-Before uploading a learner-approved recording for transcription, the mobile client now verifies that the URI is an app-local `file:///` URI, the file still exists, its byte size is known and non-zero, and the file is no larger than 15 MiB. This fails closed before authentication refresh or network upload if the recording is missing, unverifiable, remote, empty or oversized. Unit tests cover accepted local files, URI isolation, missing metadata, the size ceiling and invalid limits.
+Before uploading a learner-approved recording for transcription, the mobile client now verifies that the URI is an app-local `file:///` URI, the file still exists, its byte size is known and non-zero, and the file is no larger than 10 MiB. This fails closed before authentication refresh or network upload if the recording is missing, unverifiable, remote, empty or oversized. Unit tests cover accepted local files, URI isolation, missing metadata, the size ceiling and invalid limits.
 
 
 ## Microphone capture lifecycle race protection
