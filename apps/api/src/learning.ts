@@ -261,9 +261,9 @@ export async function registerLearningRoutes(app:FastifyInstance,pool:Pool,confi
   );
   const lesson=result.rows[0];
   if(!lesson)return failure(reply,request.id,404,"LESSON_NOT_FOUND","This lesson is not published for your selected learning direction.");
-  if(lesson.version_id!==body.lesson_version_id)return failure(reply,request.id,409,"LESSON_VERSION_CHANGED","This lesson has been updated. Reload it before submitting your answer.");
   const match=findLessonExercise(lesson.content,exerciseId);
   if(match.ambiguous)return failure(reply,request.id,503,"EXERCISE_CONTENT_AMBIGUOUS","This exercise is temporarily unavailable because its published lesson content needs correction.");
+  if(lesson.version_id!==body.lesson_version_id)return failure(reply,request.id,409,"LESSON_VERSION_CHANGED","This lesson has been updated. Reload it before submitting your answer.");
   const exercise=match.exercise;
   if(!exercise)return failure(reply,request.id,404,"EXERCISE_NOT_FOUND","This exercise is not part of the published lesson.");
   const submitted=body.response.trim();
