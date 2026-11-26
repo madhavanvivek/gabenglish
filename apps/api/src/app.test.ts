@@ -286,15 +286,15 @@ describe("API foundation",()=>{
    if(sql.includes("SELECT learning_direction FROM user_preferences"))return {rows:[{learning_direction:"ml_to_en"}]};
    if(sql.includes("SELECT lv.id AS lesson_version_id"))return {rows:[{lesson_version_id:"00000000-0000-4000-8000-000000000003"}]};
    if(sql.includes("SELECT repetitions,interval_days,ease_factor"))return {rows:[]};
-   if(sql.includes("INSERT INTO learner_vocabulary_reviews")){insertedValues=values;return {rows:[{due_at:dueAt,repetitions:1,interval_days:1,ease_factor:"2.60"}]};}
+   if(sql.includes("INSERT INTO learner_vocabulary_reviews")){insertedValues=values;return {rows:[{due_at:dueAt,repetitions:1,interval_days:1,ease_factor:"2.50"}]};}
    return {rows:[]};
   }} as any;
   const app=await buildApp(config,async()=>true,pool);
   const response=await app.inject({method:"POST",url:"/api/v1/learning/lessons/00000000-0000-4000-8000-000000000002/vocabulary/greeting_hello/review",headers:{authorization:learnerAuthHeader(config.AUTH_TOKEN_SECRET)},payload:{rating:4}});
   expect(response.statusCode).toBe(200);
-  expect(response.json()).toMatchObject({vocabulary_item_id:"greeting_hello",rating:4,schedule:{repetitions:1,interval_days:1,ease_factor:2.6}});
+  expect(response.json()).toMatchObject({vocabulary_item_id:"greeting_hello",rating:4,schedule:{repetitions:1,interval_days:1,ease_factor:2.5}});
   expect(statements.some(sql=>sql.includes("ON CONFLICT(user_id,learning_direction,lesson_version_id,vocabulary_item_id)"))).toBe(true);
-  expect(insertedValues?.slice(5,8)).toEqual([1,1,2.6]);
+  expect(insertedValues?.slice(5,8)).toEqual([1,1,2.5]);
   await app.close();
  });
  it("returns learner vocabulary retention counts from current published content",async()=>{
