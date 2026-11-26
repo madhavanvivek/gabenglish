@@ -414,6 +414,11 @@ describe("API foundation",()=>{
   expect(statements.some(item=>item.sql.includes("ON CONFLICT(user_id,lesson_id,lesson_version_id,learning_direction)"))).toBe(true);
   expect(statements.some(item=>item.sql.includes("GREATEST(learner_lesson_progress.progress_percent,EXCLUDED.progress_percent)"))).toBe(true);
   expect(statements.some(item=>item.sql.includes("status=EXCLUDED.status")&&item.sql.includes("progress_percent=EXCLUDED.progress_percent"))).toBe(true);
+  const aggregateQuery=statements.find(item=>item.sql.includes("SELECT COALESCE(AVG(COALESCE(p.progress_percent,0))"));
+  expect(aggregateQuery?.sql).toContain("lv.id=l.current_published_version_id");
+  expect(aggregateQuery?.sql).toContain("p.lesson_version_id=lv.id");
+  expect(aggregateQuery?.sql).toContain("l.status='published'");
+  expect(aggregateQuery?.sql).toContain("lv.status='published'");
   expect(statements.some(item=>item.sql.includes("ELSE NULL END"))).toBe(true);
   expect(statements.some(item=>item.sql.includes("learner_lesson_progress.status='completed'"))).toBe(true);
   expect(statements.some(item=>item.sql==="COMMIT")).toBe(true);
