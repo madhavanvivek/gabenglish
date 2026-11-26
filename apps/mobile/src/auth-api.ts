@@ -11,7 +11,7 @@ const ACCESS_KEY="gabenglish.auth.access";
 const REFRESH_KEY="gabenglish.auth.refresh";
 
 export class AuthApiError extends Error{
- constructor(message:string,readonly status?:number){super(message);this.name="AuthApiError";}
+ constructor(message:string,readonly status?:number,readonly code?:string){super(message);this.name="AuthApiError";}
 }
 export type LearnerAccount={
  id:string;email:string|null;email_verified:boolean;phone_verified:boolean;display_name:string|null;locale:string;timezone:string;
@@ -33,8 +33,10 @@ function baseUrl(){
 async function parseResponse(response:Response){
  const payload=await response.json().catch(()=>null) as unknown;
  if(!response.ok){
-  const message=typeof payload==="object"&&payload!==null&&"error" in payload&&typeof payload.error==="object"&&payload.error!==null&&"message" in payload.error&&typeof payload.error.message==="string"?payload.error.message:`The account service returned an error (${response.status}).`;
-  throw new AuthApiError(message,response.status);
+  const apiError=typeof payload==="object"&&payload!==null&&"error" in payload&&typeof payload.error==="object"&&payload.error!==null?payload.error:null;
+  const message=apiError&&"message" in apiError&&typeof apiError.message==="string"?apiError.message:`The account service returned an error (${response.status}).`;
+  const code=apiError&&"code" in apiError&&typeof apiError.code==="string"?apiError.code:undefined;
+  throw new AuthApiError(message,response.status,code);
  }
  return payload;
 }
